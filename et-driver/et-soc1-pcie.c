@@ -60,8 +60,6 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
-static struct et_bar_addr_dbg *mgmt_bar_addr_dbg;
-static struct et_bar_addr_dbg *ops_bar_addr_dbg;
 /*
  * DIR discovery timeout in seconds for mgmt/ops nodes, if set to 0, checks
  * DIR status only once and returns immediately if not ready.
@@ -205,7 +203,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 					   MEM_REGION_NODE_ACCESSIBLE_OPS))
 			return -EACCES;
 
-		user_dram.base = region->soc_addr;
+		user_dram.base = region->dev_phys_addr;
 		user_dram.size = region->size;
 		user_dram.dma_max_elem_size = region->access.dma_elem_size *
 					      MEM_REGION_DMA_ELEMENT_STEP_SIZE;
@@ -1259,7 +1257,6 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	ssize_t rv;
 	struct event_dbg_msg dbg_msg;
 	char syndrome_str[ET_EVENT_SYNDROME_LEN];
-	struct et_bar_addr_dbg *bar_addr_dbg;
 	struct et_bar_region *existing_node, *new_node;
 
 	if (is_mgmt) {
@@ -1275,11 +1272,6 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	syndrome_str[0] = '\0';
 	dbg_msg.syndrome = syndrome_str;
 	dbg_msg.count = 1;
-
-	if (is_mgmt)
-		bar_addr_dbg = mgmt_bar_addr_dbg;
-	else
-		bar_addr_dbg = ops_bar_addr_dbg;
 
 	memset(regions, 0, num_reg_types * sizeof(*regions));
 	for (i = 0; i < regs_count; i++, reg_pos += section_size) {
@@ -1376,17 +1368,15 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 
 		// Skip BAR mapping of region if IO access is disabled by device
 		if (!dir_mem_region->access.io_access) {
-			bar_addr_dbg->phys_addr =
+			regions[dir_mem_region->type].is_valid = true;
+			regions[dir_mem_region->type].host_phys_addr =
 				pci_resource_start(et_dev->pdev, bm_info.bar) +
 				bm_info.bar_offset;
-			bar_addr_dbg->mapped_baseaddr = NULL;
-			bar_addr_dbg++;
-			regions[dir_mem_region->type].is_valid = true;
 			regions[dir_mem_region->type].mapped_baseaddr = NULL;
+			regions[dir_mem_region->type].dev_phys_addr =
+				dir_mem_region->dev_address;
 			regions[dir_mem_region->type].size =
 				dir_mem_region->bar_size;
-			regions[dir_mem_region->type].soc_addr =
-				dir_mem_region->dev_address;
 			memcpy(&regions[dir_mem_region->type].access,
 			       (u8 *)&dir_mem_region->access,
 			       sizeof(dir_mem_region->access));
@@ -1488,16 +1478,14 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			goto error_unmap_discovered_regions;
 		}
 
-		bar_addr_dbg->phys_addr =
+		// Save other region information
+		regions[dir_mem_region->type].host_phys_addr =
 			pci_resource_start(et_dev->pdev, bm_info.bar) +
 			bm_info.bar_offset;
-		bar_addr_dbg->mapped_baseaddr =
+		regions[dir_mem_region->type].mapped_baseaddr =
 			regions[dir_mem_region->type].mapped_baseaddr;
-		bar_addr_dbg++;
-
-		// Save other region information
 		regions[dir_mem_region->type].size = dir_mem_region->bar_size;
-		regions[dir_mem_region->type].soc_addr =
+		regions[dir_mem_region->type].dev_phys_addr =
 			dir_mem_region->dev_address;
 		memcpy(&regions[dir_mem_region->type].access,
 		       (u8 *)&dir_mem_region->access,
@@ -1830,14 +1818,6 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 
 	dir_pos += section_size;
 
-	mgmt_bar_addr_dbg = kmalloc_array(dir_mgmt->num_regions,
-					  sizeof(struct et_bar_addr_dbg),
-					  GFP_KERNEL);
-	if (!mgmt_bar_addr_dbg) {
-		rv = -ENOMEM;
-		goto error_free_dir_data;
-	}
-
 	/*
 	 * Map all memory regions and save attributes
 	 */
@@ -1850,13 +1830,13 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	if (rv < 0) {
 		dev_err(&et_dev->pdev->dev,
 			"Mgmt: DIR Memory Regions mapping failed!");
-		goto error_free_mgmt_bar_addr_dbg;
+		goto error_free_dir_data;
 	}
 
 	et_print_mgmt_dir(&et_dev->pdev->dev,
 			  dir_data,
 			  dir_size,
-			  mgmt_bar_addr_dbg);
+			  et_dev->mgmt.regions);
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
@@ -1906,7 +1886,6 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		et_dev->mgmt.miscdev_created = true;
 	}
 
-	kfree(mgmt_bar_addr_dbg);
 	kfree(dir_data);
 
 	et_dev->mgmt.is_initialized = true;
@@ -1922,9 +1901,6 @@ error_vqueue_destroy_all:
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
-
-error_free_mgmt_bar_addr_dbg:
-	kfree(mgmt_bar_addr_dbg);
 
 error_free_dir_data:
 	kfree(dir_data);
@@ -2184,14 +2160,6 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 
 	dir_pos += section_size;
 
-	ops_bar_addr_dbg = kmalloc_array(dir_ops->num_regions,
-					 sizeof(struct et_bar_addr_dbg),
-					 GFP_KERNEL);
-	if (!ops_bar_addr_dbg) {
-		rv = -ENOMEM;
-		goto error_free_dir_data;
-	}
-
 	/*
 	 * Map all memory regions and save attributes
 	 */
@@ -2204,13 +2172,13 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	if (rv < 0) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops: DIR Memory Regions mapping failed!");
-		goto error_free_ops_bar_addr_dbg;
+		goto error_free_dir_data;
 	}
 
 	et_print_ops_dir(&et_dev->pdev->dev,
 			 dir_data,
 			 dir_size,
-			 ops_bar_addr_dbg);
+			 et_dev->ops.regions);
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
@@ -2260,7 +2228,6 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		et_dev->ops.miscdev_created = true;
 	}
 
-	kfree(ops_bar_addr_dbg);
 	kfree(dir_data);
 
 	et_dev->ops.is_initialized = true;
@@ -2276,9 +2243,6 @@ error_vqueue_destroy_all:
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
-
-error_free_ops_bar_addr_dbg:
-	kfree(ops_bar_addr_dbg);
 
 error_free_dir_data:
 	kfree(dir_data);
@@ -2519,7 +2483,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_saved_state;
 	}
 
-	et_dev->reset_workqueue = alloc_workqueue("%s:%d_rstwq",
+	et_dev->reset_workqueue = alloc_workqueue("%s:et%d_rstwq",
 						  WQ_MEM_RECLAIM | WQ_UNBOUND,
 						  1,
 						  dev_name(&et_dev->pdev->dev),

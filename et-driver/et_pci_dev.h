@@ -37,18 +37,6 @@ struct et_bar_mapping {
 
 extern const struct et_bar_mapping DIR_MAPPINGS[];
 
-struct et_mapped_region {
-	bool is_valid;			/*
-					 * compulsory regions must be valid,
-					 * non-compulsory regions may or may
-					 * not be valid
-					 */
-	struct et_dir_reg_access access;
-	void __iomem *mapped_baseaddr;
-	u64 soc_addr;
-	u64 size;
-};
-
 enum et_msi_vec_idx {
 	ET_MGMT_SQ_VEC_IDX = 0,
 	ET_MGMT_CQ_VEC_IDX,

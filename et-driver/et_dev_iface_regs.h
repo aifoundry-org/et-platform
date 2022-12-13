@@ -26,6 +26,7 @@
 #define __ET_DEV_IFACE_REGS_H__
 
 #include <linux/dev_printk.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 /*
  * The structure arrangment of DIRs is same for both Mgmt and Ops devices. Mgmt
@@ -261,26 +262,36 @@ struct et_mgmt_dir {
 	struct et_dir_mem_region mem_region[];
 } __packed;
 
-struct et_bar_addr_dbg {
-	u64 phys_addr;
+struct et_mapped_region {
+	bool is_valid; /*
+					 * compulsory regions must be valid,
+					 * non-compulsory regions may or may
+					 * not be valid
+					 */
+	struct et_dir_reg_access access;
 	void __iomem *mapped_baseaddr;
+	u64 dev_phys_addr;
+	u64 host_phys_addr;
+	u64 size;
 };
+
+static DEFINE_MUTEX(dir_print_mutex);
 
 static inline void et_print_mgmt_dir(struct device *dev,
 				     u8 *dir_data,
 				     size_t dir_size,
-				     struct et_bar_addr_dbg *bar_addr_dbg)
+				     struct et_mapped_region *region)
 {
 	int i = 0;
 	size_t remaining_size;
 	struct et_mgmt_dir *mgmt_dir;
-	struct et_bar_addr_dbg *mgmt_bar_addr_dbg = bar_addr_dbg;
 
 	if (!dir_data || !dir_size)
 		return;
 
 	mgmt_dir = (struct et_mgmt_dir *)dir_data;
 
+	mutex_lock(&dir_print_mutex);
 	dev_dbg(dev, "Mgmt DIRs Header\n");
 	dev_dbg(dev,
 		"Version                 : 0x%x\n",
@@ -450,21 +461,24 @@ static inline void et_print_mgmt_dir(struct device *dev,
 			mgmt_dir->mem_region[i].bar_size);
 		dev_dbg(dev,
 			"BAR Region PhysAddr     : 0x%llx\n",
-			mgmt_bar_addr_dbg->phys_addr);
-		dev_dbg(dev,
-			"BAR Region Kern VirtAddr: 0x%px\n",
-			mgmt_bar_addr_dbg->mapped_baseaddr);
-		if (mgmt_dir->mem_region[i].dev_address == 0) {
+			region[mgmt_dir->mem_region[i].type].host_phys_addr);
+		if (!region[mgmt_dir->mem_region[i].type].mapped_baseaddr)
+			dev_dbg(dev, "BAR Region Kern VirtAddr: N/A\n");
+		else
+			dev_dbg(dev,
+				"BAR Region Kern VirtAddr: 0x%px\n",
+				region[mgmt_dir->mem_region[i].type]
+					.mapped_baseaddr);
+		if (mgmt_dir->mem_region[i].dev_address == 0)
 			dev_dbg(dev, "Dev Address             : N/A\n\n");
-		} else {
+		else
 			dev_dbg(dev,
 				"Dev Address             : 0x%llx\n\n",
 				mgmt_dir->mem_region[i].dev_address);
-		}
 		remaining_size -= sizeof(struct et_dir_mem_region);
 		i++;
-		mgmt_bar_addr_dbg++;
 	}
+	mutex_unlock(&dir_print_mutex);
 }
 
 /*
@@ -534,18 +548,18 @@ struct et_ops_dir {
 static inline void et_print_ops_dir(struct device *dev,
 				    u8 *dir_data,
 				    size_t dir_size,
-				    struct et_bar_addr_dbg *bar_addr_dbg)
+				    struct et_mapped_region *region)
 {
 	int i = 0;
 	size_t remaining_size;
 	struct et_ops_dir *ops_dir;
-	struct et_bar_addr_dbg *ops_bar_addr_dbg = bar_addr_dbg;
 
 	if (!dir_data || !dir_size)
 		return;
 
 	ops_dir = (struct et_ops_dir *)dir_data;
 
+	mutex_lock(&dir_print_mutex);
 	dev_dbg(dev, "Ops DIRs Header\n");
 	dev_dbg(dev,
 		"Version                 : 0x%x\n",
@@ -658,21 +672,24 @@ static inline void et_print_ops_dir(struct device *dev,
 			ops_dir->mem_region[i].bar_size);
 		dev_dbg(dev,
 			"BAR Region PhysAddr     : 0x%llx\n",
-			ops_bar_addr_dbg->phys_addr);
-		dev_dbg(dev,
-			"BAR Region Kern VirtAddr: 0x%px\n",
-			ops_bar_addr_dbg->mapped_baseaddr);
-		if (ops_dir->mem_region[i].dev_address == 0) {
+			region[ops_dir->mem_region[i].type].host_phys_addr);
+		if (!region[ops_dir->mem_region[i].type].mapped_baseaddr)
+			dev_dbg(dev, "BAR Region Kern VirtAddr: N/A\n");
+		else
+			dev_dbg(dev,
+				"BAR Region Kern VirtAddr: 0x%px\n",
+				region[ops_dir->mem_region[i].type]
+					.mapped_baseaddr);
+		if (ops_dir->mem_region[i].dev_address == 0)
 			dev_dbg(dev, "Dev Address             : N/A\n\n");
-		} else {
+		else
 			dev_dbg(dev,
 				"Dev Address             : 0x%llx\n\n",
 				ops_dir->mem_region[i].dev_address);
-		}
 		remaining_size -= sizeof(struct et_dir_mem_region);
 		i++;
-		ops_bar_addr_dbg++;
 	}
+	mutex_unlock(&dir_print_mutex);
 }
 
 static inline bool valid_mgmt_vq_region(struct et_mgmt_dir_vqueue *vq_region,

@@ -200,8 +200,8 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (!ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].is_valid)
 			return -EINVAL;
 
-		user_dram.base =
-			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].soc_addr;
+		user_dram.base = ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]
+					 .dev_phys_addr;
 		user_dram.size =
 			ops->regions[OPS_MEM_REGION_TYPE_HOST_MANAGED].size;
 		user_dram.dma_max_elem_size =
@@ -1203,7 +1203,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	region->access.dma_elem_size = 0x4; /* 4 * 32MB = 128MB */
 	region->access.dma_elem_count = 0x4;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_64BIT;
-	region->soc_addr = 0x8101000000ULL;
+	region->dev_phys_addr = 0x8101000000ULL;
 	region->size = 0x2FF000000ULL;
 	region->mapped_baseaddr = NULL;
 
@@ -1444,7 +1444,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_saved_state;
 	}
 
-	et_dev->reset_workqueue = alloc_workqueue("%s:%d_rstwq",
+	et_dev->reset_workqueue = alloc_workqueue("%s:et%d_rstwq",
 						  WQ_MEM_RECLAIM | WQ_UNBOUND,
 						  1,
 						  dev_name(&et_dev->pdev->dev),

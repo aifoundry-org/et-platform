@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15181] Fixed the following:
   * MM reset workflow when previous MM reset has failed
   * Race condition in restoring device state when reset command submission to SQ has failed
+- [SW-15313] Fixed concurrency issue in reset path between devices.
 ### Security
 
 ## [0.11.0] - 2022-11-23
