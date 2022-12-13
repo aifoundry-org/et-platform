@@ -70,6 +70,19 @@ extern "C" {
         Trace_Memory(&CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, src_ptr, size); \
     }
 
+/*! \def et_trace_user_profile_event(regionId, start, func, line)
+    \brief macro used to insert user profile events into trace buffer.
+    \param regionId: arbitrary region to be profiled
+    \param start: wether we are beginning (true) or ending (false) the region
+    \param func: calling function name 
+    \param line: calling line.
+*/
+#define et_trace_user_profile_event(regionId, start, func, line)                              \
+    {                                                                                         \
+        Trace_User_Profile_Event(                                                             \
+            &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, regionId, start, func, line); \
+    }
+
 /*! \def et_trace_register()
     \brief A macro used to log file, line and funtion info along with GPRs dump to the trace buffer.
 */
