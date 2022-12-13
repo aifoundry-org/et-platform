@@ -53,7 +53,7 @@
  *     Trace_Execution_Stack
  *     Trace_Custom_Event
  *     Trace_Event_Copy
- *
+ *     Trace_User_Profile_Event
  * The trace buffer itself is accessed via a control block.
  * This data structure has to be filled with a pointer to the
  * memory buffer that allocates the trace buffer.
@@ -265,7 +265,8 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
                          const uint8_t *payload, uint32_t payload_size);
 int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_header_t *src_entry,
                          void *dst_entry, const uint32_t dst_size);
-
+void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionId, bool start,
+                              const char *func, uint32_t line);
 #ifdef ET_TRACE_ENCODER_IMPL
 
 #include <stdio.h>
@@ -1452,6 +1453,55 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_User_Profile_Event
+*
+*   DESCRIPTION
+*
+*       A function to log 1 user profile event.
+*
+*   INPUTS
+*
+*       trace_control_block_t  Trace control block of logging Thread/Hart.
+*       regionId               region id to be profiled (i.e: arbitrary numeric 
+*                              start-end region quoted in the trace, function scope)
+*       start                  true if the region is starting, false if it ends.
+*       func                   ptr to global literal containing the function name.
+*       line                   line where the event originates
+*       
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionId, bool start,
+                              const char *func, uint32_t line)
+{
+    if (trace_is_enabled(cb)) {
+        enum pmc_counter hartRetInst = ((ET_TRACE_GET_HART_ID() & 0x1) == 0) ?
+                                           PMC_COUNTER_HPMCOUNTER4 :
+                                           PMC_COUNTER_HPMCOUNTER5;
+        uint64_t retiredInsts = ET_TRACE_GET_HPM_COUNTER(hartRetInst);
+
+        struct trace_user_profile_event_t *entry =
+            (struct trace_user_profile_event_t *)trace_buffer_reserve(cb, sizeof(*entry));
+
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)),
+                                TRACE_TYPE_USER_PROFILE_EVENT)
+
+        ET_TRACE_WRITE_U64(entry->func, (uint64_t)func);
+        ET_TRACE_WRITE_U64(entry->retiredInsts, retiredInsts);
+        // note, coalescing writes of line, regionId & status. this is layout-aware.
+        uint64_t value = (((((uint64_t)line) & 0xFFFFFFFFF) << 32) | ((regionId & 0xFFFF) << 16) |
+                          ((uint16_t)start));
+
+        ET_TRACE_WRITE_U64(entry->line_region_status, value);
+    }
 }
 
 #endif /* ET_TRACE_ENCODER_IMPL */
