@@ -11,7 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-[SW-12171] Evict U-Mode trace only if it is enabled
+### Security
+
+## [0.14.0] - 2022-12-13
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- [SW-12171] Evict U-Mode trace only if it is enabled
 - [SW-15282] Fixed the wait duration type from uint32_t to uint64_t.
 ### Security
 
