@@ -8,8 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.9.0] - 2022-12-13
+### Added-
 - [SW-7460] Added ET_TRACE_VSNPRINTF configurable option and fixed Trace_Format_String() implementation.
 ### Changed
+- [SW-10308] Separate out SC and MS APIs to log PMC events
 ### Deprecated
 ### Removed
 ### Fixed
@@ -19,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-14349] Replaced ET_TRACE_MEM_CPY with ET_TRACE_WRITE_MEM
-- [SW-10308] Separate out SC and MS APIs to log PMC events
 ### Deprecated
 ### Removed
 - [SW-14349] Removed ET_TRACE_MEM_CPY config option for encoder
