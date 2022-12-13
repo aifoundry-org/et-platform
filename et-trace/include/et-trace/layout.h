@@ -93,7 +93,7 @@ extern "C" {
 /*! \def TRACE_VERSION_MINOR
     \brief This is Trace layout version (minor).
 */
-#define TRACE_VERSION_MINOR 5
+#define TRACE_VERSION_MINOR 6
 
 /*! \def TRACE_VERSION_PATCH
     \brief This is Trace layout version (patch).
@@ -154,6 +154,7 @@ enum trace_type {
     TRACE_TYPE_CMD_STATUS,
     TRACE_TYPE_POWER_STATUS,
     TRACE_TYPE_CUSTOM_EVENT,
+    TRACE_TYPE_USER_PROFILE_EVENT,
     TRACE_TYPE_END
 };
 
@@ -541,6 +542,16 @@ TRACE_SCALAR_TYPE_DEF(u32, uint32_t, 0)
 TRACE_SCALAR_TYPE_DEF(u16, uint16_t, 2)
 TRACE_SCALAR_TYPE_DEF(u8, uint8_t, 3)
 TRACE_SCALAR_TYPE_DEF(float, float, 0)
+
+/*! \struct trace_user_profile_event_t
+    \brief A Trace pkt structure for profile events.
+*/
+struct trace_user_profile_event_t {
+    struct trace_entry_header_t header; /**< generic event header */
+    uint64_t func;                      /**< ptr to func literal emitting the event */
+    uint64_t retiredInsts;              /**< retiredInsts when the event is emitted */
+    uint64_t line_region_status;        /**< line(4 bytes) region (2 bytes) status (2 bytes)*/
+} __attribute__((packed));
 
 #ifdef __cplusplus
 }
