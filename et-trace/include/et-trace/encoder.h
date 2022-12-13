@@ -242,8 +242,6 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
 void Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
                          const char *format, ...);
 void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb);
-/* Trace_PMC_Counters_Memory is Deprecated */
-void Trace_PMC_Counters_Memory(struct trace_control_block_t *cb);
 void Trace_PMC_Counters_SC(struct trace_control_block_t *cb);
 void Trace_PMC_Counters_MS(struct trace_control_block_t *cb, uint8_t ms_id);
 void Trace_PMC_Counter(struct trace_control_block_t *cb, pmc_counter_e counter);
@@ -341,10 +339,6 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 
 #ifndef ET_TRACE_GET_SHIRE_CACHE_COUNTER
 #define ET_TRACE_GET_SHIRE_CACHE_COUNTER(counter) 0
-#endif
-/* Deprecated Macro */
-#ifndef ET_TRACE_GET_MEM_SHIRE_COUNTER
-#define ET_TRACE_GET_MEM_SHIRE_COUNTER(counter) 0
 #endif
 
 #ifndef ET_TRACE_GET_MSHIRE_COUNTER
@@ -878,43 +872,6 @@ void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb)
         ET_TRACE_WRITE_U64(entry->hpmcounter6, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER6));
         ET_TRACE_WRITE_U64(entry->hpmcounter7, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER7));
         ET_TRACE_WRITE_U64(entry->hpmcounter8, ET_TRACE_GET_HPM_COUNTER(PMC_COUNTER_HPMCOUNTER8));
-    }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Trace_PMC_Counters_Memory
-*
-*   DESCRIPTION
-*
-*       Deprecated - A function to log all Shire-cache and Mem-shire PMC counters.
-*
-*   INPUTS
-*
-*       trace_control_block_t     Trace control block of logging Thread/Hart.
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void Trace_PMC_Counters_Memory(struct trace_control_block_t *cb)
-{
-    if (trace_is_enabled(cb)) {
-        struct trace_pmc_counters_memory_t *entry =
-            (struct trace_pmc_counters_memory_t *)trace_buffer_reserve(cb, sizeof(*entry));
-
-        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)), TRACE_TYPE_PMC_COUNTERS_MEMORY)
-        ET_TRACE_WRITE_U64(entry->sc_pmc0,
-            ET_TRACE_GET_SHIRE_CACHE_COUNTER(PMC_COUNTER_SHIRE_CACHE_1 - PMC_COUNTER_SHIRE_CACHE_CYCLE));
-        ET_TRACE_WRITE_U64(entry->sc_pmc1,
-            ET_TRACE_GET_SHIRE_CACHE_COUNTER(PMC_COUNTER_SHIRE_CACHE_2 - PMC_COUNTER_SHIRE_CACHE_CYCLE));
-        ET_TRACE_WRITE_U64(entry->ms_pmc0,
-            ET_TRACE_GET_MEM_SHIRE_COUNTER(1));
-        ET_TRACE_WRITE_U64(entry->ms_pmc1,
-            ET_TRACE_GET_MEM_SHIRE_COUNTER(2));
     }
 }
 

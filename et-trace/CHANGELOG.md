@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Bumped version to 1.0.0.
 ### Deprecated
 ### Removed
+- Removing deprecated Trace_PMC_Counters_Memory() and ET_TRACE_GET_MEM_SHIRE_COUNTER.
 ### Fixed
 ### Security
 
