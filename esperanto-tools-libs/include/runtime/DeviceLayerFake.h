@@ -112,7 +112,7 @@ public:
       // spin-lock
     }
 
-    if (!responsesMasterMinion_.empty()) {
+    if (!responsesMasterMinion_[device].empty()) {
       response.resize(sizeof(device_ops_api::rsp_header_t));
       std::memcpy(response.data(), &responsesMasterMinion_[device].front(), sizeof(device_ops_api::rsp_header_t));
       responsesMasterMinion_[device].pop();
