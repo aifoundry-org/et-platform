@@ -36,7 +36,7 @@ public:
       }
       case DeviceLayerImp::FAKE:
         RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
-        return std::unique_ptr<dev::IDeviceLayer>{std::make_unique<dev::DeviceLayerFake>()};
+        return std::unique_ptr<dev::IDeviceLayer>{std::make_unique<dev::DeviceLayerFake>(sNumDevices)};
       default:
         throw dev::Exception("Invalid devicelayer type");
       }

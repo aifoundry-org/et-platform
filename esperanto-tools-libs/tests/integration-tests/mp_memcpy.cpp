@@ -9,7 +9,6 @@
 //------------------------------------------------------------------------------
 #include "TestUtils.h"
 #include "common/MpOrchestrator.h"
-#include "runtime/DeviceLayerFake.h"
 #include "runtime/Types.h"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

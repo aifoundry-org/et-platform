@@ -3,7 +3,7 @@ deviceApi/[>=1.0.0 <2.0.0]
 
 device-minion-runtime/[>=0.13.0 <1.0.0]
 device-bootloaders/[>=0.7.0 <1.0.0]
-esperanto-test-kernels/[>=1.4.0 <1.0.0]
+esperanto-test-kernels/[>=1.4.0 <2.0.0]
 
 # overrides
 tf-protocol/[>=1.2.0 <1.0.0]
