@@ -75,22 +75,6 @@
 */
 #define DEVICE_GET_CMD_SIZE(header_ptr)  *((uint16_t*)(uintptr_t)header_ptr)
 
-/*! \struct exec_cycle_t
-     \brief Struct containing 2 elements:
-            - Wait Latency(amount of Minion cycles that the command took sitting in the Submission Queue)
-            - Start cycles(Snapshot cycle when a command gets launched on a specific HW component: DMA, Compute Minion)
-*/
-typedef struct exec_cycles_ {
-    uint64_t cmd_start_cycles;
-    union {
-        struct {
-            uint32_t wait_cycles;
-            uint32_t exec_start_cycles;
-        };
-        uint64_t raw_u64;
-    };
-} exec_cycles_t;
-
 /***********************/
 /* Common Status Codes */
 /***********************/
