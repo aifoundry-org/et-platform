@@ -24,6 +24,9 @@ extern "C" {
 #include "trace/trace_umode_cb.h"
 #include "etsoc/isa/hart.h"
 
+/* TODO: To be removed. Temporary define added for passing the build. */
+#define et_trace_pmc_memory(hart_id) (void)hart_id;
+
 /*! \def et_trace_pmc_compute(hart_id)
     \brief A macro used to dump Minion and Neighborhood PMCs in trace buffer.
 */
