@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId.
 - [SW-14909] Added API method to set profiler in Server (runtime mp daemon).
 - [SW-14909] Added couple of python scripts to DMA performance evaluation.
+- [SW-15329] DeviceLayerFake now supports multiple devices
 ### Changed
 - deviceApi minimum required 1.0.0. Due to some changes in firmware device-api 1.0.0 is not backwards compatible.
 - (Conan) Refactor sysemu artifacts provided when runtime:with_tests=True
