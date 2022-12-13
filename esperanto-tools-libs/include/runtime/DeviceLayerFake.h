@@ -28,7 +28,7 @@ class DeviceLayerFake : public IDeviceLayer {
   std::mutex spMutex_;
   const int numDevices_;
 
-  void checkDevice(int device) {
+  void checkDevice(int device) const {
     if (device >= numDevices_ || device < 0) {
       throw Exception("Invalid device");
     }
