@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.15)
-project(EsperantoBootLoader VERSION 0.8.0 LANGUAGES C ASM)
+project(EsperantoBootLoader VERSION 0.9.0 LANGUAGES C ASM)
 
 message(STATUS "PROJECT_VERSION ${PROJECT_VERSION}")
 
