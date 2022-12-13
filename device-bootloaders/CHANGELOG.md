@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-15175] Removing mem_size from flash config data and reading ddr size and vendor ID correctly.
+- Setting concurrent logging of SP alive to critical
 ### Deprecated
 ### Removed
 ### Fixed
