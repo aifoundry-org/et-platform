@@ -3220,7 +3220,6 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
   auto dev_latency = std::make_unique<uint64_t>();
   const uint32_t output_size = sizeof(uint32_t);
   char output_buff[output_size] = {0};
-  const struct trace_entry_header_t* entry = NULL;
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3237,6 +3236,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
     }
 
     if (getTestTarget() != Target::Loopback) {
+      const struct trace_entry_header_t* entry = NULL;
       if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
           device_mgmt_api::DM_STATUS_SUCCESS) {
         DV_LOG(INFO) << "Unable to get SP trace buffer for device: " << deviceIdx << ". Disabling Trace.";
