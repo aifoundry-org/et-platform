@@ -22,7 +22,7 @@ class RuntimeConan(ConanFile):
     default_options = {
         "with_tools": False,
         "with_tests": False,
-        "with_sysemu_artifacts": "latest",
+        "with_sysemu_artifacts": "unreleased",
     }
 
     scm = {
@@ -44,6 +44,7 @@ class RuntimeConan(ConanFile):
     @property
     def _min_device_api(self):
         return {
+            "unreleased": "1.0.0",
             "latest": "1.0.0",
         }.get(str(self.options.with_sysemu_artifacts))
 
