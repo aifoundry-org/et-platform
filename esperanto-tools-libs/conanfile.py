@@ -17,7 +17,7 @@ class RuntimeConan(ConanFile):
     options = {
         "with_tools": [True, False],
         "with_tests": [True, False],
-        "with_sysemu_artifacts": ['latest'],
+        "with_sysemu_artifacts": ['unreleased', 'latest'],
     }
     default_options = {
         "with_tools": False,
