@@ -17,7 +17,7 @@
 using namespace dev;
 using namespace device_management;
 
-class FunctionalTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
+class StressTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     ASSERT_NE(handle_, nullptr);
@@ -33,13 +33,19 @@ class FunctionalTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(FunctionalTestDevMgmtApiResetCmds, resetSOCSingleDevice) {
-  resetSOC(true /* Single Device */);
+TEST_F(StressTestDevMgmtApiResetCmds, resetSOCSingleDevice) {
+  auto iteration = getTestTarget() == Target::Loopback ? 30 : 10;
+  for (int i = 0; i < 25; i++) {
+    resetSOC(true /* Single Device */);
+  }
   extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
 }
 
-TEST_F(FunctionalTestDevMgmtApiResetCmds, resetSOCMultiDevice) {
-  resetSOC(false /* Multiple Devices */);
+TEST_F(StressTestDevMgmtApiResetCmds, resetSOCMultiDevice) {
+  auto iteration = (getTestTarget() == Target::Loopback ? 30 : 10) / devLayer_->getDevicesCount();
+  for (int i = 0; i < iteration; i++) {
+    resetSOC(false /* Multiple Devices */);
+  }
   extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
 }
 

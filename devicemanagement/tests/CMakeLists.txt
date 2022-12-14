@@ -247,6 +247,16 @@ create_test(
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )
 
+################
+# STRESS TESTS #
+################
+create_test(
+    TARGET      StressTestDevMgmtApiResetCmds
+    SOURCES     stress/StressTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;STRESS;LABELS;NOPARALLEL;TIMEOUT;300"
+)
+
 configure_file(
     mix/MixTestDevMgmtApiAllCmds.sh.in
     ${CMAKE_CURRENT_BINARY_DIR}/MixTestDevMgmtApiAllCmds.sh @ONLY
