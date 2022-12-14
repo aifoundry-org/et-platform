@@ -42,17 +42,26 @@ TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMM) {
   }
 }
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMMInvalidOpsNodePermission) {
+TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMMWithOpsInUse) {
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(true, true);
     ASSERT_NE(devLayer_, nullptr);
     initTestTrace();
     controlTraceLogging();
-    resetMMOpsOpen(false);
+    resetMMWithOpsInUse(false);
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
   }
+}
+
+TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetSOCSWithOpsInUse) {
+  devLayer_ = IDeviceLayer::createPcieDeviceLayer(true, true);
+  ASSERT_NE(devLayer_, nullptr);
+  initTestTrace();
+  controlTraceLogging();
+  resetSOCWithOpsInUse(false);
+  extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
 }
 
 int main(int argc, char** argv) {

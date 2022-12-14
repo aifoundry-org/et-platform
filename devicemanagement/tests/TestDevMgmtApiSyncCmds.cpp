@@ -3270,7 +3270,7 @@ void TestDevMgmtApiSyncCmds::resetMM(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::resetMMOpsOpen(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::resetMMWithOpsInUse(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -3279,15 +3279,13 @@ void TestDevMgmtApiSyncCmds::resetMMOpsOpen(bool singleDevice) {
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-
     try {
       dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
                         dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT);
 
     } catch (const dev::Exception& ex) {
-      // Find and compare the if the error message is correct.
       // Resetting of MM is not permitted when Ops node is open.
-      ASSERT_NE(std::string(ex.what()).find("Operation not permitted"), std::string::npos);
+      EXPECT_THAT(ex.what(), testing::HasSubstr("Operation not permitted"));
     }
   }
 }
@@ -3932,5 +3930,24 @@ void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice) {
 
     // Check if trace control works after reset
     controlTraceLogging();
+  }
+}
+
+void TestDevMgmtApiSyncCmds::resetSOCWithOpsInUse(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    try {
+      dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
+                        hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT);
+    } catch (const dev::Exception& ex) {
+      // ETSOC reset is not permitted when Ops node is open.
+      EXPECT_THAT(ex.what(), testing::HasSubstr("Operation not permitted"));
+    }
   }
 }
