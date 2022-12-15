@@ -69,7 +69,7 @@ int64_t main(void)
          /* Do a memory read/write. */
          et_printf("PMC Mem Shire events.\n\r");
          et_memcpy(GET_NEIGH_BASE(MS_BASE_DEST, neigh_index), GET_NEIGH_BASE(MS_BASE_SRC, neigh_index), TEST_DATA_SIZE);
-         cache_ops_evict(to_Mem, GET_NEIGH_BASE(SC_BASE_DEST, neigh_index), TEST_DATA_SIZE);
+         cache_ops_evict(to_Mem, GET_NEIGH_BASE(MS_BASE_DEST, neigh_index), TEST_DATA_SIZE);
       }
       
       et_trace_pmc_ms(MS_PMCS_DUMP_HART, 0);

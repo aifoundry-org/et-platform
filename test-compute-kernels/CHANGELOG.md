@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+[SW-15362]: Fixed bug in PMC kernel
 ### Security
 
 ## [1.3.0] - 2022-09-02
