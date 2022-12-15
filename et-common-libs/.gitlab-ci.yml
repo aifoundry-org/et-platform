@@ -18,7 +18,7 @@ include:
       - 'jobs/conan-jobs.yaml'
 
   - project: 'software/sw-platform'
-    ref: develop/system-sw 
+    ref: develop/system-sw
     file:
       - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
 
@@ -120,7 +120,7 @@ build:conan:
 ###############################################################################
 ###############################################################################
 
-on_success:promote:
+.on_success:promote:
   extends:
     - .pod_nano
     - .template_job
