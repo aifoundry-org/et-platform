@@ -8,8 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added implementation of Trace_Format_String_V() for va_list style calling.
 ### Changed
 - Bumped version to 1.0.0.
+- Fixed vsnprintf calling.
+- Returned the number of bytes written from trace string functions.
 ### Deprecated
 ### Removed
 - Removing deprecated Trace_PMC_Counters_Memory() and ET_TRACE_GET_MEM_SHIRE_COUNTER.

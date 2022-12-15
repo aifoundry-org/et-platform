@@ -342,17 +342,6 @@ struct trace_pmc_counters_compute_t {
     uint64_t hpmcounter8;
 } __attribute__((packed));
 
-/*! \struct trace_pmc_counters_memory_t
-    \brief A Trace packet strucure for all memory PMC counters.
-*/
-struct trace_pmc_counters_memory_t {
-    struct trace_entry_header_t header;
-    uint64_t sc_pmc0;
-    uint64_t sc_pmc1;
-    uint64_t ms_pmc0;
-    uint64_t ms_pmc1;
-} __attribute__((packed));
-
 /*! \struct trace_pmc_counters_sc_t
     \brief A Trace packet strucure for all shire cache PMC counters.
 */

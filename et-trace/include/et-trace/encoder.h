@@ -37,6 +37,7 @@
  *     Trace_Init
  *     Trace_String
  *     Trace_Format_String
+ *     Trace_Format_String_V
  *     Trace_PMC_Counters_Compute
  *     Trace_PMC_Counters_SC
  *     Trace_PMC_Counters_MS
@@ -139,6 +140,7 @@
 #define ET_TRACE_ENCODER_H
 
 #include <stdbool.h>
+#include <stdarg.h>
 #include "layout.h"
 
 #ifdef __cplusplus
@@ -235,12 +237,14 @@ struct trace_control_block_t {
 } __attribute__((aligned(64)));
 
 int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_control_block_t *cb,
-                uint8_t buff_header);
+                   uint8_t buff_header);
 int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace_control_block_t *cb);
-void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
-                  const char *str);
-void Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
-                         const char *format, ...);
+int32_t Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
+                     const char *str);
+int32_t Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
+                            const char *format, ...);
+int32_t Trace_Format_String_V(trace_string_event_e log_level, struct trace_control_block_t *cb,
+                              const char *format, va_list va);
 void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb);
 void Trace_PMC_Counters_SC(struct trace_control_block_t *cb);
 void Trace_PMC_Counters_MS(struct trace_control_block_t *cb, uint8_t ms_id);
@@ -264,7 +268,6 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 
 #ifdef ET_TRACE_ENCODER_IMPL
 
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -713,14 +716,17 @@ int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace
 *
 *   OUTPUTS
 *
-*       None
+*       int32_t                   Bytes written or error
 *
 ***********************************************************************/
-void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb, const char *str)
+int32_t Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
+                     const char *str)
 {
+    int32_t str_length = 0;
+
     if (trace_is_str_enabled(cb, log_level)) {
         /* Get string message size plus one null termination character.*/
-        size_t str_length = TRACE_STRING_SIZE_ALIGN(ET_TRACE_STRLEN(str) + 1);
+        str_length = TRACE_STRING_SIZE_ALIGN(ET_TRACE_STRLEN(str) + 1);
         str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
 
         struct trace_string_t *entry =
@@ -729,6 +735,8 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
         ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
         ET_TRACE_WRITE_MEM(entry->string, str, str_length);
     }
+
+    return str_length;
 }
 
 /************************************************************************
@@ -750,28 +758,87 @@ void Trace_String(trace_string_event_e log_level, struct trace_control_block_t *
 *
 *   OUTPUTS
 *
-*       None
+*       int32_t                   Bytes written or error
 *
 ***********************************************************************/
-void Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
-                         const char *format, ...)
+int32_t Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
+                            const char *format, ...)
 {
+    int32_t str_length = 0;
+
     if (trace_is_str_enabled(cb, log_level)) {
-        va_list args;
         char buff[ET_TRACE_STRING_MAX_SIZE] __attribute__((aligned(8)));
-
+        va_list args;
         va_start(args, format);
-        uint32_t str_length =
-            TRACE_STRING_SIZE_ALIGN(ET_TRACE_VSNPRINTF(buff, ET_TRACE_STRING_MAX_SIZE, format, args) + 1);
+        str_length = ET_TRACE_VSNPRINTF(buff, ET_TRACE_STRING_MAX_SIZE, format, args);
         va_end(args);
-        str_length = (str_length < ET_TRACE_STRING_MAX_SIZE) ? str_length: ET_TRACE_STRING_MAX_SIZE;
 
-        struct trace_string_t *entry =
-            (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
+        if (str_length > 0) {
+            /* Align and check for max size */
+            str_length = TRACE_STRING_SIZE_ALIGN(str_length);
+            if (str_length > ET_TRACE_STRING_MAX_SIZE) {
+                str_length = ET_TRACE_STRING_MAX_SIZE;
+            }
 
-        ET_TRACE_MESSAGE_HEADER(entry, str_length, TRACE_TYPE_STRING)
-        ET_TRACE_WRITE_MEM(entry->string, buff, str_length);
+            struct trace_string_t *entry =
+                (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
+
+            ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
+            ET_TRACE_WRITE_MEM(entry->string, buff, str_length);
+        }
     }
+
+    return str_length;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Trace_Format_String_V
+*
+*   DESCRIPTION
+*
+*       A function to log Trace string message with given formatting and
+*       variable arguments list.
+*
+*   INPUTS
+*
+*       trace_string_event        Trace String event type.
+*       trace_control_block_t     Trace control block of logging Thread/Hart.
+*       const char                Log message string format.
+*       va_list                   Variable arguments list.
+*
+*   OUTPUTS
+*
+*       int32_t                   Bytes written or error
+*
+***********************************************************************/
+int32_t Trace_Format_String_V(trace_string_event_e log_level, struct trace_control_block_t *cb,
+                              const char *format, va_list va)
+{
+    int32_t str_length = 0;
+
+    if (trace_is_str_enabled(cb, log_level)) {
+        char buff[ET_TRACE_STRING_MAX_SIZE] __attribute__((aligned(8)));
+        str_length = ET_TRACE_VSNPRINTF(buff, ET_TRACE_STRING_MAX_SIZE, format, va);
+
+        if (str_length > 0) {
+            /* Align and check for max size */
+            str_length = TRACE_STRING_SIZE_ALIGN(str_length);
+            if (str_length > ET_TRACE_STRING_MAX_SIZE) {
+                str_length = ET_TRACE_STRING_MAX_SIZE;
+            }
+
+            struct trace_string_t *entry =
+                (struct trace_string_t *)trace_buffer_reserve(cb, (sizeof(*entry) + str_length));
+
+            ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)str_length, TRACE_TYPE_STRING)
+            ET_TRACE_WRITE_MEM(entry->string, buff, str_length);
+        }
+    }
+
+    return str_length;
 }
 
 /************************************************************************
