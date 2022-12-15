@@ -34,7 +34,7 @@ class EsperantoTestKenelsConan(ConanFile):
         del self.settings.compiler.cppstd
 
     def requirements(self):
-        self.requires("esperantoTrace/[>=0.7.0 <1.0.0]")
+        self.requires("esperantoTrace/[>=1.0.0 <2.0.0]")
         self.requires("et-common-libs/[>=0.10.0 <1.0.0]")
 
     def package_id(self):
