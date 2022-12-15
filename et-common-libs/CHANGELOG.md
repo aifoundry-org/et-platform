@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.13.0] - 2022-12-15
+### Added
 - Added temporary define to pass the build.
 ### Changed
 - Adding version ranges for Conan package requirements.
