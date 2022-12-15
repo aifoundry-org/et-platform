@@ -9,7 +9,7 @@ include:
       - jobs/sonarqube-job.yaml
       - rules/exec_maybe_interactively.yaml
       - jobs/check-top-of-master.yaml
-      #- jobs/sw-platform-trigger.yaml
+      - jobs/sw-platform-trigger.yaml
 
   - project: 'software/gitlab-ci-common'
     ref: master
@@ -67,7 +67,6 @@ generate_build:conan:
 
     CMD_BUILD: |
       cd conan
-      python3 -m pip install "ecpt>=1.3.6,<2.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_build
   artifacts:
     expire_in: 1d
@@ -113,10 +112,9 @@ on_success:promote:
   needs:
     - generate_build:conan
     - build:conan
-    #- meta-trigger
+    - meta-trigger
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
       cd conan
-      python3 -m pip install "ecpt>=1.3.6,<2.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_promote

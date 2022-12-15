@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Updating esperantoTrace version in Conan.
+- Revert "Disabling SS bundle phase to break dependency chain."
 ### Deprecated
 ### Removed
 ### Fixed
