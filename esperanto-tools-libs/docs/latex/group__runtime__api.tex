@@ -1,0 +1,20 @@
+\hypertarget{group__runtime__api}{}\doxysection{Runtime A\+PI}
+\label{group__runtime__api}\index{Runtime API@{Runtime API}}
+
+
+The runtime A\+PI provides different services to the et-\/soc devices, allowing the user to manage device memory (see malloc\+Device\+Id and free\+Device\+Id), load executable elfs into the device (see load\+Code and unload\+Code) and execute workloads in an asynchronous fashion. These workloads typically consist on copying memory from the host to the device (see memcpy\+Host\+To\+Device\+Id), launching a kernel (see kernel\+Launch) and getting the results back from the device to the host (see memcpy\+Device\+Id\+To\+Host) Different workloads can be run asynchronously and potentially in parallel, using streams. Every operation is asynchronous, there are also primitives to allow synchronization between the host and the device (see wait\+For\+Event\+Id and stream\+Flush)  
+
+
+Collaboration diagram for Runtime A\+PI\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=343pt]{group__runtime__api}
+\end{center}
+\end{figure}
+
+
+\doxysubsection{Detailed Description}
+The runtime A\+PI provides different services to the et-\/soc devices, allowing the user to manage device memory (see malloc\+Device\+Id and free\+Device\+Id), load executable elfs into the device (see load\+Code and unload\+Code) and execute workloads in an asynchronous fashion. These workloads typically consist on copying memory from the host to the device (see memcpy\+Host\+To\+Device\+Id), launching a kernel (see kernel\+Launch) and getting the results back from the device to the host (see memcpy\+Device\+Id\+To\+Host) Different workloads can be run asynchronously and potentially in parallel, using streams. Every operation is asynchronous, there are also primitives to allow synchronization between the host and the device (see wait\+For\+Event\+Id and stream\+Flush) 
+

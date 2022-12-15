@@ -1,0 +1,113 @@
+\hypertarget{namespacert_1_1profiling}{}\doxysection{rt\+::profiling Namespace Reference}
+\label{namespacert_1_1profiling}\index{rt::profiling@{rt::profiling}}
+
+
+Forward declaration of \mbox{\hyperlink{classrt_1_1profiling_1_1IProfilerRecorder}{I\+Profiler\+Recorder}}.  
+
+
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+class \mbox{\hyperlink{classrt_1_1profiling_1_1IProfilerRecorder}{I\+Profiler\+Recorder}}
+\begin{DoxyCompactList}\small\item\em \mbox{\hyperlink{classrt_1_1profiling_1_1IProfilerRecorder}{I\+Profiler\+Recorder}} interface declaration, its a simple added method to \mbox{\hyperlink{classrt_1_1IProfiler}{I\+Profiler}} interface for recording. \end{DoxyCompactList}\item 
+class \mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}}
+\begin{DoxyCompactList}\small\item\em \mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}} exposes serialization internals for runtime users. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a40181fd14fc09ebefc42058f96e50b31}\label{namespacert_1_1profiling_a40181fd14fc09ebefc42058f96e50b31}} 
+enum {\bfseries Version} \+: uint16\+\_\+t 
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_ae903660b12d132bbab5a922926e72a4a}\label{namespacert_1_1profiling_ae903660b12d132bbab5a922926e72a4a}} 
+enum {\bfseries Type} \{ {\bfseries Start}, 
+{\bfseries End}, 
+{\bfseries Complete}, 
+{\bfseries Instant}
+ \}
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a8dc082e76baf841368c07f544dc908ba}\label{namespacert_1_1profiling_a8dc082e76baf841368c07f544dc908ba}} 
+enum {\bfseries Class} \{ \newline
+{\bfseries Get\+Devices}, 
+{\bfseries Load\+Code}, 
+{\bfseries Unload\+Code}, 
+{\bfseries Malloc\+Device}, 
+\newline
+{\bfseries Free\+Device}, 
+{\bfseries Create\+Stream}, 
+{\bfseries Destroy\+Stream}, 
+{\bfseries Kernel\+Launch}, 
+\newline
+{\bfseries Memcpy\+Host\+To\+Device}, 
+{\bfseries Memcpy\+Device\+To\+Host}, 
+{\bfseries Wait\+For\+Event}, 
+{\bfseries Wait\+For\+Stream}, 
+\newline
+{\bfseries Device\+Command}, 
+{\bfseries Pmc}, 
+{\bfseries Command\+Sent}, 
+{\bfseries Response\+Received}, 
+\newline
+{\bfseries Dispatch\+Event}, 
+{\bfseries Get\+Device\+Properties}, 
+{\bfseries Start\+Profiling}, 
+{\bfseries End\+Profiling}, 
+\newline
+{\bfseries C\+O\+U\+NT}
+ \}
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a9f577b9e25f189efdf9c7b64289a15c9}\label{namespacert_1_1profiling_a9f577b9e25f189efdf9c7b64289a15c9}} 
+enum {\bfseries Response\+Type} \{ {\bfseries D\+M\+A\+Read}, 
+{\bfseries D\+M\+A\+Write}, 
+{\bfseries Kernel}, 
+{\bfseries C\+O\+U\+NT}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a4724de3d16703311a0a47b0c4a819004}\label{namespacert_1_1profiling_a4724de3d16703311a0a47b0c4a819004}} 
+Class {\bfseries class\+\_\+from\+\_\+string} (const std\+::string \&str)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a9b06773997b57956047dbc8c40a3a754}\label{namespacert_1_1profiling_a9b06773997b57956047dbc8c40a3a754}} 
+Type {\bfseries type\+\_\+from\+\_\+string} (const std\+::string \&str)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_af5ee92f16aaf0f69980d363e87e36a7e}\label{namespacert_1_1profiling_af5ee92f16aaf0f69980d363e87e36a7e}} 
+Response\+Type {\bfseries response\+\_\+type\+\_\+from\+\_\+string} (const std\+::string \&str)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a1af1ec978dfab7d8210ffb77dea242e5}\label{namespacert_1_1profiling_a1af1ec978dfab7d8210ffb77dea242e5}} 
+std\+::string {\bfseries get\+String} (rt\+::profiling\+::\+Class cls)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a55b5d8961aa3edb0dab63c37dcd2aa3e}\label{namespacert_1_1profiling_a55b5d8961aa3edb0dab63c37dcd2aa3e}} 
+std\+::string {\bfseries get\+String} (rt\+::profiling\+::\+Type type)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a043b2bd6ef5eaefde80313c07b5a1207}\label{namespacert_1_1profiling_a043b2bd6ef5eaefde80313c07b5a1207}} 
+std\+::string {\bfseries get\+String} (rt\+::profiling\+::\+Response\+Type rsp\+Type)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a04bfd3e8fc9e5300ee3cdab88f0b7ff7}\label{namespacert_1_1profiling_a04bfd3e8fc9e5300ee3cdab88f0b7ff7}} 
+{\footnotesize template$<$typename Archive $>$ }\\void {\bfseries serialize} (Archive \&ar, rt\+::\+Event\+Id \&id)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_aceaf2abd5a724afe109dbbd584dc9e90}\label{namespacert_1_1profiling_aceaf2abd5a724afe109dbbd584dc9e90}} 
+{\footnotesize template$<$typename Archive $>$ }\\void {\bfseries serialize} (Archive \&ar, rt\+::\+Stream\+Id \&id)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a7bf7c73e84047565923ccc7f265a89cb}\label{namespacert_1_1profiling_a7bf7c73e84047565923ccc7f265a89cb}} 
+{\footnotesize template$<$typename Archive $>$ }\\void {\bfseries serialize} (Archive \&ar, rt\+::\+Device\+Id \&id)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_af955a14544b2c7566c4cfbc23ea55865}\label{namespacert_1_1profiling_af955a14544b2c7566c4cfbc23ea55865}} 
+{\footnotesize template$<$typename Archive $>$ }\\void {\bfseries serialize} (Archive \&ar, rt\+::\+Kernel\+Id \&id)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_aa54919e84b5900f58a56442e0028d920}\label{namespacert_1_1profiling_aa54919e84b5900f58a56442e0028d920}} 
+{\footnotesize template$<$class Archive $>$ }\\void {\bfseries load} (Archive \&ar, \mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}} \&evt)
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a29291918669dc738d61ea9734c670409}\label{namespacert_1_1profiling_a29291918669dc738d61ea9734c670409}} 
+{\footnotesize template$<$class Archive $>$ }\\void {\bfseries save} (Archive \&ar, const \mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}} \&evt)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{namespacert_1_1profiling_a091eb3482c57772ffbb3d85f56d1842c}\label{namespacert_1_1profiling_a091eb3482c57772ffbb3d85f56d1842c}} 
+constexpr auto {\bfseries k\+Current\+Version} = Version\{1\}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Forward declaration of \mbox{\hyperlink{classrt_1_1profiling_1_1IProfilerRecorder}{I\+Profiler\+Recorder}}. 

@@ -1,0 +1,68 @@
+\hypertarget{classrt_1_1IProfiler}{}\doxysection{rt\+::I\+Profiler Class Reference}
+\label{classrt_1_1IProfiler}\index{rt::IProfiler@{rt::IProfiler}}
+
+
+\mbox{\hyperlink{classrt_1_1IProfiler}{I\+Profiler}} interface declaration, all \mbox{\hyperlink{classrt_1_1IProfiler}{I\+Profiler}} interactions should be made using this interface.  
+
+
+
+
+{\ttfamily \#include $<$I\+Profiler.\+h$>$}
+
+
+
+Inheritance diagram for rt\+::I\+Profiler\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=195pt]{classrt_1_1IProfiler__inherit__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrt_1_1IProfiler_a6e2957c655e1359a55b8c036fd1096a2}\label{classrt_1_1IProfiler_a6e2957c655e1359a55b8c036fd1096a2}} 
+enum \mbox{\hyperlink{classrt_1_1IProfiler_a6e2957c655e1359a55b8c036fd1096a2}{Output\+Type}} \{ {\bfseries Json}, 
+{\bfseries Binary}
+ \}
+\begin{DoxyCompactList}\small\item\em Profiler user can choose what profiling output generate, Json format or Binary format. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrt_1_1IProfiler_a366c465c2cc09f6640465c19fc03fcd4}\label{classrt_1_1IProfiler_a366c465c2cc09f6640465c19fc03fcd4}} 
+virtual \mbox{\hyperlink{classrt_1_1IProfiler_a366c465c2cc09f6640465c19fc03fcd4}{$\sim$\+I\+Profiler}} ()=default
+\begin{DoxyCompactList}\small\item\em Virtual Destructor to enable polymorphic release of \mbox{\hyperlink{classrt_1_1IProfiler}{I\+Profiler}} instances. \end{DoxyCompactList}\item 
+virtual void \mbox{\hyperlink{classrt_1_1IProfiler_a6ff338b78c76074efa15a2707d8946ed}{start}} (std\+::ostream \&output\+Stream, \mbox{\hyperlink{classrt_1_1IProfiler_a6e2957c655e1359a55b8c036fd1096a2}{Output\+Type}} output\+Type)=0
+\begin{DoxyCompactList}\small\item\em Indicates the start of the profiler. The given stream will be accessed freely from the runtime, don\textquotesingle{}t make concurrent writes to this stream or data races could happen. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{classrt_1_1IProfiler_a1d2d94aaf86a8fbfe6288deff56d6e58}\label{classrt_1_1IProfiler_a1d2d94aaf86a8fbfe6288deff56d6e58}} 
+virtual void \mbox{\hyperlink{classrt_1_1IProfiler_a1d2d94aaf86a8fbfe6288deff56d6e58}{stop}} ()=0
+\begin{DoxyCompactList}\small\item\em This function will stop the profiler from gathering data. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\mbox{\hyperlink{classrt_1_1IProfiler}{I\+Profiler}} interface declaration, all \mbox{\hyperlink{classrt_1_1IProfiler}{I\+Profiler}} interactions should be made using this interface. 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classrt_1_1IProfiler_a6ff338b78c76074efa15a2707d8946ed}\label{classrt_1_1IProfiler_a6ff338b78c76074efa15a2707d8946ed}} 
+\index{rt::IProfiler@{rt::IProfiler}!start@{start}}
+\index{start@{start}!rt::IProfiler@{rt::IProfiler}}
+\doxysubsubsection{\texorpdfstring{start()}{start()}}
+{\footnotesize\ttfamily virtual void rt\+::\+I\+Profiler\+::start (\begin{DoxyParamCaption}\item[{std\+::ostream \&}]{output\+Stream,  }\item[{\mbox{\hyperlink{classrt_1_1IProfiler_a6e2957c655e1359a55b8c036fd1096a2}{Output\+Type}}}]{output\+Type }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [pure virtual]}}
+
+
+
+Indicates the start of the profiler. The given stream will be accessed freely from the runtime, don\textquotesingle{}t make concurrent writes to this stream or data races could happen. 
+
+
+\begin{DoxyParams}[1]{Parameters}
+\mbox{\texttt{ in}}  & {\em output\+Stream} & this is the stream where the profiler will dump the data. Make sure its opened in binary mode. \\
+\hline
+\mbox{\texttt{ in}}  & {\em output\+Type} & to choose between different formatting options for the outputstream \mbox{\hyperlink{classrt_1_1IProfiler_a6e2957c655e1359a55b8c036fd1096a2}{Output\+Type}} \\
+\hline
+\end{DoxyParams}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/dredok/sw-\/platform/host-\/software/esperanto-\/tools-\/libs/include/runtime/I\+Profiler.\+h\end{DoxyCompactItemize}

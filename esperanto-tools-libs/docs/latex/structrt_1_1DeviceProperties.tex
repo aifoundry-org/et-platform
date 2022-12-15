@@ -1,0 +1,79 @@
+\hypertarget{structrt_1_1DeviceProperties}{}\doxysection{rt\+::Device\+Properties Struct Reference}
+\label{structrt_1_1DeviceProperties}\index{rt::DeviceProperties@{rt::DeviceProperties}}
+
+
+This struct encodes device properties.  
+
+
+
+
+{\ttfamily \#include $<$Types.\+h$>$}
+
+\doxysubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_aa87d89dd65a0b24a672940545c6b13d2}\label{structrt_1_1DeviceProperties_aa87d89dd65a0b24a672940545c6b13d2}} 
+enum {\bfseries Form\+Factor} \{ {\bfseries P\+C\+IE}, 
+{\bfseries M2}
+ \}
+\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a2b38062094dbc9d56569dacbe87b30cc}\label{structrt_1_1DeviceProperties_a2b38062094dbc9d56569dacbe87b30cc}} 
+enum {\bfseries Arch\+Revision} \{ {\bfseries E\+T\+S\+O\+C1}, 
+{\bfseries P\+A\+N\+T\+E\+RO}, 
+{\bfseries G\+E\+P\+A\+R\+DO}, 
+{\bfseries U\+N\+K\+N\+O\+WN} = -\/1
+ \}
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a07f0684241fa5722d13563479e973f24}\label{structrt_1_1DeviceProperties_a07f0684241fa5722d13563479e973f24}} 
+uint32\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a07f0684241fa5722d13563479e973f24}{frequency\+\_\+}}
+\begin{DoxyCompactList}\small\item\em minion boot frequency in Mhz \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_aa772d784c1be1a60f4a1796bd0a262f3}\label{structrt_1_1DeviceProperties_aa772d784c1be1a60f4a1796bd0a262f3}} 
+uint32\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_aa772d784c1be1a60f4a1796bd0a262f3}{available\+Shires\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device shire count \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a18ad82fe7e8ad735f6be188792b6182c}\label{structrt_1_1DeviceProperties_a18ad82fe7e8ad735f6be188792b6182c}} 
+uint32\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a18ad82fe7e8ad735f6be188792b6182c}{memory\+Bandwidth\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device memory bandwidth in M\+Bytes/second \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a5faf4af2c8cadf468adb7d94cac0c814}\label{structrt_1_1DeviceProperties_a5faf4af2c8cadf468adb7d94cac0c814}} 
+uint64\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a5faf4af2c8cadf468adb7d94cac0c814}{memory\+Size\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device memory size in bytes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a35e403c0232242addc204c1fa6750d44}\label{structrt_1_1DeviceProperties_a35e403c0232242addc204c1fa6750d44}} 
+uint16\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a35e403c0232242addc204c1fa6750d44}{l3\+Size\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device L3 size in bytes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_ab1d4606bca9b322999308207bea37277}\label{structrt_1_1DeviceProperties_ab1d4606bca9b322999308207bea37277}} 
+uint16\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_ab1d4606bca9b322999308207bea37277}{l2shire\+Size\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device L2 shire size in bytes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a87cb6755805bfcbdb3c4366b26889eec}\label{structrt_1_1DeviceProperties_a87cb6755805bfcbdb3c4366b26889eec}} 
+uint16\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a87cb6755805bfcbdb3c4366b26889eec}{l2scratchpad\+Size\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device L2 scratchpad size in bytes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a22fc3b5bf8a7cf5422dfd1bf30ee33ec}\label{structrt_1_1DeviceProperties_a22fc3b5bf8a7cf5422dfd1bf30ee33ec}} 
+uint16\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a22fc3b5bf8a7cf5422dfd1bf30ee33ec}{cache\+Line\+Size\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device caceh line size in bytes \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a81e746c2e6e1ab05a0245c3d7e9aa27d}\label{structrt_1_1DeviceProperties_a81e746c2e6e1ab05a0245c3d7e9aa27d}} 
+uint16\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a81e746c2e6e1ab05a0245c3d7e9aa27d}{l2\+Cache\+Banks\+\_\+}}
+\begin{DoxyCompactList}\small\item\em number of banks in the L2 \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a0b7f423182a2c67f324ad564c31e8089}\label{structrt_1_1DeviceProperties_a0b7f423182a2c67f324ad564c31e8089}} 
+uint32\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a0b7f423182a2c67f324ad564c31e8089}{compute\+Minion\+Shire\+Mask\+\_\+}}
+\begin{DoxyCompactList}\small\item\em mask which indicates what are the compute minion shires \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a97d26408e43095b5bcb569727bb4234f}\label{structrt_1_1DeviceProperties_a97d26408e43095b5bcb569727bb4234f}} 
+uint16\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_a97d26408e43095b5bcb569727bb4234f}{spare\+Compute\+Miniono\+Shire\+Id\+\_\+}}
+\begin{DoxyCompactList}\small\item\em spare compute minion Shire ID \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_af7947dbdcf271c3f61322689cb629649}\label{structrt_1_1DeviceProperties_af7947dbdcf271c3f61322689cb629649}} 
+Arch\+Revision \mbox{\hyperlink{structrt_1_1DeviceProperties_af7947dbdcf271c3f61322689cb629649}{device\+Arch\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device architecture revision \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_a331622a1790099f6146477f293113874}\label{structrt_1_1DeviceProperties_a331622a1790099f6146477f293113874}} 
+Form\+Factor \mbox{\hyperlink{structrt_1_1DeviceProperties_a331622a1790099f6146477f293113874}{form\+Factor\+\_\+}}
+\begin{DoxyCompactList}\small\item\em device form factor \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{structrt_1_1DeviceProperties_ad9add8bcc804e5bb193ff10542d2b8a0}\label{structrt_1_1DeviceProperties_ad9add8bcc804e5bb193ff10542d2b8a0}} 
+uint8\+\_\+t \mbox{\hyperlink{structrt_1_1DeviceProperties_ad9add8bcc804e5bb193ff10542d2b8a0}{tdp\+\_\+}}
+\begin{DoxyCompactList}\small\item\em T\+DP in Watts. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+This struct encodes device properties. 
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/dredok/sw-\/platform/host-\/software/esperanto-\/tools-\/libs/include/runtime/Types.\+h\end{DoxyCompactItemize}

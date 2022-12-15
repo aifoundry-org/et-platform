@@ -1,0 +1,163 @@
+\hypertarget{classrt_1_1profiling_1_1ProfileEvent}{}\doxysection{rt\+::profiling\+::Profile\+Event Class Reference}
+\label{classrt_1_1profiling_1_1ProfileEvent}\index{rt::profiling::ProfileEvent@{rt::profiling::ProfileEvent}}
+
+
+\mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}} exposes serialization internals for runtime users.  
+
+
+
+
+{\ttfamily \#include $<$I\+Profile\+Event.\+h$>$}
+
+\doxysubsection*{Public Types}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a6c21739e435d79974d4aa060901899f6}\label{classrt_1_1profiling_1_1ProfileEvent_a6c21739e435d79974d4aa060901899f6}} 
+using {\bfseries Id} = uint64\+\_\+t
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a08780a58b182880a3d1164917689566f}\label{classrt_1_1profiling_1_1ProfileEvent_a08780a58b182880a3d1164917689566f}} 
+using {\bfseries Cycles} = uint64\+\_\+t
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_aac3d51addafbc6d9d9cf4e96b2159c2c}\label{classrt_1_1profiling_1_1ProfileEvent_aac3d51addafbc6d9d9cf4e96b2159c2c}} 
+using {\bfseries Clock} = std\+::chrono\+::steady\+\_\+clock
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_af8624d731c3da9862a6805394d14eccf}\label{classrt_1_1profiling_1_1ProfileEvent_af8624d731c3da9862a6805394d14eccf}} 
+using {\bfseries Time\+Point} = std\+::chrono\+::time\+\_\+point$<$ Clock $>$
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a3dc064a94445ddf077ffea0ac715a6e2}\label{classrt_1_1profiling_1_1ProfileEvent_a3dc064a94445ddf077ffea0ac715a6e2}} 
+using {\bfseries Duration} = Time\+Point\+::duration
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a1f305577734a747222058f6ceb47ed62}\label{classrt_1_1profiling_1_1ProfileEvent_a1f305577734a747222058f6ceb47ed62}} 
+using {\bfseries Extra\+Values} = std\+::variant$<$ uint64\+\_\+t, Event\+Id, Stream\+Id, Device\+Id, Kernel\+Id, Response\+Type, Duration, \mbox{\hyperlink{structrt_1_1DeviceProperties}{Device\+Properties}}, Version $>$
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a047ff1c24ecd40dc12d619782089f872}\label{classrt_1_1profiling_1_1ProfileEvent_a047ff1c24ecd40dc12d619782089f872}} 
+using {\bfseries Extra\+Metadata} = std\+::unordered\+\_\+map$<$ std\+::string, Extra\+Values $>$
+\end{DoxyCompactItemize}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a599196624e917596d03eb9374b1d54ca}\label{classrt_1_1profiling_1_1ProfileEvent_a599196624e917596d03eb9374b1d54ca}} 
+{\bfseries Profile\+Event} (Type type, Class cls)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ad256b5164d68411f890ea3a9189e9239}\label{classrt_1_1profiling_1_1ProfileEvent_ad256b5164d68411f890ea3a9189e9239}} 
+{\bfseries Profile\+Event} (Type type, Class cls, Stream\+Id stream, Event\+Id event, Extra\+Metadata extra=\{\})
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a23c8cc834d644495f33becc165a541dc}\label{classrt_1_1profiling_1_1ProfileEvent_a23c8cc834d644495f33becc165a541dc}} 
+Type {\bfseries get\+Type} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_aaf082d8d138b4a6041e98ccb3e9e084e}\label{classrt_1_1profiling_1_1ProfileEvent_aaf082d8d138b4a6041e98ccb3e9e084e}} 
+Class {\bfseries get\+Class} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a87f5eca5f9477dc2d7ae5f981250ce31}\label{classrt_1_1profiling_1_1ProfileEvent_a87f5eca5f9477dc2d7ae5f981250ce31}} 
+Time\+Point {\bfseries get\+Time\+Stamp} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_abda2599d418effcde279c2f33c3120a6}\label{classrt_1_1profiling_1_1ProfileEvent_abda2599d418effcde279c2f33c3120a6}} 
+std\+::string {\bfseries get\+Thread\+Id} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a48f6718bc33f1fc6e23260c21b5cdefe}\label{classrt_1_1profiling_1_1ProfileEvent_a48f6718bc33f1fc6e23260c21b5cdefe}} 
+Extra\+Metadata {\bfseries get\+Extras} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a5d423d74d3f3b2a9a1a970af0dedb0ab}\label{classrt_1_1profiling_1_1ProfileEvent_a5d423d74d3f3b2a9a1a970af0dedb0ab}} 
+std\+::optional$<$ Version $>$ {\bfseries get\+Version} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ae11b7a25706c9b03af53e711d41023f4}\label{classrt_1_1profiling_1_1ProfileEvent_ae11b7a25706c9b03af53e711d41023f4}} 
+std\+::optional$<$ Duration $>$ {\bfseries get\+Duration} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a6bcb99457033b1332de78fd4c58cacde}\label{classrt_1_1profiling_1_1ProfileEvent_a6bcb99457033b1332de78fd4c58cacde}} 
+std\+::optional$<$ Event\+Id $>$ {\bfseries get\+Event} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a865b058fecf7f70ed33b306ebc9f7c1c}\label{classrt_1_1profiling_1_1ProfileEvent_a865b058fecf7f70ed33b306ebc9f7c1c}} 
+std\+::optional$<$ Event\+Id $>$ {\bfseries get\+Parent\+Id} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a75f980ed8015639c2e5cd87e9853bcbe}\label{classrt_1_1profiling_1_1ProfileEvent_a75f980ed8015639c2e5cd87e9853bcbe}} 
+std\+::optional$<$ Stream\+Id $>$ {\bfseries get\+Stream} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a045d818670118c4c11e464f89ebce342}\label{classrt_1_1profiling_1_1ProfileEvent_a045d818670118c4c11e464f89ebce342}} 
+std\+::optional$<$ Device\+Id $>$ {\bfseries get\+Device\+Id} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ac5a068d8551eab4c939d0f5d94dab74a}\label{classrt_1_1profiling_1_1ProfileEvent_ac5a068d8551eab4c939d0f5d94dab74a}} 
+std\+::optional$<$ Kernel\+Id $>$ {\bfseries get\+Kernel\+Id} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a40996ee7ac8023b2f42df0d92381e4bf}\label{classrt_1_1profiling_1_1ProfileEvent_a40996ee7ac8023b2f42df0d92381e4bf}} 
+std\+::optional$<$ Response\+Type $>$ {\bfseries get\+Response\+Type} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a6e92e6fc603ce171086db69fe4f53cc5}\label{classrt_1_1profiling_1_1ProfileEvent_a6e92e6fc603ce171086db69fe4f53cc5}} 
+std\+::optional$<$ uint64\+\_\+t $>$ {\bfseries get\+Load\+Address} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a0340ff67856b5ce550d5f818ce7f7dd6}\label{classrt_1_1profiling_1_1ProfileEvent_a0340ff67856b5ce550d5f818ce7f7dd6}} 
+std\+::optional$<$ Cycles $>$ {\bfseries get\+Device\+Cmd\+Start\+Ts} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ae6338cc72cc77565ce6538ceafdcd3ae}\label{classrt_1_1profiling_1_1ProfileEvent_ae6338cc72cc77565ce6538ceafdcd3ae}} 
+std\+::optional$<$ Cycles $>$ {\bfseries get\+Device\+Cmd\+Wait\+Dur} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a4e4f91dc161509acee854ef29d77cce7}\label{classrt_1_1profiling_1_1ProfileEvent_a4e4f91dc161509acee854ef29d77cce7}} 
+std\+::optional$<$ Cycles $>$ {\bfseries get\+Device\+Cmd\+Exec\+Dur} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ae5590c031dcee7b1aab4cefd46725c0c}\label{classrt_1_1profiling_1_1ProfileEvent_ae5590c031dcee7b1aab4cefd46725c0c}} 
+std\+::optional$<$ \mbox{\hyperlink{structrt_1_1DeviceProperties}{Device\+Properties}} $>$ {\bfseries get\+Device\+Properties} () const
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_addd5f7c6468b79e1961508d0f0d2b8c0}\label{classrt_1_1profiling_1_1ProfileEvent_addd5f7c6468b79e1961508d0f0d2b8c0}} 
+void {\bfseries set\+Type} (Type t)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ac6560d3fcb3cd558641bd52fec53c6dc}\label{classrt_1_1profiling_1_1ProfileEvent_ac6560d3fcb3cd558641bd52fec53c6dc}} 
+void {\bfseries set\+Class} (Class c)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a483f3ab308f5255475f536e8c83bd75b}\label{classrt_1_1profiling_1_1ProfileEvent_a483f3ab308f5255475f536e8c83bd75b}} 
+void {\bfseries set\+Time\+Stamp} (Time\+Point t=Clock\+::now())
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_acd4549da574747660fc66e9016e13c60}\label{classrt_1_1profiling_1_1ProfileEvent_acd4549da574747660fc66e9016e13c60}} 
+void {\bfseries set\+Thread\+Id} (std\+::thread\+::id id=std\+::this\+\_\+thread\+::get\+\_\+id())
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a4e84d8157446d89c26856365ab331630}\label{classrt_1_1profiling_1_1ProfileEvent_a4e84d8157446d89c26856365ab331630}} 
+void {\bfseries set\+Extras} (Extra\+Metadata extras)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_aefa07b26f73d689a89937a0dfa5ee49e}\label{classrt_1_1profiling_1_1ProfileEvent_aefa07b26f73d689a89937a0dfa5ee49e}} 
+void {\bfseries set\+Duration} (Duration d)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a23d0f8d507246d320d26720539d9cd4b}\label{classrt_1_1profiling_1_1ProfileEvent_a23d0f8d507246d320d26720539d9cd4b}} 
+void {\bfseries set\+Event} (Event\+Id event)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_aa7e756f3ee0a292845138565540f4f2a}\label{classrt_1_1profiling_1_1ProfileEvent_aa7e756f3ee0a292845138565540f4f2a}} 
+void {\bfseries set\+Parent\+Id} (Event\+Id parent)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a068f1ba91d1bfe533c5b19ca70c4c642}\label{classrt_1_1profiling_1_1ProfileEvent_a068f1ba91d1bfe533c5b19ca70c4c642}} 
+void {\bfseries set\+Stream} (Stream\+Id stream)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a7ddcdddf132898813a0238c9f946a2f8}\label{classrt_1_1profiling_1_1ProfileEvent_a7ddcdddf132898813a0238c9f946a2f8}} 
+void {\bfseries set\+Device\+Id} (Device\+Id device\+Id)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a8fbc3d831839127d956bffce5c263476}\label{classrt_1_1profiling_1_1ProfileEvent_a8fbc3d831839127d956bffce5c263476}} 
+void {\bfseries set\+Kernel\+Id} (Kernel\+Id kernel\+Id)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_ad309ac52a426c31330437eae7ad239a1}\label{classrt_1_1profiling_1_1ProfileEvent_ad309ac52a426c31330437eae7ad239a1}} 
+void {\bfseries set\+Response\+Type} (Response\+Type rsp\+Type)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a8e6c2aac52beec2e586e2b380abafab2}\label{classrt_1_1profiling_1_1ProfileEvent_a8e6c2aac52beec2e586e2b380abafab2}} 
+void {\bfseries set\+Load\+Address} (uint64\+\_\+t load\+Address)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a1df1807c20e5602d3be85390dc3d148e}\label{classrt_1_1profiling_1_1ProfileEvent_a1df1807c20e5602d3be85390dc3d148e}} 
+void {\bfseries set\+Device\+Cmd\+Start\+Ts} (uint64\+\_\+t start\+\_\+ts)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_af70ad4e9899352b1031674b67016292d}\label{classrt_1_1profiling_1_1ProfileEvent_af70ad4e9899352b1031674b67016292d}} 
+void {\bfseries set\+Device\+Cmd\+Wait\+Dur} (uint64\+\_\+t wait\+\_\+dur)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_af43b80d37146bfbb4a749614cdbfd448}\label{classrt_1_1profiling_1_1ProfileEvent_af43b80d37146bfbb4a749614cdbfd448}} 
+void {\bfseries set\+Device\+Cmd\+Exec\+Dur} (uint64\+\_\+t exec\+\_\+dur)
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_a1a419505032a012ad78c5f081fe08fc7}\label{classrt_1_1profiling_1_1ProfileEvent_a1a419505032a012ad78c5f081fe08fc7}} 
+void {\bfseries set\+Device\+Properties} (\mbox{\hyperlink{structrt_1_1DeviceProperties}{Device\+Properties}} props)
+\end{DoxyCompactItemize}
+\doxysubsection*{Friends}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classrt_1_1profiling_1_1ProfileEvent_af77de3fc644ef78a616919ae1a7b1d27}\label{classrt_1_1profiling_1_1ProfileEvent_af77de3fc644ef78a616919ae1a7b1d27}} 
+{\footnotesize template$<$class Archive $>$ }\\void {\bfseries load} (Archive \&ar, \mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}} \&evt)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+\mbox{\hyperlink{classrt_1_1profiling_1_1ProfileEvent}{Profile\+Event}} exposes serialization internals for runtime users. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/dredok/sw-\/platform/host-\/software/esperanto-\/tools-\/libs/include/runtime/I\+Profile\+Event.\+h\end{DoxyCompactItemize}

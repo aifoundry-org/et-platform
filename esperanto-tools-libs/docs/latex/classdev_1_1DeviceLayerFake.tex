@@ -1,0 +1,123 @@
+\hypertarget{classdev_1_1DeviceLayerFake}{}\doxysection{dev\+::Device\+Layer\+Fake Class Reference}
+\label{classdev_1_1DeviceLayerFake}\index{dev::DeviceLayerFake@{dev::DeviceLayerFake}}
+
+
+Inheritance diagram for dev\+::Device\+Layer\+Fake\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=204pt]{classdev_1_1DeviceLayerFake__inherit__graph}
+\end{center}
+\end{figure}
+
+
+Collaboration diagram for dev\+::Device\+Layer\+Fake\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=204pt]{classdev_1_1DeviceLayerFake__coll__graph}
+\end{center}
+\end{figure}
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_abf983916a056fcc34aeae56871076265}\label{classdev_1_1DeviceLayerFake_abf983916a056fcc34aeae56871076265}} 
+{\bfseries Device\+Layer\+Fake} (int num\+Devices=1)
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_afad494b7cce74b71deadee7175c65292}\label{classdev_1_1DeviceLayerFake_afad494b7cce74b71deadee7175c65292}} 
+bool {\bfseries send\+Command\+Master\+Minion} (int device, int, std\+::byte $\ast$command, size\+\_\+t, dev\+::\+Cmd\+Flag\+MM) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a0418d0a6553e2e99d96fc943029ea4e7}\label{classdev_1_1DeviceLayerFake_a0418d0a6553e2e99d96fc943029ea4e7}} 
+void {\bfseries set\+Sq\+Threshold\+Master\+Minion} (int, int, uint32\+\_\+t) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_aa385c56ffb59e6348d134103a8193b17}\label{classdev_1_1DeviceLayerFake_aa385c56ffb59e6348d134103a8193b17}} 
+void {\bfseries wait\+For\+Epoll\+Events\+Master\+Minion} (int device, uint64\+\_\+t \&sq\+\_\+bitmap, bool \&cq\+\_\+available, std\+::chrono\+::milliseconds timeout) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a3a6eb8208734da9e389b93854b7e70bc}\label{classdev_1_1DeviceLayerFake_a3a6eb8208734da9e389b93854b7e70bc}} 
+bool {\bfseries receive\+Response\+Master\+Minion} (int device, std\+::vector$<$ std\+::byte $>$ \&response) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a2df7d76abd0b09551f8e9a16446123c2}\label{classdev_1_1DeviceLayerFake_a2df7d76abd0b09551f8e9a16446123c2}} 
+bool {\bfseries send\+Command\+Service\+Processor} (int device, std\+::byte $\ast$command, size\+\_\+t, Cmd\+Flag\+SP) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a647cb84ce7c2731d33a6bfdc3fa4660e}\label{classdev_1_1DeviceLayerFake_a647cb84ce7c2731d33a6bfdc3fa4660e}} 
+void {\bfseries set\+Sq\+Threshold\+Service\+Processor} (int, uint32\+\_\+t) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a7ed4da633f2f491f4a7fff8aeeafb2a0}\label{classdev_1_1DeviceLayerFake_a7ed4da633f2f491f4a7fff8aeeafb2a0}} 
+void {\bfseries wait\+For\+Epoll\+Events\+Service\+Processor} (int device, bool \&sq\+\_\+available, bool \&cq\+\_\+available, std\+::chrono\+::milliseconds timeout) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_abc10a8e056c7dac69001885dffceaa17}\label{classdev_1_1DeviceLayerFake_abc10a8e056c7dac69001885dffceaa17}} 
+bool {\bfseries receive\+Response\+Service\+Processor} (int device, std\+::vector$<$ std\+::byte $>$ \&response) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a64a8b9108418ad52de662e8d55136b98}\label{classdev_1_1DeviceLayerFake_a64a8b9108418ad52de662e8d55136b98}} 
+int {\bfseries get\+Devices\+Count} () const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a532a9a362ec88ca7645c92ed6a8dc5ef}\label{classdev_1_1DeviceLayerFake_a532a9a362ec88ca7645c92ed6a8dc5ef}} 
+Device\+State {\bfseries get\+Device\+State\+Master\+Minion} (int) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a9f4bf03370a38992c34d4c1a19ce8402}\label{classdev_1_1DeviceLayerFake_a9f4bf03370a38992c34d4c1a19ce8402}} 
+Device\+State {\bfseries get\+Device\+State\+Service\+Processor} (int) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a464020014cc3d34060db5adc4970a347}\label{classdev_1_1DeviceLayerFake_a464020014cc3d34060db5adc4970a347}} 
+int {\bfseries get\+Submission\+Queues\+Count} (int) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_aae7f9c5186bf3fa3eb0f848cc6817390}\label{classdev_1_1DeviceLayerFake_aae7f9c5186bf3fa3eb0f848cc6817390}} 
+size\+\_\+t {\bfseries get\+Submission\+Queue\+Size\+Master\+Minion} (int) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_aff7e221c3c04de54071126552863ddaf}\label{classdev_1_1DeviceLayerFake_aff7e221c3c04de54071126552863ddaf}} 
+size\+\_\+t {\bfseries get\+Submission\+Queue\+Size\+Service\+Processor} (int) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a20593ad707f52d78a6d08f0a1feb7c09}\label{classdev_1_1DeviceLayerFake_a20593ad707f52d78a6d08f0a1feb7c09}} 
+int {\bfseries get\+Dma\+Alignment} () const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a71c9933f4cd74dc0fb9b0e51acd88e07}\label{classdev_1_1DeviceLayerFake_a71c9933f4cd74dc0fb9b0e51acd88e07}} 
+Dma\+Info {\bfseries get\+Dma\+Info} (int) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_ae506d10684444b6e1a71c2b9150d4762}\label{classdev_1_1DeviceLayerFake_ae506d10684444b6e1a71c2b9150d4762}} 
+uint64\+\_\+t {\bfseries get\+Dram\+Size} () const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_ad25cab90852b55f475e65f15308f62c1}\label{classdev_1_1DeviceLayerFake_ad25cab90852b55f475e65f15308f62c1}} 
+uint64\+\_\+t {\bfseries get\+Dram\+Base\+Address} () const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a3312210716ae432c005bb484677d7475}\label{classdev_1_1DeviceLayerFake_a3312210716ae432c005bb484677d7475}} 
+void $\ast$ {\bfseries alloc\+Dma\+Buffer} (int, size\+\_\+t size\+In\+Bytes, bool) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a1617af2ee0fc5c6c8e68438d31137a0d}\label{classdev_1_1DeviceLayerFake_a1617af2ee0fc5c6c8e68438d31137a0d}} 
+void {\bfseries free\+Dma\+Buffer} (void $\ast$dma\+Buffer) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a59ce4bd057a555ac1d82074eb3fbe306}\label{classdev_1_1DeviceLayerFake_a59ce4bd057a555ac1d82074eb3fbe306}} 
+size\+\_\+t {\bfseries get\+Trace\+Buffer\+Size\+Master\+Minion} (int, Trace\+Buffer\+Type trace\+Type) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a39de67e69fe1aa022394ba8d558fdd48}\label{classdev_1_1DeviceLayerFake_a39de67e69fe1aa022394ba8d558fdd48}} 
+bool {\bfseries get\+Trace\+Buffer\+Service\+Processor} (int, Trace\+Buffer\+Type, std\+::vector$<$ std\+::byte $>$ \&) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a6fbc0779792b185a605a1415dcf654fa}\label{classdev_1_1DeviceLayerFake_a6fbc0779792b185a605a1415dcf654fa}} 
+Device\+Config {\bfseries get\+Device\+Config} (int) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a26c6f9cc5d3cbf46e7b0696d5c822933}\label{classdev_1_1DeviceLayerFake_a26c6f9cc5d3cbf46e7b0696d5c822933}} 
+int {\bfseries get\+Active\+Shires\+Num} (int device) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a503902887a6f327266fea4f2ba2cdd04}\label{classdev_1_1DeviceLayerFake_a503902887a6f327266fea4f2ba2cdd04}} 
+uint32\+\_\+t {\bfseries get\+Frequency\+M\+Hz} (int device) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_ad1f8106dd0bc317b86e86c90ac403488}\label{classdev_1_1DeviceLayerFake_ad1f8106dd0bc317b86e86c90ac403488}} 
+int {\bfseries update\+Firmware\+Image} (int, std\+::vector$<$ unsigned char $>$ \&) override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a88e0b85f00eb3201c30e393e17546613}\label{classdev_1_1DeviceLayerFake_a88e0b85f00eb3201c30e393e17546613}} 
+size\+\_\+t {\bfseries get\+Free\+Cma\+Memory} () const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a8f2bc115df331bb1ad134b9dfede6eb2}\label{classdev_1_1DeviceLayerFake_a8f2bc115df331bb1ad134b9dfede6eb2}} 
+std\+::string {\bfseries get\+Device\+Attribute} (int, std\+::string) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a4f828d20de0a0b9bef03d90678bb05d7}\label{classdev_1_1DeviceLayerFake_a4f828d20de0a0b9bef03d90678bb05d7}} 
+void {\bfseries clear\+Device\+Attributes} (int, std\+::string) const override
+\item 
+\mbox{\Hypertarget{classdev_1_1DeviceLayerFake_a2eb4f9459d177c7c50fb6a45fee45779}\label{classdev_1_1DeviceLayerFake_a2eb4f9459d177c7c50fb6a45fee45779}} 
+void {\bfseries hint\+Inactivity} (int) override
+\end{DoxyCompactItemize}
+
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+/home/dredok/sw-\/platform/host-\/software/esperanto-\/tools-\/libs/include/runtime/Device\+Layer\+Fake.\+h\end{DoxyCompactItemize}

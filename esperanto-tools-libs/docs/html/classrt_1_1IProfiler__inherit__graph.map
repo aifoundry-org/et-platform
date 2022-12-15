@@ -1,0 +1,4 @@
+<map id="rt::IProfiler" name="rt::IProfiler">
+<area shape="rect" id="node1" title="IProfiler interface declaration, all IProfiler interactions should be made using this interface." alt="" coords="37,5,127,32"/>
+<area shape="rect" id="node2" href="$classrt_1_1profiling_1_1IProfilerRecorder.html" title="IProfilerRecorder interface declaration, its a simple added method to IProfiler interface for recordi..." alt="" coords="5,80,159,121"/>
+</map>

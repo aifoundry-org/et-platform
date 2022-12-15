@@ -1,0 +1,5 @@
+<map id="Runtime Profiler API" name="Runtime Profiler API">
+<area shape="rect" id="node1" title="The runtime profiler API allows to gather profiling data from runtime execution. This API expects to ..." alt="" coords="5,31,159,56"/>
+<area shape="rect" id="node2" href="$group__runtime__api.html" title="The runtime API provides different services to the et&#45;soc devices, allowing the user to manage device..." alt="" coords="261,5,363,31"/>
+<area shape="rect" id="node3" href="$group__runtime__profile__event__api.html" title="The runtime profiler API allows to gather profiling data from runtime execution. This API expects to ..." alt="" coords="217,55,407,80"/>
+</map>
