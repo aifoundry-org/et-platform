@@ -65,6 +65,11 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
 }
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleVoltage) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    FLAGS_enable_trace_dump = false;
+    return;
+  }
   setAndGetModuleVoltage(false /* Multiple devices */);
 }
 
@@ -82,6 +87,20 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePow
 
 TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setThrottlePowerStatus) {
   setThrottlePowerStatus(false /* Multiple Devices */);
+}
+
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleFrequency) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    FLAGS_enable_trace_dump = false;
+    return;
+  }
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+    setAndGetModuleFrequency(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
 }
 
 int main(int argc, char** argv) {

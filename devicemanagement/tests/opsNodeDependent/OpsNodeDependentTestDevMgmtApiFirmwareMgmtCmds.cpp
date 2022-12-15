@@ -17,7 +17,7 @@
 using namespace dev;
 using namespace device_management;
 
-class OpsNodeDependentTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
+class OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     ASSERT_NE(handle_, nullptr);
@@ -29,7 +29,11 @@ class OpsNodeDependentTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMM) {
+TEST_F(OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds, resetMM) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    return;
+  }
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     ASSERT_NE(devLayer_, nullptr);
@@ -42,7 +46,11 @@ TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMM) {
   }
 }
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMMWithOpsInUse) {
+TEST_F(OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds, resetMMWithOpsInUse) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    return;
+  }
   if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(true, true);
     ASSERT_NE(devLayer_, nullptr);
@@ -55,7 +63,11 @@ TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetMMWithOpsInUse) {
   }
 }
 
-TEST_F(OpsNodeDependentTestDevMgmtApiResetCmds, resetSOCSWithOpsInUse) {
+TEST_F(OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds, resetSOCSWithOpsInUse) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    return;
+  }
   devLayer_ = IDeviceLayer::createPcieDeviceLayer(true, true);
   ASSERT_NE(devLayer_, nullptr);
   initTestTrace();

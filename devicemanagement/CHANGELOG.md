@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-14288] Enabled back setAndGetModuleVoltage test.
 - Updated deviceApi version in Conan requirements.
+- Replaced NOPARALLEL label with PARALLEL env variable. The setAndGetModuleVoltage test will be skipped when PARALLEL env is set.
 ### Deprecated
 ### Removed
 - Removed device-fw-test-plan.ods.

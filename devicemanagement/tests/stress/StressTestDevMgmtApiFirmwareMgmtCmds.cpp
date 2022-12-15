@@ -17,28 +17,44 @@
 using namespace dev;
 using namespace device_management;
 
-class FunctionalTestDevMgmtApiFrequencyCmds : public TestDevMgmtApiSyncCmds {
+class StressTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
+    ASSERT_NE(handle_, nullptr);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+    ASSERT_NE(devLayer_, nullptr);
     initTestTrace();
     controlTraceLogging();
   }
   void TearDown() override {
-    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
   }
 };
 
-TEST_F(FunctionalTestDevMgmtApiFrequencyCmds, setAndGetModuleFrequency) {
-  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
-    setAndGetModuleFrequency(false /* Multiple devices */);
-  } else {
-    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
-    FLAGS_enable_trace_dump = false;
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    return;
   }
+  auto iteration = getTestTarget() == Target::Loopback ? 30 : 10;
+  for (int i = 0; i < iteration; i++) {
+    resetSOC(true /* Single Device */);
+  }
+  extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
+}
+
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCMultiDevice) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    return;
+  }
+  auto iteration = (getTestTarget() == Target::Loopback ? 30 : 10) / devLayer_->getDevicesCount();
+  for (int i = 0; i < iteration; i++) {
+    resetSOC(false /* Multiple Devices */);
+  }
+  extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
 }
 
 int main(int argc, char** argv) {

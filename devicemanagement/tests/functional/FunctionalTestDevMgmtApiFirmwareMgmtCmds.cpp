@@ -65,6 +65,24 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
 //  updateFirmwareImage(false);
 //}
 
+TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    FLAGS_enable_trace_dump = false;
+    return;
+  }
+  resetSOC(true /* Single Device */);
+}
+
+TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, resetSOCMultiDevice) {
+  if (isParallelRun()) {
+    DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+    FLAGS_enable_trace_dump = false;
+    return;
+  }
+  resetSOC(false /* Multiple Devices */);
+}
+
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");

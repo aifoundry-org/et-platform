@@ -133,20 +133,6 @@ create_test(
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
-create_test(
-    TARGET      FunctionalTestDevMgmtApiFrequencyCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiFrequencyCmds.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS        ""
-    PROPERTIES  "LABELS;FUNCTIONAL;LABELS;NOPARALLEL;TIMEOUT;60"
-)
-
-create_test(
-    TARGET      FunctionalTestDevMgmtApiResetCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
-    ARGS        ""
-    PROPERTIES  "LABELS;FUNCTIONAL;LABELS;NOPARALLEL;TIMEOUT;60"
-)
-
 #####################
 # INTEGRATION TESTS #
 #####################
@@ -234,10 +220,10 @@ create_test(
 )
 
 create_test(
-    TARGET      OpsNodeDependentTestDevMgmtApiResetCmds
-    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    TARGET      OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;LABELS;NOPARALLEL;TIMEOUT;60"
+    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )
 
 create_test(
@@ -251,10 +237,10 @@ create_test(
 # STRESS TESTS #
 ################
 create_test(
-    TARGET      StressTestDevMgmtApiResetCmds
-    SOURCES     stress/StressTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    TARGET      StressTestDevMgmtApiFirmwareMgmtCmds
+    SOURCES     stress/StressTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;STRESS;LABELS;NOPARALLEL;TIMEOUT;450"
+    PROPERTIES  "LABELS;STRESS;TIMEOUT;450"
 )
 
 configure_file(

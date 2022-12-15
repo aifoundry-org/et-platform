@@ -268,6 +268,14 @@ protected:
     return std::find(list.begin(), list.end(), getTestTarget()) != list.end();
   }
 
+  inline bool isParallelRun(void) const {
+    auto envParallel = getenv("PARALLEL");
+    if (envParallel != nullptr && envParallel[0] != '\0') {
+      return true;
+    }
+    return false;
+  }
+
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
   logging::LoggerDefault logger_;
