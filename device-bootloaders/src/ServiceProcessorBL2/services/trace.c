@@ -90,6 +90,20 @@ static inline void et_trace_buffer_lock_release(void)
     }
 }
 
+static inline void et_trace_threshold_notify(const struct trace_control_block_t *cb)
+{
+    struct event_message_t message;
+    const struct trace_buffer_std_header_t *trace_header =
+        (const struct trace_buffer_std_header_t *)cb->base_per_hart;
+
+    /* Generate trace buffer threshold event */
+    FILL_EVENT_HEADER(&message.header, SP_TRACE_BUFFER_FULL, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, trace_header->type, cb->offset_per_hart)
+
+    /* Post event to Host - ignore status to avoid potential nested locks */
+    SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(struct event_message_t));
+}
+
 /* Stats Trace buffer lock. NOTE: This lock is meant to be used within trace component */
 static SemaphoreHandle_t Trace_Stats_Cb_Mutex_Handle = NULL;
 static StaticSemaphore_t Trace_Stats_Cb_Mutex_Buffer;
@@ -273,6 +287,9 @@ int32_t Trace_Init_SP(const struct trace_init_info_t *sp_init_info)
     /* Register locks for SP trace */
     SP_Trace_CB.buffer_lock_acquire = et_trace_buffer_lock_acquire;
     SP_Trace_CB.buffer_lock_release = et_trace_buffer_lock_release;
+
+    /* Register trace threshold notification event handler */
+    SP_Trace_CB.threshold_notify = et_trace_threshold_notify;
 
     /* Common buffer for all SP HART. */
     SP_Trace_CB.size_per_hart = sp_init_info_l.buffer_size;
@@ -525,6 +542,9 @@ int32_t Trace_Exception_Init_SP(const struct trace_init_info_t *init_info)
     SP_Exp_Trace_CB.buffer_lock_acquire = NULL;
     SP_Exp_Trace_CB.buffer_lock_release = NULL;
 
+    /* Register trace threshold notification event handler */
+    SP_Exp_Trace_CB.threshold_notify = et_trace_threshold_notify;
+
     /* Initialize Trace for SP Exception buffer. */
     return Trace_Init(&exp_init_info_l, &SP_Exp_Trace_CB, TRACE_SIZE_HEADER);
 }
@@ -728,6 +748,9 @@ int32_t Trace_Init_SP_Dev_Stats(const struct trace_init_info_t *dev_trace_init_i
     /* Trace buffer locks are not required as only stats task will be accessing it*/
     SP_Stats_Trace_CB.buffer_lock_acquire = NULL;
     SP_Stats_Trace_CB.buffer_lock_release = NULL;
+
+    /* Threshold notification not set for now */
+    SP_Stats_Trace_CB.threshold_notify = NULL;
 
     /* Initialize Trace for each all Harts in Service Processor. */
     status = Trace_Init(&dev_trace_init_info_l, &SP_Stats_Trace_CB, TRACE_STD_HEADER);
