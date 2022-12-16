@@ -44,7 +44,7 @@
 #define ET_TRACE_ENCODER_IMPL
 #include "trace.h"
 
-/* The log header should be included after the trace encoder is initilaized. */
+/* The log header should be included after the trace encoder is initialized. */
 #include "log.h"
 
 #ifndef __ASSEMBLER__

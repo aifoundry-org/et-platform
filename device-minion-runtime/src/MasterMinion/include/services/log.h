@@ -24,19 +24,18 @@
 
 /* mm specific headers */
 #include "device_minion_runtime_build_configuration.h"
-#include "services/trace.h"
 
 #if defined(DEVICE_MINION_RUNTIME_BUILD_RELEASE)
 #if TEST_FRAMEWORK == 1
 #define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
 #else
 #define CURRENT_LOG_LEVEL LOG_LEVEL_ERROR
-#endif
+#endif /* TEST_FRAMEWORK == 1 */
 #elif defined(DEVICE_MINION_RUNTIME_BUILD_DEBUG)
 #define CURRENT_LOG_LEVEL LOG_LEVEL_DEBUG
 #elif defined(DEVICE_MINION_RUNTIME_BUILD_INFO)
 #define CURRENT_LOG_LEVEL LOG_LEVEL_INFO
-#endif
+#endif /* defined(DEVICE_MINION_RUNTIME_BUILD_RELEASE) */
 
 /*! \def LOG_STRING_MAX_SIZE_MM
     \brief Max string message length which can be logged over serial.
@@ -67,14 +66,14 @@ log_interface_t Log_Get_Interface(void);
 */
 log_level_t Log_Get_Level(void);
 
-/*! \fn int32_t Log_Write_Uart(log_level_e level, const char *const fmt, ...)
-    \brief Write a log with va_list style args on UART console
+/*! \fn int32_t __Log_Write(const char *const fmt, ...)
+    \brief Write a log with va_list style args without any restriction by log level
     \param level Log level for the current log
     \param fmt format specifier
     \param ... variable list
     \return Bytes written
 */
-int32_t Log_Write_Uart(log_level_e level, const char *const fmt, ...)
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
     __attribute__((format(__printf__, 2, 3)));
 
 /*! \fn int32_t Log_Write_String(const char *str, size_t length)
@@ -93,26 +92,11 @@ int32_t __Log_Write_String(log_level_e level, const char *str, size_t length);
     \param ... variable list
     \return None
 */
-#define Log_Write(level, fmt, ...)                                                       \
-    do                                                                                   \
-    {                                                                                    \
-        if (level <= CURRENT_LOG_LEVEL)                                                  \
-        {                                                                                \
-            if (Log_Get_Interface() == LOG_DUMP_TO_TRACE)                                \
-            {                                                                            \
-                Trace_Format_String(                                                     \
-                    (trace_string_event_e)level, Trace_Get_MM_CB(), fmt, ##__VA_ARGS__); \
-                                                                                         \
-                if (level <= LOG_MM_TRACE_EVICT_LEVEL)                                   \
-                {                                                                        \
-                    Trace_Evict_Buffer_MM();                                             \
-                }                                                                        \
-            }                                                                            \
-            else                                                                         \
-            {                                                                            \
-                Log_Write_Uart(level, fmt, ##__VA_ARGS__);                               \
-            }                                                                            \
-        }                                                                                \
+#define Log_Write(level, fmt, ...)                  \
+    do                                              \
+    {                                               \
+        if (level <= CURRENT_LOG_LEVEL)             \
+            __Log_Write(level, fmt, ##__VA_ARGS__); \
     } while (0)
 
 /*! \fn int32_t Log_Write_String(log_level_t level, const char *str, size_t length)

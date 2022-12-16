@@ -80,7 +80,7 @@ void et_trace_mm_stats_cb_lock_release(void);
 #define ET_TRACE_ENCODER_IMPL
 #include "services/trace.h"
 
-/* The log header should be included after the trace encoder is initilaized. */
+/* The log header should be included after the trace encoder is initialized. */
 #include "services/log.h"
 
 union data_u32_f {

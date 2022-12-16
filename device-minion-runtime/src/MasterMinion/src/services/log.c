@@ -14,7 +14,10 @@
 
     Public interfaces:
         Log_Init
-        Log_Write_Uart
+        Log_Set_Interface
+        Log_Get_Interface
+        Log_Get_Level
+        __Log_Write
         __Log_Write_String
 */
 /***********************************************************************/
@@ -29,6 +32,7 @@
 
 /* mm specific headers */
 #include "services/log.h"
+#include "services/trace.h"
 #include "drivers/console.h"
 
 /*! \var log_interface_t Log_Interface
@@ -36,12 +40,6 @@
     \warning Not thread safe!
 */
 static log_interface_t Log_Interface __attribute__((aligned(64))) = LOG_DUMP_TO_UART;
-
-/*! \def CHECK_STRING_FILTER
-    \brief This checks if trace string log level is enabled to log the given level.
-*/
-#define CHECK_STRING_FILTER(cb, log_level) \
-    ((atomic_load_local_32(&cb->filter_mask) & TRACE_FILTER_STRING_MASK) >= log_level)
 
 /************************************************************************
 *
@@ -144,7 +142,7 @@ log_level_t Log_Get_Level(void)
 *
 *   FUNCTION
 *
-*       Log_Write_Uart
+*       __Log_Write
 *
 *   DESCRIPTION
 *
@@ -161,11 +159,26 @@ log_level_t Log_Get_Level(void)
 *       int32_t        bytes written
 *
 ***********************************************************************/
-int32_t Log_Write_Uart(log_level_e level, const char *const fmt, ...)
+int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 {
-    int32_t bytes_written = 0;
+    int32_t bytes_written;
 
-    if (level <= CURRENT_LOG_LEVEL)
+    /* Dump the log message over current log interface. */
+    if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
+    {
+        va_list va;
+        va_start(va, fmt);
+        Trace_Format_String_V((trace_string_event_e)level, Trace_Get_MM_CB(), fmt, va);
+        va_end(va);
+
+        /* Evict trace buffer to L3 so that it can be access on host side for extraction
+           through IOCTL */
+        if (level <= LOG_MM_TRACE_EVICT_LEVEL)
+        {
+            Trace_Evict_Buffer_MM();
+        }
+    }
+    else
     {
         char buff[LOG_STRING_MAX_SIZE_MM];
         va_list va;
