@@ -254,7 +254,7 @@ create_test(
     TARGET      StressTestDevMgmtApiResetCmds
     SOURCES     stress/StressTestDevMgmtApiResetCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;STRESS;LABELS;NOPARALLEL;TIMEOUT;300"
+    PROPERTIES  "LABELS;STRESS;LABELS;NOPARALLEL;TIMEOUT;450"
 )
 
 configure_file(

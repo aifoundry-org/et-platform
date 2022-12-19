@@ -35,7 +35,7 @@ class StressTestDevMgmtApiResetCmds : public TestDevMgmtApiSyncCmds {
 
 TEST_F(StressTestDevMgmtApiResetCmds, resetSOCSingleDevice) {
   auto iteration = getTestTarget() == Target::Loopback ? 30 : 10;
-  for (int i = 0; i < 25; i++) {
+  for (int i = 0; i < iteration; i++) {
     resetSOC(true /* Single Device */);
   }
   extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
