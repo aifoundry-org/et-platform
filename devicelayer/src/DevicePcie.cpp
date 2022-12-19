@@ -30,7 +30,7 @@ namespace fs = std::experimental::filesystem;
 
 namespace {
 
-constexpr auto kMinReqDriverVersion = "0.10.0";
+constexpr auto kMinReqDriverVersion = "0.12.0";
 
 int countDeviceNodes(bool isMngmt) {
   auto it = fs::directory_iterator("/dev");
@@ -274,15 +274,8 @@ int openWhenReady(const std::string path, std::chrono::seconds timeout) {
     throw Exception("Error unable to evaluate compatibility!");
   }
 
-  auto state = getDeviceState(fd);
-  for (; state != DeviceState::Ready && state != DeviceState::NotResponding && std::chrono::steady_clock::now() < end;
-       state = getDeviceState(fd)) {
-    DV_LOG(INFO) << "Waiting for device " << path << " to be ready ...";
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  if (state != DeviceState::Ready) {
-    throw Exception("Error device " + path +
-                    " is not in DeviceState::Ready, state: " + std::to_string(static_cast<int>(state)));
+  if (auto state = getDeviceState(fd); state != DeviceState::Ready && state != DeviceState::PendingCommands) {
+    throw Exception("Error device " + path + " is in bad state, state: " + std::to_string(static_cast<int>(state)));
   }
   return fd;
 }

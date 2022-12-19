@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] 
 ### Added
 ### Changed
+- [SW-15383] DevicePcie: Do not wait for `DeviceState` in `openWhenReady()`, the device node can only be opened now when reset is concluded. Moreover, `DeviceState` should be checked once in constructor and allowed to proceed with `DeviceState::Ready` and `DeviceState::PendingCommands`. With latter state, the user can try to recover the device using abort functionality. This change requires 0.12.0 driver version hence updating kMinReqDriverVersion=0.12.0
 ### Deprecated
 ### Removed
 ### Fixed
