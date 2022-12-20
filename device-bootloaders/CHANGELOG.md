@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Fixing MM reset boot flow.
 - [SW-13350] Replacing Trace_String() with Trace_Format_String_V()
+- Update the lower limit of esperantoTrace in conan.
 ### Deprecated
 ### Removed
 ### Fixed
