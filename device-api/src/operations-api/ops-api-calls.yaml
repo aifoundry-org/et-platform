@@ -693,13 +693,16 @@ Messages :
         Type: uint8_t
 #------------------------------------------------------------------------------
   - Name: device_ops_trace_buffer_full_event
-    Description: Binary trace buffer is full and the host should consume it
+    Description: Event triggered when trace buffer has reached threshold or is full
     Type: Event
     PairedMessage: None
     Fields:
-      - Name: ring_buffer_start
-        Description: Buffer
-        Type: uint64_t
-      - Name: size
-        Description: Size of buffer
-        Type: uint64_t
+      - Name: data_size
+        Description: Total data size when event is triggered
+        Type: uint32_t
+      - Name: buffer_type
+        Description: Trace buffer type idenitifier
+        Type: uint8_t
+      - Name: pad[3]
+        Description: Padding for alignment
+        Type: uint8_t
