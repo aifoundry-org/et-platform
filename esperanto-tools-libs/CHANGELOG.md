@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-15364] Automatic doxygen documentation generation.
 - [SW-15254] CMA allocation policy updated.
+- [SW-15419] Avoid using CMA for loading kernels when not needed.
 ### Changed
 ### Deprecated
 ### Removed
