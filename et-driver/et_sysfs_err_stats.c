@@ -22,15 +22,16 @@
  * ET Specific Correctable Error statistics
  *
  * ce_count
- * |- DramCeEvent		DRAM correctable errors count
- * |- MinionCeEvent		Minion errors count
- * |- PcieCeEvent		PCIe correctable errors count
- * |- PmicCeEvent		PMIC errors count
- * |- SpCeEvent			SP errors count
- * |- SpExceptCeEvent		SP exceptions count
- * |- SramCeEvent		SRAM correctable errors count
- * |- ThermOvershootCeEvent	Thermal overshoots count
- * `- ThermThrottleCeEvent	Thermal throttles count
+ * |- DramCeEvent               DRAM correctable errors count
+ * |- MinionCeEvent             Minion errors count
+ * |- PcieCeEvent               PCIe correctable errors count
+ * |- PmicCeEvent               PMIC errors count
+ * |- SpCeEvent                 SP errors count
+ * |- SpExceptCeEvent           SP exceptions count
+ * |- SramCeEvent               SRAM correctable errors count
+ * |- ThermOvershootCeEvent     Thermal overshoots count
+ * |- ThermThrottleCeEvent      Thermal throttles count
+ * |- SpTraceBufferFullCeEvent  SP trace buffer full events count
  */
 static ssize_t
 ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -41,15 +42,16 @@ ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	stats = &et_dev->mgmt.err_stats;
 	return sysfs_emit(
 		buf,
-		"DramCeEvent:           %llu\n"
-		"MinionCeEvent:         %llu\n"
-		"PcieCeEvent:           %llu\n"
-		"PmicCeEvent:           %llu\n"
-		"SpCeEvent:             %llu\n"
-		"SpExceptCeEvent:       %llu\n"
-		"SramCeEvent:           %llu\n"
-		"ThermOvershootCeEvent: %llu\n"
-		"ThermThrottleCeEvent:  %llu\n",
+		"DramCeEvent:              %llu\n"
+		"MinionCeEvent:            %llu\n"
+		"PcieCeEvent:              %llu\n"
+		"PmicCeEvent:              %llu\n"
+		"SpCeEvent:                %llu\n"
+		"SpExceptCeEvent:          %llu\n"
+		"SramCeEvent:              %llu\n"
+		"ThermOvershootCeEvent:    %llu\n"
+		"ThermThrottleCeEvent:     %llu\n"
+		"SpTraceBufferFullCeEvent: %llu\n",
 		atomic64_read(
 			&stats->counters[ET_ERR_COUNTER_STATS_DRAM_CE_COUNT]),
 		atomic64_read(
@@ -70,7 +72,10 @@ ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 				 [ET_ERR_COUNTER_STATS_THERM_OVERSHOOT_CE_COUNT]),
 		atomic64_read(
 			&stats->counters
-				 [ET_ERR_COUNTER_STATS_THERM_THROTTLE_CE_COUNT]));
+				 [ET_ERR_COUNTER_STATS_THERM_THROTTLE_CE_COUNT]),
+		atomic64_read(
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_SP_TRACE_FULL_CE_COUNT]));
 }
 
 /*

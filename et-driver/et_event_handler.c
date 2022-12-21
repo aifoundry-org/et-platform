@@ -511,6 +511,17 @@ parse_runtime_error_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		event_msg->event_syndrome[1]);
 }
 
+static void
+parse_trace_buffer_event_syndrome(struct device_mgmt_event_msg_t *event_msg,
+				  struct event_dbg_msg *dbg_msg)
+{
+	/* syndrome[0]: Buffer type, syndrome[1]: Data size */
+	sprintf(dbg_msg->syndrome,
+		"Trace Buffer threshold reached\nBuffer type: %llu\nData size: %llu\n",
+		event_msg->event_syndrome[0],
+		event_msg->event_syndrome[1]);
+}
+
 int et_handle_device_event(struct et_cqueue *cq,
 			   struct device_mgmt_event_msg_t *event_msg)
 {
@@ -643,9 +654,16 @@ int et_handle_device_event(struct et_cqueue *cq,
 			&stats->counters[ET_ERR_COUNTER_STATS_SP_CE_COUNT]);
 		break;
 	case DEV_MGMT_API_MID_SP_WATCHDOG_RESET_EVENT:
-		dbg_msg.desc = "SP rebooted due to watchdog timeout";
+		dbg_msg.desc = "SP Watchdog Reset";
 		atomic64_inc(
 			&stats->counters[ET_ERR_COUNTER_STATS_SP_WDOG_UCE_COUNT]);
+		break;
+	case DEV_MGMT_API_MID_SP_TRACE_BUFFER_FULL_EVENT:
+		dbg_msg.desc = "SP Trace Buffer Full";
+		parse_trace_buffer_event_syndrome(event_msg, &dbg_msg);
+		atomic64_inc(
+			&stats->counters
+				 [ET_ERR_COUNTER_STATS_SP_TRACE_FULL_CE_COUNT]);
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
