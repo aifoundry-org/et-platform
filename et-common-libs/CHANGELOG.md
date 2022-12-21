@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added Trac_User_Profile_Event() for code instrumentation
+- [SW-5479] Adding Trace Buffer Full message for CM-MM interface.
 ### Changed
 ### Deprecated
 ### Removed
