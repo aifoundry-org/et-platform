@@ -43,6 +43,7 @@
 #include "services/cm_iface.h"
 #include "workers/cw.h"
 #include "services/host_cmd_hdlr.h"
+#include "services/host_iface.h"
 
 /* mm_rt_helpers */
 #include "cm_mm_defines.h"
@@ -153,6 +154,23 @@ void et_trace_mm_stats_cb_lock_release(void)
     release_local_spinlock(&MM_Stats_Trace_CB.mm_trace_cb_lock);
 }
 
+static inline void et_trace_threshold_notify(const struct trace_control_block_t *cb)
+{
+    struct device_ops_trace_buffer_full_event_t event;
+    const struct trace_buffer_std_header_t *trace_header =
+        (const struct trace_buffer_std_header_t *)(uintptr_t)ET_TRACE_READ_U64(cb->base_per_hart);
+
+    /* Fill the event */
+    event.event_info.event_hdr.tag_id = 0xffff; /* Async Event Tag ID. */
+    event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
+    event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT;
+    event.buffer_type = (uint8_t)ET_TRACE_READ_U16(trace_header->type);
+    event.data_size = ET_TRACE_READ_U32(cb->offset_per_hart);
+
+    /* Push the event to CQ - ignore error in case of failure */
+    Host_Iface_CQ_Push_Cmd(0, &event, sizeof(event));
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -227,6 +245,9 @@ int32_t Trace_Init_MM(const struct trace_init_info_t *mm_init_info)
         /* Register locks for MM trace */
         MM_Trace_CB.cb.buffer_lock_acquire = et_trace_mm_cb_lock_acquire;
         MM_Trace_CB.cb.buffer_lock_release = et_trace_mm_cb_lock_release;
+
+        /* Register the trace buffer threshold notification */
+        MM_Trace_CB.cb.threshold_notify = et_trace_threshold_notify;
 
         /* Initialize Trace for each all Harts in Master Minion. */
         status = Trace_Init(&hart_init_info, &MM_Trace_CB.cb, TRACE_STD_HEADER);
@@ -724,9 +745,12 @@ int32_t Trace_Init_MM_Stats(const struct trace_init_info_t *mm_init_info)
         MM_Stats_Trace_CB.cb.size_per_hart = MM_STATS_BUFFER_SIZE;
         MM_Stats_Trace_CB.cb.base_per_hart = MM_STATS_TRACE_BUFFER_BASE;
 
-        /* Initialize buffer lock acquire/release to NULL as they are not required for MM Stats*/
+        /* Initialize buffer lock acquire/release to NULL as they are not required for MM Stats */
         MM_Stats_Trace_CB.cb.buffer_lock_acquire = NULL;
         MM_Stats_Trace_CB.cb.buffer_lock_release = NULL;
+
+        /* Trace stats buffer threshold notification not required */
+        MM_Stats_Trace_CB.cb.threshold_notify = NULL;
 
         /* Initialize Trace for each all Harts in Master Minion. */
         status = Trace_Init(&hart_init_info, &MM_Stats_Trace_CB.cb, TRACE_STD_HEADER);

@@ -42,6 +42,7 @@
 #include "drivers/plic.h"
 #include "services/cm_iface.h"
 #include "services/log.h"
+#include "services/host_iface.h"
 #include "services/sp_iface.h"
 #include "services/sw_timer.h"
 #include "workers/cw.h"
@@ -323,6 +324,31 @@ void CW_Process_CM_SMode_Messages(void)
                 Log_Write(LOG_LEVEL_CRITICAL,
                     "CW:CM_TO_MM:MESSAGE_ID_FW_ERROR from H%ld: Error_code: %d\r\n", error->hart_id,
                     error->error_code);
+
+                break;
+            }
+            case CM_TO_MM_MESSAGE_ID_FW_TRACE_BUFFER_FULL:
+            {
+                struct device_ops_trace_buffer_full_event_t event;
+                const cm_to_mm_message_fw_trace_buffer_full_t *fw_event =
+                    (const cm_to_mm_message_fw_trace_buffer_full_t *)&message;
+
+                /* Fill the event */
+                event.event_info.event_hdr.tag_id = 0xffff; /* Async Event Tag ID. */
+                event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
+                event.event_info.event_hdr.msg_id =
+                    DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT;
+                event.buffer_type = fw_event->buffer_type;
+                event.data_size = fw_event->data_size;
+
+                /* Push the event to CQ */
+                status = Host_Iface_CQ_Push_Cmd(0, &event, sizeof(event));
+                if (status != STATUS_SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_ERROR, "CW:Push to Host CQ failed: status:%d\r\n", status);
+
+                    SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
+                }
 
                 break;
             }

@@ -32,6 +32,8 @@
 #include "error_codes.h"
 #include "cm_mm_defines.h"
 #include "common_utils.h"
+#include "cm_to_mm_iface.h"
+#include "cm_mm_defines.h"
 
 #include <common/printf.h>
 
@@ -122,6 +124,31 @@ static_assert(sizeof(trace_umode_control_block_t) <= TRACE_CB_MAX_SIZE,
 
 #endif /* __ASSEMBLER__ */
 
+/* Static functions */
+static inline void et_trace_threshold_notify(const struct trace_control_block_t *cb)
+{
+    const struct trace_buffer_std_header_t *trace_header =
+        (const struct trace_buffer_std_header_t *)(uintptr_t)ET_TRACE_READ_U64(cb->base_per_hart);
+
+    if (trace_header->type == TRACE_CM_BUFFER)
+    {
+        cm_to_mm_message_fw_trace_buffer_full_t message = {
+            .header.id = CM_TO_MM_MESSAGE_ID_FW_TRACE_BUFFER_FULL,
+            .data_size = cb->offset_per_hart,
+            .buffer_type = (uint8_t)trace_header->type
+        };
+
+        /* Send message to dispatcher (Master shire Hart 0) - ignore error in case of failure */
+        CM_To_MM_Iface_Unicast_Send(CM_MM_MASTER_HART_DISPATCHER_IDX,
+            CM_MM_MASTER_HART_UNICAST_BUFF_IDX, (cm_iface_message_t *)&message);
+    }
+    else if (trace_header->type == TRACE_CM_UMODE_BUFFER)
+    {
+        /* From U-mode context, do a syscall to generate
+        event to CM FW which will gnerate event to MM FW */
+    }
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -179,6 +206,9 @@ int32_t Trace_Init_CM(const struct trace_init_info_t *cm_init_info)
     /* Initialize buffer lock acquire/release to NULL as they are not required for CM. */
     CM_TRACE_CB[hart_cb_index].cb.buffer_lock_acquire = NULL;
     CM_TRACE_CB[hart_cb_index].cb.buffer_lock_release = NULL;
+
+    /* Register the trace buffer threshold notification */
+    CM_TRACE_CB[hart_cb_index].cb.threshold_notify = et_trace_threshold_notify;
 
     /* Initialize trace buffer header. First CM hart contains ET Trace header,
        rest of Harts contain only size of trace data in their header.*/
@@ -472,6 +502,9 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
     /* Initialize buffer lock acquire/release to NULL as they are not required for CM. */
     cb->buffer_lock_acquire = NULL;
     cb->buffer_lock_release = NULL;
+
+    /* TODO: Need to send notification for U-mode kernels? */
+    cb->threshold_notify = NULL;
 
     /* Calculate size per Hart by diving total buffer equally among enabled Harts.*/
     cb->size_per_hart =

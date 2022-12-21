@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
+- [SW-5479] Adding support for sending trace buffer full event to host.
 ### Changed
 - Updating Conan package requirements.
 - [SW-13350] Replaced the usage of Trace_String() with Trace_Format_String().
