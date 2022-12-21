@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unrealeased]
 ### Added
 - [SW-15364] Automatic doxygen documentation generation.
+- [SW-15254] CMA allocation policy updated.
 ### Changed
 ### Deprecated
 ### Removed

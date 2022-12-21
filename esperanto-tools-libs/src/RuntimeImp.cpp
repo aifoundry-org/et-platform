@@ -98,24 +98,28 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
     totalElementSize += dmaInfo.maxElementSize_;
   }
   auto desiredCma = maxElementCount * totalElementSize * kAllocFactorTotalMaxMemory;
-  // use 80% of CMA as max
-  if (auto maxCma = deviceLayer_->getFreeCmaMemory() * 8 / 10; maxCma < desiredCma) {
-    RT_LOG(WARNING) << "Free CMA is not enough to fullfill runtime needs. DMA transfers could be slower. Desired CMA: "
-                    << desiredCma << " Available CMA (80% max usage): " << maxCma;
-    desiredCma = maxCma;
-  }
-  RT_LOG_IF(FATAL, desiredCma < 1024) << "Error: need at least 1024B of CMA to work";
   auto envCma = getenv("ET_CMA_SIZE");
   if (envCma) {
-    auto mem = std::stoull(envCma);
+    auto mem = std::max(std::stoull(envCma), static_cast<unsigned long long>(uint32_t(devicesCount) * kBlockSize));
     RT_LOG(INFO) << "Overriding default calculated CMA size of " << desiredCma << " with a CMA size of " << mem;
     desiredCma = mem;
   }
-  for (const auto& d : devices_) {
-    cmaManagers_.try_emplace(
-      d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(
-           static_cast<int>(d), desiredCma / static_cast<uint32_t>(devicesCount), true, deviceLayer_)));
+  auto cmaPerDevice = desiredCma / static_cast<uint32_t>(devicesCount);
+  while (cmaPerDevice >= kBlockSize) {
+    try {
+      for (const auto& d : devices_) {
+        cmaManagers_.try_emplace(d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(
+                                      static_cast<int>(d), cmaPerDevice, true, deviceLayer_)));
+      }
+      break; // if we were able to do the required allocations, end the loop; if not try asking for less memory.
+    } catch (const dev::Exception&) {
+      auto newCmaPerDevice = 3 * cmaPerDevice / 4;
+      RT_LOG(WARNING) << "There is not enough CMA memory to allocate desired " << cmaPerDevice
+                      << " bytes per device. Trying with " << newCmaPerDevice << " bytes per device.";
+      cmaPerDevice = newCmaPerDevice;
+    }
   }
+  RT_LOG_IF(FATAL, cmaPerDevice < kBlockSize) << "Error: need at least " << kBlockSize << "B of CMA per device to work";
   responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
