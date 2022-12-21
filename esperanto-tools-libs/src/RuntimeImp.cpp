@@ -235,7 +235,7 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
       // allocate a dmabuffer to do the copy
       std::vector<std::byte> currentBuffer{memSize};
       // first fill with fileSize
-      std::copy(data + offset, data + offset + fileSize, currentBuffer);
+      std::copy(data + offset, data + offset + fileSize, currentBuffer.data());
       if (memSize > fileSize) {
         RT_VLOG(LOW) << "Memsize of segment " << segment->get_index() << " is larger than fileSize. Filling with 0s";
         std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer.data()) + fileSize, memSize - fileSize, 0);
