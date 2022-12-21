@@ -216,7 +216,6 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
   auto entry = elf.get_entry();
 
   std::vector<EventId> events;
-  std::vector<std::byte*> cmaBuffers;
   for (auto&& segment : elf.segments) {
     if (segment->get_type() & PT_LOAD) {
       auto offset = segment->get_offset();
@@ -234,18 +233,20 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
         basePhysicalAddressCalculated = true;
       }
       // allocate a dmabuffer to do the copy
-      cmaBuffers.emplace_back(cmaManagers_.at(DeviceId{stInfo.device_})->alloc(memSize));
-      auto currentBuffer = cmaBuffers.back();
+      std::vector<std::byte> currentBuffer{memSize};
       // first fill with fileSize
       std::copy(data + offset, data + offset + fileSize, currentBuffer);
       if (memSize > fileSize) {
         RT_VLOG(LOW) << "Memsize of segment " << segment->get_index() << " is larger than fileSize. Filling with 0s";
-        std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer) + fileSize, memSize - fileSize, 0);
+        std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer.data()) + fileSize, memSize - fileSize, 0);
       }
       RT_VLOG(LOW) << "S: " << segment->get_index() << std::hex << " O: 0x" << offset << " PA: 0x" << loadAddress
                    << " MS: 0x" << memSize << " FS: 0x" << fileSize << " @: 0x" << addr << " E: 0x" << entry << "\n";
-      events.emplace_back(doMemcpyHostToDevice(stream, currentBuffer, reinterpret_cast<std::byte*>(addr), memSize,
-                                               false, defaultCmaCopyFunction));
+      events.emplace_back(doMemcpyHostToDevice(stream, currentBuffer.data(), reinterpret_cast<std::byte*>(addr),
+                                               memSize, false, defaultCmaCopyFunction));
+      eventManager_.addOnDispatchCallback({{events.back()}, [buffer = std::move(currentBuffer)] {
+                                             // do nothing, it will release the buffer
+                                           }});
     }
   }
   if (!basePhysicalAddressCalculated) {
@@ -269,17 +270,10 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
 
   loadCodeResult.event_ = eventManager_.getNextId();
   streamManager_.addEvent(stream, loadCodeResult.event_);
-
-  // add another thread to dispatch the buffers once the copy is done
-  eventManager_.addOnDispatchCallback(
-    {std::move(events),
-     [this, buffers = std::move(cmaBuffers), dev = DeviceId{stInfo.device_}, evt = loadCodeResult.event_] {
-       RT_VLOG(LOW) << "Load code ended. Releasing buffers.";
-       for (auto b : buffers) {
-         cmaManagers_.at(dev)->free(b);
-       }
-       dispatch(evt);
-     }});
+  eventManager_.addOnDispatchCallback({std::move(events), [this, evt = loadCodeResult.event_] {
+                                         RT_VLOG(LOW) << "Load code ended.";
+                                         dispatch(evt);
+                                       }});
   return loadCodeResult;
 }
 
