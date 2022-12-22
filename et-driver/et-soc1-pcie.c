@@ -2394,9 +2394,6 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
 	struct pci_dev *pdev = et_dev->pdev;
 
-	if (!et_dev->is_initialized)
-		return;
-
 	et_ops_dev_destroy(et_dev, miscdev_destroy);
 	et_mgmt_dev_destroy(et_dev, miscdev_destroy);
 
@@ -2404,6 +2401,9 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 		pci_disable_pcie_error_reporting(pdev);
 		et_dev->is_err_reporting = false;
 	}
+
+	if (!et_dev->is_initialized)
+		return;
 
 	pci_release_regions(pdev);
 	pci_free_irq_vectors(pdev);
@@ -2415,6 +2415,8 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 static void et_reset_isr_work(struct work_struct *work)
 {
 	int rv = 0;
+	int retry = 0;
+	int hit_count = 0;
 	struct et_pci_dev *et_dev =
 		container_of(work, struct et_pci_dev, isr_work);
 
@@ -2430,7 +2432,24 @@ static void et_reset_isr_work(struct work_struct *work)
 	uninit_et_pci_dev(et_dev, false);
 
 	dev_dbg(&et_dev->pdev->dev, "Waiting for PCIe link to settle...\n");
-	msleep(300);
+	// After reset is triggered, the device goes down after some time and
+	// then gets up again. To detect that the link is stable, the device
+	// should be present for consecutive 300ms
+	for (retry = 0; retry < 200 && hit_count < 3; retry++) {
+		if (pci_device_is_present(et_dev->pdev))
+			hit_count++;
+		else
+			hit_count = 0;
+		msleep(100);
+	}
+
+	if (hit_count < 3) {
+		// TODO: SW-15433: Add handling for device when it doesn't come
+		// up with above retries
+		dev_err(&et_dev->pdev->dev,
+			"Unable to detect the device on bus after reset!");
+		goto exit_reset;
+	}
 
 	rv = pci_load_saved_state(et_dev->pdev, et_dev->pstate);
 	if (rv) {
@@ -2441,13 +2460,13 @@ static void et_reset_isr_work(struct work_struct *work)
 		pci_restore_state(et_dev->pdev);
 	}
 
-	// We'll try to init the et_dev even if unable to restore the state
 	rv = init_et_pci_dev(et_dev, false);
 	if (rv < 0)
 		dev_err(&et_dev->pdev->dev,
 			"PCIe re-initialization failed, errno: %d\n",
 			-rv);
 
+exit_reset:
 	et_dev->mgmt.is_resetting = false;
 	et_dev->ops.is_resetting = false;
 

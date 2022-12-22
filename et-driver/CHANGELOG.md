@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * MM reset workflow when previous MM reset has failed
   * Race condition in restoring device state when reset command submission to SQ has failed
 - [SW-15313] Fixed concurrency issue in reset path between devices.
+- [SW-15420] Fixed the following bugs when PCI re-initialization fails during ETSOC reset:
+  * The device nodes were not getting destroyed on driver unloading after failed PCI re-initialization in ETSOC reset.
+  * The 300ms delay was not enough for PCI link to settle. The device was not getting up in this duration. Using pci_device_is_present() API to determine if the device is present. The device can be present immediately after the reset is triggered, then goes down and come up again so using hit-count to make sure that device is present for specific time duration.
 ### Security
 
 ## [0.11.0] - 2022-11-23
