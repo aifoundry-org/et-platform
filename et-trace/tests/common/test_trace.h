@@ -31,7 +31,6 @@ struct trace_buffer_std_header_t *test_trace_create(struct trace_control_block_t
     cb->offset_per_hart = sizeof(struct trace_buffer_std_header_t);
     cb->buffer_lock_acquire = NULL;
     cb->buffer_lock_release = NULL;
-    cb->threshold_notify = NULL;
     Trace_Init(&info, cb, TRACE_STD_HEADER);
 
     buf->magic_header = TRACE_MAGIC_HEADER;
