@@ -223,7 +223,6 @@ enum trace_string_event {
 struct trace_control_block_t {
     void (*buffer_lock_acquire)(void); /*!< Function pointer for acquiring trace buffer lock */
     void (*buffer_lock_release)(void); /*!< Function pointer for releasing trace buffer lock */
-    void (*threshold_notify)(const struct trace_control_block_t *cb); /*!< Function pointer to notify host about buffer threshold reached */
     uint64_t base_per_hart; /*!< Base address for Trace buffer. User have to populate this. */
     uint32_t size_per_hart; /*!< Size of Trace buffer. User have to populate this. */
     uint32_t
@@ -555,15 +554,12 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
 
     /* Check if Trace buffer is filled upto threshold. */
     if (trace_check_buffer_threshold(cb, size, current_offset)) {
-        void (*threshold_notify)(struct trace_control_block_t *cb) =
-            (void (*)(struct trace_control_block_t *cb))(uintptr_t)ET_TRACE_READ_U64_PTR(cb->threshold_notify);
-
         /* Check if host needs to be notified about reaching buffer threshold limit.
            This notification is only needed once when it reaches threshold for the first time,
-           so this checks if we just reached threshold by including current data size. */
-        if (threshold_notify != NULL) {
-            threshold_notify(cb);
-        }
+           so this checks if we just reached threshold by including current data size.
+           TODO: If "current_offset" is less than size then
+           Notify the Host that we reached the notification threshold
+           syscall(SYSCALL_TRACE_BUFFER_THRESHOLD_HIT) */
 
         /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
         if (trace_check_buffer_full(cb, size, current_offset)) {

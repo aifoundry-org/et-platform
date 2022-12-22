@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added implementation of Trace_Format_String_V() for va_list style calling.
-- [SW-5479] Added support to report trace buffer threshold event to host.
 ### Changed
 - Bumped version to 1.0.0.
 - Fixed vsnprintf calling.
