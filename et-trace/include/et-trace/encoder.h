@@ -647,6 +647,7 @@ int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contr
     cb->offset_per_hart = header_size;
 
     cb->event_mask = init_info->event_mask;
+    /* A threshold of 0 means set the threshold to max size of buffer */
     cb->threshold = ((init_info->threshold > 0) || (init_info->threshold < cb->size_per_hart)) ?
                       init_info->threshold : cb->size_per_hart;
     cb->header = buff_header;
@@ -697,7 +698,8 @@ int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace
     ET_TRACE_WRITE_U32(cb->filter_mask, (config_info->event_mask == TRACE_EVENT_ENABLE_ALL) ?
         TRACE_FILTER_ENABLE_ALL : config_info->filter_mask);
     ET_TRACE_WRITE_U32(cb->event_mask, config_info->event_mask);
-    ET_TRACE_WRITE_U32(cb->threshold, config_info->threshold);
+    /* A threshold of 0 means set the threshold to max size of buffer */
+    ET_TRACE_WRITE_U32(cb->threshold, (config_info->threshold > 0 ? config_info->threshold : ET_TRACE_READ_U32(cb->size_per_hart)));
 
     return TRACE_STATUS_SUCCESS;
 }
