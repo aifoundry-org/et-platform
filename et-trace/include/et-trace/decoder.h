@@ -118,10 +118,13 @@ const struct trace_entry_header_t *Trace_Decode_Sub(const struct trace_buffer_si
 
 static inline bool check_trace_layout_version(const struct trace_version_t *buf_version)
 {
-    /* Check if Trace layout version of given buffer is supported by decoder or not. */
-    return (buf_version->major == TRACE_VERSION_MAJOR) &&
-           (buf_version->minor == TRACE_VERSION_MINOR) &&
-           (buf_version->patch == TRACE_VERSION_PATCH);
+    /* et_traces adhere to semantic versioning. a traces is compatible if:
+     * same major and same minor  or
+     * same major and trace_minor < decoder_minor */
+    bool same_major = buf_version->major == TRACE_VERSION_MAJOR;
+    bool backwards_compatible_minor = buf_version->minor <= TRACE_VERSION_MINOR;
+
+    return same_major && backwards_compatible_minor;
 }
 
 static inline const struct trace_entry_header_t *get_next_trace_event(const struct trace_entry_header_t *packet)
