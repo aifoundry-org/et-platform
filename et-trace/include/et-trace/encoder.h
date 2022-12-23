@@ -618,6 +618,9 @@ int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contr
                               sizeof(struct trace_buffer_std_header_t) :
                               sizeof(struct trace_buffer_size_header_t);
 
+    /* TODO: Temporary workaround to remove dependencies. To be removed. */
+    cb->threshold_notify = NULL;
+
     if (!cb)
     {
         return TRACE_INVALID_CB;
@@ -1474,12 +1477,12 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 *   INPUTS
 *
 *       trace_control_block_t  Trace control block of logging Thread/Hart.
-*       regionId               region id to be profiled (i.e: arbitrary numeric 
+*       regionId               region id to be profiled (i.e: arbitrary numeric
 *                              start-end region quoted in the trace, function scope)
 *       start                  true if the region is starting, false if it ends.
 *       func                   ptr to global literal containing the function name.
 *       line                   line where the event originates
-*       
+*
 *   OUTPUTS
 *
 *       None
