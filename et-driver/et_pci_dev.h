@@ -10,7 +10,7 @@
 #include <linux/workqueue.h>
 
 #include "et_ioctl.h"
-#include "et_sysfs_stats.h"
+#include "et_sysfs.h"
 #include "et_vqueue.h"
 
 // clang-format off
@@ -87,8 +87,10 @@ struct et_pci_dev {
 	struct et_ops_dev ops;
 	struct et_mgmt_dev mgmt;
 	struct list_head bar_region_list;
+	struct et_soc_reset_cfg reset_cfg;
 	struct workqueue_struct *reset_workqueue;
 	struct work_struct isr_work;
+	struct et_sysfs_data sysfs_data;
 };
 
 // clang-format on

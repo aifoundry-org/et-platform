@@ -8,7 +8,8 @@ esperanto-y := et_io.o \
 	       et_sysfs_ops_vq_stats.o \
 	       et_sysfs_mem_stats.o \
 	       et_sysfs_err_stats.o \
-	       et_sysfs_stats.o \
+	       et_sysfs_soc_reset.o \
+	       et_sysfs.o \
 	       et_fw_update.o \
 	       et_circbuffer.o \
 	       et_event_handler.o \
@@ -22,7 +23,8 @@ esperanto-y := et_io_loopback.o \
 	       et_sysfs_ops_vq_stats.o \
 	       et_sysfs_mem_stats.o \
 	       et_sysfs_err_stats.o \
-	       et_sysfs_stats.o \
+	       et_sysfs_soc_reset.o \
+	       et_sysfs.o \
 	       et_fw_update.o \
 	       et_circbuffer_loopback.o \
 	       et_event_handler.o \

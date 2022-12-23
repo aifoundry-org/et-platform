@@ -31,6 +31,10 @@ enum et_vq_rate_stats {
 };
 
 struct et_vq_stats {
+	/*
+	 * Counters (RO) and `struct et_rate_entry` (RO) attributes to present
+	 * record of VQs usage and rate of VQs usage respectively
+	 */
 	atomic64_t counters[ET_VQ_COUNTER_STATS_MAX_COUNTERS];
 	struct et_rate_entry rates[ET_VQ_RATE_STATS_MAX_RATES];
 };
@@ -46,7 +50,7 @@ static inline void et_vq_stats_init(struct et_vq_stats *stats)
 		et_rate_entry_init(&stats->rates[i]);
 }
 
-extern const struct attribute_group et_sysfs_mgmt_vq_stats_attr_group;
-extern const struct attribute_group et_sysfs_ops_vq_stats_attr_group;
+extern struct attribute_group et_sysfs_mgmt_vq_stats_group;
+extern struct attribute_group et_sysfs_ops_vq_stats_group;
 
 #endif

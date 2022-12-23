@@ -29,6 +29,11 @@ enum et_mem_rate_stats {
 };
 
 struct et_mem_stats {
+	/*
+	 * Counter (RO) and `struct et_rate_entry` (RO) attributes to present
+	 * record of CMA memory allocation and rate of memory allocation
+	 * respectively
+	 */
 	atomic64_t counters[ET_MEM_COUNTER_STATS_MAX_COUNTERS];
 	struct et_rate_entry rates[ET_MEM_RATE_STATS_MAX_RATES];
 };
@@ -44,6 +49,6 @@ static inline void et_mem_stats_init(struct et_mem_stats *stats)
 		et_rate_entry_init(&stats->rates[i]);
 }
 
-extern const struct attribute_group et_sysfs_mem_stats_attr_group;
+extern struct attribute_group et_sysfs_mem_stats_group;
 
 #endif

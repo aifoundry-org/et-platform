@@ -14,6 +14,7 @@
 // clang-format off
 
 #include <linux/sizes.h>
+#include <linux/sysfs.h>
 
 #include "et_pci_dev.h"
 #include "et_sysfs_mem_stats.h"
@@ -65,7 +66,7 @@ static struct attribute *mem_stats_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group et_sysfs_mem_stats_attr_group = {
+struct attribute_group et_sysfs_mem_stats_group = {
 	.name = "mem_stats",
 	.attrs = mem_stats_attrs,
 };

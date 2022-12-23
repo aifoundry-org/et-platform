@@ -11,6 +11,8 @@
  *-----------------------------------------------------------------------------
  */
 
+#include <linux/sysfs.h>
+
 #include "et_pci_dev.h"
 #include "et_sysfs_vq_stats.h"
 
@@ -245,7 +247,7 @@ static struct attribute *mgmt_vq_stats_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group et_sysfs_mgmt_vq_stats_attr_group = {
+struct attribute_group et_sysfs_mgmt_vq_stats_group = {
 	.name = "mgmt_vq_stats",
 	.attrs = mgmt_vq_stats_attrs,
 };

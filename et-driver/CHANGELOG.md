@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-5479] Adding support to parse trace buffer full event for mgmt node.
+- [SW-15433] Add mechanism for ETSOC reset retries.
 ### Changed
 - [SW-15181] `enum dev_state` will not be used internally for maintaining states. The usage is now limited to GET_DEVICE_STATE IOCTL only.
 - [SW-15177] Suppressing kernel warning when `dma_alloc_coherent()` cannot allocate requested memory.

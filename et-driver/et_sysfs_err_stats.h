@@ -15,6 +15,7 @@
 #define __ET_SYSFS_ERR_STATS_H
 
 #include <linux/atomic.h>
+#include <linux/kernel.h>
 
 enum et_err_counter_stats {
 	ET_ERR_COUNTER_STATS_DRAM_CE_COUNT = 0,
@@ -37,6 +38,10 @@ enum et_err_counter_stats {
 };
 
 struct et_err_stats {
+	/*
+	 * Counters (RO) attributes to present record of correctable and
+	 * uncorrectable errors reported by Mgmt VQ interface
+	 */
 	atomic64_t counters[ET_ERR_COUNTER_STATS_MAX_COUNTERS];
 };
 
@@ -48,6 +53,6 @@ static inline void et_err_stats_init(struct et_err_stats *stats)
 		atomic64_set(&stats->counters[i], 0);
 }
 
-extern const struct attribute_group et_sysfs_err_stats_attr_group;
+extern struct attribute_group et_sysfs_err_stats_group;
 
 #endif

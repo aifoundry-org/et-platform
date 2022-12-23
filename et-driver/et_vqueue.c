@@ -463,6 +463,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	struct et_vq_common *vq_common;
 	struct et_mapped_region *intrpt_region =
 		&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG];
+	int vq_stats_gid;
 
 	if (!intrpt_region->is_valid)
 		return -EINVAL;
@@ -485,6 +486,8 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		// Save Mgmt trace region reference
 		vq_common->trace_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SPFW_TRACE];
+
+		vq_stats_gid = ET_SYSFS_GID_MGMT_VQ_STATS;
 	} else {
 		vq_common = &et_dev->ops.vq_data.vq_common;
 		vq_common->sq_count = et_dev->ops.dir_vq.sq_count;
@@ -498,6 +501,8 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->intrpt_addr =
 			(u8 __iomem *)intrpt_region->mapped_baseaddr +
 			et_dev->ops.dir_vq.intrpt_trg_offset;
+
+		vq_stats_gid = ET_SYSFS_GID_OPS_VQ_STATS;
 	}
 
 	bitmap_zero(vq_common->sq_bitmap, ET_MAX_QUEUES);
@@ -507,9 +512,13 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	init_waitqueue_head(&vq_common->waitqueue);
 	vq_common->pdev = et_dev->pdev;
 
-	rv = et_high_priority_squeue_init_all(et_dev, is_mgmt);
+	rv = et_sysfs_add_group(et_dev, vq_stats_gid);
 	if (rv)
 		return rv;
+
+	rv = et_high_priority_squeue_init_all(et_dev, is_mgmt);
+	if (rv)
+		goto error_sysfs_remove_group;
 
 	rv = et_squeue_init_all(et_dev, is_mgmt);
 	if (rv)
@@ -526,6 +535,9 @@ error_squeue_destroy_all:
 
 error_high_priority_squeue_destroy_all:
 	et_high_priority_squeue_destroy_all(et_dev, is_mgmt);
+
+error_sysfs_remove_group:
+	et_sysfs_remove_group(et_dev, vq_stats_gid);
 
 	return rv;
 }
@@ -608,8 +620,11 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	struct et_vq_data *vq_data;
+	int vq_stats_gid;
 
 	vq_data = is_mgmt ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
+	vq_stats_gid = is_mgmt ? ET_SYSFS_GID_MGMT_VQ_STATS :
+				 ET_SYSFS_GID_OPS_VQ_STATS;
 	wake_up_all(&vq_data->vq_common.waitqueue);
 	while (waitqueue_active(&vq_data->vq_common.waitqueue))
 		msleep(1);
@@ -617,6 +632,8 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	et_cqueue_destroy_all(et_dev, is_mgmt);
 	et_squeue_destroy_all(et_dev, is_mgmt);
 	et_high_priority_squeue_destroy_all(et_dev, is_mgmt);
+
+	et_sysfs_remove_group(et_dev, vq_stats_gid);
 
 	mutex_destroy(&vq_data->vq_common.sq_bitmap_mutex);
 	mutex_destroy(&vq_data->vq_common.cq_bitmap_mutex);

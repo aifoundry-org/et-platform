@@ -35,7 +35,7 @@
 #include "et_io.h"
 #include "et_ioctl.h"
 #include "et_pci_dev.h"
-#include "et_sysfs_stats.h"
+#include "et_sysfs.h"
 #include "et_vma.h"
 #include "et_vqueue.h"
 
@@ -1850,6 +1850,14 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
+	// SysFs error statistics initialization
+	rv = et_sysfs_add_group(et_dev, ET_SYSFS_GID_ERR_STATS);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev,
+			"Mgmt: et_sysfs_add_group() failed, group_id: %d\n",
+			ET_SYSFS_GID_ERR_STATS);
+		goto error_unmap_discovered_regions;
+	}
 	et_err_stats_init(&et_dev->mgmt.err_stats);
 
 	// VQs initialization
@@ -1857,16 +1865,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	if (rv) {
 		dev_err(&et_dev->pdev->dev,
 			"Mgmt: et_vqueue_init_all() failed!\n");
-		goto error_unmap_discovered_regions;
-	}
-
-	// SysFs statistics initialization
-	rv = et_sysfs_stats_init(et_dev, true /* mgmt_dev */);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev,
-			"Mgmt: Failed to init sysfs files, error %d\n",
-			-rv);
-		goto error_vqueue_destroy_all;
+		goto error_sysfs_remove_group;
 	}
 
 	if (miscdev_create && !et_dev->mgmt.miscdev_created) {
@@ -1881,7 +1880,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
 				"Mgmt: misc_register() failed!\n");
-			goto error_sysfs_stats_remove;
+			goto error_vqueue_destroy_all;
 		}
 		et_dev->mgmt.miscdev_created = true;
 	}
@@ -1893,11 +1892,11 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 
 	return rv;
 
-error_sysfs_stats_remove:
-	et_sysfs_stats_remove(et_dev, true /* mgmt_dev */);
-
 error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
+
+error_sysfs_remove_group:
+	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_ERR_STATS);
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
@@ -1926,8 +1925,8 @@ void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	if (!et_dev->mgmt.is_initialized)
 		goto unlock_init_mutex;
 
-	et_sysfs_stats_remove(et_dev, true /* mgmt_dev */);
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
+	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_ERR_STATS);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
 
@@ -2192,6 +2191,14 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
+	// SysFs memory statistics initialization
+	rv = et_sysfs_add_group(et_dev, ET_SYSFS_GID_MEM_STATS);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: et_sysfs_add_group() failed, group_id: %d\n",
+			ET_SYSFS_GID_MEM_STATS);
+		goto error_unmap_discovered_regions;
+	}
 	et_mem_stats_init(&et_dev->ops.mem_stats);
 
 	// VQs initialization
@@ -2199,16 +2206,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	if (rv) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops: et_vqueue_init_all() failed!\n");
-		goto error_unmap_discovered_regions;
-	}
-
-	// SysFs statistics initialization
-	rv = et_sysfs_stats_init(et_dev, false /* ops_dev */);
-	if (rv) {
-		dev_err(&et_dev->pdev->dev,
-			"Ops: Failed to init sysfs files, error %d\n",
-			-rv);
-		goto error_vqueue_destroy_all;
+		goto error_sysfs_remove_group;
 	}
 
 	if (miscdev_create && !et_dev->ops.miscdev_created) {
@@ -2223,7 +2221,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
 				"Ops: misc_register() failed!\n");
-			goto error_sysfs_stats_remove;
+			goto error_vqueue_destroy_all;
 		}
 		et_dev->ops.miscdev_created = true;
 	}
@@ -2235,11 +2233,11 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 
 	return rv;
 
-error_sysfs_stats_remove:
-	et_sysfs_stats_remove(et_dev, false /* ops_dev */);
-
 error_vqueue_destroy_all:
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
+
+error_sysfs_remove_group:
+	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
@@ -2268,8 +2266,8 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	if (!et_dev->ops.is_initialized)
 		goto unlock_init_mutex;
 
-	et_sysfs_stats_remove(et_dev, false /* ops_dev */);
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
+	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
 	et_unmap_bar(et_dev->ops.dir);
 
@@ -2415,8 +2413,7 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 static void et_reset_isr_work(struct work_struct *work)
 {
 	int rv = 0;
-	int retry = 0;
-	int hit_count = 0;
+	unsigned int wait_ms = 100, time_ms, uptime_ms;
 	struct et_pci_dev *et_dev =
 		container_of(work, struct et_pci_dev, isr_work);
 
@@ -2434,27 +2431,28 @@ static void et_reset_isr_work(struct work_struct *work)
 	dev_dbg(&et_dev->pdev->dev, "Waiting for PCIe link to settle...\n");
 	// After reset is triggered, the device goes down after some time and
 	// then gets up again. To detect that the link is stable, the device
-	// should be present for consecutive 300ms
-	for (retry = 0; retry < 200 && hit_count < 3; retry++) {
+	// should be present for `pcilink_max_estim_downtime_ms`
+	for (time_ms = 0, uptime_ms = 0;
+	     time_ms < et_dev->reset_cfg.pcilink_discovery_timeout_ms &&
+	     uptime_ms < et_dev->reset_cfg.pcilink_max_estim_downtime_ms;
+	     time_ms += wait_ms) {
 		if (pci_device_is_present(et_dev->pdev))
-			hit_count++;
+			uptime_ms += wait_ms;
 		else
-			hit_count = 0;
-		msleep(100);
+			uptime_ms = 0;
+		msleep(wait_ms);
 	}
 
-	if (hit_count < 3) {
-		// TODO: SW-15433: Add handling for device when it doesn't come
-		// up with above retries
+	if (uptime_ms < et_dev->reset_cfg.pcilink_max_estim_downtime_ms) {
 		dev_err(&et_dev->pdev->dev,
-			"Unable to detect the device on bus after reset!");
+			"Unable to detect the device on bus!");
 		goto exit_reset;
 	}
 
 	rv = pci_load_saved_state(et_dev->pdev, et_dev->pstate);
 	if (rv) {
 		dev_warn(&et_dev->pdev->dev,
-			 "Failed to load PCI state, err: %d\n",
+			 "Failed to load PCI state, errno: %d\n",
 			 -rv);
 	} else {
 		pci_restore_state(et_dev->pdev);
@@ -2502,6 +2500,15 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_saved_state;
 	}
 
+	rv = et_sysfs_add_group(et_dev, ET_SYSFS_GID_SOC_RESET);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev,
+			"et_sysfs_add_group() failed, group_id: %d\n",
+			ET_SYSFS_GID_SOC_RESET);
+		goto error_uninit_et_pci_dev;
+	}
+	et_soc_reset_cfg_init(&et_dev->reset_cfg);
+
 	et_dev->reset_workqueue = alloc_workqueue("%s:et%d_rstwq",
 						  WQ_MEM_RECLAIM | WQ_UNBOUND,
 						  1,
@@ -2510,11 +2517,14 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	if (!et_dev->reset_workqueue) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		rv = -ENOMEM;
-		goto error_uninit_et_pci_dev;
+		goto error_sysfs_remove_group;
 	}
 	INIT_WORK(&et_dev->isr_work, et_reset_isr_work);
 
 	return rv;
+
+error_sysfs_remove_group:
+	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_SOC_RESET);
 
 error_uninit_et_pci_dev:
 	uninit_et_pci_dev(et_dev, true);
@@ -2543,6 +2553,8 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	destroy_workqueue(et_dev->reset_workqueue);
 
 	uninit_et_pci_dev(et_dev, true);
+	et_sysfs_remove_files(et_dev);
+	et_sysfs_remove_groups(et_dev);
 	if (et_dev->pstate) {
 		kfree(et_dev->pstate);
 		et_dev->pstate = NULL;

@@ -20,7 +20,7 @@
 #include "et_circbuffer.h"
 #include "et_dev_iface_regs.h"
 #include "et_device_api.h"
-#include "et_sysfs_stats.h"
+#include "et_sysfs.h"
 
 #define ET_MAX_QUEUES 64
 

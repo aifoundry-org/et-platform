@@ -14,8 +14,8 @@
 #ifndef __ET_RATE_ENTRY_H
 #define __ET_RATE_ENTRY_H
 
+#include <linux/ktime.h>
 #include <linux/spinlock.h>
-#include <linux/timekeeping.h>
 
 /*
  * et_rate_entry: calculation formula: rate = this_unit / (this_ts - prev_ts)

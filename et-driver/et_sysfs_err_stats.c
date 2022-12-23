@@ -13,6 +13,8 @@
 
 // clang-format off
 
+#include <linux/sysfs.h>
+
 #include "et_pci_dev.h"
 #include "et_sysfs_err_stats.h"
 
@@ -150,7 +152,7 @@ static struct attribute *err_stats_attrs[] = {
 	NULL,
 };
 
-const struct attribute_group et_sysfs_err_stats_attr_group = {
+struct attribute_group et_sysfs_err_stats_group = {
 	.name = "err_stats",
 	.attrs = err_stats_attrs,
 };
