@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 - Removing deprecated Trace_PMC_Counters_Memory() and ET_TRACE_GET_MEM_SHIRE_COUNTER.
+- [SW-5479] Removing temporary workaround to remove dependencies.
 ### Fixed
 - [SW-5479] Setting the threshold to max trace buffer size if 0 is passed in config.
 ### Security
