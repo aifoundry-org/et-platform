@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Trac_User_Profile_Event() for code instrumentation
 - [SW-5479] Adding Trace Buffer Full message for CM-MM interface.
 ### Changed
+- Changed the CI common repo hash to allow triggerring pipeline without MR.
 ### Deprecated
 ### Removed
 - Removed temporary define to pass the build.

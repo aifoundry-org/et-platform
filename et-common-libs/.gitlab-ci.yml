@@ -1,6 +1,6 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: ec8109263042925b169aa3c33cd6e7beaf185917
+    ref: faf48b3e6d5b4864ccae619b5fbbbf3f818a9d72
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
@@ -18,7 +18,7 @@ include:
       - 'jobs/conan-jobs.yaml'
 
   - project: 'software/sw-platform'
-    ref: develop/system-sw 
+    ref: develop/system-sw
     file:
       - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
 
