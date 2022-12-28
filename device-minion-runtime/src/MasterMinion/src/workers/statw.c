@@ -818,7 +818,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
     /* Initialize the flag to reset and start PMU sample device stats. */
     atomic_store_local_32(&STATW_CB.pmu_sampling_state, STATW_PMU_SAMPLING_RESET_AND_START);
 
-    /* Create timeout to wait for all Compute Workers to boot up */
+    /* Create a timer for periodic sampling of stats */
     int sw_timer_idx =
         SW_Timer_Create_Timeout(&statw_sample_device_stats_callback, 0, STATW_SAMPLING_INTERVAL);
 

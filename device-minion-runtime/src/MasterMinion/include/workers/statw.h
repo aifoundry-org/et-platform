@@ -85,17 +85,20 @@ enum statw_pmu_sampling_state {
 /*! \def MAX(x,y)
     \brief Returns max
 */
-#define MAX(x, y) (x > y ? x : y)
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 /*! \def MIN(x,y)
     \brief Returns min
 */
-#define MIN(x, y) \
-    (y == STATW_RESOURCE_DEFAULT_MIN) ? x : (x == STATW_RESOURCE_DEFAULT_MIN) ? y : (x < y ? x : y)
+#define MIN(x, y)                         \
+    ((y) == STATW_RESOURCE_DEFAULT_MIN) ? \
+        (x) :                             \
+        ((x) == STATW_RESOURCE_DEFAULT_MIN) ? (y) : ((x) < (y) ? (x) : (y))
 
 /*! \def STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION
-    \brief This is check if transaction is continued past the sampling interval end then end cycles will be equal to start cycles
-                because there are no total dma transaction cycles. In this case total cycles will be the interval cycles.
+    \brief This is check if transaction is continued past the sampling interval end then
+    end cycles will be equal to start cycles because there are no total dma transaction cycles.
+    In this case total cycles will be the interval cycles.
 */
 #define STATW_CHECK_FOR_CONTINUED_EXEC_TRANSACTION(interval_start, interval_end,        \
     exec_start_cycles, exec_end_cycles, dma_tans_cycles, prev_cycles, chan_prev_cycles) \

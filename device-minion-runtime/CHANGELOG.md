@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-15464] Fixed the DDR and SC Bank bandwidth min max values.
 ### Security
 
 ## [0.14.0] - 2022-12-13
