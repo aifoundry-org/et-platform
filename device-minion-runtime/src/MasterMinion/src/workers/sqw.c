@@ -123,7 +123,8 @@ static inline int32_t sqw_command_barrier(uint8_t sqw_idx)
     if (cmds_status.state == SQW_STATE_ABORTED)
     {
         status = SQW_STATUS_BARRIER_ABORTED;
-        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:Barrier aborted!\r\n", sqw_idx);
+        Log_Write(LOG_LEVEL_ERROR, "SQW[%d]:Barrier aborted! Current cmds count:%d\r\n", sqw_idx,
+            cmds_status.cmds_count);
     }
 
     return status;

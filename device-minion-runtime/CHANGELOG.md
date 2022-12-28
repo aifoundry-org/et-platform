@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13350] Replaced the usage of Trace_String() with Trace_Format_String().
 - [SW-13350] Replaced the usage of Trace_Format_String() with Trace_Format_String_V() to reduce code size in Master Minion.
 - Update the lower limit of esperantoTrace in conan.
+- Improved some logs.
 ### Deprecated
 ### Removed
 ### Fixed

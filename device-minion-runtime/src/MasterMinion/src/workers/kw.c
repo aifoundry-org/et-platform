@@ -904,7 +904,7 @@ int32_t KW_Dispatch_Kernel_Abort_Cmd(
 ***********************************************************************/
 void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx)
 {
-    Log_Write(LOG_LEVEL_DEBUG, "SQW[%d]:KW:Abort all kernels\r\n", sqw_idx);
+    Log_Write(LOG_LEVEL_WARNING, "SQW[%d]:KW:Abort all kernels\r\n", sqw_idx);
 
     /* Traverse all kernel slots and abort them */
     for (uint8_t kw_idx = 0; kw_idx < MM_MAX_PARALLEL_KERNELS; kw_idx++)

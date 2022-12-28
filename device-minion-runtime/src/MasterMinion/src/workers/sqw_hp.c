@@ -18,7 +18,7 @@
         SQW_HP_Init
         SQW_HP_Notify
         SQW_HP_Launch
-        SQW_HP_Deccrement_Command_Count
+        SQW_HP_Decrement_Command_Count
         SQW_HP_Increment_Command_Count
 */
 /***********************************************************************/
