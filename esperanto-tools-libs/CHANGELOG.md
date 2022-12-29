@@ -30,7 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Conan) Fix package_info requires
 - [SW-15322] Unlock earlier in mem operations involving memcpylist to improve the latency
-
+## [0.6.4]
+### Changed
+- deviceApi minimum required 1.0.0. Due to some changes in firmware device-api 1.0.0 is not backwards compatible.
+- Update Conan dependencies.
 ## [0.6.3]
 ### Fixed
 - [SW-15083] change from a single CMA memory pool to one per device
