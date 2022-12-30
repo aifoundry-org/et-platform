@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.7.0] - 2022-12-30
+### Added
 - [ARCHSIM-694] Add SDK_RELEASE build configuration
 - [ARCHSIM-693] Add option to preload ELFs
 - (Conan) Added preload_elfs/preload_compression parameters
@@ -35,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allocate sysemu instance on the heap to fix segfaults
 - [ARCHSIM-685] Fixed GDB stub next/step commands
 ### Security
+
 ## [0.5.0] - 2022-10-20
 ### Added
 - [SW-13986] Added pause / resume API to hint sysemu when it can put the main simulation thread to sleep, because there is nothing useful to be simulated (so avoid wasting CPU cycles doing nothing useful).
@@ -47,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BEMU: Fixed behavior of cache control extension (fill/evict)
 - Runtime options (ex: -gdb) may now be set as part of --simulator-params.
 ### Security
+
 ## [0.4.0] - 2022-8-16
 ### Added
 - Enforce updation of CHANGELOG.md and patch version in merge request pipelines.
@@ -78,3 +88,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 ### Security
+
+[Unreleased]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.7.0...develop/sw-sysemu
+[0.7.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.6.0...0.7.0
+[0.6.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.5.0...0.6.0
+[0.5.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.4.0...0.5.0
+[0.4.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.3.0...0.4.0
+[0.3.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.2.0...0.3.0
+[0.2.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.1.0...0.2.0
+[0.1.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/tags/0.1.0
