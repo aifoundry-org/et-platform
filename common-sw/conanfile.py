@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.cmake import CMake, CMakeToolchain
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
 from conan.tools.layout import cmake_layout
 from conans import tools
 import os
@@ -27,7 +27,6 @@ class HostUtilsConan(ConanFile):
         "url": "git@gitlab.esperanto.ai:software/common-sw.git",
         "revision": "auto",
     }
-    generators = "CMakeDeps"
 
     python_requires = "conan-common/[>=0.5.0 <1.0.0]"
     
@@ -41,7 +40,7 @@ class HostUtilsConan(ConanFile):
     def requirements(self):
         self.requires("g3log/1.3.3")
         if self.options.with_tests:
-            self.requires("gtest/1.8.1")
+            self.requires("gtest/1.10.0")
         
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -55,7 +54,9 @@ class HostUtilsConan(ConanFile):
         tc.variables["BUILD_TESTS"] = self.options.with_tests
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
         tc.generate()
-    
+        deps = CMakeDeps(self)
+        deps.generate()
+
     def build(self):
         cmake = CMake(self)
         cmake.configure()
@@ -90,6 +91,8 @@ class HostUtilsConan(ConanFile):
 
         self.cpp_info.components["threadPool"].set_property("cmake_target_name", "hostUtils::threadPool")
         self.cpp_info.components["threadPool"].requires = ["logging"]
+        if self.options.with_tests:
+            self.cpp_info.components["threadPool"].requires.append("gtest::gmock")
         self.cpp_info.components["threadPool"].libs = ["threadPool"]
         self.cpp_info.components["threadPool"].includedirs =  ["include"]
         self.cpp_info.components["threadPool"].libdirs = ["lib", "lib64"]

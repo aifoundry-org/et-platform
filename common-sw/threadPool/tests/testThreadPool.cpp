@@ -10,8 +10,10 @@
 
 #include "threadPool/ThreadPool.h"
 #include <atomic>
+#include <chrono>
 #include <gtest/gtest.h>
 #include <logging/Logger.h>
+#include <thread>
 using namespace threadPool;
 TEST(ThreadPool, simple) {
   bool taskExecuted = false;
@@ -25,7 +27,7 @@ TEST(ThreadPool, simple) {
 TEST(ThreadPool, 1000tasks) {
   std::atomic<int> acum = 0;
   {
-    ThreadPool tp(20);
+    ThreadPool tp(20, false, true);
     for (int i = 1; i <= 1000; ++i) {
       tp.pushTask([&acum, i] { acum += i; });
     }

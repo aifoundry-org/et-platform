@@ -9,9 +9,12 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "threadPool/ThreadPool.h"
+#include <chrono>
 #include <g3log/loglevels.hpp>
 #include <logging/Logger.h>
 #include <logging/Logging.h>
+#include <mutex>
+#include <thread>
 
 #define TP_LOG(severity) ET_LOG(THREADPOOL, severity)
 #define TP_DLOG(severity) ET_DLOG(THREADPOOL, severity)
@@ -19,12 +22,11 @@
 #define TP_LOG_IF(severity, condition) ET_LOG_IF(THREADPOOL, severity, condition)
 
 using namespace threadPool;
-ThreadPool::ThreadPool(size_t numThreads, bool resizable)
+ThreadPool::ThreadPool(size_t numThreads, bool resizable, bool waitPendingTasks)
   : running_(true)
-  , resizable_(resizable) {
-  for (auto i = 0U; i < numThreads; ++i) {
-    threads_.emplace_back(std::bind(&ThreadPool::workerFunc, this));
-  }
+  , resizable_(resizable)
+  , waitPendingTasks_(waitPendingTasks) {
+  addThreads(numThreads);
 }
 
 void ThreadPool::pushTask(Task task) {
@@ -37,7 +39,7 @@ void ThreadPool::pushTask(Task task) {
     if (resizable_ && !tasks_.empty()) {
       TP_VLOG(MID) << "All threads busy, adding a new thread to the resizable thread pool. Prev num threads: "
                    << threads_.size();
-      threads_.emplace_back(std::bind(&ThreadPool::workerFunc, this));
+      addThreads(1U);
     }
     tasks_.emplace(std::move(task));
     lock.unlock();
@@ -45,8 +47,21 @@ void ThreadPool::pushTask(Task task) {
   }
 }
 
+void ThreadPool::blockUntilDrained() {
+  std::unique_lock lock(mutex_);
+  while (!tasks_.empty()) {
+    TP_VLOG(MID) << "Waiting until tasks are drained: " << tasks_.size();
+    lock.unlock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  TP_VLOG(MID) << "All tasks are drained.";
+}
+
 ThreadPool::~ThreadPool() {
   TP_LOG(INFO) << "Destroying threadpool " << std::hex << this;
+  if (waitPendingTasks_) {
+    blockUntilDrained();
+  }
   std::unique_lock lock(mutex_);
   while (!tasks_.empty()) {
     tasks_.pop();
@@ -58,7 +73,14 @@ ThreadPool::~ThreadPool() {
   for (auto& t : threads_) {
     t.join();
   }
+  threads_.clear();
   TP_VLOG(LOW) << "Threadpool " << std::hex << this << " destroyed.";
+}
+
+void ThreadPool::addThreads(size_t numThreads) {
+  for (auto i = 0U; i < numThreads; i++) {
+    threads_.emplace_back(std::bind(&ThreadPool::workerFunc, this));
+  }
 }
 
 void ThreadPool::workerFunc() {
