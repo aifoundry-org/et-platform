@@ -2,6 +2,8 @@ from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.files import get, rmdir, rm
 import os
+import tempfile
+
 
 required_conan_version = ">=1.52.0"
 
@@ -18,6 +20,12 @@ class SwSysemuConan(ConanFile):
         "profiling": [True, False],
         "backtrace": [True, False],
         "preload_elfs": [True, False],
+        "preload_elfs_versions_device_api": [None, "ANY"],
+        "preload_elfs_versions_device_minion_rt": [None, "ANY"],
+        "preload_elfs_versions_device_bootloader": [None, "ANY"],
+        "preload_elfs_versions_esperanto_trace": [None, "ANY"],
+        "preload_elfs_versions_et_common_libs": [None, "ANY"],
+        "preload_elfs_versions_etsoc_hal": [None, "ANY"],
         "preload_compression": [None, "lz4"],
         "sdk_release": [True, False],
         "with_sys_emu_exe": [True, False],
@@ -27,6 +35,12 @@ class SwSysemuConan(ConanFile):
         "profiling": False,
         "backtrace": False,
         "preload_elfs": True,
+        "preload_elfs_versions_device_api": None,
+        "preload_elfs_versions_device_minion_rt": None,
+        "preload_elfs_versions_device_bootloader": None,
+        "preload_elfs_versions_esperanto_trace": None,
+        "preload_elfs_versions_et_common_libs": None,
+        "preload_elfs_versions_etsoc_hal": None,
         "preload_compression": "lz4",
         "sdk_release": False,
         "with_sys_emu_exe": True,
@@ -39,6 +53,20 @@ class SwSysemuConan(ConanFile):
     }
 
     python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+
+    def configure(self):
+        if not self.options.preload_elfs_versions_device_api:
+            del self.options.preload_elfs_versions_device_api
+        if not self.options.preload_elfs_versions_device_minion_rt:
+            del self.options.preload_elfs_versions_device_minion_rt
+        if not self.options.preload_elfs_versions_device_bootloader:
+            del self.options.preload_elfs_versions_device_bootloader
+        if not self.options.preload_elfs_versions_esperanto_trace:
+            del self.options.preload_elfs_versions_esperanto_trace
+        if not self.options.preload_elfs_versions_et_common_libs:
+            del self.options.preload_elfs_versions_et_common_libs
+        if not self.options.preload_elfs_versions_etsoc_hal:
+            del self.options.preload_elfs_versions_etsoc_hal
 
     def set_version(self):
         self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "sw-sysemu")
@@ -76,14 +104,72 @@ class SwSysemuConan(ConanFile):
         self.cpp.build.components[libsw_sysemu_comp_name].libdirs = ["."]
         self.cpp.source.components[libsw_sysemu_comp_name].includedirs = ["sw-sysemu/include", "sw-sysemu/include/sw-sysemu"]
 
+    @property
+    def _default_embedded_elfs_conanfile(self):
+        return os.path.join(self.source_folder, "conanfile_embedded_elfs.txt")
+
+    def _get_default_version_emmbedded_elfs(self, package):
+        with open(self._default_embedded_elfs_conanfile, 'r') as fin:
+            embedded_elfs_contents = fin.read()
+            start = embedded_elfs_contents.find(package)
+            end = embedded_elfs_contents.find('\n', start)
+            version = embedded_elfs_contents[start:end].split('/')[1]
+            self.output.info(f'searching {package} found start: {start}, {end} -> version: {version}')
+            return version
+
+    def _install_embedded_elfs(self, emmedded_elfs_conanfile):
+        self.run(f"conan install {emmedded_elfs_conanfile} -pr:b default -pr:h baremetal-rv64-gcc8.2-release --build missing -g deploy -if={self.build_folder}")
+
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["PROFILING"] = self.options.profiling
         tc.variables["BACKTRACE"] = self.options.backtrace
         tc.variables["PRELOAD_LZ4"] = "lz4" is self.options.preload_compression
         if self.options.preload_elfs:
-            emmedded_elfs_conanfile = os.path.join(self.source_folder, "conanfile_embedded_elfs.txt")
-            self.run(f"conan install {emmedded_elfs_conanfile} -pr:b default -pr:h baremetal-rv64-gcc8.2-release --build missing -g deploy -if={self.build_folder}")
+            default_emmedded_elfs_conanfile = self._default_embedded_elfs_conanfile
+
+            default_device_api_version = self._get_default_version_emmbedded_elfs("deviceApi")
+            default_device_minion_rt_version = self._get_default_version_emmbedded_elfs("device-minion-runtime")
+            default_device_bootloader_version = self._get_default_version_emmbedded_elfs("device-bootloaders")
+            default_esperanto_trace_version  = self._get_default_version_emmbedded_elfs("esperantoTrace")
+            default_et_common_libs_version  = self._get_default_version_emmbedded_elfs("et-common-libs")
+            default_etsoc_hal_version  = self._get_default_version_emmbedded_elfs("etsoc_hal")
+
+            if self.options.get_safe('preload_elfs_versions_device_api') or\
+                    self.options.get_safe('preload_Elfs_versions_device_minion_rt') or\
+                    self.options.get_safe('preload_elfs_versions_device_bootloader') or\
+                    self.options.get_safe('preload_elfs_versions_esperanto_trace') or\
+                    self.options.get_safe('preload_elfs_versions_et_common_libs') or\
+                    self.options.get_safe('preload_elfs_versions_etsoc_hal'):
+                device_api_version = self.options.get_safe('preload_elfs_versions_device_api', default_device_api_version)
+                device_minion_rt_version = self.options.get_safe('preload_elfs_versions_device_minion_rt', default_device_minion_rt_version)
+                device_bootloader_version = self.options.get_safe('preload_elfs_versions_device_bootloader', default_device_bootloader_version)
+                esperanto_trace_version = self.options.get_safe('preload_elfs_versions_esperanto_trace', default_esperanto_trace_version)
+                et_common_libs_version = self.options.get_safe('preload_elfs_versions_et_common_libs', default_et_common_libs_version)
+                etsoc_hal_version = self.options.get_safe('preload_elfs_versions_etsoc_hal', default_etsoc_hal_version)
+
+                tmp_file = tempfile.NamedTemporaryFile(prefix="custom_embedded_elfs_conanfile_")
+                with open(tmp_file.name, 'w+') as f:
+                    f.write(f"""
+[requires]
+deviceApi/{device_api_version}
+
+device-minion-runtime/{device_minion_rt_version}
+device-bootloaders/{device_bootloader_version}
+
+# overrides
+esperantoTrace/{esperanto_trace_version}
+et-common-libs/{et_common_libs_version}
+etsoc_hal/{etsoc_hal_version}
+""")
+                    f.seek(0)
+                    contents = f.read()
+                    f.seek(0)
+                    self.output.info(f'Autogenerated conanfile {tmp_file.name} with contents:\n{contents}')
+                    self._install_embedded_elfs(emmedded_elfs_conanfile=tmp_file.name)
+            else:
+                self._install_embedded_elfs(emmedded_elfs_conanfile=default_emmedded_elfs_conanfile)
+
             preload_elfs_list = [
                 os.path.join(self.build_folder, "device-bootloaders/lib/esperanto-fw/BootromTrampolineToBL2/BootromTrampolineToBL2.elf"),
                 os.path.join(self.build_folder, "device-bootloaders/lib/esperanto-fw/ServiceProcessorBL2/fast-boot/ServiceProcessorBL2_fast-boot.elf"),
