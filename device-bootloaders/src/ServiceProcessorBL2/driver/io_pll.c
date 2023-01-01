@@ -55,6 +55,11 @@
 */
 #define PSHR_PLL_100_PERCENT_TARGET_MODE 6
 
+/*! \def PSHR_PLL_50_PERCENT_TARGET_MODE
+    \brief PShire PLL frequency mode for 50% target frequency
+*/
+#define PSHR_PLL_50_PERCENT_TARGET_MODE 54
+
 /*! \def PLL_LOCK_TIMEOUT
     \brief lock timeout for PLL
 */
@@ -1068,7 +1073,9 @@ int pll_init(void)
     }
 
 #if !FAST_BOOT
-    status = configure_pshire_pll(PSHR_PLL_100_PERCENT_TARGET_MODE);
+    /* FIXME: Setting Pshire PLLs to 50% frequency. Setting anything beyond this
+    cause intermittent hangs in PCIe DMA engine */
+    status = configure_pshire_pll(PSHR_PLL_50_PERCENT_TARGET_MODE);
     if (0 != status)
     {
         Log_Write(LOG_LEVEL_ERROR, "PSHIRE PLL ldo kick failed\n");
