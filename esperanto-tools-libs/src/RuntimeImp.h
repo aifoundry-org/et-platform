@@ -94,7 +94,7 @@ public:
 
   // IResponseServices
   void getDevicesWithEventsOnFly(std::vector<int>& outResult) const final;
-  void onResponseReceived(const std::vector<std::byte>& response) final;
+  void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) final;
 
   // this method is a helper to call eventManager dispatch and streamManager removeEvent
   void dispatch(EventId event);
@@ -109,7 +109,7 @@ public:
 private:
   friend ExecutionContextCache;
 
-  void checkDevice(int device) override;
+  void checkDevice(DeviceId device) override;
 
   void onProfilerChanged() override;
 
@@ -149,7 +149,7 @@ private:
     EventId event_;
     std::optional<KernelLaunchErrorExtra> kernelLaunchErrorExtra_ = std::nullopt;
   };
-  void processResponseError(const ResponseError& error);
+  void processResponseError(DeviceId device, const ResponseError& error);
 
   void abortDevice(DeviceId d);
 
@@ -182,7 +182,7 @@ private:
   int nextKernelId_ = 0;
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
-  threadPool::ThreadPool tp_{8};
+  std::unordered_map<DeviceId, std::unique_ptr<threadPool::ThreadPool>> threadPools_;
   EventManager eventManager_;
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;

@@ -49,7 +49,7 @@ void ResponseReceiver::checkResponses() {
           while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
             RT_VLOG(LOW) << "Got response from deviceId: " << dev;
             responsesCount++;
-            receiverServices_->onResponseReceived(buffer);
+            receiverServices_->onResponseReceived(DeviceId{dev}, buffer);
             RT_VLOG(LOW) << "Response processed";
           }
         }
@@ -79,7 +79,7 @@ void ResponseReceiver::checkDevices() {
       if (auto currentTime = std::chrono::high_resolution_clock::now();
           currentTime > (lastCheck + kCheckDevicesInterval)) {
         for (int i = 0; i < devices; ++i) {
-          receiverServices_->checkDevice(i);
+          receiverServices_->checkDevice(DeviceId{i});
         }
         lastCheck = currentTime;
       }

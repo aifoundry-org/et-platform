@@ -117,7 +117,9 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  tp_.pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
+  auto device = DeviceId{streamInfo.device_};
+
+  threadPools_.at(device)->pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
@@ -211,7 +213,9 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  tp_.pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
+  auto device = DeviceId{streamInfo.device_};
+
+  threadPools_.at(device)->pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     std::vector<EventId> cmdEvents;
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
@@ -323,7 +327,9 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  tp_.pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
+  auto device = DeviceId{streamInfo.device_};
+
+  threadPools_.at(device)->pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;
@@ -391,7 +397,9 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
-  tp_.pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
+  auto device = DeviceId{streamInfo.device_};
+
+  threadPools_.at(device)->pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
     RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
     auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
     auto totalSize = 0UL;

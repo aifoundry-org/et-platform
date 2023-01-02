@@ -31,6 +31,7 @@
 
 #include <chrono>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
+#include <hostUtils/threadPool/ThreadPool.h>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -96,6 +97,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
     auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
+    threadPools_.try_emplace(DeviceId{d}, std::make_unique<threadPool::ThreadPool>(4));
   }
   auto desiredCma = maxElementCount * totalElementSize * kAllocFactorTotalMaxMemory;
   auto envCma = getenv("ET_CMA_SIZE");
@@ -359,8 +361,8 @@ void RuntimeImp::doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& 
   kernelAbortedCallback_ = callback;
 }
 
-void RuntimeImp::processResponseError(const ResponseError& responseError) {
-  tp_.pushTask([this, responseError] {
+void RuntimeImp::processResponseError(DeviceId device, const ResponseError& responseError) {
+  threadPools_.at(device)->pushTask([this, responseError] {
     bool dispatchNow = true;
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
@@ -411,7 +413,7 @@ void RuntimeImp::processResponseError(const ResponseError& responseError) {
   });
 }
 
-void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
+void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte>& response) {
 
   // check the response header
   auto header = reinterpret_cast<const rsp_header_t*>(response.data());
@@ -439,7 +441,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on device api check version: " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     } else {
       SpinLock lock(mutex_);
       deviceApiVersion_.major = r->major;
@@ -452,7 +454,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
         r->status != device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on kernel abort: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
@@ -461,7 +463,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA read: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   }
@@ -470,7 +472,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
         r->status != device_ops_api::DEV_OPS_API_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on abort command: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP: {
@@ -479,7 +481,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
     if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on DMA write: " << r->status << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   }
@@ -500,7 +502,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
                                       reinterpret_cast<std::byte*>(extra->umode_trace_buffer_ptr),
                                       extra->cm_shire_mask};
       }
-      processResponseError(re);
+      processResponseError(device, re);
     } else {
       if (executionContextCache_) {
         // it can happen on runtime initialization that executionContextCache does not exist yet and we are receiving
@@ -516,7 +518,7 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace configure: " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP:
@@ -525,13 +527,13 @@ void RuntimeImp::onResponseReceived(const std::vector<std::byte>& response) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on firmware trace control (start/stop): " << r->status
                       << ". Tag id: " << static_cast<int>(eventId);
-      processResponseError({convert(header->rsp_hdr.msg_id, r->status), eventId});
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_device_fw_error_t*>(response.data());
     RT_LOG(WARNING) << "Reported asynchronous ERROR event from firmware: " << r->error_type;
-    processResponseError({convert(header->rsp_hdr.msg_id, r->error_type), eventId});
+    processResponseError(device, {convert(header->rsp_hdr.msg_id, r->error_type), eventId});
     break;
   }
   default:
@@ -665,16 +667,17 @@ void RuntimeImp::dispatch(EventId event) {
   notify(event);
 }
 
-void RuntimeImp::checkDevice(int device) {
-  auto state = deviceLayer_->getDeviceStateMasterMinion(device);
+void RuntimeImp::checkDevice(DeviceId device) {
+  auto state = deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(device));
   RT_VLOG(LOW) << "Device state: " << static_cast<int>(state) << " Runtime running: " << (running_ ? "True" : "False");
   if (running_ && state == dev::DeviceState::PendingCommands) {
     return;
   }
   if (state != dev::DeviceState::Ready) {
-    RT_LOG(WARNING) << "Device " << device << " is not ready. Current state: " << static_cast<int>(state)
+    RT_LOG(WARNING) << "Device " << static_cast<int>(device)
+                    << " is not ready. Current state: " << static_cast<int>(state)
                     << ". Runtime will issue abort command to all SQs of that device.";
-    abortDevice(DeviceId(device));
+    abortDevice(device);
   }
 }
 

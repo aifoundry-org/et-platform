@@ -21,8 +21,8 @@ public:
   struct IReceiverServices {
     virtual ~IReceiverServices() = default;
     virtual void getDevicesWithEventsOnFly(std::vector<int>& outResult) const = 0;
-    virtual void checkDevice(int device) = 0;
-    virtual void onResponseReceived(const std::vector<std::byte>& response) = 0;
+    virtual void checkDevice(DeviceId device) = 0;
+    virtual void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) = 0;
   };
   explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
 
