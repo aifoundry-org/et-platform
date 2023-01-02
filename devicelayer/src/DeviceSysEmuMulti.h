@@ -37,8 +37,8 @@ public:
   size_t getSubmissionQueueSizeMasterMinion(int device) const override;
   size_t getSubmissionQueueSizeServiceProcessor(int device) const override;
   int getDmaAlignment() const override;
-  uint64_t getDramSize() const override;
-  uint64_t getDramBaseAddress() const override;
+  uint64_t getDramSize(int device) const override;
+  uint64_t getDramBaseAddress(int device) const override;
   void* allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) override;
   void freeDmaBuffer(void* dmaBuffer) override;
   size_t getTraceBufferSizeMasterMinion(int device, TraceBufferType traceType) override;

@@ -290,15 +290,19 @@ public:
 
   /// \brief Returns the DRAM available size (in bytes)
   ///
+  /// @param[in] device the device which will be queried
+  ///
   /// @returns DRAM size (in bytes)
   ///
-  virtual uint64_t getDramSize() const = 0;
+  virtual uint64_t getDramSize(int device) const = 0;
 
   /// \brief Returns the DRAM base address
   ///
+  /// @param[in] device the device which will be queried
+  ///
   /// @returns DRAM Host Managed base address
   ///
-  virtual uint64_t getDramBaseAddress() const = 0;
+  virtual uint64_t getDramBaseAddress(int device) const = 0;
 
   /// \brief Virtual Destructor to enable polymorphic release of the IDeviceOpsSync
   /// instances

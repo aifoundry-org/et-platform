@@ -44,8 +44,8 @@ public:
   MOCK_CONST_METHOD1(getDeviceStateMasterMinion, DeviceState(int device));
   MOCK_CONST_METHOD1(getDeviceStateServiceProcessor, DeviceState(int device));
   MOCK_CONST_METHOD0(getDmaAlignment, int());
-  MOCK_CONST_METHOD0(getDramSize, uint64_t());
-  MOCK_CONST_METHOD0(getDramBaseAddress, uint64_t());
+  MOCK_CONST_METHOD1(getDramSize, uint64_t(int));
+  MOCK_CONST_METHOD1(getDramBaseAddress, uint64_t(int));
   MOCK_CONST_METHOD0(getDevicesCount, int());
   MOCK_CONST_METHOD2(getDeviceAttribute, std::string(int, std::string));
   MOCK_CONST_METHOD2(clearDeviceAttributes, void(int, std::string));
@@ -115,8 +115,10 @@ public:
       return delegate_->getDeviceStateServiceProcessor(device);
     });
     ON_CALL(*this, getDmaAlignment).WillByDefault([this]() { return delegate_->getDmaAlignment(); });
-    ON_CALL(*this, getDramSize).WillByDefault([this]() { return delegate_->getDramSize(); });
-    ON_CALL(*this, getDramBaseAddress).WillByDefault([this]() { return delegate_->getDramBaseAddress(); });
+    ON_CALL(*this, getDramSize).WillByDefault([this](int device) { return delegate_->getDramSize(device); });
+    ON_CALL(*this, getDramBaseAddress).WillByDefault([this](int device) {
+      return delegate_->getDramBaseAddress(device);
+    });
     ON_CALL(*this, getDevicesCount).WillByDefault([this]() { return delegate_->getDevicesCount(); });
     ON_CALL(*this, allocDmaBuffer).WillByDefault([this](int device, size_t sizeInBytes, bool writeable) {
       return delegate_->allocDmaBuffer(device, sizeInBytes, writeable);

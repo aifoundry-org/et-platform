@@ -75,11 +75,11 @@ int DeviceSysEmu::getDmaAlignment() const {
   return kDmaAlignment;
 }
 
-uint64_t DeviceSysEmu::getDramSize() const {
+uint64_t DeviceSysEmu::getDramSize(int) const {
   return mmInfo_.mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].bar_size;
 }
 
-uint64_t DeviceSysEmu::getDramBaseAddress() const {
+uint64_t DeviceSysEmu::getDramBaseAddress(int) const {
   return mmInfo_.mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].dev_address;
 }
 

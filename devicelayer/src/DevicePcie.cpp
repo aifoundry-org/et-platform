@@ -295,18 +295,24 @@ int DevicePcie::getDmaAlignment() const {
   return devices_[0].userDram_.align_in_bits;
 }
 
-size_t DevicePcie::getDramSize() const {
+size_t DevicePcie::getDramSize(int device) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  return devices_[0].userDram_.size;
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
+    throw Exception("Invalid device");
+  }
+  return devices_[static_cast<unsigned long>(device)].userDram_.size;
 }
 
-uint64_t DevicePcie::getDramBaseAddress() const {
+uint64_t DevicePcie::getDramBaseAddress(int device) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  return devices_[0].userDram_.base;
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
+    throw Exception("Invalid device");
+  }
+  return devices_[static_cast<unsigned long>(device)].userDram_.base;
 }
 
 DmaInfo DevicePcie::getDmaInfo(int device) const {

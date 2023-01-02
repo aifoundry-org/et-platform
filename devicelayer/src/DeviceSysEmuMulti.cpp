@@ -93,11 +93,11 @@ size_t DeviceSysEmuMulti::getSubmissionQueueSizeServiceProcessor(int device) con
 int DeviceSysEmuMulti::getDmaAlignment() const {
   return getDevice(0).getDmaAlignment();
 }
-uint64_t DeviceSysEmuMulti::getDramSize() const {
-  return getDevice(0).getDramSize();
+uint64_t DeviceSysEmuMulti::getDramSize(int device) const {
+  return getDevice(device).getDramSize(device);
 }
-uint64_t DeviceSysEmuMulti::getDramBaseAddress() const {
-  return getDevice(0).getDramBaseAddress();
+uint64_t DeviceSysEmuMulti::getDramBaseAddress(int device) const {
+  return getDevice(device).getDramBaseAddress(device);
 }
 void* DeviceSysEmuMulti::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
   return getDevice(device).allocDmaBuffer(device, sizeInBytes, writeable);
