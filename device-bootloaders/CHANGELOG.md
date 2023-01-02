@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-[SW-5479]: reporting trace buffer threshold event to host
+- [SW-5479] Reporting trace buffer threshold event to host
+- [SW-15176] Preserve flash config space with firmware update
 ### Changed
 - Fixing MM reset boot flow.
 - [SW-13350] Replacing Trace_String() with Trace_Format_String_V()

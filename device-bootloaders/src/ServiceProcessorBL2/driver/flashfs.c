@@ -401,22 +401,23 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
 
     uint32_t region_address = flash_fs_bl2_info->configuration_region_address;
 
-    //TODO: Skiping image header at the moment. We need to implement secure certificate and header checks if VIP enabled
     config_data_address =
         partition_address + region_address + (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t);
 
-    ESPERANTO_CONFIG_HEADER_t header = { 0 };
-
     if (0 != spi_flash_normal_read(flash_fs_bl2_info->flash_id, config_data_address,
-                                   (uint8_t *)&header, sizeof(ESPERANTO_CONFIG_HEADER_t)))
+                                   (uint8_t *)&(flash_fs_bl2_info->asset_config_header),
+                                   sizeof(ESPERANTO_CONFIG_HEADER_t)))
     {
         MESSAGE_ERROR("flash_fs_preload_config_data: failed to read asset config header!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.tag:     0x%08x\n", header.tag);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.version: 0x%08x\n", header.version);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.hash:    0x%016lx\n", header.hash);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.tag:     0x%08x\n",
+              flash_fs_bl2_info->asset_config_header.tag);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.version: 0x%08x\n",
+              flash_fs_bl2_info->asset_config_header.version);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_header.hash:    0x%016lx\n",
+              flash_fs_bl2_info->asset_config_header.hash);
 
     if (0 !=
         spi_flash_normal_read(flash_fs_bl2_info->flash_id,
@@ -1435,6 +1436,7 @@ int flash_fs_set_part_number(uint32_t part_number)
     uint32_t partition_address;
     uint32_t config_data_address;
     uint32_t scratch_buffer_size;
+    ESPERANTO_CONFIG_DATA_t cfg_data;
     void *scratch_buffer;
 
     /* Since Flash sector size is 4KB, get scratch buffer to use */
@@ -1492,11 +1494,21 @@ int flash_fs_set_part_number(uint32_t part_number)
                                    config_data_address +
                                        (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
                                        (uint32_t)sizeof(ESPERANTO_CONFIG_HEADER_t),
-                                   (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data),
-                                   sizeof(sg_flash_fs_bl2_info.asset_config_data)))
+                                   (uint8_t *)&cfg_data, sizeof(ESPERANTO_CONFIG_DATA_t)))
     {
         MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset_config_data!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* verify part number updated sucessfully, then update it in global data*/
+    if (cfg_data.part_num != part_number)
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: part num mismatch!\n");
+        return ERROR_SPI_FLASH_BL2_INFO_PARTNUM_MISMATCH;
+    }
+    else
+    {
+        sg_flash_fs_bl2_info.asset_config_data.part_num = cfg_data.part_num;
     }
 
     return 0;
@@ -1610,4 +1622,117 @@ int flash_fs_get_fw_release_rev(char *fw_release_rev)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_write_config
+*
+*   DESCRIPTION
+*
+*       This function writes config data from global config data.
+*
+*   INPUTS
+*
+*       partition partition number to write configuration data
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+
+int flash_fs_write_config_region(uint32_t partition)
+{
+    ESPERANTO_CONFIG_DATA_t *cfg_data = NULL;
+    uint32_t config_reg_address;
+    uint32_t partition_address;
+    uint32_t buffer_size;
+    void *scratch_buff;
+
+    /* Since Flash sector size is 4KB, get scratch buffer to use */
+    scratch_buff = get_scratch_buffer(&buffer_size);
+    if (buffer_size < SPI_FLASH_SECTOR_SIZE)
+    {
+        return ERROR_INSUFFICIENT_MEMORY;
+    }
+
+    /* validate partition number and calculate partition address */
+    if (partition == 0)
+    {
+        partition_address = 0;
+    }
+    else if (partition == 1)
+    {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+    }
+    else
+    {
+        return ERROR_SPI_FLASH_NO_VALID_PARTITION;
+    }
+
+    /* Calculate config data address */
+    config_reg_address = partition_address + sg_flash_fs_bl2_info.configuration_region_address;
+
+    /* Read the whole sector */
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_reg_address,
+                                   (uint8_t *)scratch_buff, SPI_FLASH_SECTOR_SIZE))
+    {
+        MESSAGE_ERROR("flash_fs_write_config_region: failed to read asset config region!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* Update the config region header in buffer */
+    memcpy(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
+           (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_header),
+           sizeof(sg_flash_fs_bl2_info.asset_config_header));
+
+    /* Update the config region data in buffer */
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buff) +
+                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
+
+    /* Restore part num from global data*/
+    cfg_data->part_num = sg_flash_fs_bl2_info.asset_config_data.part_num;
+
+    /* Erase the asset config region. */
+    if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_reg_address))
+    {
+        MESSAGE_ERROR("flash_fs_write_config_region: failed to erase asset config data!\n");
+        return ERROR_SPI_FLASH_SE_FAILED;
+    }
+
+    /* Write back the updated sector */
+    if (0 != flash_fs_write_partition(config_reg_address, scratch_buff, SPI_FLASH_SECTOR_SIZE,
+                                      SPI_FLASH_PAGE_SIZE))
+    {
+        MESSAGE_ERROR("flash_fs_write_config_region: spi_flash_program() failed!\n");
+        return ERROR_SPI_FLASH_PP_FAILED;
+    }
+
+    memset(scratch_buff, 0, buffer_size);
+
+    /* Read the whole sector again to verify that data written is successfull*/
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_reg_address,
+                                   (uint8_t *)scratch_buff, SPI_FLASH_SECTOR_SIZE))
+    {
+        MESSAGE_ERROR("flash_fs_write_config_region: failed to read asset config region!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* Compare with the image data in the DDR */
+    if ((memcmp(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
+                (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_header),
+                sizeof(ESPERANTO_CONFIG_HEADER_t))) ||
+        (memcmp(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                    sizeof(ESPERANTO_CONFIG_HEADER_t),
+                (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data),
+                sizeof(ESPERANTO_CONFIG_DATA_t))))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_write_config_region: data validation failed!\n");
+        return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;
+    }
+
+    return 0;
+}
 #pragma GCC pop_options
