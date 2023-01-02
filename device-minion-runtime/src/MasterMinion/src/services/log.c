@@ -161,7 +161,7 @@ log_level_t Log_Get_Level(void)
 ***********************************************************************/
 int32_t __Log_Write(log_level_e level, const char *const fmt, ...)
 {
-    int32_t bytes_written;
+    int32_t bytes_written = 0;
 
     /* Dump the log message over current log interface. */
     if (atomic_load_local_8(&Log_Interface) == LOG_DUMP_TO_TRACE)
