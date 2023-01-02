@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed device-fw-test-plan.ods.
 - [SW-14210] Fixed bug in setThrottlePowerStatus test
 ### Fixed
+- [SW-15493] Fixed getModuleMemorySizeMB test to expect multiple values
 ### Security
 
 ## [0.7.0] - 2022-10-21

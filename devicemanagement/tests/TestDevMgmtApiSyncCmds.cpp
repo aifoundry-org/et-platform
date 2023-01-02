@@ -21,6 +21,7 @@
 #include <experimental/filesystem>
 #include <fcntl.h>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <fstream>
 #include <glog/logging.h>
 #include <iostream>
@@ -644,28 +645,27 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB(bool singleDevice) {
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t output_size = 1;
-  char expected[output_size] = {16};
-  printf("expected: %.*s\n", output_size, expected);
+  std::vector<std::array<uint8_t, output_size>> expected = {{16}, {32}};
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    char output_buff[output_size] = {0};
+    std::array<uint8_t, output_size> output_buff = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                static_cast<char*>(static_cast<void*>(output_buff.data())), output_buff.size(),
+                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
-      printf("output_buff: %.*s\n", output_size, output_buff);
-
-      device_mgmt_api::asset_info_t* asset_info = (device_mgmt_api::asset_info_t*)output_buff;
-
-      EXPECT_EQ(strncmp(asset_info->asset, expected, output_size), 0);
+      EXPECT_TRUE(std::any_of(expected.begin(), expected.end(),
+                              [&](const std::array<uint8_t, output_size>& value) {
+                                return std::memcmp(output_buff.data(), value.data(), output_buff.size()) == 0;
+                              }))
+        << fmt::format("Expected: {} whereas output: {}", fmt::join(expected, ", "), output_buff);
     }
   }
 }
