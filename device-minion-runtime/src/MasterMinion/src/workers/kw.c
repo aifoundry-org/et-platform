@@ -1558,7 +1558,7 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
 
     if (total_shire_count == 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "KW_Get_Average_Exec_Cycles: Invalid total shire count.\r\n");
+        Log_Write(LOG_LEVEL_INFO, "KW_Get_Average_Exec_Cycles:No CM shires available.\r\n");
         return 0;
     }
 
