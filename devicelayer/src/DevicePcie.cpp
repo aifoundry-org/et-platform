@@ -308,11 +308,12 @@ uint64_t DevicePcie::getDramBaseAddress() const {
   }
   return devices_[0].userDram_.base;
 }
+
 DmaInfo DevicePcie::getDmaInfo(int device) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   DmaInfo dmaInfo;
@@ -329,7 +330,7 @@ DeviceState DevicePcie::getDeviceStateMasterMinion(int device) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return getDeviceState(devices_[static_cast<unsigned long>(device)].fdOps_);
@@ -339,7 +340,7 @@ DeviceState DevicePcie::getDeviceStateServiceProcessor(int device) const {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return getDeviceState(devices_[static_cast<unsigned long>(device)].fdMgmt_);
@@ -349,7 +350,7 @@ int DevicePcie::getSubmissionQueuesCount(int device) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return devices_[static_cast<unsigned long>(device)].mmSqCount_;
@@ -359,7 +360,7 @@ size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return devices_[static_cast<unsigned long>(device)].mmSqMaxMsgSize_;
@@ -369,7 +370,7 @@ size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return devices_[static_cast<unsigned long>(device)].spSqMaxMsgSize_;
@@ -508,7 +509,7 @@ bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* comma
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -527,7 +528,7 @@ void DevicePcie::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t byte
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -548,7 +549,7 @@ void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap,
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -579,7 +580,7 @@ bool DevicePcie::receiveResponseMasterMinion(int device, std::vector<std::byte>&
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -596,7 +597,7 @@ size_t DevicePcie::getTraceBufferSizeMasterMinion(int device, TraceBufferType tr
   if (!opsEnabled_) {
     throw Exception("Can't use Master Minion operations if master minion port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -609,7 +610,7 @@ bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, siz
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -625,7 +626,7 @@ void DevicePcie::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -643,7 +644,7 @@ void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_availab
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -675,7 +676,7 @@ bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::by
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -693,7 +694,7 @@ bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType trac
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -711,7 +712,7 @@ int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwIm
   if (!mngmtEnabled_) {
     throw Exception("Can't use Service Processor operations if service processor port is not enabled");
   }
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
@@ -723,7 +724,7 @@ int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwIm
 
 void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
   std::lock_guard lock(mutex_);
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
 
@@ -752,7 +753,7 @@ void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
 }
 
 DeviceConfig DevicePcie::getDeviceConfig(int device) {
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return devices_[static_cast<uint32_t>(device)].cfg_;
@@ -780,21 +781,21 @@ uint32_t DevicePcie::getFrequencyMHz(int device) {
 }
 
 std::string DevicePcie::getDeviceAttribute(int device, std::string relAttrPath) const {
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   return getDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relAttrPath);
 }
 
 void DevicePcie::clearDeviceAttributes(int device, std::string relGroupPath) const {
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   clearDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relGroupPath);
 }
 
 void DevicePcie::reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
-  if (device >= static_cast<int>(devices_.size())) {
+  if (static_cast<unsigned long>(device) >= devices_.size()) {
     throw Exception("Invalid device");
   }
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed validation check for device index in DevicePcie.
 ### Security
 
 ## [1.2.0] - 2022-12-07
