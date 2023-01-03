@@ -32,10 +32,10 @@ namespace {
 
 constexpr auto kMinReqDriverVersion = "0.12.0";
 
-int countDeviceNodes(bool isMngmt) {
+int countDeviceNodes(bool isMgmt) {
   auto it = fs::directory_iterator("/dev");
-  return static_cast<int>(std::count_if(fs::begin(it), fs::end(it), [isMngmt](auto& e) {
-    return regex_match(e.path().filename().string(), std::regex(isMngmt ? "(et)(.*)(_mgmt)" : "(et)(.*)(_ops)"));
+  return static_cast<int>(std::count_if(fs::begin(it), fs::end(it), [isMgmt](auto& e) {
+    return regex_match(e.path().filename().string(), std::regex(isMgmt ? "(et)(.*)(_mgmt)" : "(et)(.*)(_ops)"));
   }));
 }
 
@@ -284,109 +284,30 @@ constexpr int kMaxEpollEvents = 6;
 } // namespace
 namespace dev {
 
-size_t DevicePcie::getFreeCmaMemory() const {
-  return getCmaFreeMem();
-}
+#define CHECK_MGMT_ENABLED()                                                                                           \
+  do {                                                                                                                 \
+    if (!mgmtEnabled_) {                                                                                               \
+      throw Exception("Can't use Service Processor operations if service processor port is not enabled");              \
+    }                                                                                                                  \
+  } while (0)
+#define CHECK_OPS_ENABLED()                                                                                            \
+  do {                                                                                                                 \
+    if (!opsEnabled_) {                                                                                                \
+      throw Exception("Can't use Master Minion operations if master minion port is not enabled");                      \
+    }                                                                                                                  \
+  } while (0)
+#define CHECK_VALID_DEVICE(device)                                                                                     \
+  do {                                                                                                                 \
+    if (static_cast<unsigned long>(device) >= devices_.size()) {                                                       \
+      throw Exception("Invalid device");                                                                               \
+    }                                                                                                                  \
+  } while (0)
 
-int DevicePcie::getDmaAlignment() const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  return devices_[0].userDram_.align_in_bits;
-}
-
-size_t DevicePcie::getDramSize(int device) const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return devices_[static_cast<unsigned long>(device)].userDram_.size;
-}
-
-uint64_t DevicePcie::getDramBaseAddress(int device) const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return devices_[static_cast<unsigned long>(device)].userDram_.base;
-}
-
-DmaInfo DevicePcie::getDmaInfo(int device) const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  DmaInfo dmaInfo;
-  dmaInfo.maxElementSize_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_size;
-  dmaInfo.maxElementCount_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_count;
-  return dmaInfo;
-}
-
-int DevicePcie::getDevicesCount() const {
-  return static_cast<int>(devices_.size());
-}
-
-DeviceState DevicePcie::getDeviceStateMasterMinion(int device) const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return getDeviceState(devices_[static_cast<unsigned long>(device)].fdOps_);
-}
-
-DeviceState DevicePcie::getDeviceStateServiceProcessor(int device) const {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return getDeviceState(devices_[static_cast<unsigned long>(device)].fdMgmt_);
-}
-
-int DevicePcie::getSubmissionQueuesCount(int device) const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return devices_[static_cast<unsigned long>(device)].mmSqCount_;
-}
-
-size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return devices_[static_cast<unsigned long>(device)].mmSqMaxMsgSize_;
-}
-
-size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return devices_[static_cast<unsigned long>(device)].spSqMaxMsgSize_;
-}
-
-void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMngmt, bool enableOps,
+void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgmt, bool enableOps,
                                  std::chrono::milliseconds timeout) const {
   auto end = std::chrono::steady_clock::now() + timeout;
   std::stringstream logs;
-  if (enableMngmt) {
+  if (enableMgmt) {
     std::string path = "/dev/et" + std::to_string(device) + "_mgmt";
     deviceInfo.fdMgmt_ =
       openWhenReady(path, std::chrono::duration_cast<std::chrono::seconds>(end - std::chrono::steady_clock::now()));
@@ -419,7 +340,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMng
     logInfoLine(logs, "MM VQ Maximum message size (B):", deviceInfo.mmSqMaxMsgSize_, true);
   }
 
-  auto fd = mngmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
+  auto fd = mgmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
 
   wrap_ioctl(fd, ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(deviceInfo.devName_.size()), deviceInfo.devName_.data());
 
@@ -455,7 +376,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMng
   DV_DLOG(DEBUG) << logs.str();
 }
 
-void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMngmt, bool disableOps) const {
+void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMgmt, bool disableOps) const {
   if (disableOps) {
     auto res = close(deviceInfo.fdOps_);
     if (res < 0) {
@@ -466,7 +387,7 @@ void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMngmt
       throw Exception("Failed to close ops epoll file, error: '"s + std::strerror(errno) + "'"s);
     }
   }
-  if (disableMngmt) {
+  if (disableMgmt) {
     auto res = close(deviceInfo.fdMgmt_);
     if (res < 0) {
       throw Exception("Failed to close mgmt file, error: '"s + std::strerror(errno) + "'"s);
@@ -479,23 +400,23 @@ void DevicePcie::teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMngmt
   }
 }
 
-DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
+DevicePcie::DevicePcie(bool enableOps, bool enableMgmt)
   : opsEnabled_(enableOps)
-  , mngmtEnabled_(enableMngmt) {
-  if (!(enableOps || enableMngmt)) {
-    throw Exception("Ops or Mngmt must be enabled");
+  , mgmtEnabled_(enableMgmt) {
+  if (!(enableOps || enableMgmt)) {
+    throw Exception("Ops or Mgmt must be enabled");
   }
 
-  auto mngmtDevCount = countDeviceNodes(true);
+  auto mgmtDevCount = countDeviceNodes(true);
 
   // If ops node does not exist then device is in recovery mode.
-  if (auto opsDevCount = countDeviceNodes(false); opsDevCount != mngmtDevCount && enableOps) {
-    throw Exception("Only Mngmt can be enabled in recovery mode");
+  if (auto opsDevCount = countDeviceNodes(false); opsDevCount != mgmtDevCount && enableOps) {
+    throw Exception("Only Mgmt can be enabled in recovery mode");
   }
 
-  for (int i = 0; i < mngmtDevCount; ++i) {
+  for (int i = 0; i < mgmtDevCount; ++i) {
     DevInfo deviceInfo;
-    setupDeviceInfo(i, deviceInfo, mngmtEnabled_, opsEnabled_);
+    setupDeviceInfo(i, deviceInfo, mgmtEnabled_, opsEnabled_);
     devices_.emplace_back(deviceInfo);
   }
 }
@@ -503,21 +424,153 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMngmt)
 DevicePcie::~DevicePcie() {
   for (auto& d : devices_) {
     try {
-      teardownDeviceInfo(d, mngmtEnabled_, opsEnabled_);
+      teardownDeviceInfo(d, mgmtEnabled_, opsEnabled_);
     } catch (const dev::Exception& ex) {
       DV_LOG(FATAL) << ex.what();
     }
   }
 }
 
+/***************************
+ * Common Mgmt and Ops APIs
+ ***************************/
+size_t DevicePcie::getFreeCmaMemory() const {
+  return getCmaFreeMem();
+}
+
+int DevicePcie::getDevicesCount() const {
+  return static_cast<int>(devices_.size());
+}
+
+DeviceConfig DevicePcie::getDeviceConfig(int device) {
+  CHECK_VALID_DEVICE(device);
+  return devices_[static_cast<uint32_t>(device)].cfg_;
+}
+
+int DevicePcie::getActiveShiresNum(int device) {
+  DeviceConfig config = getDeviceConfig(device);
+  uint32_t shireMask = config.computeMinionShireMask_;
+  uint32_t checkPattern = 0x00000001;
+  size_t maskBits = 32;
+  int cntActive = 0;
+
+  for (size_t i = 0; i < maskBits; i++) {
+    bool active = shireMask & (checkPattern << i);
+    if (active) {
+      cntActive++;
+    }
+  }
+  return cntActive;
+}
+
+uint32_t DevicePcie::getFrequencyMHz(int device) {
+  DeviceConfig config = getDeviceConfig(device);
+  return config.minionBootFrequency_;
+}
+
+std::string DevicePcie::getDeviceAttribute(int device, std::string relAttrPath) const {
+  CHECK_VALID_DEVICE(device);
+  return getDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relAttrPath);
+}
+
+void DevicePcie::clearDeviceAttributes(int device, std::string relGroupPath) const {
+  CHECK_VALID_DEVICE(device);
+  clearDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relGroupPath);
+}
+
+void DevicePcie::reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
+  CHECK_VALID_DEVICE(device);
+  auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
+  teardownDeviceInfo(deviceInfo, mgmtEnabled_ && !masterMinionOnly, opsEnabled_);
+  setupDeviceInfo(device, deviceInfo, mgmtEnabled_ && !masterMinionOnly, opsEnabled_, timeout);
+}
+
+/******************
+ * Ops Device APIs
+ ******************/
+int DevicePcie::getDmaAlignment() const {
+  CHECK_OPS_ENABLED();
+  return devices_[0].userDram_.align_in_bits;
+}
+
+size_t DevicePcie::getDramSize(int device) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return devices_[static_cast<unsigned long>(device)].userDram_.size;
+}
+
+uint64_t DevicePcie::getDramBaseAddress(int device) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return devices_[static_cast<unsigned long>(device)].userDram_.base;
+}
+
+DmaInfo DevicePcie::getDmaInfo(int device) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  DmaInfo dmaInfo;
+  dmaInfo.maxElementSize_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_size;
+  dmaInfo.maxElementCount_ = devices_[static_cast<unsigned long>(device)].userDram_.dma_max_elem_count;
+  return dmaInfo;
+}
+
+DeviceState DevicePcie::getDeviceStateMasterMinion(int device) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return getDeviceState(devices_[static_cast<unsigned long>(device)].fdOps_);
+}
+
+DeviceState DevicePcie::getDeviceStateServiceProcessor(int device) const {
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return getDeviceState(devices_[static_cast<unsigned long>(device)].fdMgmt_);
+}
+
+int DevicePcie::getSubmissionQueuesCount(int device) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return devices_[static_cast<unsigned long>(device)].mmSqCount_;
+}
+
+size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return devices_[static_cast<unsigned long>(device)].mmSqMaxMsgSize_;
+}
+
+void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
+  std::lock_guard lock(mutex_);
+  CHECK_VALID_DEVICE(device);
+
+  // NOTE fdOps_ must be open with O_RDWR for PROT_READ/PROT_WRITE with MAP_SHARED
+  // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both.
+  // Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
+  auto res = mmap(nullptr, sizeInBytes, PROT_READ | (writeable ? PROT_WRITE : 0), MAP_SHARED,
+                  devices_[static_cast<uint32_t>(device)].fdOps_, 0);
+
+  if (res == MAP_FAILED) {
+    throw Exception("Error mmap: '"s + std::strerror(errno) + "'");
+  }
+  dmaBuffers_[res] = sizeInBytes;
+  return res;
+}
+
+void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
+  std::lock_guard lock(mutex_);
+  auto it = dmaBuffers_.find(dmaBuffer);
+  if (it == end(dmaBuffers_)) {
+    throw Exception("Can't free a non previously allocated DmaBuffer");
+  }
+  if (munmap(dmaBuffer, it->second) != 0) {
+    throw Exception("Error munmap: '"s + std::strerror(errno) + "'");
+  }
+  dmaBuffers_.erase(it);
+}
+
 bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* command, size_t commandSize,
                                          CmdFlagMM flags) {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   if (sqIdx >= deviceInfo.mmSqCount_) {
     throw Exception("Invalid queue");
@@ -531,12 +584,8 @@ bool DevicePcie::sendCommandMasterMinion(int device, int sqIdx, std::byte* comma
 }
 
 void DevicePcie::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t bytesNeeded) {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   if (sqIdx >= deviceInfo.mmSqCount_) {
     throw Exception("Invalid queue");
@@ -552,12 +601,8 @@ void DevicePcie::setSqThresholdMasterMinion(int device, int sqIdx, uint32_t byte
 
 void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap, bool& cq_available,
                                                 std::chrono::milliseconds timeout) {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   sq_bitmap = 0;
   cq_available = false;
@@ -583,12 +628,8 @@ void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap,
 }
 
 bool DevicePcie::receiveResponseMasterMinion(int device, std::vector<std::byte>& response) {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
 
   response.resize(deviceInfo.mmSqMaxMsgSize_);
@@ -600,25 +641,26 @@ bool DevicePcie::receiveResponseMasterMinion(int device, std::vector<std::byte>&
 }
 
 size_t DevicePcie::getTraceBufferSizeMasterMinion(int device, TraceBufferType traceType) {
-  if (!opsEnabled_) {
-    throw Exception("Can't use Master Minion operations if master minion port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(device);
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
 
   auto trace_type = static_cast<uint8_t>(traceType);
   return static_cast<size_t>(wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE, &trace_type).rc_);
 }
 
+/*******************
+ * Mgmt Device APIs
+ *******************/
+size_t DevicePcie::getSubmissionQueueSizeServiceProcessor(int device) const {
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
+  return devices_[static_cast<unsigned long>(device)].spSqMaxMsgSize_;
+}
+
 bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, size_t commandSize, CmdFlagSP flags) {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   cmd_desc cmdInfo;
   cmdInfo.cmd = command;
@@ -629,12 +671,8 @@ bool DevicePcie::sendCommandServiceProcessor(int device, std::byte* command, siz
 }
 
 void DevicePcie::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded) {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   if (!bytesNeeded || bytesNeeded > deviceInfo.mmSqMaxMsgSize_) {
     throw Exception("Invalid value for bytesNeeded");
@@ -647,12 +685,8 @@ void DevicePcie::setSqThresholdServiceProcessor(int device, uint32_t bytesNeeded
 
 void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_available, bool& cq_available,
                                                     std::chrono::milliseconds timeout) {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   sq_available = false;
   cq_available = false;
@@ -679,12 +713,8 @@ void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_availab
 }
 
 bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::byte>& response) {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   response.resize(deviceInfo.spSqMaxMsgSize_);
   rsp_desc rspInfo;
@@ -696,13 +726,8 @@ bool DevicePcie::receiveResponseServiceProcessor(int device, std::vector<std::by
 
 bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType traceType,
                                                 std::vector<std::byte>& traceBuf) {
-
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
   auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
 
   trace_desc traceInfo;
@@ -715,12 +740,8 @@ bool DevicePcie::getTraceBufferServiceProcessor(int device, TraceBufferType trac
 }
 
 int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwImage) {
-  if (!mngmtEnabled_) {
-    throw Exception("Can't use Service Processor operations if service processor port is not enabled");
-  }
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
+  CHECK_MGMT_ENABLED();
+  CHECK_VALID_DEVICE(device);
   const auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
   fw_update_desc fwUpdateInfo;
   fwUpdateInfo.ubuf = fwImage.data();
@@ -728,84 +749,4 @@ int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwIm
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_FW_UPDATE, &fwUpdateInfo);
 }
 
-void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {
-  std::lock_guard lock(mutex_);
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-
-  // NOTE fdOps_ must be open with O_RDWR for PROT_READ/PROT_WRITE with MAP_SHARED
-  // Argument "prot" can be one of PROT_WRITE, PROT_READ, or both.
-  // Refer: https://man7.org/linux/man-pages/man2/mmap.2.html
-  auto res = mmap(nullptr, sizeInBytes, PROT_READ | (writeable ? PROT_WRITE : 0), MAP_SHARED,
-                  devices_[static_cast<uint32_t>(device)].fdOps_, 0);
-
-  if (res == MAP_FAILED) {
-    throw Exception("Error mmap: '"s + std::strerror(errno) + "'");
-  }
-  dmaBuffers_[res] = sizeInBytes;
-  return res;
-}
-void DevicePcie::freeDmaBuffer(void* dmaBuffer) {
-  std::lock_guard lock(mutex_);
-  auto it = dmaBuffers_.find(dmaBuffer);
-  if (it == end(dmaBuffers_)) {
-    throw Exception("Can't free a non previously allocated DmaBuffer");
-  }
-  if (munmap(dmaBuffer, it->second) != 0) {
-    throw Exception("Error munmap: '"s + std::strerror(errno) + "'");
-  }
-  dmaBuffers_.erase(it);
-}
-
-DeviceConfig DevicePcie::getDeviceConfig(int device) {
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return devices_[static_cast<uint32_t>(device)].cfg_;
-}
-
-int DevicePcie::getActiveShiresNum(int device) {
-  DeviceConfig config = getDeviceConfig(device);
-  uint32_t shireMask = config.computeMinionShireMask_;
-  uint32_t checkPattern = 0x00000001;
-  size_t maskBits = 32;
-  int cntActive = 0;
-
-  for (size_t i = 0; i < maskBits; i++) {
-    bool active = shireMask & (checkPattern << i);
-    if (active) {
-      cntActive++;
-    }
-  }
-  return cntActive;
-}
-
-uint32_t DevicePcie::getFrequencyMHz(int device) {
-  DeviceConfig config = getDeviceConfig(device);
-  return config.minionBootFrequency_;
-}
-
-std::string DevicePcie::getDeviceAttribute(int device, std::string relAttrPath) const {
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  return getDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relAttrPath);
-}
-
-void DevicePcie::clearDeviceAttributes(int device, std::string relGroupPath) const {
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  clearDeviceAttributeByName(std::string(devices_[static_cast<uint32_t>(device)].devName_.data()), relGroupPath);
-}
-
-void DevicePcie::reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
-  if (static_cast<unsigned long>(device) >= devices_.size()) {
-    throw Exception("Invalid device");
-  }
-  auto& deviceInfo = devices_[static_cast<unsigned long>(device)];
-  teardownDeviceInfo(deviceInfo, mngmtEnabled_ && !masterMinionOnly, opsEnabled_);
-  setupDeviceInfo(device, deviceInfo, mngmtEnabled_ && !masterMinionOnly, opsEnabled_, timeout);
-}
 } // namespace dev

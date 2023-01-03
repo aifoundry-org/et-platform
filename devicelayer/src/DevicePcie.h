@@ -17,7 +17,7 @@ namespace dev {
 
 class DevicePcie : public IDeviceLayer {
 public:
-  explicit DevicePcie(bool enableOps = true, bool enableMngmt = true);
+  explicit DevicePcie(bool enableOps = true, bool enableMgmt = true);
   ~DevicePcie();
 
   // IDeviceAsync
@@ -72,9 +72,9 @@ private:
     int epFdMgmt_;
   };
 
-  void setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMngmt, bool enableOps,
+  void setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgmt, bool enableOps,
                        std::chrono::milliseconds timeout = std::chrono::seconds(30)) const;
-  void teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMngmt, bool disableOps) const;
+  void teardownDeviceInfo(const DevInfo& deviceInfo, bool disableMgmt, bool disableOps) const;
 
   std::unordered_map<void*, size_t> dmaBuffers_;
   std::vector<DevInfo> devices_;
@@ -82,6 +82,6 @@ private:
   // remove the mutex
   std::mutex mutex_;
   bool opsEnabled_;
-  bool mngmtEnabled_;
+  bool mgmtEnabled_;
 };
 } // namespace dev
