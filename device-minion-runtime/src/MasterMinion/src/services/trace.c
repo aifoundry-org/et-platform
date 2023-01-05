@@ -46,7 +46,7 @@
 #include "services/host_iface.h"
 
 /* mm_rt_helpers */
-#include "cm_mm_defines.h"
+#include "common_utils.h"
 #include "error_codes.h"
 
 #include <common/printf.h>

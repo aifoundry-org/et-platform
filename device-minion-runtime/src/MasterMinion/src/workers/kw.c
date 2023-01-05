@@ -591,26 +591,58 @@ static inline int32_t process_kernel_launch_cmd_payload(
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
         struct trace_init_info_t *trace_config = (struct trace_init_info_t *)(uintptr_t)payload;
 
-        if (IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) &&
-            IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE) &&
-            args_size >= sizeof(struct trace_init_info_t))
+        /* TODO: Add a new deviceApi code for KW_ERROR_KERNEL_TRACE_INVALID_CONFIG */
+        /* Perform sanity checks on trace config */
+        if (args_size < sizeof(struct trace_init_info_t))
         {
-            /* Copy the Trace configs from command payload to provided address
-            NOTE: Trace configs are always present at the beginning of the payload
-                  and its size is fixed.*/
-            ETSOC_MEM_COPY_AND_EVICT((void *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,
-                (void *)payload, sizeof(struct trace_init_info_t), to_L3)
-
-            args_size -= sizeof(struct trace_init_info_t);
-            payload += sizeof(struct trace_init_info_t);
-        }
-        else
-        {
-            status = KW_ERROR_KERNEL_INVALID_ADDRESS;
+            status = KW_ERROR_KERNEL_TRACE_INVALID_CONFIG;
             Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:KW:ERROR: Unaligned Trace Buffer: %ld ,Size: %d OR Args Size: %ld\r\n",
+                "TID[%u]:SQW[%d]:KW:ERROR:Invalid trace config Size: %ld\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, args_size);
+        }
+        else if (!IS_ALIGNED(trace_config->buffer, CACHE_LINE_SIZE) ||
+                 !IS_ALIGNED(trace_config->buffer_size, CACHE_LINE_SIZE))
+        {
+            status = KW_ERROR_KERNEL_TRACE_INVALID_CONFIG;
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:KW:ERROR:Unaligned Trace Buffer:0x%ld:Size:0x%xr\n",
                 cmd->command_info.cmd_hdr.tag_id, sqw_idx, trace_config->buffer,
-                trace_config->buffer_size, args_size);
+                trace_config->buffer_size);
+        }
+
+        if (status == STATUS_SUCCESS)
+        {
+            /* Get the total enable harts in U-mode trace */
+            uint32_t harts =
+                get_enabled_umode_harts(trace_config->shire_mask, trace_config->thread_mask);
+
+            /* Verify the enabled harts and total buffer size available for them */
+            if (harts == 0)
+            {
+                status = KW_ERROR_KERNEL_TRACE_INVALID_CONFIG;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "TID[%u]:SQW[%d]:KW:ERROR:No U-mode trace harts enabled:Shire mask:0x%lx:Thread mask:0x%lx\r\n",
+                    cmd->command_info.cmd_hdr.tag_id, sqw_idx, trace_config->shire_mask,
+                    trace_config->thread_mask);
+            }
+            else if ((trace_config->buffer_size / harts) < CACHE_LINE_SIZE)
+            {
+                status = KW_ERROR_KERNEL_TRACE_INVALID_CONFIG;
+                Log_Write(LOG_LEVEL_ERROR,
+                    "TID[%u]:SQW[%d]:KW:ERROR:U-mode trace buffer size must be atleast cache-line size:buffer size:0x%x:harts:0x%x\r\n",
+                    cmd->command_info.cmd_hdr.tag_id, sqw_idx, trace_config->buffer_size, harts);
+            }
+            else
+            {
+                /* Copy the Trace configs from command payload to provided address
+                NOTE: Trace configs are always present at the beginning of the payload
+                    and its size is fixed.*/
+                ETSOC_MEM_COPY_AND_EVICT((void *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,
+                    (void *)payload, sizeof(struct trace_init_info_t), to_L3)
+
+                args_size -= sizeof(struct trace_init_info_t);
+                payload += sizeof(struct trace_init_info_t);
+            }
         }
     }
 

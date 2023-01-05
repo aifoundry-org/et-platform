@@ -30,11 +30,6 @@
 */
 #define MM_DISPATCHER_HART_ID 2048
 
-/*! \def MM_HART_MASK
-    \brief Master Minion Hart mask
-*/
-#define MM_HART_MASK (0xFFFFFFFFUL)
-
 /*! \def CM_SHIRE_ID_MASK
     \brief Virtual Compute Shire NOC ID Mask
 */

@@ -53,9 +53,6 @@
 #include <assert.h>
 #endif
 
-/* Function prototypes */
-static uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, uint64_t hart_id);
-
 /*
  * Compute Minion Trace control block.
  */
@@ -97,18 +94,6 @@ typedef struct trace_umode_control_block {
 */
 #define CM_UMODE_TRACE_CB ((trace_umode_control_block_t *)CM_UMODE_TRACE_CB_BASEADDR)
 
-/*! \def GET_TRACE_ENABLED_HART_COUNT
-    \brief get number of Harts for which Trace is enabled.
-*/
-#define GET_TRACE_ENABLED_HART_COUNT(shire, thread) \
-    (get_set_bit_count(shire) * get_set_bit_count(thread))
-
-/*! \def GET_FIRST_TRACE_ENABLED_HART_ID
-    \brief Get the lowest (first) Hart ID for which Trace is enabled.
-*/
-#define GET_FIRST_TRACE_ENABLED_HART_ID(shire, thread) \
-    (((get_lsb_set_pos(shire) - 1U) * HARTS_PER_SHIRE) + (get_lsb_set_pos(thread) - 1U))
-
 /************************/
 /* Compile-time checks  */
 /************************/
@@ -147,6 +132,66 @@ static inline void et_trace_threshold_notify(const struct trace_control_block_t 
         /* From U-mode context, do a syscall to generate
         event to CM FW which will gnerate event to MM FW */
     }
+}
+
+/* Function to get the Hart ID of the first enabled hart in the given shire and thread mask */
+static inline uint32_t trace_get_first_umode_hart_id(uint64_t shire_mask, uint64_t thread_mask)
+{
+    /* Check if only the master shire is enabled */
+    if (shire_mask == MM_SHIRE_MASK)
+    {
+        return (MASTER_SHIRE * HARTS_PER_SHIRE) +
+               (get_lsb_set_pos(thread_mask & CW_IN_MM_SHIRE) - 1U);
+    }
+    else
+    {
+        return ((get_lsb_set_pos(shire_mask) - 1U) * HARTS_PER_SHIRE) +
+               (get_lsb_set_pos(thread_mask) - 1U);
+    }
+}
+
+/* Get the Hart index of given Hart among all enabled Harts given Shire and Thread mask. */
+static uint32_t trace_get_umode_buffer_idx(
+    uint64_t shire_mask, uint64_t thread_mask, uint64_t hart_id)
+{
+    uint64_t curr_hart_shire_mask = TRACE_SHIRE_MASK(hart_id);
+    uint64_t lower_thread = 0;
+    uint32_t enabled_hart_index = 0;
+
+    /* Get the bit index of the current hart's shire */
+    uint32_t lsb = get_lsb_set_pos(curr_hart_shire_mask);
+    lsb = lsb > 0 ? lsb - 1 : 0;
+
+    /* Get number of shires enabled before current shire */
+    uint64_t lower_shire = shire_mask & ~(MASK_64BIT << lsb);
+
+    /* Do not enter this condition if it is the first enabled shire for tracing */
+    if (get_set_bit_count(lower_shire) != 0)
+    {
+        /* Move the index to the start of the current shire */
+        enabled_hart_index = get_set_bit_count(lower_shire) * get_set_bit_count(thread_mask);
+    }
+
+    /* Get the bit index of the current hart in the shire */
+    lsb = get_lsb_set_pos(TRACE_HART_MASK(hart_id));
+    lsb = lsb > 0 ? lsb - 1 : 0;
+
+    /* Get number of harts enabled before current hart.
+    Check if the current hart ID is from master shire */
+    if (curr_hart_shire_mask == MM_SHIRE_MASK)
+    {
+        /* Drop the lower threads since those are for master shire */
+        lower_thread = thread_mask & ~(MASK_64BIT << lsb);
+        lower_thread >>= MM_HART_COUNT;
+    }
+    else
+    {
+        lower_thread = thread_mask & ~(MASK_64BIT << lsb);
+    }
+
+    enabled_hart_index += get_set_bit_count(lower_thread);
+
+    return enabled_hart_index;
 }
 
 /************************************************************************
@@ -490,11 +535,41 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
     const uint32_t hart_id = get_hart_id();
     struct trace_control_block_t *cb = &CM_UMODE_TRACE_CB[GET_CB_INDEX(hart_id)].cb;
 
-    /* Verify if the current shire and thread is enabled for tracing */
-    if ((init_info == NULL) || (!CHECK_HART_TRACE_ENABLED(init_info, hart_id)) ||
-        (init_info->buffer_size == 0))
+    /* Passing null in place of init info disable trace */
+    if (init_info == NULL)
     {
         /* Disable Trace for current Hart in Compute Minion Shire. */
+        cb->enable = TRACE_DISABLE;
+        return;
+    }
+
+    /* Since MM evicted the config data to L3, invalidate the lines for the current hart */
+    ETSOC_MEM_EVICT((void *)(uintptr_t)init_info, sizeof(struct trace_init_info_t), to_L3)
+
+    /* Verify if the current shire and thread is enabled for tracing
+    and the buffer size is valid too */
+    if (!CHECK_HART_TRACE_ENABLED(init_info, hart_id) || (init_info->buffer_size == 0))
+    {
+        /* Disable Trace for current Hart in Compute Minion Shire. */
+        cb->enable = TRACE_DISABLE;
+        return;
+    }
+
+    uint32_t enabled_harts = get_enabled_umode_harts(init_info->shire_mask, init_info->thread_mask);
+    if (enabled_harts > 0)
+    {
+        /* Calculate size per Hart by diving total buffer equally among enabled Harts.*/
+        cb->size_per_hart = init_info->buffer_size / enabled_harts;
+
+        /* Buffer size should be cache line aligned. */
+        if (cb->size_per_hart % CACHE_LINE_SIZE != 0)
+        {
+            cb->size_per_hart = cb->size_per_hart - (cb->size_per_hart % CACHE_LINE_SIZE);
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Trace_Init_UMode: No trace harts enabled.\r\n");
         cb->enable = TRACE_DISABLE;
         return;
     }
@@ -506,27 +581,22 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
     /* TODO: Need to send notification for U-mode kernels? */
     cb->threshold_notify = NULL;
 
-    /* Calculate size per Hart by diving total buffer equally among enabled Harts.*/
-    cb->size_per_hart =
-        (init_info->buffer_size /
-            GET_TRACE_ENABLED_HART_COUNT(init_info->shire_mask, init_info->thread_mask));
+    /* Buffer settings for current Hart. */
+    cb->base_per_hart = init_info->buffer + (trace_get_umode_buffer_idx(init_info->shire_mask,
+                                                 init_info->thread_mask, hart_id) *
+                                                cb->size_per_hart);
 
-    /* Buffer size should be cache line aligned. */
-    if (cb->size_per_hart % CACHE_LINE_SIZE != 0)
+    /* Verify the base address and size for out of bounds */
+    if (cb->base_per_hart + cb->size_per_hart > init_info->buffer + init_info->buffer_size)
     {
-        cb->size_per_hart = cb->size_per_hart - (cb->size_per_hart % CACHE_LINE_SIZE);
-        /* TODO: Since per Hart buffer size is Cache-line aligned. If we have free cache lines left due to enforcing said alignment.
-            Then append those free cache lines in last Hart's buffer. */
+        Log_Write(LOG_LEVEL_ERROR,
+            "Trace_Init_UMode:Trace buffer going out of bounds:base_per_hart:0x%lx:size_per_hart:0x%x\r\n",
+            cb->base_per_hart, cb->size_per_hart);
     }
 
-    /* Buffer settings for current Hart. */
-    cb->base_per_hart = (init_info->buffer + (get_index_among_enabled_harts(init_info->shire_mask,
-                                                  init_info->thread_mask, hart_id) *
-                                                 cb->size_per_hart));
-
-    /* Initialize Trace and set up buffer header. Among all enabled Harts, the first Compute hart's Buffer has
-      Trace standard header, rest of Harts has Trace size header.*/
-    if (hart_id == GET_FIRST_TRACE_ENABLED_HART_ID(init_info->shire_mask, init_info->thread_mask))
+    /* Initialize Trace and set up buffer header. Among all enabled Harts, the first
+    Compute hart's buffer has trace standard header, rest of Harts has trace size header. */
+    if (hart_id == trace_get_first_umode_hart_id(init_info->shire_mask, init_info->thread_mask))
     {
         struct trace_buffer_std_header_t *trace_header =
             (struct trace_buffer_std_header_t *)cb->base_per_hart;
@@ -535,9 +605,10 @@ void Trace_Init_UMode(const struct trace_init_info_t *init_info)
         trace_header->type = TRACE_CM_UMODE_BUFFER;
         trace_header->data_size = 0;
 
-        /* Update trace buffer header for buffer partitioning information. Buffer is divided equally among all Trace enabled Harts. */
+        /* Update trace buffer header for buffer partitioning information.
+        Buffer is divided equally among all Trace enabled Harts. */
         trace_header->sub_buffer_count =
-            (uint16_t)GET_TRACE_ENABLED_HART_COUNT(init_info->shire_mask, init_info->thread_mask);
+            (uint16_t)get_enabled_umode_harts(init_info->shire_mask, init_info->thread_mask);
         trace_header->sub_buffer_size = cb->size_per_hart;
 
         /* populate Trace layout version in Header. */
@@ -639,45 +710,4 @@ void Trace_Evict_UMode_Buffer(void)
         /* Flush the buffer from Cache to Memory. */
         ETSOC_MEM_EVICT((uint64_t *)cb->base_per_hart, cb->offset_per_hart, to_L3)
     }
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       get_index_among_enabled_harts
-*
-*   DESCRIPTION
-*
-*       Get the Hart index (low to high Hart IDs) of given Hart among all
-*       enabled Harts given Shire and Thread mask.
-*
-*   INPUTS
-*
-*       shire       Shire Mask.
-*       thread      Thread Mask.
-*       hart_id     Current Hart ID.
-*
-*   OUTPUTS
-*
-*       uint32_t    Index of given Hart ID among all enabled Harts.
-*
-***********************************************************************/
-static uint32_t get_index_among_enabled_harts(uint64_t shire, uint64_t thread, uint64_t hart_id)
-{
-    uint32_t enabled_hart_index = 0;
-    /* Get number of Harts enabled in lower shires.*/
-    uint64_t lower_shire = shire & (~((MASK_64BIT) << get_lsb_set_pos(TRACE_SHIRE_MASK(hart_id))));
-
-    if (!((TRACE_SHIRE_MASK(hart_id) & 1) || (get_set_bit_count(lower_shire)) == 1))
-    {
-        enabled_hart_index = (get_set_bit_count(lower_shire) - 1) * get_set_bit_count(thread);
-    }
-
-    /* Get number of lower Harts enabled in current shire.*/
-    uint64_t lower_thread = thread & (~((MASK_64BIT) << get_lsb_set_pos(TRACE_HART_MASK(hart_id))));
-
-    enabled_hart_index += (get_set_bit_count(lower_thread) - 1);
-
-    return enabled_hart_index;
 }

@@ -226,6 +226,11 @@ RESERVED
 */
 #define KW_ERROR_CM_ABORT_TIMEOUT -1014
 
+/*! \def KW_ERROR_KERNEL_TRACE_INVALID_CONFIG
+    \brief Kernel Worker - Trace config not valid for kernel
+*/
+#define KW_ERROR_KERNEL_TRACE_INVALID_CONFIG -1015
+
 /**************************************
  * Define Compute Worker error codes. *
  **************************************/

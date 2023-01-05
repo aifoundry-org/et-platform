@@ -39,7 +39,7 @@
 
 /* mm_rt_helpers */
 #include "error_codes.h"
-#include "cm_mm_defines.h"
+#include "common_utils.h"
 
 /*! \def TRACE_NODE_INDEX
     \brief Default trace node index in DMA list command when flag is set to extract Trace buffers.

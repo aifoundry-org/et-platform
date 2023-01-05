@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-15464] Fixed the DDR and SC Bank bandwidth min max values.
 - Fix compiler maybe-uninitialized warning.
+- [SW-15576] Multiple fixes to U-mode tracing support.
+    * Fixed buffer partioning for U-mode harts. Now there is no more holes.
+    * Fixed base addresses for U-mode harts, specifically for last hart in a shire.
+    * Fixed addressing of Master shire U-mode harts trace.
+    * Added sanity checks on the trace config data.
+    * Reorganized some utils in the FW.
 ### Security
 
 ## [0.14.0] - 2022-12-13

@@ -686,7 +686,6 @@ static void kernel_launch_post_cleanup(
     /* Update Trace buffer header if Trace was enabled. */
     if (kernel->flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
     {
-        /* TODO: SW-9308: Once this is done, remove this update to Trace header. */
         Trace_Update_UMode_Buffer_Header();
     }
 
