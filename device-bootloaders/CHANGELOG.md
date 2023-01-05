@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-5479] Reporting trace buffer threshold event to host
 - [SW-15176] Preserve flash config space with firmware update
+- [SW-15176] Separated persistant and non persistant configration structs in BL2 flash config data
 ### Changed
 - Fixing MM reset boot flow.
 - [SW-13350] Replacing Trace_String() with Trace_Format_String_V()

@@ -431,15 +431,15 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     }
 
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.manuf_name:  %s\n",
-              flash_fs_bl2_info->asset_config_data.manuf_name);
+              flash_fs_bl2_info->asset_config_data.persistent_config.manuf_name);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.part_num:    0x%08x\n",
-              flash_fs_bl2_info->asset_config_data.part_num);
+              flash_fs_bl2_info->asset_config_data.persistent_config.part_num);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.serial_num:  0x%016lx\n",
-              flash_fs_bl2_info->asset_config_data.serial_num);
+              flash_fs_bl2_info->asset_config_data.persistent_config.serial_num);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.module_rev:  0x%08x\n",
-              flash_fs_bl2_info->asset_config_data.module_rev);
+              flash_fs_bl2_info->asset_config_data.persistent_config.module_rev);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.form_factor: 0x%02x\n",
-              flash_fs_bl2_info->asset_config_data.form_factor);
+              flash_fs_bl2_info->asset_config_data.persistent_config.form_factor);
 
     return 0;
 }
@@ -1378,8 +1378,8 @@ int flash_fs_get_config_data(void *buffer)
 
 int flash_fs_get_manufacturer_name(char *mfg_name)
 {
-    memcpy(mfg_name, &(sg_flash_fs_bl2_info.asset_config_data.manuf_name),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.manuf_name));
+    memcpy(mfg_name, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.manuf_name),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.manuf_name));
 
     return 0;
 }
@@ -1406,8 +1406,8 @@ int flash_fs_get_manufacturer_name(char *mfg_name)
 
 int flash_fs_get_part_number(char *part_number)
 {
-    memcpy(part_number, &(sg_flash_fs_bl2_info.asset_config_data.part_num),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.part_num));
+    memcpy(part_number, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.part_num),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.part_num));
     return 0;
 }
 
@@ -1436,7 +1436,7 @@ int flash_fs_set_part_number(uint32_t part_number)
     uint32_t partition_address;
     uint32_t config_data_address;
     uint32_t scratch_buffer_size;
-    ESPERANTO_CONFIG_DATA_t cfg_data;
+    ESPERANTO_CONFIG_DATA_t *cfg_data;
     void *scratch_buffer;
 
     /* Since Flash sector size is 4KB, get scratch buffer to use */
@@ -1470,9 +1470,10 @@ int flash_fs_set_part_number(uint32_t part_number)
     }
 
     /* Update the part_num */
-    memcpy(((uint8_t *)scratch_buffer) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
-               sizeof(ESPERANTO_CONFIG_HEADER_t) + offsetof(ESPERANTO_CONFIG_DATA_t, part_num),
-           &part_number, sizeof(part_number));
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buffer) +
+                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
+    cfg_data->persistent_config.part_num = part_number;
 
     /* Erase the asset config region. */
     if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_data_address))
@@ -1489,26 +1490,30 @@ int flash_fs_set_part_number(uint32_t part_number)
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 
-    /* Update the global copy */
+    memset(scratch_buffer, 0, scratch_buffer_size);
+
+    /* Read configuration data for validation */
     if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
                                    config_data_address +
                                        (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
                                        (uint32_t)sizeof(ESPERANTO_CONFIG_HEADER_t),
-                                   (uint8_t *)&cfg_data, sizeof(ESPERANTO_CONFIG_DATA_t)))
+                                   (uint8_t *)&scratch_buffer, sizeof(ESPERANTO_CONFIG_DATA_t)))
     {
         MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset_config_data!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)&scratch_buffer;
 
     /* verify part number updated sucessfully, then update it in global data*/
-    if (cfg_data.part_num != part_number)
+    if (cfg_data->persistent_config.part_num != part_number)
     {
         MESSAGE_ERROR("flash_fs_set_part_number: part num mismatch!\n");
         return ERROR_SPI_FLASH_BL2_INFO_PARTNUM_MISMATCH;
     }
     else
     {
-        sg_flash_fs_bl2_info.asset_config_data.part_num = cfg_data.part_num;
+        sg_flash_fs_bl2_info.asset_config_data.persistent_config.part_num =
+            cfg_data->persistent_config.part_num;
     }
 
     return 0;
@@ -1536,8 +1541,8 @@ int flash_fs_set_part_number(uint32_t part_number)
 
 int flash_fs_get_serial_number(char *ser_number)
 {
-    memcpy(ser_number, &(sg_flash_fs_bl2_info.asset_config_data.serial_num),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.serial_num));
+    memcpy(ser_number, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.serial_num),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.serial_num));
     return 0;
 }
 
@@ -1563,8 +1568,8 @@ int flash_fs_get_serial_number(char *ser_number)
 
 int flash_fs_get_module_rev(char *module_rev)
 {
-    memcpy(module_rev, &(sg_flash_fs_bl2_info.asset_config_data.module_rev),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.module_rev));
+    memcpy(module_rev, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.module_rev),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.module_rev));
     return 0;
 }
 
@@ -1590,8 +1595,8 @@ int flash_fs_get_module_rev(char *module_rev)
 
 int flash_fs_get_form_factor(char *form_factor)
 {
-    memcpy(form_factor, &(sg_flash_fs_bl2_info.asset_config_data.form_factor),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.form_factor));
+    memcpy(form_factor, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.form_factor),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.form_factor));
     return 0;
 }
 
@@ -1617,8 +1622,9 @@ int flash_fs_get_form_factor(char *form_factor)
 
 int flash_fs_get_fw_release_rev(char *fw_release_rev)
 {
-    memcpy(fw_release_rev, &(sg_flash_fs_bl2_info.asset_config_data.fw_release_rev),
-           sizeof(sg_flash_fs_bl2_info.asset_config_data.fw_release_rev));
+    memcpy(fw_release_rev,
+           &(sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.fw_release_rev),
+           sizeof(sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.fw_release_rev));
     return 0;
 }
 
@@ -1682,18 +1688,15 @@ int flash_fs_write_config_region(uint32_t partition)
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
-    /* Update the config region header in buffer */
-    memcpy(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t),
-           (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_header),
-           sizeof(sg_flash_fs_bl2_info.asset_config_header));
-
     /* Update the config region data in buffer */
     cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buff) +
                                            sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
                                            sizeof(ESPERANTO_CONFIG_HEADER_t));
 
-    /* Restore part num from global data*/
-    cfg_data->part_num = sg_flash_fs_bl2_info.asset_config_data.part_num;
+    /* Restore fixed configuration data from global */
+    memcpy((void *)&cfg_data->persistent_config,
+           (void *)&sg_flash_fs_bl2_info.asset_config_data.persistent_config,
+           sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t));
 
     /* Erase the asset config region. */
     if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_reg_address))
@@ -1726,8 +1729,8 @@ int flash_fs_write_config_region(uint32_t partition)
                 sizeof(ESPERANTO_CONFIG_HEADER_t))) ||
         (memcmp(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
                     sizeof(ESPERANTO_CONFIG_HEADER_t),
-                (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data),
-                sizeof(ESPERANTO_CONFIG_DATA_t))))
+                (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.persistent_config),
+                sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t))))
     {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_write_config_region: data validation failed!\n");
         return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;

@@ -184,7 +184,7 @@ int flash_fs_get_form_factor(char *form_factor);
 */
 int flash_fs_get_fw_release_rev(char *fw_release_rev);
 
-/*! \fn int flash_fs_write_config_region(void)
+/*! \fn int flash_fs_write_config_region(uint32_t partition)
     \brief This function writes config data from global config data.
     \param partition partition number to write configuration data
     \return The function call status, pass/fail.

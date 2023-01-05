@@ -56,15 +56,27 @@ typedef struct ESPERANTO_PARTITION_BL2_INFO_s
     bool partition_valid; // if true, no errors were encountered when scanning the partition
 } ESPERANTO_PARTITION_BL2_INFO_t;
 
+/* Esperanto flash non persistant config data, this data will be replaced on every fw update */
+typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_NON_PERSISTENT_DATA
+{
+    uint32_t fw_release_rev;
+} ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t;
+
+/* Esperanto flash persistant config data, this data will be kept same on every fw update */
+typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
+{
+    char manuf_name[16];
+    uint64_t serial_num;
+    uint32_t module_rev;
+    uint32_t part_num;
+    uint8_t form_factor;
+} ESPERANTO_CONFIG_PERSISTENT_DATA_t;
+
 /* Esperanto flash config data */
 typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
-    char manuf_name[16];
-    uint32_t part_num;
-    uint64_t serial_num;
-    uint32_t module_rev;
-    uint8_t form_factor;
-    uint32_t fw_release_rev;
+    ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
+    ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
     uint8_t padding[27];
 } ESPERANTO_CONFIG_DATA_t;
 
