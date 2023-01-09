@@ -304,7 +304,15 @@ static void pwr_svc_set_module_voltage(uint16_t tag, uint64_t req_start_time, vo
     int32_t status;
 
     status = pmic_set_voltage(set_voltage_cmd->type, set_voltage_cmd->value);
-    if (STATUS_SUCCESS != status)
+    if (STATUS_SUCCESS == status)
+    {
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+        status = check_voltage_stability(set_voltage_cmd->type, set_voltage_cmd->value);
+#else
+        status = STATUS_SUCCESS;
+#endif
+    }
+    else
     {
         Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error: set_module_voltage()\r\n");
     }

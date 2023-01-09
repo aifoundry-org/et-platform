@@ -60,6 +60,7 @@
 #include "minion_run_control.h"
 #include "trace.h"
 #include "dm_event_control.h"
+#include "thermal_pwr_mgmt.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -969,7 +970,12 @@ int Compute_Minion_Reset_Threads(uint64_t shires_mask)
 ***********************************************************************/
 int Minion_Shire_Update_Voltage(uint8_t voltage)
 {
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    pmic_set_voltage(MODULE_MINION, voltage);
+    return check_voltage_stability(MODULE_MINION, voltage);
+#else
     return pmic_set_voltage(MODULE_MINION, voltage);
+#endif
 }
 
 /************************************************************************

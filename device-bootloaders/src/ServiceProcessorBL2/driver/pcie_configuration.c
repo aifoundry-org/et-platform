@@ -19,6 +19,7 @@
 #include "system/layout.h"
 #include "etsoc/drivers/pcie/pcie_int.h"
 #include "pcie_configuration.h"
+#include "thermal_pwr_mgmt.h"
 #include "bl2_reset.h"
 #include "config/mgmt_build_config.h"
 #include <interrupt.h>
@@ -982,7 +983,12 @@ int PCIE_Phy_Initialize(void)
 
 int PShire_Voltage_Update(uint8_t voltage)
 {
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    pmic_set_voltage(MODULE_PCIE, voltage);
+    return check_voltage_stability(MODULE_PCIE, voltage);
+#else
     return pmic_set_voltage(MODULE_PCIE, voltage);
+#endif
 }
 
 int Pshire_PLL_Program(uint8_t mode)

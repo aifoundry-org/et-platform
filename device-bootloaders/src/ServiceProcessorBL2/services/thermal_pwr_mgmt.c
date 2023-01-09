@@ -50,6 +50,7 @@
 #include "thermal_pwr_mgmt.h"
 #include "perf_mgmt.h"
 #include "bl2_pmic_controller.h"
+#include "bl2_pvt_controller.h"
 #include "bl2_thermal_power_monitor.h"
 #include "minion_configuration.h"
 #include "FreeRTOS.h"
@@ -2508,4 +2509,94 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       check_voltage_stability
+*
+*   DESCRIPTION
+*
+*       This function ensure voltage stability after changing voltage through pmic.
+*       It checks the voltage with pvt sensors after updating it.
+*
+*   INPUTS
+*
+*       voltage_type      voltage type to be set
+*       voltage           voltage value to be set  
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int check_voltage_stability(module_e voltage_type, uint8_t voltage)
+{
+    int32_t status;
+    uint64_t time_end = 0;
+    uint16_t voltage_mv = 0;
+
+    switch (voltage_type)
+    {
+        case MODULE_DDR:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_DDR_VOLTAGE_BASE,
+                                                         PMIC_DDR_VOLTAGE_MULTIPLIER,
+                                                         PMIC_GENERIC_VOLTAGE_DIVIDER);
+            MemShire_VM_sample memshire_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_memshire_avg_low_high_voltage,
+                                    memshire_voltage, memshire_voltage.vdd_ms.current, voltage_mv,
+                                    status)
+            return status;
+        case MODULE_L2CACHE:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_SRAM_VOLTAGE_BASE,
+                                                         PMIC_SRAM_VOLTAGE_MULTIPLIER,
+                                                         PMIC_GENERIC_VOLTAGE_DIVIDER);
+            MinShire_VM_sample minshire_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, minshire_voltage,
+                                    minshire_voltage.vdd_sram.current, voltage_mv, status)
+            return status;
+        case MODULE_MAXION:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_MAXION_VOLTAGE_BASE,
+                                                         PMIC_MAXION_VOLTAGE_MULTIPLIER,
+                                                         PMIC_GENERIC_VOLTAGE_DIVIDER);
+            IOShire_VM_sample ioshire_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_ioshire_vm_sample, ioshire_voltage,
+                                    ioshire_voltage.vdd_mxn.current, voltage_mv, status)
+            return status;
+        case MODULE_MINION:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_MINION_VOLTAGE_BASE,
+                                                         PMIC_MINION_VOLTAGE_MULTIPLIER,
+                                                         PMIC_GENERIC_VOLTAGE_DIVIDER);
+            MinShire_VM_sample mnn_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, mnn_voltage,
+                                    mnn_voltage.vdd_mnn.current, voltage_mv, status)
+            return status;
+        case MODULE_PCIE:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_PCIE_LOGIC_VOLTAGE_BASE,
+                                                         PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER,
+                                                         PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER);
+            PShire_VM_sample pshr_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_pshire_vm_sample, pshr_voltage,
+                                    pshr_voltage.vdd_pshr.current, voltage_mv, status)
+            return status;
+        case MODULE_NOC:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_NOC_VOLTAGE_BASE,
+                                                         PMIC_NOC_VOLTAGE_MULTIPLIER,
+                                                         PMIC_GENERIC_VOLTAGE_DIVIDER);
+            MinShire_VM_sample noc_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, noc_voltage,
+                                    noc_voltage.vdd_noc.current, voltage_mv, status)
+            return status;
+        case MODULE_PCIE_LOGIC:
+        case MODULE_VDDQLP:
+        case MODULE_VDDQ:
+            /* pvt sensors for these modules are not available */
+            return STATUS_SUCCESS;
+        default: {
+            MESSAGE_ERROR("Error invalid voltage type to set Voltage");
+            return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
+        }
+    }
 }
