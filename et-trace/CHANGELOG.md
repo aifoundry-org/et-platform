@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-15614] 'threshold_data' field in CB. Now, the threshold notification will be generated only once before buffer rollover.
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-15614] Removed nested locking from threshold notification.
 ### Security
 
 ## [1.0.0] - 2023-01-11
