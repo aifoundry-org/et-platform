@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-15181] `enum dev_state` will not be used internally for maintaining states. The usage is now limited to GET_DEVICE_STATE IOCTL only.
 - [SW-15177] Suppressing kernel warning when `dma_alloc_coherent()` cannot allocate requested memory.
+- [SW-15589] Changed default permissions to 0666 for `/dev/et*_{mgmt|ops}`.
 ### Deprecated
 ### Removed
 ### Fixed

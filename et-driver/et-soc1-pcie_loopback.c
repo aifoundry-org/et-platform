@@ -1080,6 +1080,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		// Create Mgmt device node
 		et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
 		et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
+		et_dev->mgmt.misc_dev.mode = S_IRUGO | S_IWUGO;
 		et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
 							    GFP_KERNEL,
 							    "et%d_mgmt",
@@ -1228,6 +1229,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		// Create Ops device node
 		et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
 		et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
+		et_dev->ops.misc_dev.mode = S_IRUGO | S_IWUGO;
 		et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
 							   GFP_KERNEL,
 							   "et%d_ops",
