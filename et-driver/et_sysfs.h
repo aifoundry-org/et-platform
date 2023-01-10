@@ -70,8 +70,8 @@ enum et_sysfs_gid_e {
 };
 
 enum et_sysfs_fid_e {
-	/* File IDs to be added here */
-	ET_SYSFS_FILES = 0,
+	ET_SYSFS_FID_DEVNUM = 0,
+	ET_SYSFS_FILES,
 };
 
 struct et_sysfs_data {

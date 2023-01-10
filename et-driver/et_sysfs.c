@@ -95,13 +95,25 @@ void et_sysfs_remove_groups(struct et_pci_dev *et_dev)
 		et_sysfs_remove_group(et_dev, group_id);
 }
 
+static ssize_t
+devnum_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%u\n", et_dev->dev_index);
+}
+
+static DEVICE_ATTR_RO(devnum);
+
 int et_sysfs_add_file(struct et_pci_dev *et_dev, int file_id)
 {
 	int rv;
 	struct device_attribute *dev_attr = NULL;
 
 	switch (file_id) {
-	/* To be added here */
+	case ET_SYSFS_FID_DEVNUM:
+		dev_attr = &dev_attr_devnum;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -125,7 +137,9 @@ void et_sysfs_remove_file(struct et_pci_dev *et_dev, int file_id)
 	struct device_attribute *dev_attr = NULL;
 
 	switch (file_id) {
-	/* To be added here */
+	case ET_SYSFS_FID_DEVNUM:
+		dev_attr = &dev_attr_devnum;
+		break;
 	default:
 		return;
 	}

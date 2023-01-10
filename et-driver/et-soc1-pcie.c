@@ -2509,6 +2509,14 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	}
 	et_soc_reset_cfg_init(&et_dev->reset_cfg);
 
+	rv = et_sysfs_add_file(et_dev, ET_SYSFS_FID_DEVNUM);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev,
+			"et_sysfs_add_file() failed, file_id: %d\n",
+			ET_SYSFS_FID_DEVNUM);
+		goto error_sysfs_remove_group;
+	}
+
 	et_dev->reset_workqueue = alloc_workqueue("%s:et%d_rstwq",
 						  WQ_MEM_RECLAIM | WQ_UNBOUND,
 						  1,
@@ -2517,11 +2525,14 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	if (!et_dev->reset_workqueue) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		rv = -ENOMEM;
-		goto error_sysfs_remove_group;
+		goto error_sysfs_remove_file;
 	}
 	INIT_WORK(&et_dev->isr_work, et_reset_isr_work);
 
 	return rv;
+
+error_sysfs_remove_file:
+	et_sysfs_remove_file(et_dev, ET_SYSFS_FID_DEVNUM);
 
 error_sysfs_remove_group:
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_SOC_RESET);
