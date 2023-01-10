@@ -233,6 +233,7 @@ struct trace_control_block_t {
         event_mask; /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
     uint32_t
         filter_mask; /*!< This is a bit mask representing a list of filters for a given event to trace. */
+    uint32_t threshold_data; /* !< Value representing data size when threshold was hit. 0 in case threshold was not hit. */
     uint8_t enable; /*!< Enable/Disable Trace. */
     uint8_t header; /*!< Buffer header type of value trace_header_type_e */
 } __attribute__((aligned(64)));
@@ -537,10 +538,10 @@ inline static bool trace_check_buffer_threshold(const struct trace_control_block
 static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint64_t size)
 {
     void *head;
-    uint32_t current_offset;
-
     void (*lock_acquire)(void) = NULL;
     void (*lock_release)(void) = NULL;
+    uint32_t current_offset;
+    bool generate_notification = false;
 
     /* Load function ptr for buffer lock acquire */
     lock_acquire = (void (*)(void))(uintptr_t)ET_TRACE_READ_U64_PTR(cb->buffer_lock_acquire);
@@ -556,20 +557,22 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
 
     /* Check if Trace buffer is filled upto threshold. */
     if (trace_check_buffer_threshold(cb, size, current_offset)) {
-        void (*threshold_notify)(struct trace_control_block_t *cb) =
-            (void (*)(struct trace_control_block_t *cb))(uintptr_t)ET_TRACE_READ_U64_PTR(cb->threshold_notify);
-
         /* Check if host needs to be notified about reaching buffer threshold limit.
            This notification is only needed once when it reaches threshold for the first time,
            so this checks if we just reached threshold by including current data size. */
-        if (threshold_notify != NULL) {
-            threshold_notify(cb);
+        if (!ET_TRACE_READ_U32(cb->threshold_data)) {
+            /* Set the data size when the threshold was hit */
+            ET_TRACE_WRITE_U32(cb->threshold_data, current_offset);
+            /* Set flag to generate notification */
+            generate_notification = true;
         }
 
         /* Check if Trace buffer is filled upto threshold. Then do reset the buffer. */
         if (trace_check_buffer_full(cb, size, current_offset)) {
             /* Reset buffer. */
             current_offset = trace_get_header_size(cb);
+            /* Reset the threshold data size */
+            ET_TRACE_WRITE_U32(cb->threshold_data, 0);
         }
     }
 
@@ -579,6 +582,16 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
     /* Release the lock */
     if (lock_release != NULL) {
         lock_release();
+    }
+
+    /* Generate the notification after releasing the lock */
+    if (generate_notification) {
+        void (*threshold_notify)(struct trace_control_block_t *cb) =
+            (void (*)(struct trace_control_block_t *cb))(uintptr_t)ET_TRACE_READ_U64_PTR(cb->threshold_notify);
+
+        if (threshold_notify != NULL) {
+            threshold_notify(cb);
+        }
     }
 
     /* Update the head pointer to write to */
@@ -651,6 +664,7 @@ int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contr
     cb->threshold = ((init_info->threshold > 0) || (init_info->threshold < cb->size_per_hart)) ?
                       init_info->threshold : cb->size_per_hart;
     cb->header = buff_header;
+    cb->threshold_data = 0;
     cb->enable = TRACE_ENABLE;
 
     return TRACE_STATUS_SUCCESS;
@@ -1474,12 +1488,12 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 *   INPUTS
 *
 *       trace_control_block_t  Trace control block of logging Thread/Hart.
-*       regionId               region id to be profiled (i.e: arbitrary numeric 
+*       regionId               region id to be profiled (i.e: arbitrary numeric
 *                              start-end region quoted in the trace, function scope)
 *       start                  true if the region is starting, false if it ends.
 *       func                   ptr to global literal containing the function name.
 *       line                   line where the event originates
-*       
+*
 *   OUTPUTS
 *
 *       None
