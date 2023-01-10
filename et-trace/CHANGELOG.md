@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-15614] Removed nested locking from threshold notification.
+- Enforce printf style formated args for Trace_Format_String() through GCC.
 ### Security
 
 ## [1.0.0] - 2023-01-11

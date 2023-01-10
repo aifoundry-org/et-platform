@@ -244,7 +244,7 @@ int32_t Trace_Config(const struct trace_config_info_t *config_info, struct trace
 int32_t Trace_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
                      const char *str);
 int32_t Trace_Format_String(trace_string_event_e log_level, struct trace_control_block_t *cb,
-                            const char *format, ...);
+                            const char *format, ...) __attribute__((format(__printf__, 3, 4)));
 int32_t Trace_Format_String_V(trace_string_event_e log_level, struct trace_control_block_t *cb,
                               const char *format, va_list va);
 void Trace_PMC_Counters_Compute(struct trace_control_block_t *cb);
