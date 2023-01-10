@@ -69,14 +69,62 @@ Worker::Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, D
   }
 }
 
-void Worker::start(int numIterations, bool computeOpStats) {
-  runner_ = std::thread([this, numIterations, computeOpStats] {
-    auto start = std::chrono::high_resolution_clock::now();
+void Worker::doIteration(bool computeOpStats, uint64_t shireMask, std::vector<rt::MemcpyList>& listH2D,
+                         std::vector<rt::MemcpyList>& listD2H, std::vector<OpStats>& opstats) {
+  if (dH2D_) {
+    if (numH2D_ > 1) {
+      for (auto& op : listH2D) {
+        auto evt = runtime_.memcpyHostToDevice(stream_, op);
+        if (computeOpStats) {
+          opstats.emplace_back(OpStats{evt});
+        }
+      }
+    } else {
+      auto evt = runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
+      if (computeOpStats) {
+        opstats.emplace_back(OpStats{evt});
+      }
+    }
+  }
+  if (kernel_) {
+    auto evt = runtime_.kernelLaunch(stream_, kernel_.value(), reinterpret_cast<std::byte*>(&parameters_),
+                                     sizeof(parameters_), shireMask);
+    if (computeOpStats) {
+      opstats.emplace_back(OpStats{evt});
+    }
+  }
+  if (dD2H_) {
+    if (numD2H_ > 1) {
+      for (auto& op : listD2H) {
+        auto evt = runtime_.memcpyDeviceToHost(stream_, op);
+        if (computeOpStats) {
+          opstats.emplace_back(OpStats{evt});
+        }
+      }
+    } else {
+      auto evt = runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
+      if (computeOpStats) {
+        opstats.emplace_back(OpStats{evt});
+      }
+    }
+  }
+}
+
+void Worker::start(int numIterations, bool computeOpStats, bool discardFirst) {
+  runner_ = std::thread([this, numIterations, computeOpStats, discardFirst] {
     using OpStats = rt::IBenchmarker::OpStats;
+    auto shireMask = runtime_.getDeviceProperties(device_).computeMinionShireMask_;
     std::vector<OpStats> opstats;
 
     std::vector<rt::MemcpyList> listH2D;
     std::vector<rt::MemcpyList> listD2H;
+
+    if (discardFirst) {
+      doIteration(computeOpStats, shireMask, listH2D, listD2H, opstats);
+    }
+    opstats.clear();
+
+    auto start = std::chrono::high_resolution_clock::now();
 
     for (auto i = 0U; i < numH2D_; ++i) {
       auto size = hH2D_.size() / numH2D_;
@@ -92,45 +140,8 @@ void Worker::start(int numIterations, bool computeOpStats) {
       }
       listD2H.back().addOp(dD2H_ + i * size, hD2H_.data() + i * size, size);
     }
-    auto shireMask = runtime_.getDeviceProperties(device_).computeMinionShireMask_;
     for (int i = 0; i < numIterations; ++i) {
-      if (dH2D_) {
-        if (numH2D_ > 1) {
-          for (auto& op : listH2D) {
-            auto evt = runtime_.memcpyHostToDevice(stream_, op);
-            if (computeOpStats) {
-              opstats.emplace_back(OpStats{evt});
-            }
-          }
-        } else {
-          auto evt = runtime_.memcpyHostToDevice(stream_, hH2D_.data(), dH2D_, hH2D_.size());
-          if (computeOpStats) {
-            opstats.emplace_back(OpStats{evt});
-          }
-        }
-      }
-      if (kernel_) {
-        auto evt = runtime_.kernelLaunch(stream_, kernel_.value(), reinterpret_cast<std::byte*>(&parameters_),
-                                         sizeof(parameters_), shireMask);
-        if (computeOpStats) {
-          opstats.emplace_back(OpStats{evt});
-        }
-      }
-      if (dD2H_) {
-        if (numD2H_ > 1) {
-          for (auto& op : listD2H) {
-            auto evt = runtime_.memcpyDeviceToHost(stream_, op);
-            if (computeOpStats) {
-              opstats.emplace_back(OpStats{evt});
-            }
-          }
-        } else {
-          auto evt = runtime_.memcpyDeviceToHost(stream_, dD2H_, hD2H_.data(), hD2H_.size());
-          if (computeOpStats) {
-            opstats.emplace_back(OpStats{evt});
-          }
-        }
-      }
+      doIteration(computeOpStats, shireMask, listH2D, listD2H, opstats);
     }
     if (computeOpStats) {
       for (auto& e : opstats) {

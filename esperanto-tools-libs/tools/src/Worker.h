@@ -18,11 +18,14 @@ class Worker {
 public:
   explicit Worker(size_t bytesH2D, size_t bytesD2H, size_t numH2D, size_t numD2H, rt::DeviceId device,
                   rt::IRuntime& runtime, const std::string& kernelPath);
-  void start(int numIterations, bool computeOpStats);
+  void start(int numIterations, bool computeOpStats, bool discardFirst = true);
   rt::IBenchmarker::WorkerResult wait();
   ~Worker();
 
 private:
+  using OpStats = rt::IBenchmarker::OpStats;
+  void doIteration(bool computeOpStats, uint64_t shireMask, std::vector<rt::MemcpyList>& listH2D,
+                   std::vector<rt::MemcpyList>& listD2H, std::vector<OpStats>& opstats);
   rt::IRuntime& runtime_;
   rt::DeviceId device_;
   rt::StreamId stream_;
