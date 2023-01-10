@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.0.0] - 2023-01-11
+### Added
 - Added implementation of Trace_Format_String_V() for va_list style calling.
 - Added user_profile_events for user code instrumentation
 - [SW-5479] Added support to report trace buffer threshold event to host.
@@ -16,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed vsnprintf calling.
 - Returned the number of bytes written from trace string functions.
 - [SW-15435] Embrace SemVer in et-trace decoding (Accept backwards compatible minor)
-
 ### Deprecated
 ### Removed
 - Removing deprecated Trace_PMC_Counters_Memory() and ET_TRACE_GET_MEM_SHIRE_COUNTER.
