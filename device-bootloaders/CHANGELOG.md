@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-15279] Setting PShire PLLs to 50% frequency to remove intermittent hangs from PCIe DMA engine.
+- Remove the validation of config data header from FW update.
 ### Security
 
 ## [0.8.0] - 2022-12-13
