@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-## [Unreleased]
+## [0.8.0] - 2023-01-10
 ### Added
 - Updating the test plan for resetSOC tests.
 - Added NOPARALLEL label for tests which should not be run in parallel regression.
