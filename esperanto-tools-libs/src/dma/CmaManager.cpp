@@ -18,9 +18,10 @@ namespace {
 constexpr auto kCmaBlockSize = 1024U;
 }
 
-CmaManager::CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer)
+CmaManager::CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer, size_t maxBytesPerCommand)
   : dmaBuffer_(std::move(dmaBuffer))
-  , memoryManager_(reinterpret_cast<uint64_t>(dmaBuffer_->getPtr()), dmaBuffer_->getSize(), kCmaBlockSize) {
+  , memoryManager_(reinterpret_cast<uint64_t>(dmaBuffer_->getPtr()), dmaBuffer_->getSize(), kCmaBlockSize)
+  , maxBytesPerCommand_(maxBytesPerCommand) {
   RT_VLOG(LOW) << "Runtime CMA allocation size: 0x" << std::hex << dmaBuffer_->getSize();
 }
 
@@ -28,15 +29,18 @@ size_t CmaManager::getTotalSize() const {
   return dmaBuffer_->getSize();
 }
 
-size_t CmaManager::getFreeBytes() const {
+size_t CmaManager::getFreeBytes(bool isPrioritary) const {
   SpinLock lock(mutex_);
   auto freeBytes = memoryManager_.getFreeContiguousBytes();
-  RT_VLOG(HIGH) << "Free CMA bytes: " << freeBytes;
+  if (!isPrioritary) {
+    freeBytes = freeBytes > maxBytesPerCommand_ ? freeBytes - maxBytesPerCommand_ : 0;
+  }
+  RT_VLOG(HIGH) << "Free CMA bytes: " << freeBytes << " prioritary? " << (isPrioritary ? "True" : "False");
   return freeBytes;
 }
 
 void CmaManager::free(std::byte* buffer) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   memoryManager_.free(buffer);
   cv_.notify_all();
 }
@@ -46,9 +50,13 @@ void CmaManager::waitUntilFree(size_t size) {
   cv_.wait(lock, [this, size] { return size <= memoryManager_.getFreeContiguousBytes(); });
 }
 
-std::byte* CmaManager::alloc(size_t size) {
-  RT_VLOG(HIGH) << "Trying to allocate: " << size << " bytes of CMA memory.";
-  std::lock_guard lock(mutex_);
+std::byte* CmaManager::alloc(size_t size, bool isPrioritary) {
+  RT_VLOG(HIGH) << "Trying to allocate: " << size << " bytes of CMA memory. Prioritary? "
+                << (isPrioritary ? "True" : "False");
+  SpinLock lock(mutex_);
+  if (!isPrioritary && memoryManager_.getFreeContiguousBytes() < size + maxBytesPerCommand_) {
+    return nullptr;
+  }
   try {
     return memoryManager_.malloc(size, kCmaBlockSize);
   } catch (...) {

@@ -110,11 +110,15 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
   while (cmaPerDevice >= kBlockSize) {
     try {
       for (const auto& d : devices_) {
-        cmaManagers_.try_emplace(d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(
-                                      static_cast<int>(d), cmaPerDevice, true, deviceLayer_)));
+        auto devInt = static_cast<int>(d);
+        auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
+        cmaManagers_.try_emplace(
+          d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(devInt, cmaPerDevice, true, deviceLayer_),
+                                          dmaInfo.maxElementCount_ * dmaInfo.maxElementSize_));
       }
       break; // if we were able to do the required allocations, end the loop; if not try asking for less memory.
     } catch (const dev::Exception&) {
+      cmaManagers_.clear();
       auto newCmaPerDevice = 3 * cmaPerDevice / 4;
       RT_LOG(WARNING) << "There is not enough CMA memory to allocate desired " << cmaPerDevice
                       << " bytes per device. Trying with " << newCmaPerDevice << " bytes per device.";

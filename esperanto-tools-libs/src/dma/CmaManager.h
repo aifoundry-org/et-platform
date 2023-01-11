@@ -18,16 +18,17 @@ namespace rt {
 class IRuntime;
 class CmaManager {
 public:
-  explicit CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer);
+  explicit CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer, size_t maxBytesPerCommand);
 
   // returns total size
   size_t getTotalSize() const;
 
   // returns max contiguous bytes (max allocation)
-  size_t getFreeBytes() const;
+  size_t getFreeBytes(bool isPrioritary) const;
 
-  // will return nullptr if there is not enough mem to alloc
-  std::byte* alloc(size_t size);
+  // will return nullptr if there is not enough mem to alloc. When isPrioritary = false, it will allow to allocate a
+  // maximum of totalFreeBytes - maxBytesPerCommand. Prioritary commands however, can allocate all available memory
+  std::byte* alloc(size_t size, bool isPrioritary);
 
   void free(std::byte* buffer);
 
@@ -39,5 +40,6 @@ private:
   MemoryManager memoryManager_;
   std::condition_variable cv_;
   mutable std::mutex mutex_;
+  const size_t maxBytesPerCommand_;
 };
 } // namespace rt

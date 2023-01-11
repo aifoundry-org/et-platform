@@ -11,11 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15364] Automatic doxygen documentation generation.
 - [SW-15254] CMA allocation policy updated.
 - [SW-15419] Avoid using CMA for loading kernels when not needed.
+- [SW-15613] Removed all general locks from memcpyops. Improved cmaManager(s).
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+## [0.7.1]
+### Added
+- [SW-15419] Avoid using CMA for loading kernels when not needed.
 ## [0.7.0]
 ### Added
 - [SW-15123] Added Start and Stop events to runtime traces. Added parentId field for commands derived from a single application-level eventId.
@@ -31,6 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Conan) Fix package_info requires
 - [SW-15322] Unlock earlier in mem operations involving memcpylist to improve the latency
+
+## [0.6.5]
+### Changed
+- Reverted device-api 1.0.0 requirement back to 0.>=6.X
+### Fixed
+- [SW-15322] Bring latency improvements when doing memcpy operations with memcpylists. These improvements were originally released in 0.7
+
 ## [0.6.4]
 ### Changed
 - deviceApi minimum required 1.0.0. Due to some changes in firmware device-api 1.0.0 is not backwards compatible.
