@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.8.0] - 2023-01-11
+### Added
+### Changed
 - (Conan) Updated embedded elfs for matching 0.8.0 release 
 ### Deprecated
 ### Removed
@@ -90,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-[Unreleased]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.7.0...develop/sw-sysemu
+[Unreleased]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.8.0...develop/sw-sysemu
+[0.8.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.7.0...0.8.0
 [0.7.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.6.0...0.7.0
 [0.6.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.5.0...0.6.0
 [0.5.0]: https://gitlab.esperanto.ai/software/sw-sysemu/-/compare/0.4.0...0.5.0
