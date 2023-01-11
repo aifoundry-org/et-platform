@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-## [Unreleased]
+## [1.1.0] - 2023-01-10
 ### Added
 - [SW-5479] Modified trace buffer full event structure.
     * This strucuture is no consumed by any component, hence its safe to modify it and is not considered a breaking change.
