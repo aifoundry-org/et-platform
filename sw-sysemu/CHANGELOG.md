@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- (Conan) Updated embedded elfs for matching 0.8.0 release 
 ### Deprecated
 ### Removed
 ### Fixed
