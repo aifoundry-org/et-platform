@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [Unreleased]
+### Added
 - Updating the test plan for resetSOC tests.
 - Added NOPARALLEL label for tests which should not be run in parallel regression.
 - [SW-15160] Added resetSOC stress tests.
