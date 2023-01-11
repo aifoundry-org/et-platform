@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.12.0] - 2023-01-10
+### Added
 - [SW-5479] Adding support to parse trace buffer full event for mgmt node.
 - [SW-15433] Add mechanism for ETSOC reset retries.
 - [SW-15589] add sysfs attribute devnum to facilitate the mapping between devnum and PCI slot name.
