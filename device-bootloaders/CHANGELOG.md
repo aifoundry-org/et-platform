@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13350] Replacing Trace_String() with Trace_Format_String_V()
 - Update the lower limit of esperantoTrace in conan.
 - [SW-15614] Report threshold data in trace buffer full event.
+- Increased PMIC wait timeout from 3s -> 5s
 ### Deprecated
 ### Removed
 ### Fixed

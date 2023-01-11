@@ -970,12 +970,7 @@ int Compute_Minion_Reset_Threads(uint64_t shires_mask)
 ***********************************************************************/
 int Minion_Shire_Update_Voltage(uint8_t voltage)
 {
-#if !(FAST_BOOT || TEST_FRAMEWORK)
-    pmic_set_voltage(MODULE_MINION, voltage);
-    return check_voltage_stability(MODULE_MINION, voltage);
-#else
-    return pmic_set_voltage(MODULE_MINION, voltage);
-#endif
+    return Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, voltage);
 }
 
 /************************************************************************

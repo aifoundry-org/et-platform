@@ -80,6 +80,12 @@ static StaticTask_t g_staticTask_ptr;
 /* The PMIC isr callback function, called from PMIC isr. */
 static void pmic_isr_callback(uint8_t int_cause);
 
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+/* This function ensure voltage stability after changing voltage through pmic.
+   It checks the voltage with pvt sensors after updating it. */
+static int check_voltage_stability(module_e voltage_type, uint8_t voltage);
+#endif
+
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
@@ -256,6 +262,27 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
     module.avg = value;                \
     module.max = 0;                    \
     module.min = 0xFFFF;
+
+/* defines for set voltage wait and check loop */
+#define PERCENTAGE_DIFFERENCE(a, b) abs(((a - b) * 100) / b)
+#define SET_VOLTAGE_TIMEOUT         1000000
+#define SET_VOLTAGE_THRESHOLD       5
+
+/* define for a wait and check loop for set voltage function */
+#define VALIDATE_VOLTAGE_CHANGE(time_out, func, param, val, voltage_mv, status)   \
+    status = ERROR_PMIC_SET_VOLTAGE;                                              \
+    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);      \
+    while (timer_get_ticks_count() < time_out)                                    \
+    {                                                                             \
+        func(&param);                                                             \
+        Log_Write(LOG_LEVEL_CRITICAL, "set v: %d curr v: %d\n", voltage_mv, val); \
+        if (PERCENTAGE_DIFFERENCE(voltage_mv, val) <= SET_VOLTAGE_THRESHOLD)      \
+        {                                                                         \
+            status = STATUS_SUCCESS;                                              \
+            break;                                                                \
+        }                                                                         \
+        US_DELAY_GENERIC(50);                                                     \
+    }
 
 /************************************************************************
 *
@@ -2510,7 +2537,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 
     return status;
 }
-
+#if !(FAST_BOOT || TEST_FRAMEWORK)
 /************************************************************************
 *
 *   FUNCTION
@@ -2532,7 +2559,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 *       status of function call success/error
 *
 ***********************************************************************/
-int check_voltage_stability(module_e voltage_type, uint8_t voltage)
+static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
 {
     int32_t status;
     uint64_t time_end = 0;
@@ -2573,14 +2600,6 @@ int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, mnn_voltage,
                                     mnn_voltage.vdd_mnn.current, voltage_mv, status)
             return status;
-        case MODULE_PCIE:
-            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_PCIE_LOGIC_VOLTAGE_BASE,
-                                                         PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER,
-                                                         PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER);
-            PShire_VM_sample pshr_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_pshire_vm_sample, pshr_voltage,
-                                    pshr_voltage.vdd_pshr.current, voltage_mv, status)
-            return status;
         case MODULE_NOC:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_NOC_VOLTAGE_BASE,
                                                          PMIC_NOC_VOLTAGE_MULTIPLIER,
@@ -2590,6 +2609,14 @@ int check_voltage_stability(module_e voltage_type, uint8_t voltage)
                                     noc_voltage.vdd_noc.current, voltage_mv, status)
             return status;
         case MODULE_PCIE_LOGIC:
+            voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_PCIE_LOGIC_VOLTAGE_BASE,
+                                                         PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER,
+                                                         PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER);
+            IOShire_VM_sample pcie_logic_voltage = { 0 };
+            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_ioshire_vm_sample, pcie_logic_voltage,
+                                    pcie_logic_voltage.vdd_0p75.current, voltage_mv, status)
+            return status;
+        case MODULE_PCIE: /* pvt is reporting wrong pcie voltage for PCIE */
         case MODULE_VDDQLP:
         case MODULE_VDDQ:
             /* pvt sensors for these modules are not available */
@@ -2599,4 +2626,34 @@ int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
         }
     }
+}
+#endif
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Set_Validate_Voltage
+*
+*   DESCRIPTION
+*
+*       This function sets voltage through pmic and then check for voltage stability.
+*
+*   INPUTS
+*
+*       voltage_type      voltage type to be set
+*       voltage           voltage value to be set  
+*
+*   OUTPUTS
+*
+*       status of function call success/error
+*
+***********************************************************************/
+int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage)
+{
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    pmic_set_voltage(voltage_type, voltage);
+    return check_voltage_stability(voltage_type, voltage);
+#else
+    return pmic_set_voltage(voltage_type, voltage);
+#endif
 }

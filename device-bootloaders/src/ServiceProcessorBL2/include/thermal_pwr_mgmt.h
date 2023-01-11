@@ -47,26 +47,6 @@
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw)  (pwr_10mw / 100)
 
-/* defines for set voltage wait and check loop */
-#define PERCENTAGE_DIFFERENCE(a, b) abs(((a - b) * 100) / b)
-#define SET_VOLTAGE_TIMEOUT         1000000
-#define SET_VOLTAGE_THRESHOLD       5
-
-/* define for a wait and check loop for set voltage function */
-#define VALIDATE_VOLTAGE_CHANGE(time_out, func, param, val, voltage_mv, status) \
-    status = ERROR_PMIC_SET_VOLTAGE;                                            \
-    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);    \
-    while (timer_get_ticks_count() < time_end)                                  \
-    {                                                                           \
-        func(&param);                                                           \
-        if (PERCENTAGE_DIFFERENCE(voltage_mv, val) <= SET_VOLTAGE_THRESHOLD)    \
-        {                                                                       \
-            status = STATUS_SUCCESS;                                            \
-            break;                                                              \
-        }                                                                       \
-        US_DELAY_GENERIC(50);                                                   \
-    }
-
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -354,12 +334,11 @@ int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(struct op_stats_t *stats);
 */
 int Thermal_Pwr_Mgmt_Init_OP_Stats(void);
 
-/*! \fn int check_voltage_stability(module_e voltage_type, uint8_t voltage)
-    \brief This function ensure voltage stability after changing voltage through pmic.
-           It checks the voltage with pvt sensors after updating it.
+/*! \fn Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage)
+    \brief This function sets voltage through pmic and then check for voltage stability.
     \param voltage_type - voltage type to be set:
     \param voltage - voltage value to be set (binary encoded)
     \returns Status indicating success or negative error
 */
-int check_voltage_stability(module_e voltage_type, uint8_t voltage);
+int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage);
 #endif

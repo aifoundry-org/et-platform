@@ -983,12 +983,7 @@ int PCIE_Phy_Initialize(void)
 
 int PShire_Voltage_Update(uint8_t voltage)
 {
-#if !(FAST_BOOT || TEST_FRAMEWORK)
-    pmic_set_voltage(MODULE_PCIE, voltage);
-    return check_voltage_stability(MODULE_PCIE, voltage);
-#else
-    return pmic_set_voltage(MODULE_PCIE, voltage);
-#endif
+    return Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_PCIE, voltage);
 }
 
 int Pshire_PLL_Program(uint8_t mode)
