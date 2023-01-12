@@ -34,6 +34,7 @@ option(ENABLE_SANITIZER_MEMORY "" OFF)
 include(CompilerSanitizers)
 
 option(ENABLE_TESTS "Enable compiling tests" ON)
+option(BUILD_DOCS "Enable/disable building documentation" ON)
 
 option(ENABLE_DEPRECATED "Generate Deprecated config file" ON)
 
@@ -105,6 +106,11 @@ install(EXPORT DeviceLayerTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/deviceLayer
     NAMESPACE deviceLayer::
 )
+
+## project documentation
+if (BUILD_DOCS)
+    add_subdirectory(docs)
+endif()
 
 if (ENABLE_TESTS)
     get_target_property(PCIE_DRIVER_INC_DIR linuxDriver::linuxDriver INTERFACE_INCLUDE_DIRECTORIES)
