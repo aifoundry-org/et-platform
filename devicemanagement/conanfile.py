@@ -56,7 +56,6 @@ class DeviceManagementConan(ConanFile):
         tc.variables["BUILD_TESTS"] = self.options.with_tests
         tc.variables["BUILD_DOC"] = False
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
-        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()
 
     def build(self):
