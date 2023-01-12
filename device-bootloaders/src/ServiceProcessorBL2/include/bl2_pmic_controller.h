@@ -144,6 +144,11 @@ struct pmic_event_control_block
 #define PMIC_HEX_TO_MILLIVOLT(hex_val, base, multiplier, divider) \
     (((hex_val * multiplier) / divider) + base)
 
+/*! \def PMIC_BUSY_WAIT_TIMEOUT_MS
+    \brief Macro definition for PMIC wait timeout when busy flag is set
+*/
+#define PMIC_BUSY_WAIT_TIMEOUT_MS 100
+
 /*! \fn void setup_pmic(void)
     \brief This function initialize I2C connection.
 */

@@ -269,19 +269,24 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
 #define SET_VOLTAGE_THRESHOLD       5
 
 /* define for a wait and check loop for set voltage function */
-#define VALIDATE_VOLTAGE_CHANGE(time_out, func, param, val, voltage_mv, status)   \
-    status = ERROR_PMIC_SET_VOLTAGE;                                              \
-    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);      \
-    while (timer_get_ticks_count() < time_out)                                    \
-    {                                                                             \
-        func(&param);                                                             \
-        Log_Write(LOG_LEVEL_CRITICAL, "set v: %d curr v: %d\n", voltage_mv, val); \
-        if (PERCENTAGE_DIFFERENCE(voltage_mv, val) <= SET_VOLTAGE_THRESHOLD)      \
-        {                                                                         \
-            status = STATUS_SUCCESS;                                              \
-            break;                                                                \
-        }                                                                         \
-        US_DELAY_GENERIC(50);                                                     \
+#define VALIDATE_VOLTAGE_CHANGE(time_out, func, param, val, voltage_mv, status)                 \
+    status = ERROR_PMIC_SET_VOLTAGE;                                                            \
+    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);                    \
+    while (timer_get_ticks_count() < time_out)                                                  \
+    {                                                                                           \
+        func(&param);                                                                           \
+        if (PERCENTAGE_DIFFERENCE(voltage_mv, val) <= SET_VOLTAGE_THRESHOLD)                    \
+        {                                                                                       \
+            status = STATUS_SUCCESS;                                                            \
+            break;                                                                              \
+        }                                                                                       \
+        US_DELAY_GENERIC(50);                                                                   \
+    }                                                                                           \
+    if (status == STATUS_SUCCESS)                                                               \
+    {                                                                                           \
+        Log_Write(LOG_LEVEL_INFO,                                                               \
+                  "VALIDATE_VOLTAGE_CHANGE: Cycles consumed in stabilization: %ld\n",           \
+                  (timer_get_ticks_count() - (time_out - pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT)))); \
     }
 
 /************************************************************************
@@ -2651,7 +2656,12 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
 int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage)
 {
 #if !(FAST_BOOT || TEST_FRAMEWORK)
-    pmic_set_voltage(voltage_type, voltage);
+    int32_t status = STATUS_SUCCESS;
+    status = pmic_set_voltage(voltage_type, voltage);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
     return check_voltage_stability(voltage_type, voltage);
 #else
     return pmic_set_voltage(voltage_type, voltage);

@@ -182,7 +182,6 @@ int wait_pmic_ready(void)
 {
 #if !FAST_BOOT
     uint64_t elapsed_ms;
-    const uint64_t timeout_ms = 5;
     const uint64_t start_ticks = timer_get_ticks_count();
     do
     {
@@ -193,10 +192,11 @@ int wait_pmic_ready(void)
         }
 
         elapsed_ms = timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks);
-    } while (elapsed_ms < timeout_ms);
+    } while (elapsed_ms < PMIC_BUSY_WAIT_TIMEOUT_MS);
 
-    Log_Write(LOG_LEVEL_WARNING, "wait_pmic_ready timed out after %lu ms\n", timeout_ms);
-    return -1;
+    Log_Write(LOG_LEVEL_WARNING, "wait_pmic_ready timed out after %u ms\n",
+              PMIC_BUSY_WAIT_TIMEOUT_MS);
+    return ERROR_PMIC_WAIT_READY_TIMEOUT;
 #else
     return 0;
 #endif
