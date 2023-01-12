@@ -131,7 +131,7 @@ tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
-        SYSEMU_ARTIFACTS: [ 'unreleased' ]
+        SYSEMU_ARTIFACTS: [ 'current' ]
   variables:
     KUBERNETES_MEMORY_LIMIT: 32Gi
     TIMEOUT: 1h
@@ -179,7 +179,7 @@ nightly_torture_tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
-        SYSEMU_ARTIFACTS: [ 'unreleased' ]
+        SYSEMU_ARTIFACTS: [ 'current' ]
   variables:
     TIMEOUT: 2h
     CMD_BUILD: |
