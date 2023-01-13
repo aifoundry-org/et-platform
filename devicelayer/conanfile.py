@@ -61,6 +61,7 @@ class DeviceLayerConan(ConanFile):
         tc.variables["ENABLE_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["ENABLE_DEPRECATED"] = False
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
+        tc.variables["BUILD_DOCS"] = False
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies["cmake-modules"].package_folder, "cmake")
         tc.generate()
     
