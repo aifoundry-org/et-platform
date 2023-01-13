@@ -1,4 +1,0 @@
-<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="node1" href="$classrt_1_1IProfiler.html" title="IProfiler interface declaration, all IProfiler interactions should be made using this interface." alt="" coords="5,13,96,39"/>
-<area shape="rect" id="node2" href="$classrt_1_1profiling_1_1IProfilerRecorder.html" title="IProfilerRecorder interface declaration, its a simple added method to IProfiler interface for recordi..." alt="" coords="144,5,297,47"/>
-</map>
