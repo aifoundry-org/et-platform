@@ -564,13 +564,8 @@ void RuntimeImp::setSentCommandCallback(DeviceId device, CommandSender::CommandS
   }
 }
 
-void RuntimeImp::getDevicesWithEventsOnFly(std::vector<int>& outResult) const {
-  outResult.clear();
-  std::for_each(begin(devices_), end(devices_), [this, &outResult](const auto& device) {
-    if (streamManager_.hasEventsOnFly(device)) {
-      outResult.emplace_back(static_cast<int>(device));
-    }
-  });
+bool RuntimeImp::areEventsOnFly(DeviceId device) const {
+  return streamManager_.hasEventsOnFly(device);
 }
 
 std::vector<StreamError> RuntimeImp::doRetrieveStreamErrors(StreamId stream) {

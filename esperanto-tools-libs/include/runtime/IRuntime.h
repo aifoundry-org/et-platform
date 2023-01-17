@@ -124,7 +124,7 @@ public:
   /// issued into this stream finish (a barrier). Usually the kernel launch must be postponed till some previous
   /// memory operations end, hence the default value is true.
   /// @param[in] flushL3 this parameter indicates if the L3 should be flushed before the kernel execution starts.
-  /// @param[in] userTraceBuffer this parameter can be null or point to a device buffer (previously allocated with
+  /// @param[in] userTraceConfig this parameter can be null or point to a device buffer (previously allocated with
   /// \ref mallocDevice). If the pointer is not null, then the firmware will utilize this buffer to fill-up user trace
   /// data. This buffer must be of size 4KB * num_harts (4KB*2080). We will provide later on an API to allocate the
   /// buffer with the size required.
@@ -243,7 +243,6 @@ public:
   /// \brief This will return a list of errors and their execution context (if any)
   ///
   /// @param[in] stream this is the stream to synchronize with.
-  /// @param[in] timeout is the number of seconds to wait till aborting the wait.
   ///
   /// @returns StreamStatus contains the state of the associated stream.
   ///
@@ -252,20 +251,24 @@ public:
   /// \brief This callback (when set) will be automatically called when a kernel abort happens. This is implemented
   /// as a workaround (SW-13045).
   ///
-  /// @param[in] callback see \ref KernelAbortedCallback. This is the callback which will be called when a kernel abort
-  /// happens
+  /// @param[in] callback see \ref rt::KernelAbortedCallback. This is the callback which will be called when a kernel
+  /// abort happens
   ///
   void setOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback);
 
   /// \brief This callback (when set) will be automatically called when a new StreamError occurs, making the polling
   /// through retrieveStreamErrors unnecessary.
   ///
-  /// @param[in] callback see \ref StreamErrorCallbac. This is the callback which will be called when a StreamError
+  /// @param[in] callback see \ref rt::StreamErrorCallback. This is the callback which will be called when a StreamError
   /// occurs.
   ///
   void setOnStreamErrorsCallback(StreamErrorCallback callback);
 
   /// \brief Sets a profiler to be used by runtime.
+  ///
+  /// @param[in] profiler see \ref rt::profiling::IProfilerRecorder. This is the profiler that the runtime will use to
+  /// store and process the traces.
+  ///
   void setProfiler(std::unique_ptr<profiling::IProfilerRecorder> profiler) {
     profiler_ = std::move(profiler);
     onProfilerChanged();
@@ -274,7 +277,7 @@ public:
   /// \brief Returns a pointer to the profiler interface; don't delete/free this pointer since this is owned by the
   /// runtime itself.
   ///
-  /// @returns IProfilerRecorder an interface to the profiler. See \ref IProfilerRecorder
+  /// @returns IProfilerRecorder an interface to the profiler. See \ref rt::profiling::IProfilerRecorder
   ///
   profiling::IProfilerRecorder* getProfiler() const {
     return profiler_.get();
@@ -326,9 +329,10 @@ public:
   ///
   /// \brief Factory method to instantiate a standalone IRuntime implementation
   ///
-  /// @param[in] Options can set some runtime parameters. See \ref Options
+  /// @param[in] deviceLayer is the deviceLayer implementation that runtime will use. See \ref dev::IDeviceLAyer
+  /// @param[in] options can set some runtime parameters. See \ref rt::Options
   ///
-  /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
+  /// @returns RuntimePtr an IRuntime instance.
   ///
   static RuntimePtr create(dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());
 
@@ -337,7 +341,7 @@ public:
   ///
   /// @param[in] socketPath indicates which socket the Client will connect to
   ///
-  /// @returns RuntimePtr an IRuntime instance. See \ref dev::IDeviceLayer
+  /// @returns RuntimePtr an IRuntime instance.
   ///
   static RuntimePtr create(const std::string& socketPath);
 

@@ -93,7 +93,7 @@ public:
   ~RuntimeImp() final;
 
   // IResponseServices
-  void getDevicesWithEventsOnFly(std::vector<int>& outResult) const final;
+  bool areEventsOnFly(DeviceId device) const final;
   void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) final;
 
   // this method is a helper to call eventManager dispatch and streamManager removeEvent

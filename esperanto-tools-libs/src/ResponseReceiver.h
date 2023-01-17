@@ -20,7 +20,7 @@ class ResponseReceiver {
 public:
   struct IReceiverServices {
     virtual ~IReceiverServices() = default;
-    virtual void getDevicesWithEventsOnFly(std::vector<int>& outResult) const = 0;
+    virtual bool areEventsOnFly(DeviceId device) const = 0;
     virtual void checkDevice(DeviceId device) = 0;
     virtual void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) = 0;
   };
@@ -31,10 +31,10 @@ public:
   ~ResponseReceiver();
 
 private:
-  void checkResponses();
+  void checkResponses(int deviceId);
   void checkDevices();
 
-  std::thread receiver_;
+  std::vector<std::thread> receivers_;
   std::thread deviceChecker_;
   bool runDeviceChecker_ = false;
   bool runReceiver_ = true;

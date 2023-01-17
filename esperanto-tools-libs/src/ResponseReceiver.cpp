@@ -22,13 +22,14 @@
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {
-constexpr auto kResponsePollingInterval = 10us;
+constexpr auto kResponsePollingIntervalWithEventsOnFly = 1us;
+constexpr auto kResponsePollingIntervalNoEventsOnFly = 10us;
 constexpr auto kResponseNumTriesBeforePolling = 20;
 constexpr auto kCheckDevicesInterval = 5s;
 constexpr auto kCheckDevicesPolling = 1ms;
 } // namespace
 
-void ResponseReceiver::checkResponses() {
+void ResponseReceiver::checkResponses(int deviceId) {
   // Max ioctl size is 14b
   constexpr uint32_t kMaxMsgSize = (1UL << 14) - 1;
 
@@ -37,21 +38,15 @@ void ResponseReceiver::checkResponses() {
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  auto devCount = deviceLayer_->getDevicesCount();
   while (runReceiver_) {
-    std::vector<int> devicesToCheck;
     int responsesCount = 0;
     for (int i = 0; i < kResponseNumTriesBeforePolling; ++i) {
       try {
-        receiverServices_->getDevicesWithEventsOnFly(devicesToCheck);
-        std::shuffle(begin(devicesToCheck), end(devicesToCheck), gen);
-        for (auto dev : devicesToCheck) {
-          while (deviceLayer_->receiveResponseMasterMinion(dev, buffer)) {
-            RT_VLOG(LOW) << "Got response from deviceId: " << dev;
-            responsesCount++;
-            receiverServices_->onResponseReceived(DeviceId{dev}, buffer);
-            RT_VLOG(LOW) << "Response processed";
-          }
+        while (deviceLayer_->receiveResponseMasterMinion(deviceId, buffer)) {
+          RT_VLOG(LOW) << "Got response from deviceId: " << deviceId;
+          responsesCount++;
+          receiverServices_->onResponseReceived(DeviceId{deviceId}, buffer);
+          RT_VLOG(LOW) << "Response processed";
         }
       } catch (const std::exception& e) {
         RT_LOG(WARNING)
@@ -59,14 +54,14 @@ void ResponseReceiver::checkResponses() {
           << e.what();
       }
     }
-    // hint inactivity those devices which doesnt have any event on fly
-    for (int d = 0; d < devCount; ++d) {
-      if (std::find(begin(devicesToCheck), end(devicesToCheck), d) == end(devicesToCheck)) {
-        deviceLayer_->hintInactivity(d);
-      }
-    }
     if (responsesCount == 0) {
-      std::this_thread::sleep_for(kResponsePollingInterval);
+      // check if there are events on fly
+      auto eventsOnfly = receiverServices_->areEventsOnFly(DeviceId{deviceId});
+      if (!eventsOnfly) {
+        deviceLayer_->hintInactivity(deviceId);
+      }
+      std::this_thread::sleep_for(eventsOnfly ? kResponsePollingIntervalWithEventsOnFly
+                                              : kResponsePollingIntervalNoEventsOnFly);
     }
   }
 }
@@ -96,7 +91,10 @@ ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServ
   : deviceLayer_(deviceLayer)
   , receiverServices_(receiverServices) {
 
-  receiver_ = std::thread(std::bind(&ResponseReceiver::checkResponses, this));
+  auto devCount = deviceLayer_->getDevicesCount();
+  for (int i = 0; i < devCount; ++i) {
+    receivers_.emplace_back(std::thread(std::bind(&ResponseReceiver::checkResponses, this, i)));
+  }
 }
 
 void ResponseReceiver::startDeviceChecker() {
@@ -111,6 +109,8 @@ ResponseReceiver::~ResponseReceiver() {
     deviceChecker_.join();
   }
   runReceiver_ = false;
-  receiver_.join();
+  for (auto& t : receivers_) {
+    t.join();
+  }
   RT_LOG(INFO) << "Response receiver destroyed";
 }

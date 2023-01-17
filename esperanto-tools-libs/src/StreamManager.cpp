@@ -19,12 +19,12 @@
 using namespace rt;
 
 Stream::Info StreamManager::getStreamInfo(StreamId stream) const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   return find(streams_, stream)->second.info_;
 }
 
 std::optional<Stream::Info> StreamManager::getStreamInfo(EventId event) const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   for (auto& [id, stream] : streams_) {
     unused(id);
     if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
@@ -35,7 +35,7 @@ std::optional<Stream::Info> StreamManager::getStreamInfo(EventId event) const {
 }
 
 StreamId StreamManager::createStream(DeviceId device) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto vq = queueHelper_.nextQueue(device);
   auto id = StreamId{nextStreamId_++};
   auto [it, res] = streams_.try_emplace(id, Stream{device, vq, id});
@@ -47,7 +47,7 @@ StreamId StreamManager::createStream(DeviceId device) {
 }
 
 void StreamManager::destroyStream(StreamId stream) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto res = streams_.erase(stream);
   if (!res) {
     throw Exception("Trying to destroy a non-existing stream.");
@@ -55,7 +55,7 @@ void StreamManager::destroyStream(StreamId stream) {
 }
 
 bool StreamManager::hasEventsOnFly(DeviceId device) const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   for (auto& [id, stream] : streams_) {
     unused(id);
     if (stream.info_.device_ == static_cast<int>(device) && !stream.submittedEvents_.empty()) {
@@ -66,12 +66,12 @@ bool StreamManager::hasEventsOnFly(DeviceId device) const {
 }
 
 void StreamManager::addDevice(DeviceId device, int queueCount) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   queueHelper_.addDevice(device, queueCount);
 }
 
 void StreamManager::addEvent(StreamId stream, EventId event) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto [it, result] = find(streams_, stream)->second.submittedEvents_.emplace(event);
   unused(it);
   if (!result) {
@@ -80,7 +80,7 @@ void StreamManager::addEvent(StreamId stream, EventId event) {
 }
 
 void StreamManager::removeEvent(EventId event) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   for (auto& [id, stream] : streams_) {
     unused(id);
     if (stream.submittedEvents_.erase(event) > 0)
@@ -91,7 +91,7 @@ void StreamManager::removeEvent(EventId event) {
 }
 
 std::vector<EventId> StreamManager::getLiveEvents(StreamId stream) const {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   auto& events = find(streams_, stream)->second.submittedEvents_;
   std::vector<EventId> res;
   res.reserve(events.size());
@@ -116,17 +116,17 @@ bool StreamManager::executeCallback(EventId eventId, const StreamError& error,
 }
 
 std::vector<StreamError> StreamManager::retrieveErrors(StreamId stream) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   return std::move(find(streams_, stream)->second.errors_);
 }
 
 void StreamManager::setErrorCallback(StreamErrorCallback callback) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   streamErrorCallback_ = std::move(callback);
 }
 
 void StreamManager::addError(EventId event, StreamError error) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   for (auto& [id, stream] : streams_) {
     unused(id);
     if (stream.submittedEvents_.find(event) != end(stream.submittedEvents_)) {
@@ -139,7 +139,7 @@ void StreamManager::addError(EventId event, StreamError error) {
 }
 
 void StreamManager::addError(const StreamError& error) {
-  std::lock_guard lock(mutex_);
+  SpinLock lock(mutex_);
   for (auto& [_, stream] : streams_) {
     unused(_);
     stream.errors_.emplace_back(error);

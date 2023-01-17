@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15419] Avoid using CMA for loading kernels when not needed.
 - [SW-15613] Removed all general locks from memcpyops. Improved cmaManager(s).
 - [SW-15649] Added doxyfile.in and some changes to documentation generation.
+- [SW-15662] ResponseReceiver now has 1 thread for each device (before it was a single thread for all devices).
 ### Changed
 ### Deprecated
 ### Removed
 - [SW-15649] Removed generated files
 ### Fixed
+- Some documentation cross references
 ### Security
 ## [0.7.1]
 ### Added
