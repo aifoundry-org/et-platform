@@ -37,7 +37,7 @@
 
 #define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
 #define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
-#define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // severity levels: LOW MID HIGH
+#define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // verbosity levels: LOW MID HIGH
 #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER, DIVIDER) (BASE + ((REG_VALUE * MULTIPLIER) / DIVIDER))
 #define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER, DIVIDER) (((VOL_VALUE - BASE) * DIVIDER) / MULTIPLIER)
 #define ECID_LOT_ID_LENGTH 6
@@ -76,7 +76,7 @@ public:
       if (!(error = dlerror())) {
         return getDM;
       }
-      DM_VLOG(HIGH) << "error:" << error << std::endl;
+      DM_VLOG(LOW) << "error:" << error << std::endl;
     }
     return (getDM_t)0;
   }
@@ -84,14 +84,14 @@ public:
   int verifyDMLib() {
 
     if (!(devLayer_.get()) || devLayer_.get() == nullptr) {
-      DM_VLOG(HIGH) << "Device Layer pointer is null!" << std::endl;
+      DM_VLOG(LOW) << "Device Layer pointer is null!" << std::endl;
       return -EAGAIN;
     }
 
     dmi = getInstance();
 
     if (!dmi) {
-      DM_VLOG(HIGH) << "Device Management instance is null!" << std::endl;
+      DM_VLOG(LOW) << "Device Management instance is null!" << std::endl;
       return -EAGAIN;
     }
 
@@ -103,7 +103,7 @@ public:
     std::regex re("PCI_SLOT_NAME=.*(?=\\n)");
     std::smatch m;
     if (!std::regex_search(uevent, m, re) || m.empty()) {
-      DM_VLOG(HIGH) << "Aborting, couldn't get PCI_SLOT_NAME from uevent attribute file." << std::endl;
+      DM_VLOG(LOW) << "Aborting, couldn't get PCI_SLOT_NAME from uevent attribute file." << std::endl;
       return;
     }
     std::cout << m[0] << std::endl;
@@ -367,7 +367,7 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
 
   ret = dml.verifyDMLib();
   if (ret != DM_STATUS_SUCCESS) {
-    DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
+    DM_VLOG(LOW) << "Failed to verify the DM lib: " << ret << std::endl;
     return ret;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -467,7 +467,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER: {
     if (!partid_flag) {
-      DM_VLOG(HIGH) << "Aborting, --partid was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --partid was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint32_t);
@@ -575,7 +575,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT: {
     if (!active_power_management_flag) {
-      DM_VLOG(HIGH) << "Aborting, --active_pwr_mgmt was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --active_pwr_mgmt was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(power_state_e);
@@ -605,7 +605,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL: {
     if (!tdp_level_flag) {
-      DM_VLOG(HIGH) << "Aborting, --tdplevel was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --tdplevel was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
@@ -634,7 +634,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS: {
     if (!thresholds_flag) {
-      DM_VLOG(HIGH) << "Aborting, --thresholds was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --thresholds was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(temperature_threshold_t);
@@ -694,7 +694,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_FREQUENCY: {
     if (!frequencies_flag) {
-      DM_VLOG(HIGH) << "Aborting, --frequencies was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --frequencies was not defined" << std::endl;
       return -EINVAL;
     }
     for (device_mgmt_api::pll_id_e pll_id = device_mgmt_api::PLL_ID_NOC_PLL;
@@ -792,7 +792,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_MODULE_VOLTAGE: {
     if (!voltage_flag) {
-      DM_VLOG(HIGH) << "Aborting, --voltage was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --voltage was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(volt_type) + sizeof(volt_enc);
@@ -883,7 +883,7 @@ int verifyService() {
   case DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT:
   case DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT: {
     if (!mem_count_flag) {
-      DM_VLOG(HIGH) << "Aborting, --memcount was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --memcount was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(uint8_t);
@@ -899,7 +899,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_RESET: {
     if (!pcie_reset_flag) {
-      DM_VLOG(HIGH) << "Aborting, --pciereset was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --pciereset was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_reset_e);
@@ -967,7 +967,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED: {
     if (!pcie_link_speed_flag) {
-      DM_VLOG(HIGH) << "Aborting, --pciespeed was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --pciespeed was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_link_speed_e);
@@ -983,7 +983,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH: {
     if (!pcie_lane_width_flag) {
-      DM_VLOG(HIGH) << "Aborting, --pciewidth was not defined" << std::endl;
+      DM_VLOG(LOW) << "Aborting, --pciewidth was not defined" << std::endl;
       return -EINVAL;
     }
     const uint32_t input_size = sizeof(pcie_lane_w_split_e);
@@ -1223,7 +1223,7 @@ int verifyService() {
 
     ret = dml.verifyDMLib();
     if (ret != DM_STATUS_SUCCESS) {
-      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
+      DM_VLOG(LOW) << "Failed to verify the DM lib: " << ret << std::endl;
       return ret;
     }
     DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -1275,7 +1275,7 @@ int verifyService() {
   } break;
 
   default:
-    DM_VLOG(HIGH) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
+    DM_VLOG(LOW) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
     break;
   }
@@ -1288,8 +1288,8 @@ bool validDigitsOnly() {
   std::regex re("^[0-9]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << str_optarg << " is not valid. It contains more than just digits"
-                  << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << str_optarg << " is not valid. It contains more than just digits"
+                 << std::endl;
     return false;
   }
 
@@ -1301,7 +1301,7 @@ bool validCommand() {
   std::regex re("^[a-zA-Z_]+$");
   std::smatch m;
   if (!std::regex_search(str_optarg, m, re)) {
-    DM_VLOG(HIGH) << "Aborting, command: " << str_optarg << " is not valid ( ^[a-zA-Z_]+$ )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, command: " << str_optarg << " is not valid ( ^[a-zA-Z_]+$ )" << std::endl;
     return false;
   }
 
@@ -1310,11 +1310,11 @@ bool validCommand() {
   if (it != commandCodeTable.end()) {
     cmd = it->first;
     code = it->second;
-    DM_VLOG(HIGH) << "command: " << str_optarg << " code " << code << std::endl;
+    DM_VLOG(LOW) << "command: " << str_optarg << " code " << code << std::endl;
     return true;
   }
 
-  DM_VLOG(HIGH) << "Aborting, command: " << str_optarg << " not found" << std::endl;
+  DM_VLOG(LOW) << "Aborting, command: " << str_optarg << " not found" << std::endl;
   return false;
 }
 
@@ -1329,7 +1329,7 @@ bool validCode() {
   auto tmp_optarg = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, command: " << optarg << " is not valid" << std::endl;
+    DM_VLOG(LOW) << "Aborting, command: " << optarg << " is not valid" << std::endl;
     return false;
   }
 
@@ -1341,7 +1341,7 @@ bool validCode() {
     }
   }
 
-  DM_VLOG(HIGH) << "Aborting, command: " << optarg << " not found" << std::endl;
+  DM_VLOG(LOW) << "Aborting, command: " << optarg << " not found" << std::endl;
   return false;
 }
 
@@ -1356,7 +1356,7 @@ bool validMemCount() {
   auto count = std::strtoul(optarg, &end, 10);
 
   if (count > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1369,7 +1369,7 @@ bool validNode() {
   std::string str_optarg = std::string(optarg);
   std::smatch m;
   if (std::regex re("^(?:([0-9]|[1-5][0-9]|[6][0-3]))$"); !std::regex_search(str_optarg, m, re) || m.size() < 2) {
-    DM_VLOG(HIGH) << "Aborting, node: " << str_optarg << " is not in range ( 0-63 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, node: " << str_optarg << " is not in range ( 0-63 )" << std::endl;
     return false;
   }
 
@@ -1389,7 +1389,7 @@ bool validActivePowerManagement() {
   auto state = std::strtoul(optarg, &end, 10);
 
   if (state > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid active power management ( 0-1 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not a valid active power management ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1409,7 +1409,7 @@ bool validLaneWidth() {
   pcie_lane_width = std::strtoul(optarg, &end, 10);
 
   if (pcie_lane_width > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid pcie lane width ( 0-1 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not a valid pcie lane width ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1427,7 +1427,7 @@ bool validLinkSpeed() {
   pcie_link_speed = std::strtoul(optarg, &end, 10);
 
   if (pcie_link_speed > 1 || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid pcie link speed ( 0-1 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not a valid pcie link speed ( 0-1 )" << std::endl;
     return false;
   }
 
@@ -1445,7 +1445,7 @@ bool validReset() {
   pcie_reset = std::strtoul(optarg, &end, 10);
 
   if (pcie_reset > 2 || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not a valid pcie reset type ( 0-2 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not a valid pcie reset type ( 0-2 )" << std::endl;
     return false;
   }
 
@@ -1465,7 +1465,7 @@ bool validTDPLevel() {
   auto level = std::strtoul(optarg, &end, 10);
 
   if (level > TDP_LEVEL_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
     return false;
   }
 
@@ -1485,7 +1485,7 @@ bool validThresholds() {
   auto lo = std::strtoul(optarg, &end, 10);
 
   if (lo > SCHAR_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << lo << " is not valid ( 0-" << SCHAR_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1507,7 +1507,7 @@ bool validTimeout() {
   timeout = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid ( 0 - " << ULONG_MAX << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid ( 0 - " << ULONG_MAX << " )" << std::endl;
     return false;
   }
 
@@ -1516,7 +1516,7 @@ bool validTimeout() {
 
 bool validPath() {
   if (!std::experimental::filesystem::exists(std::string(optarg))) {
-    DM_VLOG(HIGH) << "The file doesn't exist" << std::string(optarg) << std::endl;
+    DM_VLOG(LOW) << "The file doesn't exist" << std::string(optarg) << std::endl;
     return false;
   }
   imagePath.assign(std::string(optarg));
@@ -1526,22 +1526,22 @@ bool validPath() {
 
 bool validFrequencies() {
   if (!std::regex_match(std::string(optarg), std::regex("^[0-9]+,[0-9]+$"))) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid, e.g: 300,100" << std::endl;
     return false;
   }
 
   auto freq = std::stoul(std::strtok(optarg, ","));
   if (freq > std::numeric_limits<decltype(minion_freq_mhz)>::max()) {
-    DM_VLOG(HIGH) << "Aborting, minion shire frequency (MHz): " << freq << " is not valid ( 0 - "
-                  << std::numeric_limits<decltype(minion_freq_mhz)>::max() << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, minion shire frequency (MHz): " << freq << " is not valid ( 0 - "
+                 << std::numeric_limits<decltype(minion_freq_mhz)>::max() << " )" << std::endl;
     return false;
   }
   minion_freq_mhz = static_cast<decltype(minion_freq_mhz)>(freq);
 
   freq = std::stoul(std::strtok(NULL, ","));
   if (freq > std::numeric_limits<decltype(noc_freq_mhz)>::max()) {
-    DM_VLOG(HIGH) << "Aborting, noc frequency (MHz): " << freq << " is not valid ( 0 - "
-                  << std::numeric_limits<decltype(noc_freq_mhz)>::max() << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, noc frequency (MHz): " << freq << " is not valid ( 0 - "
+                 << std::numeric_limits<decltype(noc_freq_mhz)>::max() << " )" << std::endl;
     return false;
   }
   noc_freq_mhz = static_cast<decltype(noc_freq_mhz)>(freq);
@@ -1570,10 +1570,10 @@ bool validVoltage() {
   std::smatch m;
   if (std::regex re(fmt::format("^({}),([0-9]+)$", fmt::join(moduleTypes, "|")));
       !std::regex_search(strArg, m, re) || m.size() < 3) {
-    DM_VLOG(HIGH) << fmt::format("Aborting, argument: {} is not valid, arguments should be in this format: "
-                                 "<MODULE_TYPE>,<VOLTAGE_VALUE_IN_MV> where valid MODULE_TYPEs are: {{{}}}",
-                                 strArg, fmt::join(moduleTypes, ", "))
-                  << std::endl;
+    DM_VLOG(LOW) << fmt::format("Aborting, argument: {} is not valid, arguments should be in this format: "
+                                "<MODULE_TYPE>,<VOLTAGE_VALUE_IN_MV> where valid MODULE_TYPEs are: {{{}}}",
+                                strArg, fmt::join(moduleTypes, ", "))
+                 << std::endl;
     return false;
   }
 
@@ -1584,8 +1584,8 @@ bool validVoltage() {
 
   auto voltage = std::stoul(m[2].str());
   if (voltage > std::numeric_limits<uint16_t>::max()) {
-    DM_VLOG(HIGH) << "Aborting, Voltage : " << voltage << " is not valid ( 0 - " << std::numeric_limits<uint16_t>::max()
-                  << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, Voltage : " << voltage << " is not valid ( 0 - " << std::numeric_limits<uint16_t>::max()
+                 << " )" << std::endl;
     return false;
   }
   volt_enc = static_cast<decltype(volt_enc)>(VOLTAGE2BIN(voltage, base, multiplier, divider));
@@ -1604,8 +1604,8 @@ bool validPartId() {
   partid = std::strtoul(optarg, &end, 10);
 
   if (end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << optarg << " is not valid ( 0 - "
-                  << std::numeric_limits<decltype(partid)>::max() << " )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid ( 0 - "
+                 << std::numeric_limits<decltype(partid)>::max() << " )" << std::endl;
     return false;
   }
 
@@ -1978,7 +1978,7 @@ bool validTraceOperation() {
   std::smatch m;
   if (std::regex re(fmt::format("^({}):((?:(?:{}),?)+)$", fmt::join(trace_types, "|"), fmt::join(trace_ops, "|")));
       !std::regex_search(strArg, m, re)) {
-    DM_VLOG(HIGH) << "Aborting, argument: " << strArg << " is not valid." << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << strArg << " is not valid." << std::endl;
     return false;
   }
 
@@ -1993,7 +1993,7 @@ bool validTraceOperation() {
   } else if (m[1].str().compare("MMST") == 0) {
     given_trace_type = TraceBufferType::TraceBufferMMStats;
   } else {
-    DM_VLOG(HIGH) << "Aborting, unknown type: " << m[1].str() << std::endl;
+    DM_VLOG(LOW) << "Aborting, unknown type: " << m[1].str() << std::endl;
     return false;
   }
   given_trace_ops = m[2].str();
@@ -2003,7 +2003,7 @@ bool validTraceOperation() {
 bool doTraceOperation() {
   static DMLib dml;
   if (dml.verifyDMLib() != DM_STATUS_SUCCESS) {
-    DM_VLOG(HIGH) << "Failed to verify the DM lib: " << std::endl;
+    DM_VLOG(LOW) << "Failed to verify the DM lib: " << std::endl;
     return false;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
@@ -2129,6 +2129,10 @@ int main(int argc, char** argv) {
   int option_index = 0;
 
   // Initialize Google's logging library.
+  if (getenv("ET_VLOG") == nullptr) {
+    setenv("ET_VLOG", "0", false);
+    std::atexit([]() { unsetenv("ET_VLOG"); });
+  }
   logging::LoggerDefault loggerDefault_;
 
   while (1) {
@@ -2262,13 +2266,13 @@ int main(int argc, char** argv) {
   }
 
   if (!node_flag) {
-    DM_VLOG(HIGH) << "Aborting, must provide a device node" << std::endl;
+    DM_VLOG(LOW) << "Aborting, must provide a device node" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
 
   if (!timeout_flag) {
-    DM_VLOG(HIGH) << "Aborting, must provide a timeout value" << std::endl;
+    DM_VLOG(LOW) << "Aborting, must provide a timeout value" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
@@ -2282,7 +2286,7 @@ int main(int argc, char** argv) {
     DMLib dml;
     auto ret = dml.verifyDMLib();
     if (ret != DM_STATUS_SUCCESS) {
-      DM_VLOG(HIGH) << "Failed to verify the DM lib: " << ret << std::endl;
+      DM_VLOG(LOW) << "Failed to verify the DM lib: " << ret << std::endl;
       return ret;
     }
     dml.printPciSlotName(node);
@@ -2290,7 +2294,7 @@ int main(int argc, char** argv) {
   }
 
   if (!cmd_flag && !code_flag) {
-    DM_VLOG(HIGH) << "Aborting, must provide a command or code" << std::endl;
+    DM_VLOG(LOW) << "Aborting, must provide a command or code" << std::endl;
     printUsage(argv[0]);
     return -EINVAL;
   }
