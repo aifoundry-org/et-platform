@@ -795,8 +795,8 @@ int32_t Trace_Format_String(trace_string_event_e log_level, struct trace_control
         va_end(args);
 
         if (str_length > 0) {
-            /* Align and check for max size */
-            str_length = TRACE_STRING_SIZE_ALIGN(str_length);
+            /* Add size of null character, align and check for max size */
+            str_length = TRACE_STRING_SIZE_ALIGN(str_length + 1);
             if (str_length > ET_TRACE_STRING_MAX_SIZE) {
                 str_length = ET_TRACE_STRING_MAX_SIZE;
             }
@@ -845,8 +845,8 @@ int32_t Trace_Format_String_V(trace_string_event_e log_level, struct trace_contr
         str_length = ET_TRACE_VSNPRINTF(buff, ET_TRACE_STRING_MAX_SIZE, format, va);
 
         if (str_length > 0) {
-            /* Align and check for max size */
-            str_length = TRACE_STRING_SIZE_ALIGN(str_length);
+            /* Add size of null character, align and check for max size */
+            str_length = TRACE_STRING_SIZE_ALIGN(str_length + 1);
             if (str_length > ET_TRACE_STRING_MAX_SIZE) {
                 str_length = ET_TRACE_STRING_MAX_SIZE;
             }
