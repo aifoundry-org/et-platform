@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - (Conan) Remove setting CMAKE_MODULE_PATH with cmake-modules
 ### Fixed
+- [SW-15389] Fixed MDI tests
 ### Security
 
 ## [0.8.0] - 2023-01-10

@@ -3417,11 +3417,16 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
                                 (char*)&mdi_bp_input_buff, mdi_bp_input_size, (char*)&bp_cmd_status, sizeof(int32_t),
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
+#if MINION_DEBUG_INTERFACE
+    /* Wait for set break point event */
+    std::vector<std::byte> buf;
+    EXPECT_TRUE(dm.getEvent(deviceIdx, buf, DM_SERVICE_REQUEST_TIMEOUT));
 
-    DV_LOG(INFO) << "Set BP at address: 0x" << std::hex << mdi_bp_input_buff.bp_address << " Status:" << std::hex
-                 << bp_cmd_status;
+    auto rCB = reinterpret_cast<const dm_evt*>(buf.data());
+    EXPECT_EQ(rCB->info.event_hdr.msg_id, device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT);
+#else
     EXPECT_EQ(bp_cmd_status, device_mgmt_api::DM_STATUS_SUCCESS);
-
+#endif
     /* UnSet Breakpoint */
     mdi_bp_input_buff = {0};
     mdi_bp_input_buff.hart_id = hartID;
@@ -3443,6 +3448,15 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
+
+    int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+                                (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
+                                (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3665,18 +3679,19 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     gpr_write_input_buff.hart_id = hartID;
 
     uint64_t output = 0;
+    uint64_t gpr_val = 0;
     const uint32_t read_output_size = sizeof(uint64_t);
     for (int i = 1; i < 32; i++) {
       gpr_read_input_buff.gpr_index = i;
       gpr_write_input_buff.gpr_index = i;
 
       EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
-                                  gpr_read_input_size, (char*)&output, read_output_size, hst_latency.get(),
+                                  gpr_read_input_size, (char*)&gpr_val, read_output_size, hst_latency.get(),
                                   dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
       DV_LOG(INFO) << "Before update HartID:" << std::hex << gpr_read_input_buff.hart_id
-                   << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << output;
+                   << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << gpr_val;
 
       gpr_write_input_buff.data = writeTestData + i; /* Test Data */
       DV_LOG(INFO) << "Write Value:" << std::hex << gpr_write_input_buff.data;
@@ -3694,6 +3709,13 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
                    << " GPR Index:" << gpr_read_input_buff.gpr_index << " Value:" << std::hex << output;
 
       EXPECT_EQ(gpr_write_input_buff.data, output);
+
+      /* Restore GPR value */
+      gpr_write_input_buff.data = gpr_val;
+      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
+                                  (char*)&gpr_write_input_buff, gpr_write_input_size, (char*)&dummy, sizeof(uint64_t),
+                                  hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                device_mgmt_api::DM_STATUS_SUCCESS);
     }
 
     /* Resume Hart */
