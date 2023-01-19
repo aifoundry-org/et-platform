@@ -460,6 +460,8 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 
     if (event->error_type == SP_RECOVERABLE_FW_MM_ERROR)
     {
+        Log_Write(LOG_LEVEL_ERROR, "MM Firmware Error reported, Initiaiting MM reset\r\n");
+
         /* Restart the Compute Minions everything */
         Master_Minion_Reset();
     }
