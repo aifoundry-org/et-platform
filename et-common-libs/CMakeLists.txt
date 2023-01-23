@@ -15,6 +15,7 @@ cmake_minimum_required(VERSION 3.5)
 project(et-common-libs VERSION 0.15.0 LANGUAGES C DESCRIPTION "ET Accelerator API, a header and library exposed to CM usermode")
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+option(BUILD_DOC "Build documentation" ON)
 
 # Find the required packages
 find_package(esperantoTrace REQUIRED)
@@ -50,6 +51,17 @@ option(WITH_CM_RT_SVCS "Build cm_rt_svcs component" ON)
 if (WITH_CM_RT_SVCS)
     # Build and install Compute Minion Run Time Services lib
     include(cm_rt_svcs.cmake)
+endif()
+
+########## Documentation #####################################
+if (BUILD_DOC)
+    # check if Doxygen is installed
+    find_package(Doxygen)
+    if (DOXYGEN_FOUND)
+        add_subdirectory(doc)
+    else (DOXYGEN_FOUND)
+        message("Doxygen need to be installed to generate the doxygen documentation")
+    endif (DOXYGEN_FOUND)
 endif()
 
 # Install

@@ -1,13 +1,18 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2019, Esperanto Technologies Inc.
-* The copyright to the computer program(s) herein is the
-* property of Esperanto Technologies, Inc. All Rights Reserved.
-* The program(s) may be used and/or copied only with
-* the written permission of Esperanto Technologies and
-* in accordance with the terms and conditions stipulated in the
-* agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+/***********************************************************************/
+/*! \copyright
+  Copyright (C) 2019 Esperanto Technologies Inc.
+  The copyright to the computer program(s) herein is the
+  property of Esperanto Technologies, Inc. All Rights Reserved.
+  The program(s) may be used and/or copied only with
+  the written permission of Esperanto Technologies and
+  in accordance with the terms and conditions stipulated in the
+  agreement/contract under which the program(s) have been supplied.
 */
+/***********************************************************************/
+/*! \file utils.h
+    \brief A C header that defines the common util routines to be used.
+*/
+/***********************************************************************/
 
 #ifndef _COMMON_UTILS_H_
 #define _COMMON_UTILS_H_
@@ -20,10 +25,11 @@ extern "C" {
 #include "etsoc/drivers/pmu/pmu.h"
 #include "trace/trace_umode.h"
 
-/*! \def et_printf(fmt)
+/*! \def et_printf(fmt, ...)
     \brief Write a log with va_list style args
     \param fmt String format specifier
     \param ... Variable argument list
+    \stdlib Click above for more info...
 */
 #define et_printf(fmt, ...)                          \
     Trace_Format_String(TRACE_EVENT_STRING_CRITICAL, \
@@ -35,6 +41,7 @@ extern "C" {
     \param c The value to be set
     \param n Number of bytes
     \return Pointer to memory area s
+    \stdlib Click above for more info...
 */
 void *et_memset(void *s, int c, size_t n);
 
@@ -44,6 +51,7 @@ void *et_memset(void *s, int c, size_t n);
     \param src This is pointer to the source buffer
     \param n Number of bytes
     \return Pointer to destination buffer
+    \stdlib Click above for more info...
 */
 void *et_memcpy(void *dest, const void *src, size_t n);
 
@@ -54,6 +62,7 @@ void *et_memcpy(void *dest, const void *src, size_t n);
     \param n Number of bytes to compare
     \return < 0 then it indicates s1 is less than s2, > 0 then it indicates s2
     is less than s1, = 0 then it indicates s1 is equal to s2
+    \stdlib Click above for more info...
 */
 int et_memcmp(const void *s1, const void *s2, size_t n);
 
@@ -62,18 +71,21 @@ int et_memcmp(const void *s1, const void *s2, size_t n);
     terminating null character.
     \param str String whos length needs to be found
     \return Length of string
+    \stdlib Click above for more info...
 */
 size_t et_strlen(const char *str);
 
 /*! \fn void et_abort(void)
     \brief Causes an abnormal end of the application and returns from kernel launch.
     \return None
+    \stdlib Click above for more info...
 */
 __attribute__((noreturn)) void et_abort(void);
 
 /*! \def et_assert(expr)
     \brief A macro that allows diagnostic information to be written to the trace buffer
     and abort the appilcation if the expr provided is false.
+    \stdlib Click above for more info...
 */
 #define et_assert(expr)                                                                      \
     if (!(expr))                                                                             \
@@ -89,6 +101,9 @@ __attribute__((noreturn)) void et_abort(void);
 
 #define et_get_timestamp() PMC_Get_Current_Cycles()
 
+/*! \def et_get_delta_timestamp(prev_timestamp)
+    \brief A define to get difference between timestamp cycles.
+*/
 #define et_get_delta_timestamp(prev_timestamp) (PMC_Get_Current_Cycles() - prev_timestamp)
 
 #ifdef __cplusplus
@@ -96,3 +111,7 @@ __attribute__((noreturn)) void et_abort(void);
 #endif
 
 #endif /* _COMMON_UTILS_H_ */
+
+/*! \example stdlib.c
+    Standard library function examples.
+*/

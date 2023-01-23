@@ -1,0 +1,23 @@
+/*! \mainpage
+ *
+ * This project implements the device common libraries used in Esperanto SOC.
+ *
+ * To help access the underlying Compute Minion effectively, a set of Esperanto Accelerator
+ * common libraries are provided so any Machine learning compiler (i.e. Glow, TVM, etc) or
+ * general purpose User application can compile/link with these libraries with the User mode
+ * generated compute kernels.
+ *
+ * The following table summarizes the different libraries which are available:
+ *
+ * | API Class           | Supported Primitives | Description |
+ * | ------------------- | -------------------- | ----------- |
+ * | \ref stdlib         | #et_printf           | ET specific implementation since its requires interaction with the device runtime |
+ * |                     | #et_memset           |             |
+ * |                     | #et_memcpy           |             |
+ * |                     | #et_memcmp           |             |
+ * |                     | #et_abort            |             |
+ * |                     | #et_assert           |             |
+ * | \ref hartsvclib     | #get_hart_id         | Accessor functions to get Hart specific state information |
+ * |                     |                      |             |
+ *
+ */
