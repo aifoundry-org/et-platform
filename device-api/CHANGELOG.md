@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [1.2.0] - 2023-01-23
+### Added
+### Changed
+### Deprecated
+### Removed
+- [SW-15741] Removing deprecated log level structure from device-api
+### Fixed
+### Security
+
 ## [1.1.0] - 2023-01-10
 ### Added
 - [SW-5479] Modified trace buffer full event structure.

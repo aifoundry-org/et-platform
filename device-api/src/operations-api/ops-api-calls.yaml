@@ -58,22 +58,6 @@ Enums:
         Value: 16
       - Name: KERNEL_LAUNCH_ARGS_EMBEDDED
         Value: 32
-  - Name: log_levels
-    Type: uint8_t
-    Description: This enum is deprecated and should not be used.
-    Values:
-      - Name: CRITICAL
-        Value: 0
-      - Name: ERROR
-        Value: 1
-      - Name: WARNING
-        Value: 2
-      - Name: INFO
-        Value: 3
-      - Name: DEBUG
-        Value: 4
-      - Name: TRACE
-        Value: 5
   - Name: dev_ops_api_abort_response
     Type: uint32_t
     Values:
