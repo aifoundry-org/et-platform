@@ -15,9 +15,81 @@
  * |                     | #et_memset           |             |
  * |                     | #et_memcpy           |             |
  * |                     | #et_memcmp           |             |
+ * |                     | #et_strlen           |             |
  * |                     | #et_abort            |             |
  * |                     | #et_assert           |             |
+ * |                     | #et_get_timestamp    |             |
+ * |                     | #et_get_delta_timestamp |             |
  * | \ref hartsvclib     | #get_hart_id         | Accessor functions to get Hart specific state information |
- * |                     |                      |             |
- *
+ * |                     | #get_shire_id        |             |
+ * |                     | #get_neighborhood_id |             |
+ * |                     | #get_minion_id       |             |
+ * |                     | #get_thread_id       |             |
+ * | \ref tensorops      | #tensor_wait         |Primitive to access ET specific HW extensions to execute Tensor operations (Details PRM) |
+ * |                     | #tensor_load         |             |
+ * |                     | #tensor_load_setup_b |             |
+ * |                     | #et_tensor_load_l2scp |             |
+ * |                     | #tensor_store_scp    |             |
+ * |                     | #tensor_store        |             |
+ * |                     | #tensor_fma          |             |
+ * |                     | #tensor_reduce_uint32 |             |
+ * |                     | #tensor_reduce_float |             |
+ * |                     | #tensor_reduce       |             |
+ * |                     | #tensor_reduce_send  |             |
+ * |                     | #tensor_reduce_recv  |             |
+ * |                     | #tensor_reduce_auto  |             |
+ * |                     | #tensor_broadcast    |             |
+ * |                     | #tensor_reduce_autopair |             |
+ * |                     | #tensor_quant        |             |
+ * |                     | #tensor_mask         |             |
+ * |                     | #tensor_coop         |             |
+ * |                     | #convolution_ctrl    |             |
+ * |                     | #convolution_size    |             |
+ * |                     | #get_tensor_error    |             |
+ * |                     | #get_tensor_mask     |             |
+ * |  floatingpointops | Fdiv               |SW emulated operation since there is no native HW support. These are not available in the current SW release|
+ * |                     | Fsqrt               |             |
+ * |                     | etc                 |             |
+ * | \ref memops         | #evict_sw            |Memory access operations using Esperanto specific ISA extensions|
+ * |                     | #flush_sw            |             |
+ * |                     | #lock_sw             |             |
+ * |                     | #unlock_sw           |             |
+ * |                     | #evict_va            |             |
+ * |                     | #evict_va_all        |             |
+ * |                     | #evict               |             |
+ * |                     | #flush_va            |             |
+ * |                     | #prefetch_va         |             |
+ * |                     | #lock_va             |             |
+ * |                     | #unlock_va           |             |
+ * |                     | #cache_invalidate    |             |
+ * |                     | #get_cache_invalidate |             |
+ * |                     | #mcache_control      |             |
+ * |                     | #ucache_control      |             |
+ * |                     | #get_l1d_mode        |             |
+ * |                     | #excl_mode           |             |
+ * |                     | #scp                 |             |
+ * |                     | #cb_drain            |             | 
+ * | \ref syncops        | shire_barrier            |Barriers and synchronization primitives using Esperanto specific ISA extensions|
+ * |                     | SEND_FCC             |             |
+ * |                     | wait_fcc             |             |
+ * |                     | read_fcc             |             |
+ * |                     | READ_FLB             |             |
+ * |                     | WAIT_FLB             |             |
+ * |                     | local_fcc_barrier    |             |
+ * |                     | local_fcc_flag_wait  |             |
+ * |                     | local_fcc_flag_notify |             |
+ * |                     | local_fcc_flag_notify_no_ack |             |
+ * |                     | global_fcc_wait         |             |
+ * |                     | global_fcc_notify       |             |
+ * |                     | global_fcc_flag_wait    |             |
+ * |                     | global_fcc_flag_notify  |             |
+ * |                     | local_fcc_flag_notify   |             |
+ * |                     | acquire_global_spinlock |             |
+ * |                     | release_global_spinlock |             |
+ * |                     | init_local_spinlock     |             |
+ * |                     | acquire_local_spinlock  |             |
+ * |                     | release_local_spinlock  |             |
+ * |                     | local_spinwait_set      |             |
+ * |                     | local_spinwait_wait     |             |
+ * |                     | local_fcc_flag_notify   |             |
  */

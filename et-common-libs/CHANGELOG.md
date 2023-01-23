@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-15710] Baseline implementation for Accelerator lib docs.
+- [SW-15710] Adding a docs prototype with examples
 ### Changed
 ### Deprecated
 ### Removed

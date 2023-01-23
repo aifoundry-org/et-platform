@@ -242,6 +242,10 @@ ALIASES                = "rst=\verbatim embed:rst:leading-asterisk"
 ALIASES                += "endrst=\endverbatim"
 ALIASES                += "stdlib=\xrefitem stdlib \"Standard Library\" \"Standard Library\""
 ALIASES                += "hartsvclib=\xrefitem hartsvclib \"Hart Service Library\" \"Hart Service Library\""
+ALIASES                += "tensorops=\xrefitem tensorops \"Tensor Operations\" \"Tensor Operations\""
+ALIASES                += "floatingpointops=\xrefitem floatingpointops \"FloatingPoint Arithmetic  Operations\" \"FloatingPoint Arithmetic  Operations\""
+ALIASES                += "memops=\xrefitem memops \"Memory Operations\" \"Memory Operations\""
+ALIASES                += "syncops=\xrefitem syncops \"Synchronization Primitives\" \"Synchronization Primitives\""
 
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding "class=itcl::class"

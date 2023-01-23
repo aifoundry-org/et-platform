@@ -28,9 +28,11 @@ extern "C" {
 #include <stdint.h>
 
 /*! \fn static inline unsigned int get_hart_id(void)
-    \brief Get hart ID
+    \brief Get current hart ID from where this call is made
     \return Hart ID
-    \hartsvclib Click above for more info...
+    \hartsvclib Implementation of get hart id api
+    \example get_hart_id.c
+    Example(s) of using get_hart_id api
 */
 static inline unsigned int __attribute__((always_inline, const)) get_hart_id(void)
 {
@@ -41,21 +43,49 @@ static inline unsigned int __attribute__((always_inline, const)) get_hart_id(voi
     return (unsigned int)ret;
 }
 
+/*! \fn static inline unsigned int get_shire_id(void)
+    \brief Get current shire ID from where this call is made
+    \return Shire ID
+    \hartsvclib Implementation of shire id api
+    \example get_shire_id.c
+    Example(s) of using get_shire_id api
+*/
 static inline unsigned int __attribute__((always_inline, const)) get_shire_id(void)
 {
     return get_hart_id() >> 6;
 }
 
+/*! \fn static inline unsigned int get_neighborhood_id(void)
+    \brief Get current neighborhood ID from where this call is made 
+    \return Neighborhood ID
+    \hartsvclib Implementation of get neighborhood api
+    \example get_neighborhood_id.c
+    Example(s) of using get_neighborhood_id api
+*/
 static inline unsigned int __attribute__((always_inline, const)) get_neighborhood_id(void)
 {
     return (get_hart_id() % 64) >> 4;
 }
 
+/*! \fn static inline unsigned int get_minion_id(void)
+    \brief Get current minion ID from where this call is made 
+    \return Minion ID
+    \hartsvclib Implementation of minion id api
+    \example get_minion_id.c
+    Example(s) of using get_minion_id api
+*/
 static inline unsigned int __attribute__((always_inline, const)) get_minion_id(void)
 {
     return get_hart_id() >> 1;
 }
 
+/*! \fn static inline unsigned int get_thread_id(void)
+    \brief Get current thread ID from where this call is made 
+    \return Thread ID
+    \hartsvclib Implementation thread id api
+    \example get_thread_id.c
+    Example(s) of using get_thread_id api
+*/
 static inline unsigned int __attribute__((always_inline, const)) get_thread_id(void)
 {
     return get_hart_id() & 1;

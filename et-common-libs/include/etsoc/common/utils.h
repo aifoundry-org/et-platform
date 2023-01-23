@@ -29,7 +29,10 @@ extern "C" {
     \brief Write a log with va_list style args
     \param fmt String format specifier
     \param ... Variable argument list
-    \stdlib Click above for more info...
+    \return none
+    \stdlib Esperanto specific implementation of printf.
+    \example et_printf.c
+    This is an example of using et_printf api
 */
 #define et_printf(fmt, ...)                          \
     Trace_Format_String(TRACE_EVENT_STRING_CRITICAL, \
@@ -41,7 +44,9 @@ extern "C" {
     \param c The value to be set
     \param n Number of bytes
     \return Pointer to memory area s
-    \stdlib Click above for more info...
+    \stdlib Esperanto specific implementation of memset
+    \example et_memset.c
+    This is an example of et_memset api usage.
 */
 void *et_memset(void *s, int c, size_t n);
 
@@ -51,7 +56,9 @@ void *et_memset(void *s, int c, size_t n);
     \param src This is pointer to the source buffer
     \param n Number of bytes
     \return Pointer to destination buffer
-    \stdlib Click above for more info...
+    \stdlib Esperanto specific implementation of memcpy
+    \example et_memcpy.c
+    This is an example of et_memcpy api usage.
 */
 void *et_memcpy(void *dest, const void *src, size_t n);
 
@@ -62,7 +69,9 @@ void *et_memcpy(void *dest, const void *src, size_t n);
     \param n Number of bytes to compare
     \return < 0 then it indicates s1 is less than s2, > 0 then it indicates s2
     is less than s1, = 0 then it indicates s1 is equal to s2
-    \stdlib Click above for more info...
+    \stdlib Esperanto specific implementation of memcmp
+    \example et_memcmp.c
+    This is an example of et_memcmp api usage.
 */
 int et_memcmp(const void *s1, const void *s2, size_t n);
 
@@ -71,21 +80,27 @@ int et_memcmp(const void *s1, const void *s2, size_t n);
     terminating null character.
     \param str String whos length needs to be found
     \return Length of string
-    \stdlib Click above for more info...
+    \stdlib Esperanto specific implementation of strlen
+    \example et_strlen.c
+    This is an example of et_strlen api usage.
 */
 size_t et_strlen(const char *str);
 
 /*! \fn void et_abort(void)
     \brief Causes an abnormal end of the application and returns from kernel launch.
     \return None
-    \stdlib Click above for more info...
+    \stdlib Implementation of kernel abort api
+    \example et_abort.c
+    This is an example of et_abort api usage.
 */
 __attribute__((noreturn)) void et_abort(void);
 
 /*! \def et_assert(expr)
     \brief A macro that allows diagnostic information to be written to the trace buffer
-    and abort the appilcation if the expr provided is false.
-    \stdlib Click above for more info...
+    and abort the application if the expr provided is false.
+    \stdlib Implementation of et_asset api
+    \example et_assert.c
+    This is an example of et_assert api usage.
 */
 #define et_assert(expr)                                                                      \
     if (!(expr))                                                                             \
@@ -99,10 +114,19 @@ __attribute__((noreturn)) void et_abort(void);
         (void)(expr);                                                                        \
     }
 
+/*! \def et_get_timestamp()
+    \brief A macro that returns current timestamp in terms of cycles.
+    \stdlib Implementation of et_get_timestamp api
+    \example et_get_timestamp.c
+    This is an example of et_get_timestamp api usage.
+*/
 #define et_get_timestamp() PMC_Get_Current_Cycles()
 
 /*! \def et_get_delta_timestamp(prev_timestamp)
     \brief A define to get difference between timestamp cycles.
+    \stdlib Implementation of et_get_delta_timestamp api
+    \example et_get_delta_timestamp.c
+    This is an example of et_get_delta_timestamp api usage.
 */
 #define et_get_delta_timestamp(prev_timestamp) (PMC_Get_Current_Cycles() - prev_timestamp)
 
@@ -111,7 +135,3 @@ __attribute__((noreturn)) void et_abort(void);
 #endif
 
 #endif /* _COMMON_UTILS_H_ */
-
-/*! \example stdlib.c
-    Standard library function examples.
-*/
