@@ -32,7 +32,7 @@ target_include_directories(logging
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>     
 )
 target_compile_features(logging PRIVATE cxx_std_17)
-target_link_libraries(logging PUBLIC g3log::g3log)
+target_link_libraries(logging PUBLIC g3log)
 
 set_target_properties(logging PROPERTIES
     PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h;include/logging/Instance.h"
