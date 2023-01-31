@@ -9,6 +9,12 @@
 *-------------------------------------------------------------------------
 */
 
+/***********************************************************************/
+/*! \file cacheops-umode.h
+    \brief A C header that defines the user mode cache operations api.
+*/
+/***********************************************************************/
+
 #ifndef __CACHEOPS_UMODE_H
 #define __CACHEOPS_UMODE_H
 
@@ -27,14 +33,22 @@ enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
 //   Privledged U-Mode cache operations
 //-------------------------------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_priv_evict_sw
-//
-//   This function evicts the specified set and way from the cache hierarchy, up to the provided
-//   destination. Optionally, a repeat count can be specified to evict more adjacent cache lines.
-//   Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
-//
+/*! \fn inline int64_t cache_ops_priv_evict_sw(
+        uint64_t use_tmask, uint64_t dst, uint64_t way, uint64_t set, uint64_t num_lines)
+    \brief  This function evicts the specified set and way from the cache hierarchy, up to the provided
+    destination. Optionally, a repeat count can be specified to evict more adjacent cache lines.
+    Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
+    \param use_tmask use thread mask
+    \param dst  destination address 
+    \param way  cache organization policy
+    \param set  cache associativity
+    \param num_lines  num of cache lines
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_evict_sw api
+    \example cache_ops_priv_evict_sw.c
+    Example(s) of using cache_ops_priv_evict_sw api
+*/
+
 inline int64_t __attribute__((always_inline)) cache_ops_priv_evict_sw(
     uint64_t use_tmask, uint64_t dst, uint64_t way, uint64_t set, uint64_t num_lines)
 {
@@ -44,14 +58,21 @@ inline int64_t __attribute__((always_inline)) cache_ops_priv_evict_sw(
     return syscall(SYSCALL_CACHE_OPS_EVICT_SW, csr_enc, 0, 0);
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_priv_flush_sw
-//
-//   This function writes back the specified set and way up to the provided cached level, if the
-//   line is dirty. Optionally, a repeat count can be specified to flush more adjacent cache lines.
-//   Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
-//
+/*! \fn inline int64_t  cache_ops_priv_flush_sw(
+        uint64_t use_tmask, uint64_t dst, uint64_t way, uint64_t set, uint64_t num_lines)
+    \brief  This function writes back the specified set and way up to the provided cached level, if the
+    line is dirty. Optionally, a repeat count can be specified to flush more adjacent cache lines.
+    Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
+    \param use_tmask use thread mask
+    \param dst  destination address 
+    \param way  cache organization policy
+    \param set  cache associativity
+    \param num_lines  num of cache lines
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_flush_sw api
+    \example cache_ops_priv_flush_sw.c
+    Example(s) of using cache_ops_priv_flush_sw api
+*/
 inline int64_t __attribute__((always_inline)) cache_ops_priv_flush_sw(
     uint64_t use_tmask, uint64_t dst, uint64_t way, uint64_t set, uint64_t num_lines)
 {
@@ -61,12 +82,15 @@ inline int64_t __attribute__((always_inline)) cache_ops_priv_flush_sw(
     return syscall(SYSCALL_CACHE_OPS_FLUSH_SW, csr_enc, 0, 0);
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_priv_l1_cache_lock_sw
-//
-//   Hard-lock and zero a particular set-way in the L1 data cache
-//
+/*! \fn  inline int64_t cache_ops_priv_l1_cache_lock_sw(uint64_t way, uint64_t phy_addr)
+    \brief  Hard-lock and zero a particular set-way in the L1 data cache
+    \param way  cache organization policy
+    \param phy_addr  physical address
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_l1_cache_lock_sw api
+    \example cache_ops_priv_l1_cache_lock_sw.c
+    Example(s) of using cache_ops_priv_l1_cache_lock_sw api
+*/
 inline int64_t __attribute__((always_inline))
 cache_ops_priv_l1_cache_lock_sw(uint64_t way, uint64_t phy_addr)
 {
@@ -75,12 +99,15 @@ cache_ops_priv_l1_cache_lock_sw(uint64_t way, uint64_t phy_addr)
     return syscall(SYSCALL_CACHE_OPS_LOCK_SW, csr_enc, 0, 0);
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_priv_l1_cache_unlock_sw
-//
-//   Hard-unlock and zero a particular set-way in the L1 data cache
-//
+/*! \fn  inline int64_t cache_ops_priv_l1_cache_unlock_sw(uint64_t way, uint64_t set)
+    \brief  Hard-unlock and zero a particular set-way in the L1 data cache
+    \param way  cache organization policy
+    \param set  cache associativity
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_l1_cache_unlock_sw api
+    \example cache_ops_priv_l1_cache_unlock_sw.c
+    Example(s) of using cache_ops_priv_l1_cache_unlock_sw api
+*/
 inline int64_t __attribute__((always_inline))
 cache_ops_priv_l1_cache_unlock_sw(uint64_t way, uint64_t set)
 {
@@ -89,12 +116,15 @@ cache_ops_priv_l1_cache_unlock_sw(uint64_t way, uint64_t set)
     return syscall(SYSCALL_CACHE_OPS_UNLOCK_SW, csr_enc, 0, 0);
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_priv_cache_invalidate
-//
-//   This function invalidates various cache structures used by the minion core.
-//
+/*! \fn  inline int64_t cache_ops_priv_cache_invalidate(uint64_t inval_instr_cache, uint64_t inval_TLBs_and_PTW)
+    \brief  This function invalidates various cache structures used by the minion core.
+    \param inval_instr_cache  invalidate instruction cache
+    \param inval_TLBs_and_PTW  invalidate TLBs and PTW
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_cache_invalidate api
+    \example cache_ops_priv_cache_invalidate.c
+    Example(s) of using cache_ops_priv_cache_invalidate api
+*/
 inline int64_t __attribute__((always_inline))
 cache_ops_priv_cache_invalidate(uint64_t inval_instr_cache, uint64_t inval_TLBs_and_PTW)
 {
@@ -103,13 +133,16 @@ cache_ops_priv_cache_invalidate(uint64_t inval_instr_cache, uint64_t inval_TLBs_
     return syscall(SYSCALL_CACHE_OPS_INVALIDATE, csr_enc, 0, 0);
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_priv_evict_l1
-//
-//   This function invalidates the L1 of the minion core to the desired cache destination level.
-//   The user can optionally use the tensor mask to decide which sets to evict.
-//
+/*! \fn  inline int64_t cache_ops_priv_evict_l1(uint64_t use_tmask, uint64_t dest_level)
+    \brief  This function invalidates the L1 of the minion core to the desired cache destination level.
+    The user can optionally use the tensor mask to decide which sets to evict.
+    \param use_tmask  use thread mask
+    \param dest_level  destination cache level
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_evict_l1 api
+    \example cache_ops_priv_evict_l1.c
+    Example(s) of using cache_ops_priv_evict_l1 api
+*/
 inline int64_t __attribute__((always_inline))
 cache_ops_priv_evict_l1(uint64_t use_tmask, uint64_t dest_level)
 {
@@ -120,15 +153,23 @@ cache_ops_priv_evict_l1(uint64_t use_tmask, uint64_t dest_level)
 //   Instructions available to U-Mode, S-Mode, and M-Mode
 //-------------------------------------------------------------------------------------------------
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_evict_va
-//
-//   This function evicts the specified virtual address from the cache hierarchy, up to the provided
-//   cache level. Optionally, a repeat count can be specified to evict more lines, whose addresses
-//   are calculated using the provided stride.
-//   Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
-//
+/*! \fn  inline int64_t cache_ops_evict_va(uint64_t use_tmask, uint64_t dst,
+         uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+    \brief  This function evicts the specified virtual address from the cache hierarchy, up to the provided
+    cache level. Optionally, a repeat count can be specified to evict more lines, whose addresses
+    are calculated using the provided stride.
+    Optionally, each potential line eviction can be gated by the value of the TensorMask CSR.
+    \param use_tmask  use thread mask
+    \param dst  destination cache level
+    \param addr memory address
+    \param num_lines number of cache lines
+    \param stride memory access pattern
+    \param id id value
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_evict_l1 api
+    \example cache_ops_evict_va.c
+    Example(s) of using cache_ops_priv_evict_l1 api
+*/
 inline void __attribute__((always_inline)) cache_ops_evict_va(uint64_t use_tmask, uint64_t dst,
     uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
@@ -142,28 +183,39 @@ inline void __attribute__((always_inline)) cache_ops_evict_va(uint64_t use_tmask
                          : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_evict
-//
-//   This function evicts all cache lines from address to address+size up to the provided
-//   cache level.
-//
+/*! \fn  inline void cache_ops_evict(enum cop_dest dest, volatile const void *const address, uint64_t size)
+    \brief  This function evicts all cache lines from address to address+size up to the provided cache level.
+    \param dest  destination cache level
+    \param address memory address
+    \param size data size
+    \return none
+    \memops Implementation of cache_ops_evict api
+    \example cache_ops_evict.c
+    Example(s) of using cache_ops_evict api
+*/
 inline void __attribute__((always_inline))
 cache_ops_evict(enum cop_dest dest, volatile const void *const address, uint64_t size)
 {
     cache_ops_evict_va(0, dest, (uint64_t)address, (((uint64_t)address & 0x3F) + size) >> 6, 64, 0);
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_flush_va
-//
-//   This function flushes the specified virtual address from the cache hierarchy, if it is present
-//   and dirty, up to the provided cache level. Optionally, a repeat count can be specified to flush
-//   more lines, whose addresses are calculated using the provided stride.
-//   Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
-//
+/*! \fn  inline void cache_ops_flush_va(uint64_t use_tmask, uint64_t dst,
+    uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+    \brief  This function flushes the specified virtual address from the cache hierarchy, if it is present
+    and dirty, up to the provided cache level. Optionally, a repeat count can be specified to flush
+    more lines, whose addresses are calculated using the provided stride.
+    Optionally, each potential line flush can be gated by the value of the TensorMask CSR.
+    \param use_tmask  use thread mask
+    \param dst  destination cache level
+    \param addr memory address
+    \param num_lines number of cache lines
+    \param stride memory access pattern
+    \param id id value
+    \return none
+    \memops Implementation of cache_ops_flush_va api
+    \example cache_ops_flush_va.c
+    Example(s) of using cache_ops_flush_va api
+*/
 inline void __attribute__((always_inline)) cache_ops_flush_va(uint64_t use_tmask, uint64_t dst,
     uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
@@ -177,15 +229,23 @@ inline void __attribute__((always_inline)) cache_ops_flush_va(uint64_t use_tmask
                          : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_prefetch_va
-//
-//   This function prefetches the provided virtual address to the specified cache level.
-//   Optionally, a repeat count can be provided to pretech more lines, whose addresses are
-//   calculated using the provided stride.
-//   Optionally, each line prefetch can be gated by the value of the TensorMask CSR.
-//
+/*! \fn  inline void  cache_ops_prefetch_va(uint64_t use_tmask, uint64_t dst,
+    uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+    \brief  This function prefetches the provided virtual address to the specified cache level.
+    Optionally, a repeat count can be provided to pretech more lines, whose addresses are
+    calculated using the provided stride.
+    Optionally, each line prefetch can be gated by the value of the TensorMask CSR.
+    \param use_tmask  use thread mask
+    \param dst  destination cache level
+    \param addr memory address
+    \param num_lines number of cache lines
+    \param stride memory access pattern
+    \param id id value
+    \return none
+    \memops Implementation of cache_ops_prefetch_va api
+    \example cache_ops_prefetch_va.c
+    Example(s) of using cache_ops_prefetch_va api
+*/
 inline void __attribute__((always_inline)) cache_ops_prefetch_va(uint64_t use_tmask, uint64_t dst,
     uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
@@ -199,16 +259,23 @@ inline void __attribute__((always_inline)) cache_ops_prefetch_va(uint64_t use_tm
                          : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_lock_va
-//
-//   This function soft-locks the provided virtual address in the L1, meaning that it will never
-//   be chosen for line replacement if other non-locked lines are present in the same set.
-//   Optionally, a repeat count can be provided to soft-lock more lines, whose addresses are
-//   calculated using the provided stride.
-//   Optionally, each line lock can be gated by the value of the TensorMask CSR.
-//
+/*! \fn  inline void  cache_ops_lock_va(
+    uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+    \brief  This function soft-locks the provided virtual address in the L1, meaning that it will never
+    be chosen for line replacement if other non-locked lines are present in the same set.
+    Optionally, a repeat count can be provided to soft-lock more lines, whose addresses are
+    calculated using the provided stride.
+    Optionally, each line lock can be gated by the value of the TensorMask CSR.
+    \param use_tmask  use thread mask
+    \param addr memory address
+    \param num_lines number of cache lines
+    \param stride memory access pattern
+    \param id id value
+    \return none
+    \memops Implementation of cache_ops_lock_va api
+    \example cache_ops_lock_va.c
+    Example(s) of using cache_ops_lock_va api
+*/
 inline void __attribute__((always_inline)) cache_ops_lock_va(
     uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
@@ -221,15 +288,22 @@ inline void __attribute__((always_inline)) cache_ops_lock_va(
                          : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));
 }
 
-//-------------------------------------------------------------------------------------------------
-//
-// FUNCTION: cache_ops_unlock_va
-//
-//   This function removes the soft-lock of the provided virtual address.
-//   Optionally, a repeat count can be provided to unlock more lines, whose addresses are
-//   calculated using the provided stride.
-//   Optionally, each unlock can be gated by the value of the TensorMask CSR.
-//
+/*! \fn  inline void  cache_ops_unlock_va(
+    uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+    \brief  This function removes the soft-lock of the provided virtual address.
+    Optionally, a repeat count can be provided to unlock more lines, whose addresses are
+    calculated using the provided stride.
+    Optionally, each unlock can be gated by the value of the TensorMask CSR.
+    \param use_tmask  use thread mask
+    \param addr memory address
+    \param num_lines number of cache lines
+    \param stride memory access pattern
+    \param id id value
+    \return none
+    \memops Implementation of cache_ops_unlock_va api
+    \example cache_ops_unlock_va.c
+    Example(s) of using cache_ops_unlock_va api
+*/
 inline void __attribute__((always_inline)) cache_ops_unlock_va(
     uint64_t use_tmask, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
@@ -245,6 +319,16 @@ inline void __attribute__((always_inline)) cache_ops_unlock_va(
 //
 // UCACHE_CONTROL
 //
+/*! \fn  inline void  cache_ops_ucache_control(uint64_t scp_en, uint64_t cacheop_rate, uint64_t cacheop_max)
+    \brief  
+    \param scp_en  scratchpad enable bit
+    \param cacheop_rate Cacheop repeat rate.
+    \param cacheop_max number of outstanding requests that the above instructions may issue from a given ET-Minion.
+    \return none
+    \memops Implementation of cache_ops_ucache_control api
+    \example cache_ops_ucache_control.c
+    Example(s) of using cache_ops_ucache_control api
+*/
 inline void __attribute__((always_inline))
 cache_ops_ucache_control(uint64_t scp_en, uint64_t cacheop_rate, uint64_t cacheop_max)
 {
@@ -254,6 +338,14 @@ cache_ops_ucache_control(uint64_t scp_en, uint64_t cacheop_rate, uint64_t cacheo
     __asm__ __volatile__("csrw 0x810, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc) : "x31");
 }
 
+/*! \fn  inline enum l1d_mode cache_ops_get_l1d_mode(void)
+    \brief  this function returns cache l1d mode
+    \return l1d_mode value of l1d mode
+    \memops Implementation of cache_ops_get_l1d_mode api
+    \example cache_ops_get_l1d_mode.c
+    Example(s) of using cache_ops_get_l1d_mode api
+*/
+
 inline enum l1d_mode __attribute__((always_inline)) cache_ops_get_l1d_mode(void)
 {
     uint64_t csr_enc;
@@ -261,6 +353,15 @@ inline enum l1d_mode __attribute__((always_inline)) cache_ops_get_l1d_mode(void)
     return ((csr_enc & 0x3) == 0x3) ? l1d_scp : ((csr_enc & 0x3) == 0x1) ? l1d_split : l1d_shared;
 }
 
+/*! \fn  inline void cache_ops_scp(uint64_t warl, uint64_t DEscratchpad)
+    \brief  This function is used t modify scratchpad control.
+    \param warl  scratchpad warl value
+    \param DEscratchpad scratch pad enable 
+    \return none
+    \memops Implementation of cache_ops_scp api
+    \example cache_ops_scp.c
+    Example(s) of using cache_ops_scp api
+*/
 inline void __attribute__((always_inline)) cache_ops_scp(uint64_t warl, uint64_t DEscratchpad)
 {
     // Hard partition L1 Data cache between the harts
@@ -273,6 +374,15 @@ inline void __attribute__((always_inline)) cache_ops_scp(uint64_t warl, uint64_t
     __asm__ __volatile__("csrw 0x810, %[csr_enc]\n" : : [csr_enc] "r"(csr_enc) : "x31");
 }
 
+/*! \fn  inline void cache_ops_cb_drain(uint64_t drain_shire, uint64_t drain_bank)
+    \brief  Drain the coalescing buffer of shire cache bank
+    \param drain_shire  shire to drain
+    \param drain_bank shire cache bank to drain
+    \return none
+    \memops Implementation of cache_ops_cb_drain api
+    \example cache_ops_cb_drain.c
+    Example(s) of using cache_ops_cb_drain api
+*/
 inline void __attribute__((always_inline))
 cache_ops_cb_drain(uint64_t drain_shire, uint64_t drain_bank)
 {

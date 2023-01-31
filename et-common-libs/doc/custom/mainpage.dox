@@ -25,51 +25,104 @@
  * |                     | #get_neighborhood_id |             |
  * |                     | #get_minion_id       |             |
  * |                     | #get_thread_id       |             |
- * | \ref tensorops      | #tensor_wait         |Primitive to access ET specific HW extensions to execute Tensor operations (Details PRM) |
- * |                     | #tensor_load         |             |
- * |                     | #tensor_load_setup_b |             |
- * |                     | #et_tensor_load_l2scp |             |
- * |                     | #tensor_store_scp    |             |
- * |                     | #tensor_store        |             |
- * |                     | #tensor_fma          |             |
- * |                     | #tensor_reduce_uint32 |             |
- * |                     | #tensor_reduce_float |             |
- * |                     | #tensor_reduce       |             |
- * |                     | #tensor_reduce_send  |             |
- * |                     | #tensor_reduce_recv  |             |
- * |                     | #tensor_reduce_auto  |             |
- * |                     | #tensor_broadcast    |             |
- * |                     | #tensor_reduce_autopair |             |
- * |                     | #tensor_quant        |             |
- * |                     | #tensor_mask         |             |
- * |                     | #tensor_coop         |             |
- * |                     | #convolution_ctrl    |             |
- * |                     | #convolution_size    |             |
- * |                     | #get_tensor_error    |             |
- * |                     | #get_tensor_mask     |             |
- * |  floatingpointops | Fdiv               |SW emulated operation since there is no native HW support. These are not available in the current SW release|
+ * |      tensorops      | tensor_wait         |Primitive to access ET specific HW extensions to execute Tensor operations (Details PRM) |
+ * |                     | tensor_load         |             |
+ * |                     | tensor_load_setup_b |             |
+ * |                     | et_tensor_load_l2scp |             |
+ * |                     | tensor_store_scp    |             |
+ * |                     | tensor_store        |             |
+ * |                     | tensor_fma          |             |
+ * |                     | tensor_reduce_uint32 |             |
+ * |                     | tensor_reduce_float |             |
+ * |                     | tensor_reduce       |             |
+ * |                     | tensor_reduce_send  |             |
+ * |                     | tensor_reduce_recv  |             |
+ * |                     | tensor_reduce_auto  |             |
+ * |                     | tensor_broadcast    |             |
+ * |                     | tensor_reduce_autopair |             |
+ * |                     | tensor_quant        |             |
+ * |                     | tensor_mask         |             |
+ * |                     | tensor_coop         |             |
+ * |                     | convolution_ctrl    |             |
+ * |                     | convolution_size    |             |
+ * |                     | get_tensor_error    |             |
+ * |                     | get_tensor_mask     |             |
+ * |  floatingpointops   | Fdiv                |SW emulated operation since there is no native HW support. These are not available in the current SW release|
  * |                     | Fsqrt               |             |
  * |                     | etc                 |             |
- * | \ref memops         | #evict_sw            |Memory access operations using Esperanto specific ISA extensions|
- * |                     | #flush_sw            |             |
- * |                     | #lock_sw             |             |
- * |                     | #unlock_sw           |             |
- * |                     | #evict_va            |             |
- * |                     | #evict_va_all        |             |
- * |                     | #evict               |             |
- * |                     | #flush_va            |             |
- * |                     | #prefetch_va         |             |
- * |                     | #lock_va             |             |
- * |                     | #unlock_va           |             |
- * |                     | #cache_invalidate    |             |
- * |                     | #get_cache_invalidate |             |
- * |                     | #mcache_control      |             |
- * |                     | #ucache_control      |             |
- * |                     | #get_l1d_mode        |             |
- * |                     | #excl_mode           |             |
- * |                     | #scp                 |             |
- * |                     | #cb_drain            |             | 
- * | \ref syncops        | shire_barrier            |Barriers and synchronization primitives using Esperanto specific ISA extensions|
+ * | \ref memops         | #cache_ops_priv_evict_sw            |Memory access operations using Esperanto specific ISA extensions|
+ * |                     | #cache_ops_priv_flush_sw            |             |
+ * |                     | #cache_ops_priv_l1_cache_lock_sw    |             |
+ * |                     | #cache_ops_priv_l1_cache_unlock_sw  |             |
+ * |                     | #cache_ops_priv_cache_invalidate    |             |
+ * |                     | #cache_ops_priv_evict_l1            |             |
+ * |                     | #cache_ops_evict_va                 |             |
+ * |                     | #cache_ops_evict                    |             |
+ * |                     | #cache_ops_flush_va                 |             |
+ * |                     | #cache_ops_prefetch_va              |             |
+ * |                     | #cache_ops_lock_va                  |             |
+ * |                     | #cache_ops_unlock_va                |             |
+ * |                     | #cache_ops_ucache_control           |             |
+ * |                     | #cache_ops_get_l1d_mode             |             |
+ * |                     | #cache_ops_scp                      |             |
+ * |                     | #cache_ops_cb_drain                 |             |
+ * |                     | #atomic_load_local_8                 |             |
+ * |                     | #atomic_load_local_16                |             |
+ * |                     | #atomic_load_local_32                |             |
+ * |                     | #atomic_load_local_64                |             |
+ * |                     | #atomic_load_global_8                |             |
+ * |                     | #atomic_load_global_16               |             |
+ * |                     | #atomic_load_global_32               |             |
+ * |                     | #atomic_load_global_64               |             |
+ * |                     | #atomic_load_signed_local_8          |             |
+ * |                     | #atomic_load_signed_local_16         |             |
+ * |                     | #atomic_load_signed_local_32         |             |
+ * |                     | #atomic_load_signed_local_64         |             |
+ * |                     | #atomic_load_signed_global_8         |             |
+ * |                     | #atomic_load_signed_global_16        |             |
+ * |                     | #atomic_load_signed_global_32        |             |
+ * |                     | #atomic_load_signed_global_64        |             |
+ * |                     | #atomic_store_local_8                |             |
+ * |                     | #atomic_store_local_16               |             |
+ * |                     | #atomic_store_local_32               |             |
+ * |                     | #atomic_store_local_64               |             |
+ * |                     | #atomic_store_global_8               |             |
+ * |                     | #atomic_store_global_16              |             |
+ * |                     | #atomic_store_global_32              |             |
+ * |                     | #atomic_store_global_64              |             |
+ * |                     | #atomic_store_signed_local_8         |             |
+ * |                     | #atomic_store_signed_local_16        |             |
+ * |                     | #atomic_store_signed_local_32        |             |
+ * |                     | #atomic_store_signed_local_64        |             |
+ * |                     | #atomic_store_signed_global_8        |             |
+ * |                     | #atomic_store_signed_global_16       |             |
+ * |                     | #atomic_store_signed_global_32       |             |
+ * |                     | #atomic_store_signed_global_64       |             |
+ * |                     | #atomic_exchange_local_32            |             |
+ * |                     | #atomic_exchange_local_64            |             |
+ * |                     | #atomic_exchange_global_32           |             |
+ * |                     | #atomic_exchange_global_64           |             |
+ * |                     | #atomic_add_local_32                 |             |
+ * |                     | #atomic_add_local_64                 |             |
+ * |                     | #atomic_add_global_32                |             |
+ * |                     | #atomic_add_global_64                |             |
+ * |                     | #atomic_add_signed_local_32          |             |
+ * |                     | #atomic_add_signed_local_64          |             |
+ * |                     | #atomic_add_signed_global_32         |             |
+ * |                     | #atomic_add_signed_global_64         |             |
+ * |                     | #atomic_and_local_32                 |             |
+ * |                     | #atomic_and_local_64                 |             |
+ * |                     | #atomic_and_global_32                |             |
+ * |                     | #atomic_and_global_64                |             |
+ * |                     | #atomic_or_local_32                  |             |
+ * |                     | #atomic_or_local_64                  |             |
+ * |                     | #atomic_or_global_32                 |             |
+ * |                     | #atomic_or_global_64                 |             |
+ * |                     | #atomic_compare_and_exchange_local_32    |             |
+ * |                     | #atomic_compare_and_exchange_local_64    |             |
+ * |                     | #atomic_compare_and_exchange_global_32   |             |
+ * |                     | #atomic_compare_and_exchange_global_64   |             |
+ * |      syncops        | shire_barrier            |Barriers and synchronization primitives using Esperanto specific ISA extensions|
  * |                     | SEND_FCC             |             |
  * |                     | wait_fcc             |             |
  * |                     | read_fcc             |             |

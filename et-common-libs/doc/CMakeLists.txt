@@ -18,3 +18,5 @@ add_custom_target(doc_doxygen ALL
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Generating API documentation with Doxygen"
     VERBATIM)
+
+message(STATUS "missing components: ${missingComponents}")
