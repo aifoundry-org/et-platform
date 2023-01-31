@@ -198,15 +198,18 @@ void MemoryManager::checkOperation(const std::byte* address, size_t size) const 
   auto lastBlock = compressPointer(address + size - 1);
   auto it = allocated_.upper_bound(firstBlock);
 
+  RT_VLOG(MID) << "Checking mem operation @:" << std::hex << address << " size: " << std::dec << size;
+
   auto throwException = [addressU, size, this] {
     std::stringstream allocs;
     for (auto a : allocated_) {
       allocs << std::hex << "@: " << uncompressPointer(a.first) << " size: " << std::dec << (a.second << blockSizeLog2_)
              << "\n";
     }
-    RT_VLOG(HIGH) << "Allocations:\n" << allocs.str();
+    RT_VLOG(MID) << "Allocations:\n" << allocs.str();
     std::stringstream ss;
     ss << "Invalid memcpy op. Device address: 0x" << std::hex << addressU << " size: " << std::dec << size;
+    RT_VLOG(MID) << "ERROR: " << ss.str();
     throw rt::Exception(ss.str());
   };
   if (it == begin(allocated_)) {
@@ -221,6 +224,7 @@ void MemoryManager::checkOperation(const std::byte* address, size_t size) const 
     }
     it = next;
   }
+  RT_VLOG(MID) << "Check passed Mem operation @:" << std::hex << address << " size: " << std::dec << size;
 }
 
 void MemoryManager::setDebugMode(bool enabled) {

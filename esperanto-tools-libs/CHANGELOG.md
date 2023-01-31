@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15649] Removed generated files
 ### Fixed
 - Some documentation cross references
+- [SW-15881] Fixes data race when checking memory operation. This bug was not present in previous released versions, so no hot fixes are needed.
 ### Security
 ## [0.7.1]
 ### Added

@@ -89,6 +89,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
                                          bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     mm.checkOperation(d_dst, size);
   }
@@ -185,6 +186,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     mm.checkOperation(d_src, size);
   }
@@ -297,6 +299,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
   checkList(streamInfo.device_, memcpyList);
 
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     for (auto& elem : memcpyList.operations_) {
       mm.checkOperation(elem.dst_, elem.size_);
@@ -358,6 +361,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     for (auto& elem : memcpyList.operations_) {
       mm.checkOperation(elem.src_, elem.size_);

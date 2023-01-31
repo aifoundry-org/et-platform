@@ -80,7 +80,8 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
   auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
   auto dramSize = deviceLayer_->getDramSize();
   RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
-               << " Dram size: " << dramSize;
+               << " Dram size: " << dramSize
+               << " Check memcpy operations: " << (checkMemcpyDeviceAddress_ ? "True" : "False");
 
   auto maxElementCount = 0UL;
   auto totalElementSize = 0UL;
