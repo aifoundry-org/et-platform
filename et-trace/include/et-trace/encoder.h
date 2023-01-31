@@ -233,7 +233,8 @@ struct trace_control_block_t {
         event_mask; /*!< This is a bit mask, each bit corresponds to a specific Event to trace. */
     uint32_t
         filter_mask; /*!< This is a bit mask representing a list of filters for a given event to trace. */
-    uint32_t threshold_data; /* !< Value representing data size when threshold was hit. 0 in case threshold was not hit. */
+    uint32_t threshold_data; /* !< deprecated: to be removed */
+    uint8_t threshold_notified; /* !< Boolean to check if threshold notification is generated or not */
     uint8_t enable; /*!< Enable/Disable Trace. */
     uint8_t header; /*!< Buffer header type of value trace_header_type_e */
 } __attribute__((aligned(64)));
@@ -560,9 +561,9 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
         /* Check if host needs to be notified about reaching buffer threshold limit.
            This notification is only needed once when it reaches threshold for the first time,
            so this checks if we just reached threshold by including current data size. */
-        if (!ET_TRACE_READ_U32(cb->threshold_data)) {
-            /* Set the data size when the threshold was hit */
-            ET_TRACE_WRITE_U32(cb->threshold_data, current_offset);
+        if (!ET_TRACE_READ_U8(cb->threshold_notified)) {
+            /* Set the flag to indicate notification is generated */
+            ET_TRACE_WRITE_U8(cb->threshold_notified, 1);
             /* Set flag to generate notification */
             generate_notification = true;
         }
@@ -571,8 +572,8 @@ static inline void *trace_buffer_reserve(struct trace_control_block_t *cb, uint6
         if (trace_check_buffer_full(cb, size, current_offset)) {
             /* Reset buffer. */
             current_offset = trace_get_header_size(cb);
-            /* Reset the threshold data size */
-            ET_TRACE_WRITE_U32(cb->threshold_data, 0);
+            /* Reset the threshold notification flag */
+            ET_TRACE_WRITE_U8(cb->threshold_notified, 0);
         }
     }
 
@@ -664,7 +665,8 @@ int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contr
     cb->threshold = ((init_info->threshold > 0) || (init_info->threshold < cb->size_per_hart)) ?
                       init_info->threshold : cb->size_per_hart;
     cb->header = buff_header;
-    cb->threshold_data = 0;
+    cb->threshold_data = 0; /* deprecated, to be removed */
+    cb->threshold_notified = 0;
     cb->enable = TRACE_ENABLE;
 
     return TRACE_STATUS_SUCCESS;

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-15697] Changing threshold data in CB to threshold notify flag.
 ### Deprecated
 ### Removed
 ### Fixed
