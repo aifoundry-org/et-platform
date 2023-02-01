@@ -5,6 +5,7 @@
 
 /* Include api specific header */
 #include <etsoc/isa/hart.h>
+#include "utils.h"
 
 int main(void)
 {

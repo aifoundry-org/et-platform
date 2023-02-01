@@ -1,13 +1,20 @@
-/*-------------------------------------------------------------------------
-* Copyright (C) 2019, Esperanto Technologies Inc.
-* The copyright to the computer program(s) herein is the
-* property of Esperanto Technologies, Inc. All Rights Reserved.
-* The program(s) may be used and/or copied only with
-* the written permission of Esperanto Technologies and
-* in accordance with the terms and conditions stipulated in the
-* agreement/contract under which the program(s) have been supplied.
-*-------------------------------------------------------------------------
+/***********************************************************************/
+/*! \copyright
+  Copyright (C) 2019 Esperanto Technologies Inc.
+  The copyright to the computer program(s) herein is the
+  property of Esperanto Technologies, Inc. All Rights Reserved.
+  The program(s) may be used and/or copied only with
+  the written permission of Esperanto Technologies and
+  in accordance with the terms and conditions stipulated in the
+  agreement/contract under which the program(s) have been supplied.
 */
+/***********************************************************************/
+
+/***********************************************************************/
+/*! \file barriers.h
+    \brief Header/Interface description for Barrier services
+*/
+/***********************************************************************/
 
 #ifndef _BARRIERS_H_
 #define _BARRIERS_H_
@@ -27,18 +34,29 @@ extern "C" {
 #define EXTERN_C
 #endif
 
-// Shire-only barrier using FLBs and FCCs
-inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint64_t fcc, uint64_t thread_count, uint64_t minion_mask_t0, uint64_t minion_mask_t1)
+/*! \fn inline uint64_t shire_barrier(uint64_t flb, uint64_t fcc, uint64_t thread_count, uint64_t minion_mask_t0, uint64_t minion_mask_t1)
+    \brief Shire-only barrier using FLBs and FCCs
+    \param flb FLbarrier value
+    \param fcc  FCC value
+    \param thread_count active thread count
+    \param minion_mask_t0 Mask of active thread0 minions
+    \param minion_mask_t1 Mask of active thread1 minions
+    \return last thread to reach barrier
+    \syncops Implementation of shire_barrier api
+*/
+inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint64_t fcc,
+    uint64_t thread_count, uint64_t minion_mask_t0, uint64_t minion_mask_t1)
 {
-  uint64_t last = flbarrier(flb, thread_count - 1);
+    uint64_t last = flbarrier(flb, thread_count - 1);
 
-  if (last) {
-    fcc_send(SHIRE_OWN, THREAD_0, fcc, minion_mask_t0);
-    fcc_send(SHIRE_OWN, THREAD_1, fcc, minion_mask_t1);
-  }
-  fcc_consume(fcc);
+    if (last)
+    {
+        fcc_send(SHIRE_OWN, THREAD_0, fcc, minion_mask_t0);
+        fcc_send(SHIRE_OWN, THREAD_1, fcc, minion_mask_t1);
+    }
+    fcc_consume(fcc);
 
-  return last;
+    return last;
 }
 
 #ifdef __cplusplus
@@ -46,4 +64,3 @@ inline uint64_t __attribute__((always_inline)) shire_barrier(uint64_t flb, uint6
 #endif
 
 #endif
-

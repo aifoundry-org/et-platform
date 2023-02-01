@@ -10,7 +10,7 @@
 */
 /***********************************************************************/
 /*! \file atomic.h
-    \brief A C header that defines the hart service available.
+    \brief A C header that defines the atomic load/store services available.
 */
 /***********************************************************************/
 #ifndef ATOMIC_H
@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+
 /*! \fn  static inline uint8_t atomic_load_local_8(volatile const uint8_t *address)
     \brief  This function load a byte using local atomics.
     \param address  address to load data from

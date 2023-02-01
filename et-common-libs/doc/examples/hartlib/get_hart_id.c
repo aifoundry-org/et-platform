@@ -7,6 +7,7 @@
 
 /* Include api specific header */
 #include <etsoc/isa/hart.h>
+#include "utils.h"
 
 /* Stub implementation */
 void launch_msg_dispatcher()

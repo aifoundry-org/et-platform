@@ -25,7 +25,7 @@
  * |                     | #get_neighborhood_id |             |
  * |                     | #get_minion_id       |             |
  * |                     | #get_thread_id       |             |
- * | \ref tensorops      | #tensor_wait         |Primitive to access ET specific HW extensions to execute Tensor operations (Details PRM) |
+ * | \ref tensorops      | #tensor_wait         |Primitives to access Esperanto specific hardware extensions to execute Tensor operations. For more details, consult the Programmer's Reference Manual.
  * |                     | #et_tensor_load         |             |
  * |                     | #et_tensor_load_l2scp |             |
  * |                     | #tensor_store_scp    |             |
@@ -46,9 +46,6 @@
  * |                     | #convolution_size    |             |
  * |                     | #get_tensor_error    |             |
  * |                     | #get_tensor_mask     |             |
- * |  floatingpointops   | Fdiv               |SW emulated operation since there is no native HW support. These are not available in the current SW release|
- * |                     | Fsqrt               |             |
- * |                     | etc                 |             |
  * | \ref memops         | #cache_ops_priv_evict_sw            |Memory access operations using Esperanto specific ISA extensions|
  * |                     | #cache_ops_priv_flush_sw            |             |
  * |                     | #cache_ops_priv_l1_cache_lock_sw    |             |
@@ -121,27 +118,32 @@
  * |                     | #atomic_compare_and_exchange_local_64    |             |
  * |                     | #atomic_compare_and_exchange_global_32   |             |
  * |                     | #atomic_compare_and_exchange_global_64   |             |
- * |      syncops        | shire_barrier            |Barriers and synchronization primitives using Esperanto specific ISA extensions|
- * |                     | SEND_FCC             |             |
- * |                     | wait_fcc             |             |
- * |                     | read_fcc             |             |
- * |                     | READ_FLB             |             |
- * |                     | WAIT_FLB             |             |
- * |                     | local_fcc_barrier    |             |
- * |                     | local_fcc_flag_wait  |             |
- * |                     | local_fcc_flag_notify |             |
- * |                     | local_fcc_flag_notify_no_ack |             |
- * |                     | global_fcc_wait         |             |
- * |                     | global_fcc_notify       |             |
- * |                     | global_fcc_flag_wait    |             |
- * |                     | global_fcc_flag_notify  |             |
- * |                     | local_fcc_flag_notify   |             |
- * |                     | acquire_global_spinlock |             |
- * |                     | release_global_spinlock |             |
- * |                     | init_local_spinlock     |             |
- * |                     | acquire_local_spinlock  |             |
- * |                     | release_local_spinlock  |             |
- * |                     | local_spinwait_set      |             |
- * |                     | local_spinwait_wait     |             |
- * |                     | local_fcc_flag_notify   |             |
+ * | \ref syncops        | #shire_barrier                |Barriers and synchronization primitives using Esperanto specific ISA extensions|
+ * |                     | #SEND_FCC                     |             |
+ * |                     | #wait_fcc                     |             |
+ * |                     | #read_fcc                     |             |
+ * |                     | #READ_FLB                     |             |
+ * |                     | #WAIT_FLB                     |             |
+ * |                     | #local_fcc_barrier_init       |             |
+ * |                     | #local_fcc_barrier            |             |
+ * |                     | #local_fcc_flag_init          |             |
+ * |                     | #local_fcc_flag_wait          |             |
+ * |                     | #local_fcc_flag_notify        |             |
+ * |                     | #local_fcc_flag_notify_no_ack |             |
+ * |                     | #global_fcc_init              |             |
+ * |                     | #global_fcc_wait              |             |
+ * |                     | #global_fcc_notify            |             |
+ * |                     | #global_fcc_flag_init         |             |
+ * |                     | #global_fcc_flag_wait         |             |
+ * |                     | #global_fcc_flag_notify       |             |
+ * |                     | #init_global_spinlock         |             |
+ * |                     | #acquire_global_spinlock      |             |
+ * |                     | #release_global_spinlock      |             |
+ * |                     | #init_local_spinlock          |             |
+ * |                     | #acquire_local_spinlock       |             |
+ * |                     | #release_local_spinlock       |             |
+ * |                     | #local_spinwait_set           |             |
+ * |                     | #local_spinwait_wait          |             |
+ * |                     | #tensorwait                   |             |
+ * |                     | #fcc_send                     |             |
  */

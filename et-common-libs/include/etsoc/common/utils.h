@@ -9,7 +9,7 @@
   agreement/contract under which the program(s) have been supplied.
 */
 /***********************************************************************/
-/*! \file utils.h
+/*! \file include/etsoc/common/utils.h
     \brief A C header that defines the common util routines to be used.
 */
 /***********************************************************************/

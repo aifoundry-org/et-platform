@@ -21,44 +21,6 @@
 extern "C" {
 #endif
 
-#define QUANT_LAST_TRANS    0
-#define QUANT_INT32_TO_FP32 1
-#define QUANT_FP32_TO_INT32 2
-#define QUANT_RELU          3
-#define QUANT_INT32_ADD_ROW 4
-#define QUANT_INT32_ADD_COL 5
-#define QUANT_FP32_MUL_ROW  6
-#define QUANT_FP32_MUL_COL  7
-#define QUANT_SATINT8       8
-#define QUANT_SATUINT8      9
-#define QUANT_PACK_128B     10
-
-#define TENSOR_REDUCE_OP_FADD 0
-// #define TENSOR_REDUCE_OP_FSUB 1 -- Not supported
-#define TENSOR_REDUCE_OP_FMAX 2
-#define TENSOR_REDUCE_OP_FMIN 3
-#define TENSOR_REDUCE_OP_IADD 4
-// #define TENSOR_REDUCE_OP_ISUB 5 -- Not supported
-#define TENSOR_REDUCE_OP_IMAX 6
-#define TENSOR_REDUCE_OP_IMIN 7
-#define TENSOR_REDUCE_OP_FGET 8
-
-#define TENSOR_LOAD_WAIT_0 0
-#define TENSOR_LOAD_WAIT_1 1
-#define TENSOR_FMA_WAIT    7
-#define TENSOR_STORE_WAIT  8
-#define TENSOR_REDUCE_WAIT 9
-#define TENSOR_QUANT_WAIT  10
-
-#define TENSOR_ERROR_LOAD_TRANSFORM 1
-#define TENSOR_ERROR_FCC_OVERFLOW   3
-#define TENSOR_ERROR_SCP_DISABLED   4
-#define TENSOR_ERROR_LOCKSW         5
-#define TENSOR_ERROR_TL1_FMA        6
-#define TENSOR_ERROR_MEM_FAULT      7
-#define TENSOR_ERROR_STORE_COOP     8
-#define TENSOR_ERROR_REDUCE         9
-
 #if defined(__cplusplus) && (__cplusplus >= 201103L)
 #include <cinttypes>
 #include <cstdbool>
@@ -67,6 +29,204 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
+/*! \def QUANT_LAST_TRANS
+    \brief Tensor Quant instruction: Do not perform any more transformations.
+*/
+#define QUANT_LAST_TRANS 0
+
+/*! \def QUANT_INT32_TO_FP32
+    \brief Tensor Quant instruction: Convert all elements of A from 32-bit signed integer values to single-precision
+    floating-point values.
+*/
+#define QUANT_INT32_TO_FP32 1
+
+/*! \def QUANT_FP32_TO_INT32
+    \brief Tensor Quant instruction: Convert all elements of A from single-precision floating-point values to 32-
+    bit signed integer values.
+*/
+#define QUANT_FP32_TO_INT32 2
+
+/*! \def QUANT_RELU
+    \brief Tensor Quant instruction: Convert all negative INT32 values in A to 0
+*/
+#define QUANT_RELU 3
+
+/*! \def QUANT_INT32_ADD_ROW
+    \brief Tensor Quant instruction: Read the low-order COLS+1 32-bit signed integer values from an L1
+    scratchpad line, and add this vector to every row of the 32-bit signed integer
+    matrix A.
+*/
+#define QUANT_INT32_ADD_ROW 4
+
+/*! \def QUANT_INT32_ADD_COL
+    \brief Tensor Quant instruction: Read the low-order ROWS+1 32-bit signed integer values from an L1
+    scratchpad line, and add this vector to every column of the 32-bit signed
+    integer matrix A.
+*/
+#define QUANT_INT32_ADD_COL 5
+
+/*! \def QUANT_FP32_MUL_ROW
+    \brief Tensor Quant instruction: Read the low-order COLS+1 single-precision floating-point values from an
+    L1 scratchpad line, and multiply the single-precision elements of each row
+    of matrix A element-wise by this vector.
+*/
+#define QUANT_FP32_MUL_ROW 6
+
+/*! \def QUANT_FP32_MUL_COL
+    \brief Tensor Quant instruction: Read the low-order ROWS+1 single-precision floating-point values from an
+    L1 scratchpad line, and multiply the single-precision elements of each col-
+    umn of matrix A element-wise by this vector.
+*/
+#define QUANT_FP32_MUL_COL 7
+
+/*! \def QUANT_SATINT8
+    \brief Tensor Quant instruction: Clamp all 32-bit signed integer values in A to the range [-128, 127]. 
+    The values are written in bits 7:0 of each element, with bits 31:8 set to zero.
+*/
+#define QUANT_SATINT8 8
+
+/*! \def QUANT_SATUINT8
+    \brief Tensor Quant instruction: Clamp all 32-bit signed integer values in A to the range [0, 255]. The values
+    are written in bits 7:0 of each element, with bits 31:8 set to zero.
+*/
+#define QUANT_SATUINT8 9
+
+/*! \def QUANT_PACK_128B
+    \brief Tensor Quant instruction: Copy the low-order byte of the n-th 32-bit value in each row of A to the n-th
+    byte of the row.
+*/
+#define QUANT_PACK_128B 10
+
+/*! \def TENSOR_REDUCE_OP_FADD
+    \brief Tensor Reduce instruction: The result is the addition of the incoming single-precision floating-point data
+    and the single-precision floating-point values in the vector register file.
+*/
+#define TENSOR_REDUCE_OP_FADD 0
+
+// #define TENSOR_REDUCE_OP_FSUB 1 -- Not supported
+
+/*! \def TENSOR_REDUCE_OP_FMAX
+    \brief Tensor Reduce instruction: The result is the maximum of the incoming single-precision floating-point data
+and the single-precision floating-point values in the vector register file.
+*/
+#define TENSOR_REDUCE_OP_FMAX 2
+
+/*! \def TENSOR_REDUCE_OP_FMIN
+    \brief Tensor Reduce instruction: The result is the minimum of the incoming single-precision floating-point data
+and the single-precision floating-point values in the vector register file..
+*/
+#define TENSOR_REDUCE_OP_FMIN 3
+
+/*! \def TENSOR_REDUCE_OP_IADD
+    \brief Tensor Reduce instruction: The result is the addition of the incoming 32-bit integer data and the 32-bit inte-
+ger values in the vector register file.
+*/
+#define TENSOR_REDUCE_OP_IADD 4
+
+// #define TENSOR_REDUCE_OP_ISUB 5 -- Not supported
+
+/*! \def TENSOR_REDUCE_OP_IMAX
+    \brief Tensor Reduce instruction: The result is the maximum of the incoming 32-bit signed integer data and the
+32-bit signed integer values in the vector register file.
+*/
+#define TENSOR_REDUCE_OP_IMAX 6
+
+/*! \def TENSOR_REDUCE_OP_IMIN
+    \brief Tensor Reduce instruction: The result is the minimum of the incoming 32-bit signed integer data and the
+32-bit signed integer values in the vector register file.
+*/
+#define TENSOR_REDUCE_OP_IMIN 7
+
+/*! \def TENSOR_REDUCE_OP_FGET
+    \brief Tensor Reduce instruction get function to be performed
+*/
+#define TENSOR_REDUCE_OP_FGET 8
+
+/*! \def TENSOR_LOAD_WAIT_0
+    \brief Tensor load to L1 Scratchpad with ID = 0 is complete.
+*/
+#define TENSOR_LOAD_WAIT_0 0
+
+/*! \def TENSOR_LOAD_WAIT_1
+    \brief Tensor load to L1 Scratchpad with ID = 1 is complete.
+*/
+#define TENSOR_LOAD_WAIT_1 1
+
+/*! \def TENSOR_FMA_WAIT
+    \brief All previous tensor matrix multiplication instructions are complete.
+*/
+#define TENSOR_FMA_WAIT 7
+
+/*! \def TENSOR_STORE_WAIT
+    \brief All previous tensor store instructions are complete.
+*/
+#define TENSOR_STORE_WAIT 8
+
+/*! \def TENSOR_REDUCE_WAIT
+    \brief All previous tensor reduction instructions are complete
+*/
+#define TENSOR_REDUCE_WAIT 9
+
+/*! \def TENSOR_QUANT_WAIT
+    \brief TensorQuant is complete
+*/
+#define TENSOR_QUANT_WAIT 10
+
+/*! \def TENSOR_ERROR_LOAD_TRANSFORM
+    \brief Define for tensor load transform error.
+*/
+#define TENSOR_ERROR_LOAD_TRANSFORM 1
+
+/*! \def TENSOR_ERROR_FCC_OVERFLOW
+    \brief Define for tensor fcc overflow error.
+*/
+#define TENSOR_ERROR_FCC_OVERFLOW 3
+
+/*! \def TENSOR_ERROR_SCP_DISABLED
+    \brief Define for tensor scp disabled error.
+*/
+#define TENSOR_ERROR_SCP_DISABLED 4
+
+/*! \def TENSOR_ERROR_LOCKSW
+    \brief Define for tensor locksw error.
+*/
+#define TENSOR_ERROR_LOCKSW 5
+
+/*! \def TENSOR_ERROR_TL1_FMA
+    \brief Define for L1 FMA error.
+*/
+#define TENSOR_ERROR_TL1_FMA 6
+
+/*! \def TENSOR_ERROR_MEM_FAULT
+    \brief Define for Memory fault error.
+*/
+#define TENSOR_ERROR_MEM_FAULT 7
+
+/*! \def TENSOR_ERROR_STORE_COOP
+    \brief Define for store coop error.
+*/
+#define TENSOR_ERROR_STORE_COOP 8
+
+/*! \def TENSOR_ERROR_REDUCE
+    \brief Define for tensor reduce error.
+*/
+#define TENSOR_ERROR_REDUCE 9
+
+/*! \struct et_tensor_load_l2scp_conf
+    \brief Tensor load from scp instruction configuration structure.
+*/
+typedef struct et_tensor_load_l2scp_conf {
+    bool use_tmask;
+    uint64_t dst_start;
+    uint64_t addr;
+    uint64_t num_lines;
+    uint64_t stride;
+    uint64_t id;
+} et_tensor_load_l2scp_conf_t;
+
+/*! \enum reduce_transform_t
+    \brief enum transform mode for tensor reduce.
+*/
 typedef enum {
     FADD = 0x0ULL,
     FSUB = 0x1ULL,
@@ -78,6 +238,23 @@ typedef enum {
     IMIN = 0x7ULL,
     FGET = 0x8ULL
 } reduce_transform_t;
+
+/*! \struct et_tensor_load_conf
+    \brief Tensor load instruction configuration structure.
+*/
+typedef struct et_tensor_load_conf {
+    bool use_tmask;
+    bool use_coop;
+    bool use_tenb;
+    uint64_t dst_start;
+    uint64_t transformation;
+    uint64_t rd_l2scp;
+    uint64_t addr;
+    uint64_t offset;
+    uint64_t num_lines;
+    uint64_t stride;
+    uint64_t id;
+} et_tensor_load_conf_t;
 
 /*! \fn inline void tensor_wait(long id)
     \brief Tensor wait instruction, Tensor Wait can be used to stall execution until
@@ -91,6 +268,22 @@ inline __attribute__((always_inline)) void tensor_wait(long id)
     __asm__ __volatile__(" csrw 0x830, %[id]\n" : : [id] "r"(id) : "memory");
 }
 
+/*! \fn inline void tensor_load (tensor_load *conf)
+    \brief Tensor load instruction, it loads data from memory (bypass-ing the L1 cache) 
+    into the L1 scratchpad. Input parameter defines the configuration to tensor load.
+    \param use_tmask the tensor_mask register is used for this operation
+    \param use_coop the operation is a cooperative tensor load.
+    \param dst_start L1 Scratchpad starting cache line
+    \param transformation These bits, along with bit 52, decodes the type of tensor operation.
+    \param use_tenb This bit, along with transformation, decodes the type of tensor operation.
+    \param addr tensor load address
+    \param offset tensor load address offset
+    \param num_lines tensor load number of cache lines
+    \param stride tensor load stride value
+    \param id tensor load id  
+    \return none
+    \tensorops Implementation of tensor_load api
+*/
 inline void __attribute__((always_inline)) tensor_load(bool use_tmask, bool use_coop,
     uint64_t dst_start, uint64_t transformation, uint64_t use_tenb, uint64_t addr, uint64_t offset,
     uint64_t num_lines, uint64_t stride, uint64_t id)
@@ -108,20 +301,6 @@ inline void __attribute__((always_inline)) tensor_load(bool use_tmask, bool use_
     );
 }
 
-typedef struct et_tensor_load_conf {
-    bool use_tmask;
-    bool use_coop;
-    bool use_tenb;
-    uint64_t dst_start;
-    uint64_t transformation;
-    uint64_t rd_l2scp;
-    uint64_t addr;
-    uint64_t offset;
-    uint64_t num_lines;
-    uint64_t stride;
-    uint64_t id;
-} et_tensor_load_conf_t;
-
 /*! \fn inline void et_tensor_load (et_tensor_load_conf_t *conf)
     \brief Tensor load instruction, it loads data from memory (bypass-ing the L1 cache) 
     into the L1 scratchpad. Input parameter defines the configuration to tensor load.
@@ -136,6 +315,16 @@ inline void __attribute__((always_inline)) et_tensor_load(et_tensor_load_conf_t 
         conf->id);
 }
 
+/*! \fn inline void tensor_load_setup_b(bool use_coop, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
+    \brief Tensor load instruction setup
+    \param use_coop the operation is a cooperative tensor load.
+    \param addr tensor load address
+    \param num_lines tensor load number of cache lines
+    \param stride tensor load stride value
+    \param id tensor load id  
+    \return none
+    \tensorops Implementation of tensor_load_setup_b api
+*/
 inline void __attribute__((always_inline))
 tensor_load_setup_b(bool use_coop, uint64_t addr, uint64_t num_lines, uint64_t stride, uint64_t id)
 {
@@ -147,15 +336,6 @@ tensor_load_setup_b(bool use_coop, uint64_t addr, uint64_t num_lines, uint64_t s
                          :
                          : [x31_enc] "r"(x31_enc), [csr_enc] "r"(csr_enc));
 }
-
-typedef struct et_tensor_load_l2scp_conf {
-    bool use_tmask;
-    uint64_t dst_start;
-    uint64_t addr;
-    uint64_t num_lines;
-    uint64_t stride;
-    uint64_t id;
-} et_tensor_load_l2scp_conf_t;
 
 /*! \fn inline void et_tensor_load_l2scp (et_tensor_load_l2scp_conf_t *conf)
     \brief Tensor load l2scp loads data from memory (bypassing the L1 and L2 caches) into the L2 scratchpad.

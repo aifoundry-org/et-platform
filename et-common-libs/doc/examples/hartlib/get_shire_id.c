@@ -6,6 +6,7 @@
 
 /* Include api specific header */
 #include <etsoc/isa/hart.h>
+#include "utils.h"
 
 /* Example define of master shire id */
 #define MASTER_SHIRE 32
