@@ -86,8 +86,8 @@ void CommandSender::setCommandData(EventId command, std::vector<std::byte> data)
 }
 
 void CommandSender::enable(EventId event) {
+  RT_VLOG(MID) << "Enabling command " << static_cast<int>(event);
   SpinLock lock(mutex_);
-  RT_VLOG(HIGH) << "Enabling command " << static_cast<int>(event);
   auto it =
     std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
   if (it == end(commands_)) {
@@ -117,7 +117,7 @@ std::optional<EventId> CommandSender::getFirstDmaCommand() const {
 
 void CommandSender::cancel(EventId event) {
   SpinLock lock(mutex_);
-  RT_VLOG(HIGH) << "Cancel command " << static_cast<int>(event);
+  RT_VLOG(MID) << "Cancel command " << static_cast<int>(event);
   auto it =
     std::find_if(begin(commands_), end(commands_), [event](const Command& elem) { return elem.eventId_ == event; });
   if (it != end(commands_)) {
@@ -142,7 +142,7 @@ void CommandSender::runnerFunc() {
         if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                  flags)) {
           RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
-                       << "SQ: " << sqIdx_;
+                       << " SQ: " << sqIdx_ << " EventId: " << static_cast<int>(cmd.eventId_);
 
           profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
           event.setEvent(cmd.eventId_);

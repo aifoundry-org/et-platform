@@ -88,11 +88,12 @@ void MemcpyCommandBuilder::clear() {
 EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                          bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
+  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
-    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     mm.checkOperation(d_dst, size);
   }
+  lock.unlock();
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
@@ -103,6 +104,10 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
   // start sending a "ghost" command which will be create the needed barrier in command sender until we have sent all
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
+
+  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
+  // be that later tasks are waiting for this command. See BUG SW-15901
+  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
@@ -176,6 +181,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
     RT_VLOG(MID) << "H2D: Cancelled GHOST command: " << static_cast<int>(evt);
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }
@@ -185,11 +191,12 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
+  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
-    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     mm.checkOperation(d_src, size);
   }
+  lock.unlock();
   auto evt = eventManager_.getNextId();
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << " EventId: " << static_cast<int>(evt)
                << std::hex << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
@@ -197,8 +204,12 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
 
   // start sending a "ghost" command which will be create the needed barrier in command sender until we have sent all
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
-  // addresses and sizes in the queue or we will have to chunk them
+  // addresses and sizes in the queue or we will have to chunk them.
 
+  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
+  // be that later tasks are waiting for this command. See BUG SW-15901
+
+  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
@@ -289,6 +300,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
     RT_VLOG(MID) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }
@@ -298,13 +310,14 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
 
+  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
-    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     for (auto& elem : memcpyList.operations_) {
       mm.checkOperation(elem.dst_, elem.size_);
     }
   }
+  lock.unlock();
 
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -313,6 +326,9 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
+  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
+  // be that later tasks are waiting for this command. See BUG SW-15901
+  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
@@ -353,6 +369,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     eventManager_.addOnDispatchCallback({{evt}, [cmaManager, cmaPtr] { cmaManager->free(cmaPtr); }});
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }
@@ -360,13 +377,14 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                                          const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
+  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
-    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     for (auto& elem : memcpyList.operations_) {
       mm.checkOperation(elem.src_, elem.size_);
     }
   }
+  lock.unlock();
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
@@ -374,6 +392,9 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
+  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
+  // be that later tasks are waiting for this command. See BUG SW-15901
+  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
@@ -428,6 +449,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
        }});
     RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
   });
+  lock.unlock();
   Sync(evt);
   return evt;
 }

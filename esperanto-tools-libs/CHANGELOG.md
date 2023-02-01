@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Some documentation cross references
 - [SW-15881] Fixes data race when checking memory operation. This bug was not present in previous released versions, so no hot fixes are needed.
+- [SW-15901] Introduces locks back again to ensure no lower prio commands block inside the threadpools without leaving room for high priority commands to execute. This bug is not present in previous runtime releases AFAIK.
 ### Security
 ## [0.7.1]
 ### Added

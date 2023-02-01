@@ -141,6 +141,7 @@ void Worker::start(int numIterations, bool computeOpStats, bool discardFirst) {
       listD2H.back().addOp(dD2H_ + i * size, hD2H_.data() + i * size, size);
     }
     for (int i = 0; i < numIterations; ++i) {
+      BM_VLOG(MID) << "Doing interation: " << i;
       doIteration(computeOpStats, shireMask, listH2D, listD2H, opstats);
     }
     if (computeOpStats) {
@@ -149,6 +150,7 @@ void Worker::start(int numIterations, bool computeOpStats, bool discardFirst) {
         e.setEnd();
       }
     } else {
+      BM_VLOG(MID) << "End submitting work, wait to finish";
       runtime_.waitForStream(stream_);
     }
     auto et = std::chrono::high_resolution_clock::now() - start;
