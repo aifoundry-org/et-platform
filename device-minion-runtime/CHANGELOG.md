@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Updating the gitlab CI repo pointer to latest.
+- [SW-15697] Replacing threshold_data with threshold value in trace buffer full notification.
 ### Deprecated
 ### Removed
 ### Fixed

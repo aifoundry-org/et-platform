@@ -165,7 +165,7 @@ static inline void et_trace_threshold_notify(const struct trace_control_block_t 
     event.event_info.event_hdr.size = sizeof(event) - sizeof(struct cmn_header_t);
     event.event_info.event_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT;
     event.buffer_type = (uint8_t)ET_TRACE_READ_U16(trace_header->type);
-    event.data_size = ET_TRACE_READ_U32(cb->threshold_data);
+    event.data_size = ET_TRACE_READ_U32(cb->threshold);
 
     /* Push the event to CQ - ignore error in case of failure */
     Host_Iface_CQ_Push_Cmd(0, &event, sizeof(event));

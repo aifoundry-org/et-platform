@@ -119,7 +119,7 @@ static inline void et_trace_threshold_notify(const struct trace_control_block_t 
     {
         cm_to_mm_message_fw_trace_buffer_full_t message = {
             .header.id = CM_TO_MM_MESSAGE_ID_FW_TRACE_BUFFER_FULL,
-            .data_size = cb->threshold_data,
+            .data_size = cb->threshold,
             .buffer_type = (uint8_t)trace_header->type
         };
 
