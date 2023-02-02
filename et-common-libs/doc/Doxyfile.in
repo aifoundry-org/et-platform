@@ -801,6 +801,7 @@ INPUT                  = @PROJECT_SOURCE_DIR@/include/etsoc/common/utils.h \
                          @PROJECT_SOURCE_DIR@/include/etsoc/isa/hart.h \
                          @PROJECT_SOURCE_DIR@/include/etsoc/isa/cacheops-umode.h \
                          @PROJECT_SOURCE_DIR@/include/etsoc/isa/atomic.h \
+                         @PROJECT_SOURCE_DIR@/include/etsoc/isa/tensors.h \
                          @CMAKE_CURRENT_SOURCE_DIR@/custom/ \
                          @CMAKE_CURRENT_SOURCE_DIR@/ \
 

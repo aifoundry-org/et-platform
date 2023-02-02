@@ -25,29 +25,28 @@
  * |                     | #get_neighborhood_id |             |
  * |                     | #get_minion_id       |             |
  * |                     | #get_thread_id       |             |
- * |      tensorops      | tensor_wait         |Primitive to access ET specific HW extensions to execute Tensor operations (Details PRM) |
- * |                     | tensor_load         |             |
- * |                     | tensor_load_setup_b |             |
- * |                     | et_tensor_load_l2scp |             |
- * |                     | tensor_store_scp    |             |
- * |                     | tensor_store        |             |
- * |                     | tensor_fma          |             |
- * |                     | tensor_reduce_uint32 |             |
- * |                     | tensor_reduce_float |             |
- * |                     | tensor_reduce       |             |
- * |                     | tensor_reduce_send  |             |
- * |                     | tensor_reduce_recv  |             |
- * |                     | tensor_reduce_auto  |             |
- * |                     | tensor_broadcast    |             |
- * |                     | tensor_reduce_autopair |             |
- * |                     | tensor_quant        |             |
- * |                     | tensor_mask         |             |
- * |                     | tensor_coop         |             |
- * |                     | convolution_ctrl    |             |
- * |                     | convolution_size    |             |
- * |                     | get_tensor_error    |             |
- * |                     | get_tensor_mask     |             |
- * |  floatingpointops   | Fdiv                |SW emulated operation since there is no native HW support. These are not available in the current SW release|
+ * | \ref tensorops      | #tensor_wait         |Primitive to access ET specific HW extensions to execute Tensor operations (Details PRM) |
+ * |                     | #et_tensor_load         |             |
+ * |                     | #et_tensor_load_l2scp |             |
+ * |                     | #tensor_store_scp    |             |
+ * |                     | #tensor_store        |             |
+ * |                     | #tensor_fma          |             |
+ * |                     | #tensor_reduce_uint32 |             |
+ * |                     | #tensor_reduce_float |             |
+ * |                     | #tensor_reduce       |             |
+ * |                     | #tensor_reduce_send  |             |
+ * |                     | #tensor_reduce_recv  |             |
+ * |                     | #tensor_reduce_auto  |             |
+ * |                     | #tensor_broadcast    |             |
+ * |                     | #tensor_reduce_autopair |             |
+ * |                     | #tensor_quant        |             |
+ * |                     | #tensor_mask         |             |
+ * |                     | #tensor_coop         |             |
+ * |                     | #convolution_ctrl    |             |
+ * |                     | #convolution_size    |             |
+ * |                     | #get_tensor_error    |             |
+ * |                     | #get_tensor_mask     |             |
+ * |  floatingpointops   | Fdiv               |SW emulated operation since there is no native HW support. These are not available in the current SW release|
  * |                     | Fsqrt               |             |
  * |                     | etc                 |             |
  * | \ref memops         | #cache_ops_priv_evict_sw            |Memory access operations using Esperanto specific ISA extensions|
