@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15659] Added doxygen generated documentation support.
 ### Changed
 - *** Breaking change *** [SW-15492] Updated getDramBaseAddress() and getDramSize() to provide the device-specific information.
+- (Conan) Updated recipe
 ### Deprecated
 ### Removed
 ### Fixed
