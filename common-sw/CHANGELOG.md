@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.2.0]
+### Added
 - [SW-15414] added blockUntilDrained method (blocks until all tasks have finished) and parameter to drain at destruction.
 ### Changed
 - (CMake) Do not use non-standard g3log::g3log target. Use target defined upstream (g3log) instead.
