@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-15389] Adding SP error log on MM FW error before MM reset
 ### Changed
+- [SW-15663] Increased pmic timeout and report error on timeout from I2C.
+- [SW-15697] Replacing threshold_data with threshold value in trace buffer full notification.
 ### Deprecated
 ### Removed
 ### Fixed
@@ -21,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15176] Preserve flash config space with firmware update
 - [SW-15176] Separated persistant and non persistant configration structs in BL2 flash config data
 - [SW-15559] Adding a stability check loop for pmic set voltage function
-- [SW-15663] Increased pmic timeout and report error on timeout from I2C
 ### Changed
 - Fixing MM reset boot flow.
 - [SW-13350] Replacing Trace_String() with Trace_Format_String_V()

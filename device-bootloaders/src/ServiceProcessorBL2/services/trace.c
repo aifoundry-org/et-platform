@@ -98,7 +98,7 @@ static inline void et_trace_threshold_notify(const struct trace_control_block_t 
 
     /* Generate trace buffer threshold event */
     FILL_EVENT_HEADER(&message.header, SP_TRACE_BUFFER_FULL, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, trace_header->type, cb->threshold_data)
+    FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, trace_header->type, cb->threshold)
 
     /* Post event to Host - ignore status to avoid potential nested locks */
     SP_Host_Iface_CQ_Push_Cmd((void *)&message, sizeof(struct event_message_t));
