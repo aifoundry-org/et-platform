@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15613] Removed all general locks from memcpyops. Improved cmaManager(s).
 - [SW-15649] Added doxyfile.in and some changes to documentation generation.
 - [SW-15662] ResponseReceiver now has 1 thread for each device (before it was a single thread for all devices).
+- [SW-15961] Changed 16 GiB -> 32 GiB on deviceLayerFake
 ### Changed
 ### Deprecated
 ### Removed

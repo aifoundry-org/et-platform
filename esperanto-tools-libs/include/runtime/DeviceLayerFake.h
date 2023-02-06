@@ -195,7 +195,7 @@ public:
   }
 
   uint64_t getDramSize() const override {
-    return 1UL << (10 + 10 + 10 + 4);
+    return 1UL << (10 + 10 + 10 + 5);
   };
 
   uint64_t getDramBaseAddress() const override {
