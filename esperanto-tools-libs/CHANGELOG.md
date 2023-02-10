@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+## [0.8.0]
+### Added
 - [SW-15494] Added an individual threadpool for each device
 - [SW-15364] Automatic doxygen documentation generation.
 - [SW-15254] CMA allocation policy updated.
@@ -15,15 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15649] Added doxyfile.in and some changes to documentation generation.
 - [SW-15662] ResponseReceiver now has 1 thread for each device (before it was a single thread for all devices).
 - [SW-15961] Changed 16 GiB -> 32 GiB on deviceLayerFake
-### Changed
-### Deprecated
+- [SW-15925] Added two new trace events: CmaCopy and CmaWait. Bumped trace version to 2.
 ### Removed
 - [SW-15649] Removed generated files
 ### Fixed
 - Some documentation cross references
 - [SW-15881] Fixes data race when checking memory operation. This bug was not present in previous released versions, so no hot fixes are needed.
 - [SW-15901] Introduces locks back again to ensure no lower prio commands block inside the threadpools without leaving room for high priority commands to execute. This bug is not present in previous runtime releases AFAIK.
-### Security
 ## [0.7.1]
 ### Added
 - [SW-15419] Avoid using CMA for loading kernels when not needed.

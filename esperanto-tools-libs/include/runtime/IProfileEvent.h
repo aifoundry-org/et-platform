@@ -46,7 +46,7 @@ namespace profiling {
 
 enum class Version : uint16_t {};
 
-constexpr auto kCurrentVersion = Version{1};
+constexpr auto kCurrentVersion = Version{2};
 
 enum class Type { Start, End, Complete, Instant };
 enum class Class {
@@ -70,6 +70,8 @@ enum class Class {
   GetDeviceProperties,
   StartProfiling,
   EndProfiling,
+  CmaCopy,
+  CmaWait,
   COUNT
 };
 enum class ResponseType { DMARead, DMAWrite, Kernel, COUNT };

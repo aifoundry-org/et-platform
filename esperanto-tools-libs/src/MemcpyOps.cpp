@@ -140,7 +140,10 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
         }
         auto entrySize = std::min(currentSize, dmaInfo.maxElementSize_);
         auto cmaPtrOffset = 0UL;
+        auto cmdEvt = eventManager_.getNextId();
         while (currentSize > 0) {
+          ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), cmdEvt);
+          pevent.setParentId(evt);
           entrySize = std::min(entrySize, currentSize);
           builder.addOp(cmaPtr + cmaPtrOffset, d_dst + offset, entrySize);
           // copy the data to the cma buffer
@@ -151,7 +154,6 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
           pendingBytes -= entrySize;
         }
 
-        auto cmdEvt = eventManager_.getNextId();
         streamManager_.addEvent(stream, cmdEvt);
         builder.setTagId(cmdEvt);
         cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
@@ -161,6 +163,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
         // add a thread which will free the cma memory
         eventManager_.addOnDispatchCallback({{cmdEvt}, [cmaManager, cmaPtr] { cmaManager->free(cmaPtr); }});
       } else {
+        ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
         if (topPrio != evt) {
           RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
           doWaitForEvent(topPrio.value());
@@ -273,14 +276,18 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
         // add a callback which will free the cma memory
         eventManager_.addOnDispatchCallback(
           {{cmdEvt},
-           [this, cmaManager, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt, cmaCopyFunction] {
+           [this, cmdEvt, cmaManager, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt,
+            cmaCopyFunction] {
              for (auto& copy : cmdFinalCopies) {
+               ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), cmdEvt);
+               pevent.setParentId(syncCopyEvt);
                cmaCopyFunction(copy.src, copy.dst, copy.size, CmaCopyType::FROM_CMA);
              }
              cmaManager->free(cmaPtr);
              dispatch(syncCopyEvt);
            }});
       } else {
+        ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
         if (topPrio != evt) {
           RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
           doWaitForEvent(topPrio.value());
@@ -348,6 +355,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     auto topPrio = cs.getFirstDmaCommand();
     auto cmaPtr = cmaManager->alloc(totalSize, topPrio == evt);
     while (!cmaPtr) {
+      ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
       if (topPrio == evt) {
         RT_VLOG(MID) << "Waiting for CMA ...";
         cmaManager->waitUntilFree(totalSize);
@@ -360,6 +368,8 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
     }
     auto cmaPtrOffset = 0UL;
     for (auto& op : memcpyList.operations_) {
+      ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), evt);
+      pevent.setParentId(evt);
       builder.addOp(cmaPtr + cmaPtrOffset, op.dst_, op.size_);
       cmaCopyFunction(op.src_, cmaPtr + cmaPtrOffset, op.size_, CmaCopyType::TO_CMA);
       cmaPtrOffset += op.size_;
@@ -413,6 +423,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     auto topPrio = cs.getFirstDmaCommand();
     auto cmaPtr = cmaManager->alloc(totalSize, topPrio == evt);
     while (!cmaPtr) {
+      ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
       if (topPrio == evt) {
         RT_VLOG(MID) << "Waiting for CMA ...";
         cmaManager->waitUntilFree(totalSize);
@@ -438,9 +449,11 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
     // This part is needed because we have to copy the data into the user buffer before triggering that the event is
     // finished
     eventManager_.addOnDispatchCallback(
-      {{cmdEvt}, [this, cmaManager, evt, cmaPtr, ops = memcpyList.operations_, cmaCopyFunction] {
+      {{cmdEvt}, [this, cmdEvt, cmaManager, evt, cmaPtr, ops = memcpyList.operations_, cmaCopyFunction] {
          auto offset = 0UL;
          for (auto& op : ops) {
+           ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), cmdEvt);
+           pevent.setParentId(evt);
            cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
            offset += op.size_;
          }

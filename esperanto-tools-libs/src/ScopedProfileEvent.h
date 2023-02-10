@@ -81,6 +81,10 @@ public:
     event_.setDeviceProperties(std::move(props));
   }
 
+  void setParentId(EventId parent) {
+    event_.setParentId(parent);
+  }
+
   void recordNow() {
     if (!isRecorded_) {
       isRecorded_ = true;

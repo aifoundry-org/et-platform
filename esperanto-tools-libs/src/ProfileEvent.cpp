@@ -52,6 +52,8 @@ std::string getString(Class cls) {
     STR_PROFILING_CLASS(GetDeviceProperties)
     STR_PROFILING_CLASS(StartProfiling)
     STR_PROFILING_CLASS(EndProfiling)
+    STR_PROFILING_CLASS(CmaCopy)
+    STR_PROFILING_CLASS(CmaWait)
 
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
@@ -113,6 +115,8 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::GetDeviceProperties)] = Class::GetDeviceProperties;
     s_map[getString(Class::StartProfiling)] = Class::StartProfiling;
     s_map[getString(Class::EndProfiling)] = Class::EndProfiling;
+    s_map[getString(Class::CmaCopy)] = Class::CmaCopy;
+    s_map[getString(Class::CmaWait)] = Class::CmaWait;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });

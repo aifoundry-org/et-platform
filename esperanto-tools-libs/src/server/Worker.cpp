@@ -11,6 +11,7 @@
 #include "Worker.h"
 #include "NetworkException.h"
 #include "Protocol.h"
+#include "ScopedProfileEvent.h"
 #include "Server.h"
 #include "Utils.h"
 #include "runtime/Types.h"
@@ -228,11 +229,14 @@ void Worker::processRequest(const req::Request& request) {
     // there is no problem using a tmpBuffer in the stack because the loadCode function does not return until it has
     // already copied the data into a CMA buffer. A further improvement could be to make the copy directly to the CMA
     // buffer here (or in a specialized loadCode function).
+    profiling::ScopedProfileEvent pevent(profiling::Class::CmaCopy, *runtime_.getProfiler());
     cmaCopyFunction_(reinterpret_cast<const std::byte*>(req.elfData_), tmpBuffer.data(), req.elfSize_,
                      CmaCopyType::TO_CMA);
 
     auto resp = runtime_.loadCode(req.stream_, tmpBuffer.data(), tmpBuffer.size());
     events_.emplace(resp.event_);
+    pevent.setEventId(resp.event_);
+    pevent.setParentId(resp.event_);
     kernels_.emplace(resp.kernel_);
     sendResponse({resp::Type::LOAD_CODE, request.id_,
                   resp::LoadCode{resp.event_, resp.kernel_, reinterpret_cast<AddressT>(resp.loadAddress_)}});
