@@ -13,3 +13,10 @@ test_package/build
 # conan ci
 *.lock
 lockfiles_info.json
+
+#docs
+docs/Doxyfile
+
+#vscode
+scripts/.vscode/
+

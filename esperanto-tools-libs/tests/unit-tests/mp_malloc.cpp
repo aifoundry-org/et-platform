@@ -16,7 +16,7 @@
 TEST(mp_malloc, malloc_free_100clients_1000mallocs) {
   MpOrchestrator orch;
   orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
-  auto dram = dev::DeviceLayerFake{}.getDramSize();
+  auto dram = dev::DeviceLayerFake{}.getDramSize(0);
   for (int i = 0; i < 100; ++i) {
     orch.createClient([](rt::IRuntime* rt) {
       std::vector<std::byte*> allocs;

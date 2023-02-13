@@ -194,11 +194,11 @@ public:
     return info;
   }
 
-  uint64_t getDramSize() const override {
+  uint64_t getDramSize(int) const override {
     return 1UL << (10 + 10 + 10 + 5);
   };
 
-  uint64_t getDramBaseAddress() const override {
+  uint64_t getDramBaseAddress(int) const override {
     return 0x8000;
   }
   void* allocDmaBuffer(int, size_t sizeInBytes, bool) override {

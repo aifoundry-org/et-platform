@@ -30,8 +30,8 @@ public:
 };
 } // namespace
 TEST_F(TestDmaErrors, DmaOobSimple) {
-  auto dramAddr = deviceLayer_->getDramBaseAddress();
-  auto dramSize = deviceLayer_->getDramSize();
+  auto dramAddr = deviceLayer_->getDramBaseAddress(0);
+  auto dramSize = deviceLayer_->getDramSize(0);
   auto ramUpperLimit = dramAddr + dramSize;
   std::array<std::byte, 1024> hostMem;
   bool errorReported = false;
@@ -50,8 +50,8 @@ TEST_F(TestDmaErrors, DmaOobSimple) {
 }
 
 TEST_F(TestDmaErrors, DmaOobPlusCommands) {
-  auto dramAddr = deviceLayer_->getDramBaseAddress();
-  auto dramSize = deviceLayer_->getDramSize();
+  auto dramAddr = deviceLayer_->getDramBaseAddress(0);
+  auto dramSize = deviceLayer_->getDramSize(0);
   auto ramUpperLimit = dramAddr + dramSize;
   std::array<std::byte, 1024> hostMem;
   bool errorReported = false;

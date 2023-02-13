@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+- [SW-15882] adapted to changes in the devicelayer api (2.0.0)
 ### Changed
 ### Deprecated
 ### Removed

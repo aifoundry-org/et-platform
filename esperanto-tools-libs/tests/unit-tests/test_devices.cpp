@@ -49,7 +49,7 @@ TEST(devices, get_properties) {
   auto runtime = IRuntime::create(&deviceLayer, rt::Options{false, false});
 
   EXPECT_CALL(deviceLayer, getDeviceConfig(_)).Times(1).WillRepeatedly(Return(dc));
-  EXPECT_CALL(deviceLayer, getDramSize()).Times(1).WillRepeatedly(Return(fakeMemorySize));
+  EXPECT_CALL(deviceLayer, getDramSize(_)).Times(1).WillRepeatedly(Return(fakeMemorySize));
   EXPECT_CALL(deviceLayer, getActiveShiresNum(_)).Times(1).WillRepeatedly(Return(fakeAvailableShires));
   
   auto properties = runtime->getDeviceProperties(rt::DeviceId(0));

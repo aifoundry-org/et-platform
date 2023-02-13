@@ -29,7 +29,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: develop/runtime
+  SW_PLATFORM_BRANCH: jvera/bump-device-layer
   PIPELINE_CI_SUBPROJECT: esperanto-tools-libs
 
 

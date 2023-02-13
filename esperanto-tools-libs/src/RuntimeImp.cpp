@@ -77,21 +77,21 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
       commandSenders_.try_emplace(getCommandSenderIdx(i, sq), *deviceLayer_, getProfiler(), i, sq);
     }
   }
-  auto dramBaseAddress = deviceLayer_->getDramBaseAddress();
-  auto dramSize = deviceLayer_->getDramSize();
-  RT_LOG(INFO) << std::hex << "Runtime initialization. Dram base addr: " << dramBaseAddress
-               << " Dram size: " << dramSize
-               << " Check memcpy operations: " << (checkMemcpyDeviceAddress_ ? "True" : "False");
 
   auto maxElementCount = 0UL;
   auto totalElementSize = 0UL;
 
   for (auto& d : devices_) {
-    auto tracingBufferSize =
-      deviceLayer_->getTraceBufferSizeMasterMinion(static_cast<int>(d), dev::TraceBufferType::TraceBufferCM) +
-      deviceLayer_->getTraceBufferSizeMasterMinion(static_cast<int>(d), dev::TraceBufferType::TraceBufferMM);
-    memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
     auto devInt = static_cast<int>(d);
+    auto tracingBufferSize = deviceLayer_->getTraceBufferSizeMasterMinion(devInt, dev::TraceBufferType::TraceBufferCM) +
+                             deviceLayer_->getTraceBufferSizeMasterMinion(devInt, dev::TraceBufferType::TraceBufferMM);
+    auto dramBaseAddress = deviceLayer_->getDramBaseAddress(devInt);
+    auto dramSize = deviceLayer_->getDramSize(devInt);
+    RT_LOG(INFO) << std::hex << "Runtime initialization device " << devInt << ": Dram base addr: " << dramBaseAddress
+                 << " Dram size: " << dramSize
+                 << " Check memcpy operations: " << (checkMemcpyDeviceAddress_ ? "True" : "False");
+
+    memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
     deviceTracing_.try_emplace(
       d,
       DeviceFwTracing{std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, deviceLayer_), nullptr, nullptr});
@@ -161,7 +161,7 @@ DeviceProperties RuntimeImp::doGetDeviceProperties(DeviceId device) const {
   prop.frequency_ = dc.minionBootFrequency_;
   prop.availableShires_ = static_cast<uint32_t>(deviceLayer_->getActiveShiresNum(deviceInt));
   prop.memoryBandwidth_ = dc.ddrBandwidth_;
-  prop.memorySize_ = deviceLayer_->getDramSize();
+  prop.memorySize_ = deviceLayer_->getDramSize(static_cast<int>(device));
   prop.l3Size_ = static_cast<uint16_t>(dc.totalL3Size_ / 1024);
   prop.l2shireSize_ = static_cast<uint16_t>(dc.totalL2Size_ / 1024);
   prop.l2scratchpadSize_ = static_cast<uint16_t>(dc.totalScratchPadSize_ / 1024);
