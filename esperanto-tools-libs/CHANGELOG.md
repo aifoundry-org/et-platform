@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unrealeased]
 ### Added
 - [SW-15882] adapted to changes in the devicelayer api (2.0.0)
+- [SW-16044] added deviceId and streamId to StreamError. Note streamId will not be present when recovering from a crash.
 ### Changed
 ### Deprecated
 ### Removed

@@ -16,6 +16,10 @@ using namespace rt;
 std::string StreamError::getString() const {
   std::stringstream ss;
   ss << "Error code: " << std::to_string(errorCode_);
+  ss << "Device Id: " << static_cast<int>(device_);
+  if (stream_) {
+    ss << "Stream Id: " << static_cast<int>(*stream_);
+  }
   if (errorContext_) {
     const auto& values = errorContext_.value();
     ss << "\n Num contexts: " << values.size();

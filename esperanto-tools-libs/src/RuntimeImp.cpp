@@ -367,12 +367,16 @@ void RuntimeImp::doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& 
 }
 
 void RuntimeImp::processResponseError(DeviceId device, const ResponseError& responseError) {
-  threadPools_.at(device)->pushTask([this, responseError] {
+  threadPools_.at(device)->pushTask([this, device, responseError] {
     bool dispatchNow = true;
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
     auto [errorCode, event, kernelExtra] = responseError;
-    StreamError streamError(errorCode);
+    StreamError streamError(errorCode, device);
+    auto stInfo = streamManager_.getStreamInfo(event);
+    if (stInfo) {
+      streamError.stream_ = stInfo->id_;
+    }
     if (executionContextCache_) {
       if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
         // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed

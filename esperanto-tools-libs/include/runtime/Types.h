@@ -173,12 +173,15 @@ enum class DeviceErrorCode {
 /// \brief This struct contains the errorCode given by de device when some command fail and the associated
 /// \ref rt::ErrorContext (if any)
 struct StreamError {
-  explicit StreamError(DeviceErrorCode errorCode)
-    : errorCode_(errorCode) {
+  explicit StreamError(DeviceErrorCode errorCode, DeviceId device)
+    : errorCode_(errorCode)
+    , device_(device) {
   }
   StreamError() = default;
   std::string getString() const; /// < returns a string representation of the StreamError
   DeviceErrorCode errorCode_ = DeviceErrorCode::Unknown;
+  DeviceId device_;                     /// < device where the error originated
+  std::optional<StreamId> stream_;      /// < indicates the stream where the error happened.
   std::optional<uint64_t> cmShireMask_; /// < only available in some kernel errors. Contains offending shiremask
   std::optional<std::vector<ErrorContext>> errorContext_;
 };
