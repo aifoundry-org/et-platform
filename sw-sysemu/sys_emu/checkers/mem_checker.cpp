@@ -45,6 +45,7 @@ uint64_t bool_array_to_int(bool * array, uint64_t size)
 bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
+    const uint32_t thread = minion << 1 | thread_id;
 
     // Increments the global time stamp for every write
     global_time_stamp++;
@@ -111,7 +112,7 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
              || ((it_global->second.l2_dirty_shire_id == shire_id) && !it_global->second.cb_dirty && ((location == COH_MINION) || (location == COH_SHIRE))) // Rewriting in same shire
              || ((it_global->second.l2_dirty_shire_id == 255)      && !it_global->second.cb_dirty_quarter[cb_quarter] && (location == COH_CB));             // CB quarter was still not written and not written in any shire
 
-    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
+    if(!coherent && !m_waive_writes[thread]) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     bool update_minion = (location == COH_MINION);
     bool update_shire  = (location == COH_MINION) || (location == COH_SHIRE) || (location == COH_CB);
@@ -1054,8 +1055,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
         if(!coherent)
         {
-            LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
-            return false;
+            if (!m_waive_writes[thread]) {
+                LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+                return false;
+            } else {
+                LOG_AGENT(WARN, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+            }
         }
 
         if(((addr & 0x3FULL) + size) > 64)
@@ -1064,8 +1069,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
             if(!coherent)
             {
-                LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
-                return false;
+                if (!m_waive_writes[thread]) {
+                    LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                    return false;
+                } else {
+                    LOG_AGENT(WARN, *this, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                }
             }
         }
     }

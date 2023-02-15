@@ -158,6 +158,12 @@ void insn_slti(Hart& cpu)
         case 0x604:
             cpu.chip->emu()->get_mem_checker().waive_reads(hart_index(cpu), false);
             break;
+        case 0x605:
+            cpu.chip->emu()->get_mem_checker().waive_writes(hart_index(cpu), true);
+            break;
+        case 0x606:
+            cpu.chip->emu()->get_mem_checker().waive_writes(hart_index(cpu), false);
+            break;
         default:;
         }
     }

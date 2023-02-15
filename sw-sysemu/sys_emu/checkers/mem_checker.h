@@ -60,6 +60,7 @@ class mem_checker : public bemu::Agent
 private:
     uint64_t global_time_stamp = 0;
     std::bitset<EMU_NUM_THREADS> m_waive_reads{0};
+    std::bitset<EMU_NUM_THREADS> m_waive_writes{0};
 
     // Directories global, per shire and per minion
     global_directory_map_t global_directory_map;
@@ -115,6 +116,12 @@ public:
     {
         assert(hart_id < EMU_NUM_THREADS);
         m_waive_reads[hart_id] = value;
+    }
+
+    void waive_writes(uint32_t hart_id, bool value)
+    {
+        assert(hart_id < EMU_NUM_THREADS);
+        m_waive_writes[hart_id] = value;
     }
 
     // Logging variables
