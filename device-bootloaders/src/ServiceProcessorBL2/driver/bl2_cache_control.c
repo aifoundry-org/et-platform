@@ -28,14 +28,27 @@ static void sram_error_uncorr_isr(uint8_t, uint8_t, uint64_t);
 static void sram_error_handler(uint8_t minshire);
 static void icache_error_handler(uint8_t minshire);
 
+/* Macro to compute tag mask */
+#define compute_tag_mask(high_bit, size)                                                           \
+    (high_bit > 0) ? (((0x1 << high_bit) == size) ? (uint16_t)((0x1 << high_bit) - 0x1) :          \
+                                                    (uint16_t)((0x1 << (high_bit - 0x1)) - 0x1)) : \
+                     0
+
 /* The driver can populate this structure with the defaults that will be used
    during the init phase.*/
 static struct sram_and_icache_event_control_block event_control_block
     __attribute__((section(".data")));
 
-static uint8_t get_highest_set_bit_offset(uint64_t shire_mask)
+/* Convert a bit mask to the number based on the first set bit */
+static uint8_t get_highest_set_bit_offset(uint64_t mask)
 {
-    return (uint8_t)(63 - __builtin_clzl(shire_mask));
+    return (uint8_t)(63 - __builtin_clzl(mask));
+}
+
+/* Convert a bit mask to the neareset even number based on the first set bit */
+static uint8_t get_highest_even_bit_set(uint32_t size)
+{
+    return (uint8_t)((size <= 1) ? 0 : (sizeof(uint32_t) * 8U) - (uint32_t)__builtin_clz(size - 1));
 }
 
 int32_t icache_error_control_init(dm_event_isr_callback event_cb)
@@ -642,7 +655,7 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
     uint16_t tag_mask;
     uint8_t high_bit;
 
-    if ((uint32_t)(scp_size + l2_size + l3_size) > SC_BANK_SIZE)
+    if ((scp_size + l2_size + l3_size) > SC_BANK_SIZE)
     {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -669,41 +682,47 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
     /* SCP calculation */
     set_base = 0;
     set_size = scp_size;
-    high_bit = get_highest_set_bit_offset((uint64_t)scp_size);
-    set_mask = (uint16_t)((0x1u << high_bit) - 0x1u);
-    tag_mask = ((0x1u << high_bit) == scp_size) ? (uint16_t)((0x1u << high_bit) - 0x1u) :
-                                                  (uint16_t)((0x1u << (high_bit - 0x1u)) - 0x1u);
+    high_bit = get_highest_even_bit_set(scp_size);
+    set_mask = (high_bit > 0) ? (uint16_t)((0x1 << high_bit) - 0x1) : 0;
+    tag_mask = compute_tag_mask(high_bit, scp_size);
 
     scp_ctl_value = ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_BASE_SET(set_base) |
                     ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_SIZE_SET(set_size) |
                     ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_SET_MASK_SET(set_mask) |
                     ETSOC_SHIRE_CACHE_ESR_SC_SCP_CACHE_CTL_ESR_SC_SCP_TAG_MASK_SET(tag_mask);
 
+    Log_Write(LOG_LEVEL_DEBUG, " SCP Config Base: 0x%x Size: 0x%x Set_mask: 0x%x Tag_mask: 0x%x \n",
+              set_base, set_size, set_mask, tag_mask);
+
     /* L2 calculation */
     set_base = scp_size;
     set_size = l2_size;
-    high_bit = get_highest_set_bit_offset((uint64_t)l2_size);
-    set_mask = (uint16_t)((0x1u << high_bit) - 0x1u);
-    tag_mask = ((0x1u << high_bit) == l2_size) ? (uint16_t)((0x1u << high_bit) - 0x1u) :
-                                                 (uint16_t)((0x1u << (high_bit - 0x1u)) - 0x1u);
+    high_bit = get_highest_even_bit_set(l2_size);
+    set_mask = (high_bit > 0) ? (uint16_t)((0x1 << high_bit) - 0x1) : 0;
+    tag_mask = compute_tag_mask(high_bit, l2_size);
 
     l2_ctl_value = ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_BASE_SET(set_base) |
                    ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_SIZE_SET(set_size) |
                    ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_SET_MASK_SET(set_mask) |
                    ETSOC_SHIRE_CACHE_ESR_SC_L2_CACHE_CTL_ESR_SC_L2_TAG_MASK_SET(tag_mask);
 
+    Log_Write(LOG_LEVEL_DEBUG, " L2 Config Base: 0x%x Size: 0x%x Set_mask: 0x%x Tag_mask: 0x%x \n",
+              set_base, set_size, set_mask, tag_mask);
+
     /* L3 calculation */
     set_base = (uint16_t)(scp_size + l2_size);
     set_size = l3_size;
-    high_bit = get_highest_set_bit_offset((uint64_t)l3_size);
-    set_mask = (uint16_t)((0x1u << high_bit) - 0x1u);
-    tag_mask = ((0x1u << high_bit) == l3_size) ? (uint16_t)((0x1u << high_bit) - 0x1u) :
-                                                 (uint16_t)((0x1u << (high_bit - 0x1u)) - 0x1u);
+    high_bit = get_highest_even_bit_set(l3_size);
+    set_mask = (high_bit > 0) ? (uint16_t)((0x1 << high_bit) - 0x1) : 0;
+    tag_mask = compute_tag_mask(high_bit, l3_size);
 
     l3_ctl_value = ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_BASE_SET(set_base) |
                    ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_SIZE_SET(set_size) |
                    ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_SET_MASK_SET(set_mask) |
                    ETSOC_SHIRE_CACHE_ESR_SC_L3_CACHE_CTL_ESR_SC_L3_TAG_MASK_SET(tag_mask);
+
+    Log_Write(LOG_LEVEL_DEBUG, " L3 Config Base: 0x%x Size: 0x%x Set_mask: 0x%x Tag_mask: 0x%x \n",
+              set_base, set_size, set_mask, tag_mask);
 
     /* Set shire cache configuration */
     for (uint8_t i = 0; i <= num_of_shires; i++)

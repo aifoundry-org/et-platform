@@ -607,6 +607,15 @@ static int enable_minion_shire(uint64_t shire_mask)
     /* Clock gate debug logic */
     CLOCK_GATE_DEBUG_LOGIC
 
+    /* Partition size of SCP, L2 and L3 
+     Default Mode 0 : 
+       SCP - 80 MB (2.5 MB / shire ) 
+       L2 -  16 MB (0.5 MB/ shire )
+       L3 -  32 MB (1 MB / shire )  
+    TODO: Update this to dynamically update from DM command
+    */
+    cache_scp_l2_l3_size_config(640, 128, 256, 0xFFFFFFFF);
+
     Log_Write(LOG_LEVEL_CRITICAL, "Shire Cache and Neigh Enable with VPU RF WA\n");
 #else
     uint8_t num_shires;

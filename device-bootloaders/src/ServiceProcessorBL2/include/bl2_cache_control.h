@@ -109,7 +109,7 @@ struct sram_and_icache_event_control_block
 /*! \def SC_BANK_SIZE
     \brief Shire cache bank size (1MB)
 */
-#define SC_BANK_SIZE 0x400u
+#define SC_BANK_SIZE 0x400
 
 /*! \def SC_BANK_NUM
     \brief Number of banks in shire cache
