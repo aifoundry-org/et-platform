@@ -413,6 +413,56 @@ static inline uint64_t pmu_core_counter_read_unpriv(hpm_counter_e pmc)
     return value;
 }
 
+/* implement WAR for RTLMIN-6496:
+ * - 4 consecutive reads, les than 11 cycles from first to last read:
+ *   intruction stream cannot be interrupted.
+ *   all instructions must fit in half cacheline. (that is the reason for aligning to 16 bytes)
+ */
+#define HPM_SAFE_READ(counter, value)                \
+    do                                               \
+    {                                                \
+        __asm__ __volatile__(".p2align 4\n"          \
+                             "csrr %0," counter "\n" \
+                             "csrr %0," counter "\n" \
+                             "csrr %0," counter "\n" \
+                             "csrr %0," counter "\n" \
+                             : "=r"(value));         \
+    } while (0)
+
+/* Read a core (minion and neighborhood) U-mode and S-mode event counters 
+   Safe mode read implements WAR for RTLMIN-6496 (potential corruption when both
+    minion threads read pmc simultaneously).*/
+static inline uint64_t pmu_core_counter_read_unpriv_safe(hpm_counter_e pmc)
+{
+    uint64_t value = 0;
+
+    switch (pmc)
+    {
+        case HPM_COUNTER_3:
+            HPM_SAFE_READ("hpmcounter3", value);
+            break;
+        case HPM_COUNTER_4:
+            HPM_SAFE_READ("hpmcounter4", value);
+            break;
+        case HPM_COUNTER_5:
+            HPM_SAFE_READ("hpmcounter5", value);
+            break;
+        case HPM_COUNTER_6:
+            HPM_SAFE_READ("hpmcounter6", value);
+            break;
+        case HPM_COUNTER_7:
+            HPM_SAFE_READ("hpmcounter7", value);
+            break;
+        case HPM_COUNTER_8:
+            HPM_SAFE_READ("hpmcounter8", value);
+            break;
+        default:
+            break;
+    }
+
+    return value;
+}
+
 // Configure an event for a shire cache perf counter
 static inline int64_t pmu_shire_cache_event_configure(
     uint64_t shire_id, uint64_t b, uint64_t evt_reg, uint64_t val)
@@ -769,11 +819,27 @@ static inline uint64_t PMC_Get_Current_Cycles(void)
     return val;
 }
 
+/*! \fn PMC_Get_Current_Cycles_Safe
+    \brief A function to get current minion cycles based on PMC Counter 3 which
+    setup by default to count the Minion cycles.
+    Safe mode read implements WAR for RTLMIN-6496 (potential corruption when both minion i
+    threads read pmc coutnesrs simultaneously).
+*/
+static inline uint64_t PMC_Get_Current_Cycles_Safe(void)
+{
+    uint64_t val;
+    HPM_SAFE_READ("hpmcounter3", val);
+    return val;
+}
+
 /*! \def PMC_GET_LATENCY
     \brief A macro to calculate latency. Uses PMC Counter 3 to get current cycle
     minus start_cycle(argument)
 */
 #define PMC_GET_LATENCY(x) (PMC_Get_Current_Cycles() - x)
+#define PMC_GET_LATENCY_SAFE(x) (PMC_Get_Current_Cycles_Safe() - x)
+
+#undef HPM_SAFE_READ
 
 #ifdef __cplusplus
 }

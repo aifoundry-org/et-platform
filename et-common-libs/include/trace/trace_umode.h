@@ -71,7 +71,9 @@ extern "C" {
     }
 
 /*! \def et_trace_user_profile_event(regionId, start, func, line)
-    \brief macro used to insert user profile events into trace buffer.
+    \brief macro used to insert user profile events into trace buffer. PMC's are read in 
+           safe mode when simultaneously accesssed from both threads in the minion
+           (see RTLMIN-6489)
     \param regionId: arbitrary region to be profiled
     \param start: wether we are beginning (true) or ending (false) the region
     \param func: calling function name 
@@ -80,6 +82,20 @@ extern "C" {
 #define et_trace_user_profile_event(regionId, start, func, line)                              \
     {                                                                                         \
         Trace_User_Profile_Event(                                                             \
+            &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, regionId, start, func, line); \
+    }
+
+/*! \def et_trace_user_profile_event_unsafe(regionId, start, func, line)
+    \brief macro used to insert user profile events into trace buffer. PMC's are read "unsafe"
+    mode (might be corrupted) if simultaneously accessef from both threads in the minion.
+    \param regionId: arbitrary region to be profiled
+    \param start: wether we are beginning (true) or ending (false) the region
+    \param func: calling function name 
+    \param line: calling line.
+*/
+#define et_trace_user_profile_event_unsafe(regionId, start, func, line)                       \
+    {                                                                                         \
+        Trace_User_Profile_Event_Unsafe(                                                      \
             &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, regionId, start, func, line); \
     }
 
