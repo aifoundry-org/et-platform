@@ -54,6 +54,7 @@
  *     Trace_Custom_Event
  *     Trace_Event_Copy
  *     Trace_User_Profile_Event
+ *     Trace_User_Profile_Event_Safe
  * The trace buffer itself is accessed via a control block.
  * This data structure has to be filled with a pointer to the
  * memory buffer that allocates the trace buffer.
@@ -270,6 +271,8 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
                          void *dst_entry, const uint32_t dst_size);
 void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionId, bool start,
                               const char *func, uint32_t line);
+void Trace_User_Profile_Event_Unsafe(struct trace_control_block_t *cb, uint16_t regionId,
+                                     bool start, const char *func, uint32_t line);
 #ifdef ET_TRACE_ENCODER_IMPL
 
 #include <stdio.h>
@@ -340,8 +343,16 @@ void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionI
 #define ET_TRACE_GET_TIMESTAMP() 0
 #endif
 
+#ifndef ET_TRACE_GET_TIMESTAMP
+#define ET_TRACE_GET_TIMESTAMP_SAFE() 0
+#endif
+
 #ifndef ET_TRACE_GET_HPM_COUNTER
 #define ET_TRACE_GET_HPM_COUNTER(counter) 0
+#endif
+
+#ifndef ET_TRACE_GET_HPM_COUNTER_SAFE
+#define ET_TRACE_GET_HPM_COUNTER_SAFE(counter) 0
 #endif
 
 #ifndef ET_TRACE_GET_SHIRE_CACHE_COUNTER
@@ -370,6 +381,15 @@ void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionI
     }
 #endif
 
+#ifndef ET_TRACE_MESSAGE_HEADER_SAFE
+#define ET_TRACE_MESSAGE_HEADER_SAFE(msg, size, id)                           \
+    {                                                                         \
+        ET_TRACE_WRITE_U64(msg->header.cycle, ET_TRACE_GET_TIMESTAMP_SAFE()); \
+        ET_TRACE_WRITE_U32(msg->header.payload_size, size);                   \
+        ET_TRACE_WRITE_HART_ID(msg);                                          \
+        ET_TRACE_WRITE_U16(msg->header.type, id);                             \
+    }
+#endif
 /* Check if Trace is enabled for given control block. */
 inline static bool trace_is_enabled(const struct trace_control_block_t *cb)
 {
@@ -1481,11 +1501,63 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 *
 *   FUNCTION
 *
+*       Trace_User_Profile_Event_Unsafe
+*
+*   DESCRIPTION
+*
+*       A function to log 1 user profile event. Counters read may be unsafe 
+*       (Potentially corrupted) is simultaneusly used from both threads on the minon.
+*
+*   INPUTS
+*
+*       trace_control_block_t  Trace control block of logging Thread/Hart.
+*       regionId               region id to be profiled (i.e: arbitrary numeric
+*                              start-end region quoted in the trace, function scope)
+*       start                  true if the region is starting, false if it ends.
+*       func                   ptr to global literal containing the function name.
+*       line                   line where the event originates
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Trace_User_Profile_Event_Unsafe(struct trace_control_block_t *cb, uint16_t regionId,
+                                     bool start, const char *func, uint32_t line)
+{
+    if (trace_is_enabled(cb)) {
+        enum pmc_counter hartRetInst = ((ET_TRACE_GET_HART_ID() & 0x1) == 0) ?
+                                           PMC_COUNTER_HPMCOUNTER4 :
+                                           PMC_COUNTER_HPMCOUNTER5;
+        uint64_t retiredInsts = ET_TRACE_GET_HPM_COUNTER(hartRetInst);
+
+        struct trace_user_profile_event_t *entry =
+            (struct trace_user_profile_event_t *)trace_buffer_reserve(cb, sizeof(*entry));
+
+        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)),
+                                TRACE_TYPE_USER_PROFILE_EVENT)
+
+        ET_TRACE_WRITE_U64(entry->func, (uint64_t)func);
+        ET_TRACE_WRITE_U64(entry->retiredInsts, retiredInsts);
+        // note, coalescing writes of line, regionId & status. this is layout-aware.
+        uint64_t value = (((((uint64_t)line) & 0xFFFFFFFFF) << 32) | ((regionId & 0xFFFF) << 16) |
+                          ((uint16_t)start));
+
+        ET_TRACE_WRITE_U64(entry->line_region_status, value);
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Trace_User_Profile_Event
 *
 *   DESCRIPTION
 *
-*       A function to log 1 user profile event.
+*       A function to log 1 user profile event reading PMC counters in safe mode.
+*       RTLMIN-6496 Workarounds applied to prevent corruptions when 2 threads in
+*       the minion acess the counters.
 *
 *   INPUTS
 *
@@ -1508,13 +1580,13 @@ void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionI
         enum pmc_counter hartRetInst = ((ET_TRACE_GET_HART_ID() & 0x1) == 0) ?
                                            PMC_COUNTER_HPMCOUNTER4 :
                                            PMC_COUNTER_HPMCOUNTER5;
-        uint64_t retiredInsts = ET_TRACE_GET_HPM_COUNTER(hartRetInst);
+        uint64_t retiredInsts = ET_TRACE_GET_HPM_COUNTER_SAFE(hartRetInst);
 
         struct trace_user_profile_event_t *entry =
             (struct trace_user_profile_event_t *)trace_buffer_reserve(cb, sizeof(*entry));
 
-        ET_TRACE_MESSAGE_HEADER(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)),
-                                TRACE_TYPE_USER_PROFILE_EVENT)
+        ET_TRACE_MESSAGE_HEADER_SAFE(entry, (uint32_t)ET_TRACE_GET_PAYLOAD_SIZE(sizeof(*entry)),
+                                     TRACE_TYPE_USER_PROFILE_EVENT)
 
         ET_TRACE_WRITE_U64(entry->func, (uint64_t)func);
         ET_TRACE_WRITE_U64(entry->retiredInsts, retiredInsts);
