@@ -545,6 +545,13 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
     processResponseError(device, {convert(header->rsp_hdr.msg_id, r->error_type), eventId});
     break;
   }
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT: {
+    auto r = reinterpret_cast<const device_ops_api::device_ops_trace_buffer_full_event_t*>(response.data());
+    RT_LOG(WARNING) << "Reported asynchronous event from firmware: Trace buffer full. This is ignored by host runtime. "
+                       "Trace buffer type: "
+                    << r->buffer_type;
+    break;
+  }
   default:
     RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;
