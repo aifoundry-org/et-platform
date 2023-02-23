@@ -136,7 +136,6 @@ private:
   MM_DEV_INTF_REG mmInfo_;
   SP_DEV_INTF_REG spInfo_;
 
-  // TODO there should be a vector for each device ...
   std::vector<QueueInfo> submissionQueuesMM_;
   std::vector<QueueInfo> hpSubmissionQueuesMM_;
   QueueInfo completionQueueMM_;
