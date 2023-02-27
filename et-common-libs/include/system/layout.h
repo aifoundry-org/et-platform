@@ -58,6 +58,7 @@
 #define CM_MM_IFACE_CIRCBUFFER_SIZE SIZE_4KB
 #define CM_MM_MESSAGE_COUNTER_SIZE  SIZE_64B
 #define KERNEL_LAUNCH_FLAG_SIZE     SIZE_64B
+#define KERNEL_ENV_SIZE             SIZE_64B /* Occupy a single cache-line per kernel slot */
 
 /* FW trace related defines */
 #define TRACE_CB_MAX_SIZE           SIZE_64B
@@ -90,6 +91,7 @@
 /*     Broadcast Message Buffer  0x7640          0x40 (64B)          */
 /*     Broadcast Message Control 0x7680          0x40 (64B)          */
 /*     CM shires boot mask       0x76C0          0x40 (64B)          */
+/*     CM Kernel Environment     0x7700          0x100 (256B)        */
 /*********************************************************************/
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET  0x0
 #define CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_ADDR    ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_MM_IFACE_UNICAST_CIRCBUFFERS_BASE_OFFSET)
@@ -124,6 +126,10 @@
 #define CM_SHIRES_BOOT_MASK_OFFSET                          (FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_OFFSET + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_CTRL_SIZE)
 #define CM_SHIRES_BOOT_MASK_BASEADDR                        ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_SHIRES_BOOT_MASK_OFFSET)
 #define CM_SHIRES_BOOT_MASK_SIZE                            SIZE_64B /* Occupy a single cache-line */
+
+#define CM_KERNEL_ENVS_OFFSET                               (CM_SHIRES_BOOT_MASK_OFFSET + CM_SHIRES_BOOT_MASK_SIZE)
+#define CM_KERNEL_ENVS_BASEADDR                             ETSOC_SCP_GET_SHIRE_ADDR(MASTER_SHIRE, CM_KERNEL_ENVS_OFFSET)
+#define CM_KERNEL_ENVS_SIZE                                 (MAX_SIMULTANEOUS_KERNELS * KERNEL_ENV_SIZE)
 
 /*****************************************************************/
 /*              - Low MCODE Region Layout (2M) -                 */

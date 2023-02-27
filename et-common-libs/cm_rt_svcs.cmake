@@ -31,6 +31,7 @@ set(CM_RT_SVCS_HDRS
     include/etsoc/isa/syscall.h
     include/etsoc/isa/riscv_encoding.h
     include/etsoc/isa/utils.h
+    include/system/abi.h
     include/system/etsoc_ddr_region_map.h
     include/system/layout.h
 )
@@ -61,8 +62,8 @@ add_library(cm-rt-svcs STATIC
 
 set_target_properties(cm-rt-svcs PROPERTIES LINKER_LANGUAGE C)
 
-target_link_libraries(cm-rt-svcs 
-    PUBLIC 
+target_link_libraries(cm-rt-svcs
+    PUBLIC
         etsoc_hal::etsoc_hal
         esperantoTrace::et_trace
 )

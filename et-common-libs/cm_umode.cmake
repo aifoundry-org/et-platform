@@ -26,6 +26,7 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/utils.h
     include/trace/trace_umode.h
     include/trace/trace_umode_cb.h
+    include/system/abi.h
 )
 
 #Listing of public headers that expose services provided by

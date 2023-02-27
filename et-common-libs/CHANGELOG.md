@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15710] Baseline implementation for Accelerator lib docs.
 - [SW-15710] Adding a docs prototype with examples
 - [SW-15805] Adding doxygen docs support for memory operations API with examples
-- [SW-15803] Adding doxygen docs support for tensor operations API 
+- [SW-15803] Adding doxygen docs support for tensor operations API
 - [SW-15806] Adding doxygen docs support for sync operations APIs
+- [SW-16238] Added ABI header and kernel environment related datastructures.
 ### Changed
 ### Deprecated
 ### Removed
