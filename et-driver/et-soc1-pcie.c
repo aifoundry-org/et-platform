@@ -1109,6 +1109,7 @@ static pci_ers_result_t esperanto_pcie_error_detected(struct pci_dev *pdev,
 						      pci_channel_state_t state)
 {
 	pci_ers_result_t rv;
+	struct et_pci_dev *et_dev;
 
 	dev_info(&pdev->dev,
 		 "PCI error: detected callback, state(%d)!\n",
@@ -1118,14 +1119,20 @@ static pci_ers_result_t esperanto_pcie_error_detected(struct pci_dev *pdev,
 	case pci_channel_io_normal:
 		rv = PCI_ERS_RESULT_CAN_RECOVER;
 		break;
-	/* Fatal error, prepare for slot reset */
+	/* TODO: SW-16311: Fatal error, prepare for slot reset
+	 * A fix needed in kernel which is available in version >= 5.10.138,
+	 * otherwise slot reset callback is not invoked
+	 */
 	case pci_channel_io_frozen:
-		rv = PCI_ERS_RESULT_NEED_RESET;
-		break;
+	/* Permanent error, prepare for device removal */
 	case pci_channel_io_perm_failure:
 	default:
-		/* Permanent error, prepare for device removal */
 		rv = PCI_ERS_RESULT_DISCONNECT;
+		et_dev = pci_get_drvdata(pdev);
+		if (!et_dev)
+			break;
+		et_ops_dev_destroy(et_dev, false);
+		et_mgmt_dev_destroy(et_dev, false);
 	}
 
 	return rv;
@@ -1135,21 +1142,26 @@ static pci_ers_result_t esperanto_pcie_mmio_enabled(struct pci_dev *pdev)
 {
 	dev_info(&pdev->dev, "PCI error: mmio enabled callback!\n");
 
-	/* TODO - dump whatever for debugging purposes */
-
-	/* This called only if esperanto_pcie_error_detected returns
-	 * PCI_ERS_RESULT_CAN_RECOVER.
+	/* TODO: Dump whatever for debugging purposes, only MMIOs are enabled
+	 * here but not DMA.
 	 */
 
-	return PCI_ERS_RESULT_DISCONNECT;
+	/* This is called only if esperanto_pcie_error_detected returns
+	 * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still works, no
+	 * need to reset slot.
+	 */
+
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 static pci_ers_result_t esperanto_pcie_slot_reset(struct pci_dev *pdev)
 {
 	dev_info(&pdev->dev, "PCI error: slot reset callback!\n");
 
-	/* TODO - This called if slot is successfully reset, perform the
-	 * re-initialization of device here.
+	/* TODO: SW-16311: This is called if slot is successfully reset,
+	 * perform the re-initialization of device here. Hot-reset can be done
+	 * here which can recover from fatal errors with
+	 * state: `pci_channel_io_frozen`.
 	 */
 
 	return PCI_ERS_RESULT_DISCONNECT;
@@ -1926,12 +1938,11 @@ void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	if (!et_dev->mgmt.is_initialized)
 		goto unlock_init_mutex;
 
+	et_dev->mgmt.is_initialized = false;
 	et_vqueue_destroy_all(et_dev, true /* mgmt_dev */);
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_ERR_STATS);
 	et_unmap_discovered_regions(et_dev, true /* mgmt_dev */);
 	et_unmap_bar(et_dev->mgmt.dir);
-
-	et_dev->mgmt.is_initialized = false;
 
 unlock_init_mutex:
 	mutex_unlock(&et_dev->mgmt.init_mutex);
@@ -2268,12 +2279,11 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	if (!et_dev->ops.is_initialized)
 		goto unlock_init_mutex;
 
+	et_dev->ops.is_initialized = false;
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
 	et_unmap_discovered_regions(et_dev, false /* ops_dev */);
 	et_unmap_bar(et_dev->ops.dir);
-
-	et_dev->ops.is_initialized = false;
 
 unlock_init_mutex:
 	mutex_unlock(&et_dev->ops.init_mutex);
@@ -2405,11 +2415,11 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	if (!et_dev->is_initialized)
 		return;
 
+	et_dev->is_initialized = false;
 	pci_release_regions(pdev);
 	pci_free_irq_vectors(pdev);
 	pci_clear_master(pdev);
 	pci_disable_device(pdev);
-	et_dev->is_initialized = false;
 }
 
 static void et_reset_isr_work(struct work_struct *work)
