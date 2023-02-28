@@ -35,8 +35,31 @@ class DeviceLayerFake : public IDeviceLayer {
   }
 
 public:
-  explicit DeviceLayerFake(int numDevices = 1)
-    : numDevices_(numDevices) {
+  struct Parameters {
+    size_t bytesDram_ = 1UL << (10 + 10 + 10 + 5);
+    size_t dramBaseAddress_ = 0x8000;
+    dev::DeviceConfig dc_ = {
+      DeviceConfig::FormFactor::PCIE,    // Form factor
+      25,                                // TDP
+      32768,                             // Total L3 size in KBytes
+      16384,                             // Total L2 size in KBytes
+      81920,                             // Total L2scp size in KBytes
+      64,                                // CacheLine alignment in Bytes
+      4,                                 // number of L2 cache banks
+      128000,                            // ddr bandwidth
+      1000,                              // Base frequency in Mhz
+      0xFFFFFFFF,                        // Compute minion mask
+      32,                                // spare minion shire id
+      DeviceConfig::ArchRevision::ETSOC1 // arch revision (ETSOC)
+    };
+
+    static Parameters getDefault() {
+      return Parameters{};
+    }
+  };
+  explicit DeviceLayerFake(int numDevices = 1, Parameters params = Parameters::getDefault())
+    : numDevices_(numDevices)
+    , params_(params) {
     if (numDevices <= 0) {
       throw Exception("Num devices needs to be > 0");
     }
@@ -195,11 +218,11 @@ public:
   }
 
   uint64_t getDramSize(int) const override {
-    return 1UL << (10 + 10 + 10 + 5);
+    return params_.bytesDram_;
   };
 
   uint64_t getDramBaseAddress(int) const override {
-    return 0x8000;
+    return params_.dramBaseAddress_;
   }
   void* allocDmaBuffer(int, size_t sizeInBytes, bool) override {
     return malloc(sizeInBytes);
@@ -219,21 +242,9 @@ public:
     return false;
   }
   DeviceConfig getDeviceConfig(int) override {
-    return DeviceConfig{
-      DeviceConfig::FormFactor::PCIE,    // Form factor
-      25,                                // TDP
-      32768,                             // Total L3 size in KBytes
-      16384,                             // Total L2 size in KBytes
-      81920,                             // Total L2scp size in KBytes
-      64,                                // CacheLine alignment in Bytes
-      4,                                 // number of L2 cache banks
-      128000,                            // ddr bandwidth
-      1000,                              // Base frequency
-      0xFFFFFFFF,                        // Compute minion mask
-      32,                                // spare minion shire id
-      DeviceConfig::ArchRevision::ETSOC1 // arch revision (ETSOC)
-    };
+    return params_.dc_;
   }
+
   int getActiveShiresNum(int device) override {
     DeviceConfig config = getDeviceConfig(device);
     uint32_t shireMask = config.computeMinionShireMask_;
@@ -268,6 +279,7 @@ public:
   void hintInactivity(int) override {
     // No implementation
   }
+  Parameters params_;
 };
 
 } // namespace dev

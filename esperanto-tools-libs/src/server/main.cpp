@@ -55,6 +55,14 @@ bool validateTraceMode(const char* flagName, const std::string& value) {
   }
   return true;
 }
+
+bool validateNumDevices(const char* flagName, uint32_t value) {
+  if (value == 0) {
+    printf("Invalid value for --%s: %d\n", flagName, value);
+    return false;
+  }
+  return true;
+}
 constexpr auto kBootRomTrampolineToBl2Elf = "/BootromTrampolineToBL2.elf";
 constexpr auto kBl2Elf = "/ServiceProcessorBL2_fast-boot.elf";
 constexpr auto kMasterMinionElf = "/MasterMinion.elf";
@@ -89,6 +97,13 @@ DEFINE_string(sysemu_data_folder, "/var/lib/et_runtime",
               "In case of running device_type=sysemu this folder must contain required sysemu elfs: "
               "\n\tBootromTrampolineToBL2.elf\n\tServiceProcessorBL2_fast-boot.elf\n\tMasterMinion."
               "elf\n\tMachineMinion.elf\n\tWorkerMinion.elf\n");
+DEFINE_uint32(num_devices, 1, "Number of devices. Only valid for sysemu and fake based servers.");
+DEFINE_validator(num_devices, &validateNumDevices);
+
+DEFINE_uint32(frequencyMhz, dev::DeviceLayerFake::Parameters::getDefault().dc_.minionBootFrequency_,
+              "Frequency in Mhz\n. Only valid for fake based server.");
+DEFINE_uint64(dramSize, dev::DeviceLayerFake::Parameters::getDefault().bytesDram_,
+              "Dram size in bytes\n. Only valid for fake based server.");
 
 namespace gflags {}
 namespace google {}
@@ -158,9 +173,12 @@ int main(int argc, char* argv[]) {
       }
     }
     opts.startGdb = false;
-    deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(opts);
+    deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(opts, FLAGS_num_devices);
   } else {
-    deviceLayer = std::make_unique<dev::DeviceLayerFake>();
+    auto parameters = dev::DeviceLayerFake::Parameters::getDefault();
+    parameters.bytesDram_ = FLAGS_dramSize;
+    parameters.dc_.minionBootFrequency_ = FLAGS_frequencyMhz;
+    deviceLayer = std::make_unique<dev::DeviceLayerFake>(FLAGS_num_devices, parameters);
   }
 
   // tracing setup

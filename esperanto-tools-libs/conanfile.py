@@ -61,10 +61,14 @@ class RuntimeConan(ConanFile):
 
         if self.options.with_tests:
             self.requires("gtest/1.10.0")
-            self.requires("sw-sysemu/0.5.0")
+            self.requires("sw-sysemu/[>=0.5.0 <1.0.0]")
 
             sysemu_artifacts_conanfile = f"conanfile_device_artifacts_{self.options.with_sysemu_artifacts}.txt"
-            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h baremetal-rv64-gcc8.2-release --remote conan-develop --build missing")
+            host_ctx_profile = "baremetal-rv64-gcc8.2-debug" if self.settings.build_type == "Debug" else "baremetal-rv64-gcc8.2-release"
+            extra_settings = ""
+            if self.settings.build_type == "Debug":
+                extra_settings = "-s:h *:build_type=Release"
+            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd

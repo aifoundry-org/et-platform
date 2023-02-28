@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-15882] adapted to changes in the devicelayer api (2.0.0)
 - [SW-16044] added deviceId and streamId to StreamError. Note streamId will not be present when recovering from a crash.
+- [SW-16249] DeviceLayerFake is now parametrizable. MP server new parameters: num-devices (valid for sysemu and fake), frequency (valid for fake), dramsize (valid for fake).
 ### Changed
 ### Deprecated
 ### Removed
