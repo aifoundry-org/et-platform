@@ -2169,7 +2169,7 @@ void set_system_voltages(void)
     pmic_set_voltage(MODULE_NOC, NOC_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_NOC, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 430mV(0x%X)\n", voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 450mV(0x%X)\n", voltage);
 
     /* Setting the DDR voltages */
     pmic_set_voltage(MODULE_DDR, DDR_BOOT_VOLTAGE);
