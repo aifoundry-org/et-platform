@@ -434,4 +434,11 @@ uint64_t MM_Config_Get_CM_Shire_Mask(void);
 */
 uint8_t MM_Config_Get_Lvdpll_Strap(void);
 
+/*! \fn uint32_t MM_Config_Get_Minion_Boot_Freq(void)
+    \brief This function returns Minion Boot Frequency in MHz.
+    \param None
+    \return Minion Boot Frequency in MHz.
+*/
+uint32_t MM_Config_Get_Minion_Boot_Freq(void);
+
 #endif /* __MM_CONFIG_H__ */

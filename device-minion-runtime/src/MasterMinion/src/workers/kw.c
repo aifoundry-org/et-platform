@@ -37,6 +37,7 @@
 #include <etsoc/isa/riscv_encoding.h>
 #include <etsoc/isa/sync.h>
 #include <etsoc/isa/syscall.h>
+#include <system/abi.h>
 #include <transports/circbuff/circbuff.h>
 #include <transports/vq/vq.h>
 
@@ -118,6 +119,18 @@
             Log_Write(LOG_LEVEL_WARNING,                                                              \
                 "KW:Unable to register KW CM abort timeout! It may not recover in case of hang\r\n"); \
         }                                                                                             \
+    }
+
+#define KW_INIT_KERNEL_ENV_SHIRE_MASK(slot_index, mask)                                     \
+    {                                                                                       \
+        kernel_environment_t *kernel_env =                                                  \
+            (kernel_environment_t *)(CM_KERNEL_ENVS_BASEADDR +                              \
+                                     (uint32_t)slot_index * KERNEL_ENV_SIZE);               \
+                                                                                            \
+        kernel_env->shire_mask = mask;                                                      \
+                                                                                            \
+        /* Evict the data to L2 SCP */                                                      \
+        ETSOC_MEM_EVICT((void *)(uintptr_t)kernel_env, sizeof(kernel_environment_t), to_L2) \
     }
 
 /*! \typedef kernel_instance_t
@@ -737,6 +750,9 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
 
         if (status == STATUS_SUCCESS)
         {
+            /* Setup kernel environment shire mask */
+            KW_INIT_KERNEL_ENV_SHIRE_MASK(slot_index, cmd->shire_mask)
+
             /* Populate the tag_id and sqw_idx for KW */
             atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
             atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
@@ -998,7 +1014,7 @@ void KW_Init(void)
     init_local_spinlock(&KW_CB.resource_lock, 0);
 
     /* Mark all kernel slots - unused */
-    for (int i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
+    for (uint32_t i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
     {
         /* Initialize FCC flags used by the kernel worker */
         atomic_store_local_8(&KW_CB.host2kw[i].fcc_id, FCC_0);
@@ -1013,6 +1029,18 @@ void KW_Init(void)
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.cmd_start_cycles, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.wait_cycles, 0U);
         atomic_store_local_64(&KW_CB.kernels[i].kw_cycles.prev_cycles, 0U);
+
+        kernel_environment_t *kernel_env =
+            (kernel_environment_t *)(CM_KERNEL_ENVS_BASEADDR + i * KERNEL_ENV_SIZE);
+
+        /* Fill the kernel slot environment - these properties are filled once at boot time */
+        kernel_env->version.major = ABI_VERSION_MAJOR;
+        kernel_env->version.minor = ABI_VERSION_MINOR;
+        kernel_env->version.patch = ABI_VERSION_PATCH;
+        kernel_env->frequency = MM_Config_Get_Minion_Boot_Freq();
+
+        /* Evict the data to L2 SCP */
+        ETSOC_MEM_EVICT((void *)(uintptr_t)kernel_env, sizeof(kernel_environment_t), to_L2)
     }
 
     /* Initialize DDR size */

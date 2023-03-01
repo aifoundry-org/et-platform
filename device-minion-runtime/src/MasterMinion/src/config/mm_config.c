@@ -16,6 +16,9 @@
         MM_Config_Init
         MM_Config_Get_DDR_Size
         MM_Config_Get_DRAM_End_Address
+        MM_Config_Get_CM_Shire_Mask
+        MM_Config_Get_Lvdpll_Strap
+        MM_Config_Get_Minion_Boot_Freq
 */
 /***********************************************************************/
 #include <inttypes.h>
@@ -40,6 +43,7 @@ typedef struct mm_config_ {
     uint64_t host_managed_dram_size;
     uint64_t host_managed_dram_end;
     uint64_t cm_shire_mask;
+    uint32_t minion_boot_freq;
     uint8_t lvdpll_strap;
 } mm_config_t;
 
@@ -68,8 +72,9 @@ int32_t MM_Config_Init(void)
 {
     uint64_t ddr_mem_size;
     uint64_t shire_mask = 0;
-    uint8_t lvdpll_strap = 0;
+    uint32_t min_freq_mhz = 0;
     int32_t status = DMA_DRIVER_ERROR_INVALID_ADDRESS;
+    uint8_t lvdpll_strap = 0;
 
     status = SP_Iface_Get_DDR_Memory_Info(&ddr_mem_size);
     if (status == STATUS_SUCCESS)
@@ -94,18 +99,44 @@ int32_t MM_Config_Init(void)
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "ERROR:MM_Config_Init: unable to get ddr memory info\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "MM_Config_Init:ERROR:Unable to get DDR memory info\r\n");
     }
 
-    /* Obtain the number of shires from SP and lvdpll strap value */
-    status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
     if (status == STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_DEBUG, "MM_Config_Init:From SP:shire_mask: 0x%lx lvdpll_strap: %d\r\n",
-            shire_mask, lvdpll_strap);
+        /* Obtain the number of shires from SP and lvdpll strap value */
+        status = SP_Iface_Get_Shire_Mask_And_Strap(&shire_mask, &lvdpll_strap);
+        if (status == STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_DEBUG,
+                "MM_Config_Init:From SP:shire_mask: 0x%lx lvdpll_strap: %d\r\n", shire_mask,
+                lvdpll_strap);
 
-        atomic_store_local_64(&MM_Config_CB.cm_shire_mask, shire_mask);
-        atomic_store_local_8(&MM_Config_CB.lvdpll_strap, lvdpll_strap);
+            atomic_store_local_64(&MM_Config_CB.cm_shire_mask, shire_mask);
+            atomic_store_local_8(&MM_Config_CB.lvdpll_strap, lvdpll_strap);
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                "MM_Config_Init:ERROR:Unable to get CM shire mask and strap value.\r\n");
+        }
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Read the Minion Boot Frequency */
+        status = SP_Iface_Get_Boot_Freq(&min_freq_mhz);
+        if (status == STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "MM_Config_Init:From SP:min_freq_mhz: %u\r\n", min_freq_mhz);
+
+            atomic_store_local_32(&MM_Config_CB.minion_boot_freq, min_freq_mhz);
+        }
+        else
+        {
+            Log_Write(
+                LOG_LEVEL_ERROR, "MM_Config_Init:ERROR:Unable to get Minion Boot Frequency.\r\n");
+        }
     }
 
     return status;
@@ -229,4 +260,28 @@ uint64_t MM_Config_Get_CM_Shire_Mask(void)
 uint8_t MM_Config_Get_Lvdpll_Strap(void)
 {
     return atomic_load_local_8(&MM_Config_CB.lvdpll_strap);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       MM_Config_Get_Minion_Boot_Freq
+*
+*   DESCRIPTION
+*
+*       This function returns Minion Boot frequency in MHz.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint32_t     Minion boot frequency in MHz.
+*
+***********************************************************************/
+uint32_t MM_Config_Get_Minion_Boot_Freq(void)
+{
+    return atomic_load_local_32(&MM_Config_CB.minion_boot_freq);
 }

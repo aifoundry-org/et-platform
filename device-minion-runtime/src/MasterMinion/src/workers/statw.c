@@ -757,22 +757,10 @@ static void statw_sample_init(struct compute_resources_sample *local_stats_cb)
 ***********************************************************************/
 static void statw_init(struct compute_resources_sample *local_stats_cb)
 {
-    /* Set default to 100 Mhz */
-    uint32_t min_freq_mhz = 100;
-
+    /* Store the frequency in global data.
+    TODO: Doesn't take dynamically changing frequency in account */
+    atomic_store_local_32(&STATW_CB.minion_freq_mhz, MM_Config_Get_Minion_Boot_Freq());
     atomic_store_local_64(&STATW_CB.saved_trace_entry, 0);
-
-    /* TODO: Updates to account for Dynamically changing frequency */
-    int32_t status = SP_Iface_Get_Boot_Freq(&min_freq_mhz);
-
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-            "statw_init: Unable to get Minion boot frequency. Status code: %d\r\n", status);
-    }
-
-    /* Store the frequency */
-    atomic_store_local_32(&STATW_CB.minion_freq_mhz, min_freq_mhz);
 
     statw_sample_init(local_stats_cb);
 }

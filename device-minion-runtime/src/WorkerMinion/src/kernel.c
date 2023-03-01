@@ -316,6 +316,8 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
     int64_t return_value;
     uint64_t hart_id = get_hart_id();
     uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE);
+    uint64_t kernel_env_addr =
+        CM_KERNEL_ENVS_BASEADDR + ((uint32_t)kernel.slot_index * KERNEL_ENV_SIZE);
     bool kernel_last_thread;
 
     asm volatile("csrr  %0, sscratch \n"
@@ -461,7 +463,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         [k_stack_addr] "r"(kernel_stack_addr),    /* Kernel stack address */
         [k_entry] "r"(kernel.code_start_address), /* Kernel entry address */
         [k_param_a0] "r"(kernel.pointer_to_args), /* Kernel args address */
-        [k_param_a1] "r"(0),                      /* Unused for now */
+        [k_param_a1] "r"(kernel_env_addr),        /* Kernel Environment */
         [k_param_a2] "r"(0),                      /* Unused for now */
         [k_param_a3] "r"(0)                       /* Unused for now */
     );
