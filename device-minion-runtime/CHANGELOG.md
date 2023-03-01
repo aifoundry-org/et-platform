@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-16370] Fixed the kernel launch assembly code to pass correct function attributes.
 ### Security
 
 ## [0.15.0] - 2023-01-10

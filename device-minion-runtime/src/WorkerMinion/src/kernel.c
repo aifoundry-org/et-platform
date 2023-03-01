@@ -377,10 +377,6 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         "sd    x29, 29 * 8( sp )   \n"
         "sd    x30, 30 * 8( sp )   \n"
         "sd    x31, 31 * 8( sp )   \n"
-        "mv    x10, %[k_param_a0]  \n" // a0 = kernel.pointer_to_args
-        "mv    x11, %[k_param_a1]  \n" // a1 = UNUSED
-        "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
-        "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
         "mv    ra, %[k_ret_addr]   \n" // set return address to 0 to catch kernels that don't end properly
         "mv    s0, %[k_stack_addr] \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
@@ -398,6 +394,10 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         "mv    x7, zero            \n"
         "mv    x8, zero            \n"
         "mv    x9, zero            \n"
+        "mv    x10, %[k_param_a0]  \n" // a0 = kernel.pointer_to_args
+        "mv    x11, %[k_param_a1]  \n" // a1 = kernel environment
+        "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
+        "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "mv    x14, zero           \n"
         "mv    x15, zero           \n"
         "mv    x16, zero           \n"
