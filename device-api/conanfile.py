@@ -33,8 +33,6 @@ class DeviceApiConan(ConanFile):
         tc.generate()
 
     def build(self):
-        # install python requirements
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
         cmake = CMake(self)
         cmake.configure()
         cmake.build()

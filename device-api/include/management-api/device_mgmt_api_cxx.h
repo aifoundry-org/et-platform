@@ -10,17 +10,17 @@
 
 /* WARNING: this file is auto-generated do not edit directly */
 
-#ifndef ET_DEVICE_<< cgh.c_api_name | upper >>_API_CXX_H
-#define ET_DEVICE_<< cgh.c_api_name | upper >>_API_CXX_H
+#ifndef ET_DEVICE_MGMT_API_CXX_H
+#define ET_DEVICE_MGMT_API_CXX_H
 
 #include <stdint.h>
 #include <ostream>
 
-namespace device_<<cgh.c_api_name | lower>>_api {
+namespace device_mgmt_api {
 
-#include "device_<<cgh.c_api_name | lower>>_api_spec.h"
-#include "device_<<cgh.c_api_name | lower>>_api_rpc_types.h"
+#include "device_mgmt_api_spec.h"
+#include "device_mgmt_api_rpc_types.h"
 
-} /* namespace device_<<cgh.c_api_name | lower>>_api */
+} /* namespace device_mgmt_api */
 
-#endif /* ET_DEVICE_<< cgh.c_api_name | upper >>_API_CXX_H */
+#endif /* ET_DEVICE_MGMT_API_CXX_H */
