@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-16253] Added environment kernel for verifying the kernel env params.
 ### Changed
 ### Deprecated
 ### Removed
