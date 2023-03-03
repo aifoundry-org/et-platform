@@ -440,6 +440,12 @@ struct get_mm_stats_t {
   
 } __attribute__((packed));
 
+struct shire_cache_config_t {
+  uint16_t scp_size;  /* L2 SCP size */
+  uint16_t l2_size;   /* L2 size*/
+  uint16_t l3_size;   /* L3 size */
+} __attribute__((packed));
+
 /* The real Device Mgmt API RPC messages that we exchange */
 
 /*! \struct device_mgmt_echo_cmd_t
@@ -1127,6 +1133,40 @@ struct device_mgmt_power_throttle_config_rsp_t {
   struct dev_mgmt_rsp_header_t rsp_hdr;
   dm_status_e  status; /**< DM_STATUS_SUCCESS or non-zero error code */
   uint8_t  pad[4]; /**< Padding for alignment */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_get_shire_cache_config_cmd_t
+    \brief Command to get shire cache configuration
+*/
+struct device_mgmt_get_shire_cache_config_cmd_t {
+  dev_mgmt_cmd_header_t command_info; /**< Command header */
+  uint64_t  dummy; /**< Dummy field. */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_get_shire_cache_config_rsp_t
+    \brief Response for get shire cache config command
+*/
+struct device_mgmt_get_shire_cache_config_rsp_t {
+  struct dev_mgmt_rsp_header_t rsp_hdr;
+  struct shire_cache_config_t  sc_config; /**< Shire cache config */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_set_shire_cache_config_cmd_t
+    \brief Command to set the shire cache config
+*/
+struct device_mgmt_set_shire_cache_config_cmd_t {
+  dev_mgmt_cmd_header_t command_info; /**< Command header */
+  uint16_t scp_size;
+  uint16_t l2_size;
+  uint16_t l3_size;
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_set_shire_cache_config_rsp_t
+    \brief Response for set shire cache config
+*/
+struct device_mgmt_set_shire_cache_config_rsp_t {
+  struct dev_mgmt_rsp_header_t rsp_hdr;
+  uint64_t  dummy; /**< Dummy field. */
 } __attribute__((packed, aligned(8)));
 
 /*! \struct mdi_hart_selection_cmd_t
