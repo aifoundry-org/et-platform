@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-16234] Adding shire cache config command
 ### Changed
 - [SW-15581] Define a default verbosity level for DM_VLOG.
 ### Deprecated

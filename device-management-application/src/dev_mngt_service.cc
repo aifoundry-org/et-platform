@@ -168,6 +168,11 @@ static bool trace_flag = false;
 
 static bool pci_slot_flag = false;
 
+static bool sc_config_flag = false;
+static uint16_t l2_scp;
+static uint16_t l2_size;
+static uint16_t l3_size;
+
 // A namespace containing template for `bit_cast`. To be removed when `bit_cast` will be available
 namespace templ {
 template <class To, class From>
@@ -1273,7 +1278,40 @@ int verifyService() {
       return ret;
     }
   } break;
+  case DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG: {
+    if (!sc_config_flag) {
+      DM_VLOG(LOW) << "Aborting, --sc_config was not defined" << std::endl;
+      return -EINVAL;
+    }
+    const uint32_t input_size = sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint16_t);
+    char input_buff[input_size];
+    input_buff[0] = (char)(l2_scp & 0xff);
+    input_buff[1] = (char)((l2_scp >> 8) & 0xff);
+    input_buff[2] = (char)(l2_size & 0xff);
+    input_buff[3] = (char)((l2_size >> 8) & 0xff);
+    input_buff[4] = (char)(l3_size & 0xff);
+    input_buff[5] = (char)((l3_size >> 8) & 0xff);
 
+    if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+    return true;
+  } break;
+  case DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG: {
+    const uint32_t output_size = sizeof(struct shire_cache_config_t);
+    char output_buff[output_size] = {0};
+
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+
+    struct shire_cache_config_t* dm_rsp = (struct shire_cache_config_t*)output_buff;
+    DM_LOG(INFO) << "Shire Cache Configuration: " << std::endl;
+    DM_LOG(INFO) << "Scratchpad size: " << dm_rsp->scp_size << std::endl;
+    DM_LOG(INFO) << "L2 cache size: " << dm_rsp->l2_size << std::endl;
+    DM_LOG(INFO) << "L3 cache size: " << dm_rsp->l3_size << std::endl;
+    return true;
+  } break;
   default:
     DM_VLOG(LOW) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
     return -EINVAL;
@@ -1589,6 +1627,23 @@ bool validVoltage() {
     return false;
   }
   volt_enc = static_cast<decltype(volt_enc)>(VOLTAGE2BIN(voltage, base, multiplier, divider));
+
+  return true;
+}
+
+bool validSCConfig() {
+
+  if (!std::regex_match(std::string(optarg), std::regex("^[0-9]+,[0-9]+,[0-9]+$"))) {
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid, e.g: 640,128,256" << std::endl;
+    return false;
+  }
+
+  auto cfg_l2_scp = std::stoul(std::strtok(optarg, ","));
+  auto cfg_l2_size = std::stoul(std::strtok(NULL, ","));
+  auto cfg_l3_size = std::stoul(std::strtok(NULL, ","));
+  l2_scp = static_cast<decltype(l2_scp)>(cfg_l2_scp);
+  l2_size = static_cast<decltype(l2_size)>(cfg_l2_size);
+  l3_size = static_cast<decltype(l3_size)>(cfg_l3_size);
 
   return true;
 }
@@ -1947,11 +2002,27 @@ void printPartIdUsage(char* argv) {
             << " -" << (char)long_options[17].val << " 320" << std::endl;
 }
 
+void printSCConfigUsage(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-z <L2 SCP size>, <L2 size>, <L3 size>" << std::endl;
+  std::cout << "\t\t"
+            << "Set shire cache configuration" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG
+            << " -z 640,128,256" << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_SHIRE_CACHE_CONFIG"
+            << " -z 640,128,256 (Default Cache partition values)" << std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
             << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -l nlevel | -e nswtemp | -i npath | -f "
-               "minionfreq,nocfreq | -g get_slot_name | -t tracebuf | -v module,voltage | -d partid | -V ]"
+               "minionfreq,nocfreq | -g get_slot_name | -t tracebuf | -v module,voltage | -d partid | -V | -z <L2 SCP "
+               "size>, <L2 size>, <L3 size> ]"
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -1971,6 +2042,7 @@ void printUsage(char* argv) {
   printVersionUsage(argv);
   printVoltageUsage(argv);
   printPartIdUsage(argv);
+  printSCConfigUsage(argv);
 }
 
 bool validTraceOperation() {
@@ -2137,7 +2209,7 @@ int main(int argc, char** argv) {
 
   while (1) {
 
-    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:l:e:u:i:t:f:v:Vg", long_options, &option_index);
+    c = getopt_long(argc, argv, "d:o:m:hc:n:p:r:s:w:l:e:u:i:t:f:v:Vg:z:", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -2250,6 +2322,11 @@ int main(int argc, char** argv) {
       break;
     case 'v':
       if (!(voltage_flag = validVoltage())) {
+        return -EINVAL;
+      }
+      break;
+    case 'z':
+      if (!(sc_config_flag = validSCConfig())) {
         return -EINVAL;
       }
       break;
