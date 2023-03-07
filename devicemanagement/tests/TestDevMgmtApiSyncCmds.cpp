@@ -3299,6 +3299,8 @@ void TestDevMgmtApiSyncCmds::readMem(uint64_t readAddr) {
   device_mgmt_api::mdi_mem_read_t input_buff;
   /* Test address in HOST_MANAGED_DRAM_START - HOST_MANAGED_DRAM_END address range */
   input_buff.address = readAddr;
+  input_buff.hart_id = 0;
+  input_buff.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
   input_buff.size = sizeof(uint64_t);
   const uint32_t output_size = sizeof(uint64_t);
 
@@ -3417,16 +3419,14 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
                                 (char*)&mdi_bp_input_buff, mdi_bp_input_size, (char*)&bp_cmd_status, sizeof(int32_t),
                                 hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
               device_mgmt_api::DM_STATUS_SUCCESS);
-#if MINION_DEBUG_INTERFACE
+
     /* Wait for set break point event */
     std::vector<std::byte> buf;
     EXPECT_TRUE(dm.getEvent(deviceIdx, buf, DM_SERVICE_REQUEST_TIMEOUT));
 
     auto rCB = reinterpret_cast<const dm_evt*>(buf.data());
     EXPECT_EQ(rCB->info.event_hdr.msg_id, device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT);
-#else
-    EXPECT_EQ(bp_cmd_status, device_mgmt_api::DM_STATUS_SUCCESS);
-#endif
+
     /* UnSet Breakpoint */
     mdi_bp_input_buff = {0};
     mdi_bp_input_buff.hart_id = hartID;

@@ -38,9 +38,7 @@ struct lockable_ {
     if (receiverRunning) {
       receiverRunning = false;
     }
-#if MINION_DEBUG_INTERFACE
     eventsCv.notify_all();
-#endif
   }
 
   std::future<std::vector<std::byte>> getRespReceiveFuture(device_mgmt_api::tag_id_t tagId) {
@@ -65,7 +63,6 @@ struct lockable_ {
     return false;
   }
 
-#if MINION_DEBUG_INTERFACE
   void pushEvent(std::vector<std::byte>& event) {
     std::scoped_lock lk(eventsMtx);
     events.push(std::move(event));
@@ -81,7 +78,6 @@ struct lockable_ {
     }
     return false;
   }
-#endif
 
   uint32_t idx;
   // receiver is run in detach mode so no need to wait for receiver thread to join
@@ -97,14 +93,11 @@ struct lockable_ {
 private:
   std::unordered_map<device_mgmt_api::tag_id_t, std::promise<std::vector<std::byte>>> commandMap;
   std::mutex commandMapMtx;
-#if MINION_DEBUG_INTERFACE
   std::mutex eventsMtx;
   std::condition_variable eventsCv;
   std::queue<std::vector<std::byte>> events;
-#endif
 };
 
-#if MINION_DEBUG_INTERFACE
 bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::byte>& message) {
   auto rCB = reinterpret_cast<const dm_evt*>(message.data());
   // The range can be extended to handle all type of events
@@ -121,18 +114,15 @@ bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byt
   auto lockable = getDeviceInstance(device_node);
   return lockable->popEvent(event, timeout);
 }
-#endif
 
 void DeviceManagement::receiver(std::shared_ptr<lockable_> lockable) {
   while (lockable->receiverRunning) {
     lockable->cqGuard.lock();
     std::vector<std::byte> message;
     while (devLayer_->receiveResponseServiceProcessor(lockable->idx, message)) {
-#if MINION_DEBUG_INTERFACE
       if (handleEvent(lockable->idx, message)) {
         continue;
       }
-#endif
       if (!lockable->fulfillRespReceivePromise(message)) {
         DV_DLOG(WARNING) << "receiver: discarding the stray message";
       }
@@ -491,7 +481,6 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG:
-#if MINION_DEBUG_INTERFACE
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_RESET_HART:
@@ -508,9 +497,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM:
-    case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM:
-#endif
-    {
+    case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM: {
       memcpy(wCB->payload, input_buff, inputSize);
       wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
       break;

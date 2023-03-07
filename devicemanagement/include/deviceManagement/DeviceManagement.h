@@ -98,9 +98,7 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_GET_MM_STATS", device_mgmt_api::DM_CMD::DM_CMD_GET_MM_STATS},
   {"DM_CMD_SET_STATS_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL},
   {"DM_CMD_SET_SHIRE_CACHE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG},
-  {"DM_CMD_GET_SHIRE_CACHE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG}
-#if MINION_DEBUG_INTERFACE
-  ,
+  {"DM_CMD_GET_SHIRE_CACHE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG},
   {"DM_CMD_MDI_SELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART},
   {"DM_CMD_MDI_UNSELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART},
   {"DM_CMD_MDI_RESET_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_RESET_HART},
@@ -117,9 +115,7 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_MDI_READ_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR},
   {"DM_CMD_MDI_WRITE_CSR", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR},
   {"DM_CMD_MDI_READ_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM},
-  {"DM_CMD_MDI_WRITE_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM}
-#endif
-};
+  {"DM_CMD_MDI_WRITE_MEM", device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM}};
 
 static std::unordered_map<std::string, device_mgmt_api::ACTIVE_POWER_MANAGEMENT> const activePowerManagementTable = {
   {"ACTIVE_POWER_MANAGEMENT_TURN_OFF", device_mgmt_api::ACTIVE_POWER_MANAGEMENT::ACTIVE_POWER_MANAGEMENT_TURN_OFF},
@@ -151,12 +147,10 @@ struct dm_rsp {
   char payload[1];
 };
 
-#if MINION_DEBUG_INTERFACE
 struct dm_evt {
   device_mgmt_api::evt_header_t info;
   char payload[1];
 };
-#endif
 
 typedef std::unordered_map<std::string, device_mgmt_api::DM_CMD>::const_iterator itCmd;
 
@@ -205,7 +199,6 @@ public:
   int getTraceBufferServiceProcessor(const uint32_t device_node, TraceBufferType buf_type,
                                      std::vector<std::byte>& response);
 
-#ifdef MINION_DEBUG_INTERFACE
   /// @brief Gets the MDI event type
   ///
   /// @param[in] device_node  device index to use
@@ -214,7 +207,6 @@ public:
   ///
   /// @return true if event is received in given timeout else false
   bool getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout);
-#endif
 
 private:
   /// @brief DeviceManagement constructors
@@ -360,7 +352,6 @@ private:
   /// @param[in] waitReceiverExit wait for receiver thread to exit
   void destroyDevicesInstance(bool waitReceiverExit = false);
 
-#ifdef MINION_DEBUG_INTERFACE
   /// @brief Handles the event message types
   ///
   /// @param[in] device_node  device index to use
@@ -368,7 +359,6 @@ private:
   ///
   /// @param[out] return true if given message was event and handled correctly
   bool handleEvent(const uint32_t device_node, std::vector<std::byte>& message);
-#endif
 
   std::unordered_map<uint32_t, std::shared_ptr<lockable_>> deviceMap_;
   std::mutex deviceMapMtx_;

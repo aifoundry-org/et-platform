@@ -75,9 +75,7 @@ class DeviceManagementConan(ConanFile):
         self.cpp_info.components["DM"].libs = ["DM"]
         self.cpp_info.components["DM"].includedirs = ["include"]
         self.cpp_info.components["DM"].libdirs = ["lib"]
-        if self.settings.build_type == "Debug":
-            self.cpp_info.components["DM"].defines.append("MINION_DEBUG_INTERFACE")
-        else:
+        if self.settings.build_type != "Debug":
             self.cpp_info.components["DM"].defines.append("NDEBUG")
 
         self.cpp_info.components["DM_static"].set_property("cmake_target_name", "deviceManagement::DM_static")
@@ -85,9 +83,7 @@ class DeviceManagementConan(ConanFile):
         self.cpp_info.components["DM_static"].libs = ["DM_static"]
         self.cpp_info.components["DM_static"].includedirs = ["include"]
         self.cpp_info.components["DM_static"].libdirs = ["lib"]
-        if self.settings.build_type == "Debug":
-            self.cpp_info.components["DM_static"].defines.append("MINION_DEBUG_INTERFACE")
-        else:
+        if self.settings.build_type != "Debug":
             self.cpp_info.components["DM"].defines.append("NDEBUG")
 
         bin_path = os.path.join(self.package_folder, "bin")
