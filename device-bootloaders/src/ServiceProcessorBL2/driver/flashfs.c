@@ -1743,19 +1743,16 @@ int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
         return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;
     }
 
-    if (write_non_persistant)
+    /* Compare with non persistent data in flash with bl2 global data */
+    if (write_non_persistant &&
+        (memcmp(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                    sizeof(ESPERANTO_CONFIG_HEADER_t) + sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t),
+                (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.non_persistent_config),
+                sizeof(ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t))))
     {
-        /* Compare with non persistent data in flash with bl2 global data */
-        if (memcmp(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
-                       sizeof(ESPERANTO_CONFIG_HEADER_t) +
-                       sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t),
-                   (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.non_persistent_config),
-                   sizeof(ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t)))
-        {
-            Log_Write(LOG_LEVEL_ERROR,
-                      "flash_fs_write_config_region: non persistant data validation failed!\n");
-            return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;
-        }
+        Log_Write(LOG_LEVEL_ERROR,
+                  "flash_fs_write_config_region: non persistant data validation failed!\n");
+        return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;
     }
 
     return 0;
