@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-15389] Adding SP error log on MM FW error before MM reset
+- [SW-16234] Adding shire cache control command
 ### Changed
 - [SW-15663] Increased pmic timeout and report error on timeout from I2C.
 - [SW-15697] Replacing threshold_data with threshold value in trace buffer full notification.

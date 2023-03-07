@@ -60,6 +60,9 @@ typedef struct ESPERANTO_PARTITION_BL2_INFO_s
 typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_NON_PERSISTENT_DATA
 {
     uint32_t fw_release_rev;
+    uint16_t scp_size;
+    uint16_t l2_size;
+    uint16_t l3_size;
 } ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t;
 
 /* Esperanto flash persistant config data, this data will be kept same on every fw update */
@@ -77,7 +80,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
     ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
     ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
-    uint8_t padding[27];
+    uint8_t padding[21];
 } ESPERANTO_CONFIG_DATA_t;
 
 static_assert(64 == sizeof(ESPERANTO_CONFIG_DATA_t), "sizeof(ESPERANTO_CONFIG_DATA_t) is not 64!");

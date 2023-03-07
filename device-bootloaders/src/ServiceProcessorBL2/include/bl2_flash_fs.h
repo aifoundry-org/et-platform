@@ -20,6 +20,7 @@
 #define __BL2_SPI_FLASH_FS_H__
 
 #include "bl2_spi_flash.h"
+#include "dm.h"
 
 /*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     \brief This function initialize partition infos.
@@ -184,11 +185,28 @@ int flash_fs_get_form_factor(char *form_factor);
 */
 int flash_fs_get_fw_release_rev(char *fw_release_rev);
 
-/*! \fn int flash_fs_write_config_region(uint32_t partition)
+/*! \fn int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
     \brief This function writes config data from global config data.
     \param partition partition number to write configuration data
+    \param write_non_persistant write non persistant configuration from global
     \return The function call status, pass/fail.
 */
-int flash_fs_write_config_region(uint32_t partition);
+int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant);
 
+/*! \fn int flash_fs_update_shire_cache_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size)
+
+    \brief This function updates the shire cache configuration with supplied parameters.
+    \param scp_size scratchpad size
+    \param l2_size L2 cache size
+    \param l3_size L3 cache size
+    \return The function call status, pass/fail.
+*/
+int flash_fs_update_shire_cache_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size);
+
+/*! \fn int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg)
+    \brief This function returns shire cache configuration from global flash config.
+    \param sc_cfg shire cache configuration
+    \return The function call status, pass/fail.
+*/
+int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg);
 #endif

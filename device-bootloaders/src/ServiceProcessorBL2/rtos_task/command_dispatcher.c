@@ -189,7 +189,10 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
                 /* Process minion debug request cmd */
                 minion_debug_request(tag_id, msg_id, (void *)buffer);
                 break;
-
+            case DM_CMD_SET_SHIRE_CACHE_CONFIG ... DM_CMD_GET_SHIRE_CACHE_CONFIG:
+                /* Process cache controls cmds*/
+                cache_control_process_cmd(tag_id, msg_id, (void *)buffer);
+                break;
             default:
                 Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
                 Log_Write(LOG_LEVEL_ERROR, "message length: %d, buffer:\r\n", pop_ret_val);

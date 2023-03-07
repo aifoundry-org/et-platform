@@ -62,6 +62,11 @@
 */
 #define MM_RESET_TIMEOUT_MSEC 1000000
 
+/*! \def CM_SHIRE_MASK
+    \brief Shire mask of Compute Minions Shires.
+*/
+#define CM_SHIRE_MASK 0xFFFFFFFFUL
+
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails

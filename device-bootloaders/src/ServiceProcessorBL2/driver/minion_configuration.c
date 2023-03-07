@@ -61,6 +61,7 @@
 #include "trace.h"
 #include "dm_event_control.h"
 #include "thermal_pwr_mgmt.h"
+#include "bl2_flash_fs.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -586,6 +587,8 @@ static int enable_minion_shire(uint64_t shire_mask)
     shire_mask = 0x3FFFFFFFF;
     uint8_t num_shires = 33;
     uint64_t shiremask = shire_mask;
+    struct shire_cache_config_t sc_config_data;
+    int32_t status = STATUS_SUCCESS;
 
     /* Enable Minion in all neighs */
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
@@ -612,9 +615,19 @@ static int enable_minion_shire(uint64_t shire_mask)
        SCP - 80 MB (2.5 MB / shire ) 
        L2 -  16 MB (0.5 MB/ shire )
        L3 -  32 MB (1 MB / shire )  
-    TODO: Update this to dynamically update from DM command
+       Fetch scp l2 and l3 size from flash configuration
     */
-    cache_scp_l2_l3_size_config(640, 128, 256, 0xFFFFFFFF);
+    status = flash_fs_get_sc_config(&sc_config_data);
+    if (status == STATUS_SUCCESS)
+    {
+        cache_scp_l2_l3_size_config(sc_config_data.scp_size, sc_config_data.l2_size,
+                                    sc_config_data.l3_size, CM_SHIRE_MASK);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_sc_config error: %d\n", status);
+        return status;
+    }
 
     Log_Write(LOG_LEVEL_CRITICAL, "Shire Cache and Neigh Enable with VPU RF WA\n");
 #else

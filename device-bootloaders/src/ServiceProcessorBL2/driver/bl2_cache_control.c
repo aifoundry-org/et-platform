@@ -14,6 +14,7 @@
 #include <hwinc/etsoc_shire_other_esr.h>
 #include <hwinc/etsoc_neigh_esr.h>
 #include "esr.h"
+#include "bl2_flash_fs.h"
 
 /*! \def KB_to_MB(size)
     \brief Converts kilobytes to megabytes.
@@ -22,6 +23,15 @@
 
 #define SRAM_SHIRE_CACHE_ERROR 0x1
 #define SRAM_ICACHE_ERROR      0x2
+
+/* SC config parameters should be validated as
+    - scp + L2 + L3 size should not be bigger then SC bank size
+    - SCP, L2 and L3 sizes should be even numbers
+    - L2 size should be less then 0x40
+*/
+#define VALIDATE_SC_CONFIG_PARAMS(scp_size, l2_size, l3_size) \
+    (((scp_size + l2_size + l3_size) > SC_BANK_SIZE) ||       \
+     (((scp_size % 2) != 0) || ((l2_size % 2) != 0) || ((l3_size % 2) != 0)) || (l2_size < 0x40u))
 
 static void sram_error_threshold_isr(uint8_t, uint8_t, uint64_t);
 static void sram_error_uncorr_isr(uint8_t, uint8_t, uint64_t);
@@ -655,7 +665,7 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
     uint16_t tag_mask;
     uint8_t high_bit;
 
-    if ((scp_size + l2_size + l3_size) > SC_BANK_SIZE)
+    if (VALIDATE_SC_CONFIG_PARAMS(scp_size, l2_size, l3_size))
     {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -665,16 +675,6 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
         num_of_shires = get_highest_set_bit_offset(shire_mask);
     }
     else
-    {
-        return ERROR_INVALID_ARGUMENT;
-    }
-
-    if (((scp_size % 2) != 0) || ((l2_size % 2) != 0) || ((l3_size % 2) != 0))
-    {
-        return ERROR_INVALID_ARGUMENT;
-    }
-
-    if (l2_size < 0x40u)
     {
         return ERROR_INVALID_ARGUMENT;
     }
@@ -748,4 +748,144 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
     }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_control_set_sc_config
+*
+*   DESCRIPTION
+*
+*       This function process set shire cache configuration command
+*
+*   INPUTS
+*
+*       tag               Command tag value
+*       buffer            Command buffer
+*       req_start_time    Time in cycles when request is received
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_control_set_sc_config(uint16_t tag, void *buffer, uint64_t req_start_time)
+{
+    const struct device_mgmt_set_shire_cache_config_cmd_t *sc_config =
+        (struct device_mgmt_set_shire_cache_config_cmd_t *)buffer;
+    struct device_mgmt_set_shire_cache_config_rsp_t dm_rsp;
+    int32_t status = STATUS_SUCCESS;
+
+    /* Validate configuration parameters*/
+    if (VALIDATE_SC_CONFIG_PARAMS(sc_config->scp_size, sc_config->l2_size, sc_config->l3_size))
+    {
+        status = ERROR_INVALID_ARGUMENT;
+        Log_Write(LOG_LEVEL_ERROR, " cache_control_process_cmd error: invalid argument \r\n");
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Update shire cache configuration in flash config header. This will be applied on next
+        boot as the system will be reset after successfully writing shire cache configuration */
+        status = flash_fs_update_shire_cache_config(sc_config->scp_size, sc_config->l2_size,
+                                                    sc_config->l3_size);
+        if (STATUS_SUCCESS != status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_update_shire_cache_config error %d:  \r\n",
+                      status);
+        }
+    }
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_SET_SHIRE_CACHE_CONFIG,
+                    timer_get_ticks_count() - req_start_time, status)
+
+    if (STATUS_SUCCESS !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                  sizeof(struct device_mgmt_set_shire_cache_config_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "cache_control_process_cmd: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_control_get_sc_config
+*
+*   DESCRIPTION
+*
+*       This function process get shire cache configuration command
+*
+*   INPUTS
+*
+*       tag               Command tag value
+*       req_start_time    Time in cycles when request is received
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+static void cache_control_get_sc_config(uint16_t tag, uint64_t req_start_time)
+{
+    struct device_mgmt_get_shire_cache_config_rsp_t dm_rsp = { 0 };
+    int32_t status = STATUS_SUCCESS;
+
+    status = flash_fs_get_sc_config(&dm_rsp.sc_config);
+    if (STATUS_SUCCESS != status)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_get_sc_config error: %d  \r\n", status);
+    }
+    FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_SHIRE_CACHE_CONFIG,
+                    timer_get_ticks_count() - req_start_time, status)
+
+    if (STATUS_SUCCESS !=
+        SP_Host_Iface_CQ_Push_Cmd((char *)&dm_rsp,
+                                  sizeof(struct device_mgmt_get_shire_cache_config_rsp_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "cache_control_process_cmd: Cqueue push error!\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       cache_control_process_cmd
+*
+*   DESCRIPTION
+*
+*       This function process cache control commands
+*
+*   INPUTS
+*
+*       tag               Command tag value
+*       msg_id            Unique enum representing specific command
+*       buffer            Command input buffer
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void cache_control_process_cmd(uint16_t tag, msg_id_t msg_id, void *buffer)
+{
+    uint64_t req_start_time = timer_get_ticks_count();
+
+    switch (msg_id)
+    {
+        case DM_CMD_GET_SHIRE_CACHE_CONFIG:
+            cache_control_get_sc_config(tag, req_start_time);
+            break;
+
+        case DM_CMD_SET_SHIRE_CACHE_CONFIG:
+            cache_control_set_sc_config(tag, buffer, req_start_time);
+            break;
+        default:
+            Log_Write(LOG_LEVEL_ERROR,
+                      "cache_control_process_cmd error: invalid message id: %u  \r\n", msg_id);
+            break;
+    }
 }

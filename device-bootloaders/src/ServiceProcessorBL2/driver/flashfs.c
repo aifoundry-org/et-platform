@@ -1641,6 +1641,7 @@ int flash_fs_get_fw_release_rev(char *fw_release_rev)
 *   INPUTS
 *
 *       partition partition number to write configuration data
+*       write_non_persistant write non persistant configuration from global
 *
 *   OUTPUTS
 *
@@ -1648,7 +1649,7 @@ int flash_fs_get_fw_release_rev(char *fw_release_rev)
 *
 ***********************************************************************/
 
-int flash_fs_write_config_region(uint32_t partition)
+int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
 {
     ESPERANTO_CONFIG_DATA_t *cfg_data = NULL;
     uint32_t config_reg_address;
@@ -1698,6 +1699,14 @@ int flash_fs_write_config_region(uint32_t partition)
            (void *)&sg_flash_fs_bl2_info.asset_config_data.persistent_config,
            sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t));
 
+    if (write_non_persistant)
+    {
+        /* Restore non persistant configuration data from global */
+        memcpy((void *)&cfg_data->non_persistent_config,
+               (void *)&sg_flash_fs_bl2_info.asset_config_data.non_persistent_config,
+               sizeof(ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t));
+    }
+
     /* Erase the asset config region. */
     if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_reg_address))
     {
@@ -1729,8 +1738,94 @@ int flash_fs_write_config_region(uint32_t partition)
                (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.persistent_config),
                sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "flash_fs_write_config_region: data validation failed!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "flash_fs_write_config_region: persistant data validation failed!\n");
         return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;
+    }
+
+    if (write_non_persistant)
+    {
+        /* Compare with non persistent data in flash with bl2 global data */
+        if (memcmp(((uint8_t *)scratch_buff) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                       sizeof(ESPERANTO_CONFIG_HEADER_t) +
+                       sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t),
+                   (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.non_persistent_config),
+                   sizeof(ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t)))
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "flash_fs_write_config_region: non persistant data validation failed!\n");
+            return ERROR_FW_UPDATE_WRITE_CFG_REGION_MEMCOMPARE;
+        }
+    }
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_update_shire_cache_config
+*
+*   DESCRIPTION
+*
+*       This function updates the shire cache configuration with supplied parameters.
+*
+*   INPUTS
+*
+*       scp_size scratchpad size
+*       l2_size L2 cache size
+*       l3_size L3 cache size
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+
+int flash_fs_update_shire_cache_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size)
+{
+    /* copy shire cache configuration data from parameters to global */
+    sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.scp_size = scp_size;
+    sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.l2_size = l2_size;
+    sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.l3_size = l3_size;
+
+    /* Update shire cache configuration in flash */
+    return flash_fs_write_config_region(sg_flash_fs_bl2_info.active_partition, true);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_sc_config
+*
+*   DESCRIPTION
+*
+*       This function returns shire cache configuration from global flash config.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       sc_cfg          shire cache configuration
+*
+***********************************************************************/
+
+int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg)
+{
+    if (sc_cfg != NULL)
+    {
+        /* Retrieve shire cache config from global flash config data*/
+        sc_cfg->scp_size = sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.scp_size;
+        sc_cfg->l2_size = sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.l2_size;
+        sc_cfg->l3_size = sg_flash_fs_bl2_info.asset_config_data.non_persistent_config.l3_size;
+    }
+    else
+    {
+        return ERROR_INVALID_ARGUMENT;
     }
 
     return 0;

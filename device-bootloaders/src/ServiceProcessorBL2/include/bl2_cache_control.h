@@ -302,4 +302,13 @@ uint32_t Cache_Control_L3_size(uint64_t shire_mask);
 int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
                                 uint64_t shire_mask);
 
+/*! \fn void cache_control_process_cmd(uint16_t tag, msg_id_t msg_id, void *buffer)
+    \brief This function processes cache control commands
+    \param tag  Command tag value
+    \param msg_id Unique enum representing specific command
+    \param buffer Command input buffer
+    \return None
+*/
+void cache_control_process_cmd(uint16_t tag, msg_id_t msg_id, void *buffer);
+
 #endif
