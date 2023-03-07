@@ -169,6 +169,8 @@ build:conan:
     - .exec_maybe_interactively
   needs:
     - generate_build:conan
+    - job: unit_tests:conan:sysemu
+      optional: true
   rules:
     - *release_or_development_job_rule
   trigger:
@@ -189,7 +191,8 @@ tests:conan:sysemu:
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: test
   needs:
-    - unit_tests:conan:sysemu
+    - job: unit_tests:conan:sysemu
+      optional: true
   rules:
     - *development_job_rule
   parallel:
@@ -266,7 +269,8 @@ tests:integration-repo:
   needs:
     - create-sw-platform-trigger
     - build:conan
-    - tests:conan:sysemu
+    - job: tests:conan:sysemu
+      optional: true
   rules:
     - *development_job_rule
   trigger:
