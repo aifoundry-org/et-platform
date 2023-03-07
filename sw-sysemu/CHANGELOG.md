@@ -8,8 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.9.0] - 2023-03-07
+### Added
 - [ARCHSIM-697] Added a SW hint to waive write coherency errors
 ### Changed
+- [SW-16269] Migrate sw-sysemu CI pipeline to use pre-release strategy
 ### Deprecated
 ### Removed
 ### Fixed

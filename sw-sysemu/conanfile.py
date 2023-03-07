@@ -52,7 +52,7 @@ class SwSysemuConan(ConanFile):
         "revision": "auto",
     }
 
-    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def configure(self):
         if not self.options.preload_elfs_versions_device_api:
@@ -69,7 +69,8 @@ class SwSysemuConan(ConanFile):
             del self.options.preload_elfs_versions_etsoc_hal
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "sw-sysemu")
+        get_version = self.python_requires["conan-common"].module.get_version
+        self.version = get_version(self, self.name)
 
     def requirements(self):
         self.requires("glog/0.4.0")
