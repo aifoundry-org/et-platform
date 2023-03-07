@@ -269,8 +269,6 @@ tests:integration-repo:
   needs:
     - create-sw-platform-trigger
     - build:conan
-    - job: tests:conan:sysemu
-      optional: true
   rules:
     - *development_job_rule
   trigger:
