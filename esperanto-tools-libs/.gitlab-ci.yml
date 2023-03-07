@@ -188,6 +188,8 @@ tests:conan:sysemu:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: test
+  needs:
+    - unit_tests:conan:sysemu
   rules:
     - *development_job_rule
   parallel:
@@ -264,6 +266,7 @@ tests:integration-repo:
   needs:
     - create-sw-platform-trigger
     - build:conan
+    - tests:conan:sysemu
   rules:
     - *development_job_rule
   trigger:
