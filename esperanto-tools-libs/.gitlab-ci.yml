@@ -1,6 +1,6 @@
 include:
   - project: 'software/gitlab-ci-common'
-    ref: 65f50069493bf125f770dc052b0a90b8be2d305c
+    ref: 62dd746e59efef47d61463c22bc84254e1437ebe
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
@@ -10,7 +10,8 @@ include:
       - jobs/generic-k8s-job.yaml
       - jobs/sonarqube-job.yaml
       - rules/exec_maybe_interactively.yaml
-      - jobs/sw-platform-trigger.yaml
+      - /jobs/check-top-of-master-template.yaml
+      - /jobs/sw-platform-trigger-template.yaml
 
   - project: 'software/gitlab-ci-common'
     ref: master
@@ -32,6 +33,29 @@ variables:
   SW_PLATFORM_BRANCH: jvera/bump-device-layer
   PIPELINE_CI_SUBPROJECT: esperanto-tools-libs
 
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+.release_job:
+  rules:
+    - &release_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - &release_or_development_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) || ($CI_PIPELINE_SOURCE == "merge_request_event")
+
+# Only run job in these cases:
+# - if there is a MR open
+.development_job:
+  rules:
+    - &development_job_rule
+      if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
 
 ###############################################################################
 ###############################################################################
@@ -43,10 +67,19 @@ clang-format:
     - .pod_nano
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.0
   stage: .pre
+  rules:
+    - *development_job_rule
   variables:
     CMD_SCRIPT: |
       git fetch origin master
       git clang-format --diff origin/master -- * | grep -e "clang-format did not modify any files$" -e "^no modified files to format$"
+
+check-on-top-of-master:
+  extends: .check-on-top-of-master
+  stage: .pre
+  needs: []
+  rules:
+    - *development_job_rule
 
 ###############################################################################
 ###############################################################################
@@ -59,6 +92,11 @@ unit_tests:conan:sysemu:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: smoke
+  needs: 
+    - job: clang-format
+      optional: true
+  rules:
+    - *development_job_rule
   parallel:
     matrix:
       - BUILD_TYPE: [ Release, Debug ]
@@ -79,6 +117,14 @@ unit_tests:conan:sysemu:
 ###############################################################################
 ###############################################################################
 
+create-sw-platform-branch:
+  extends: .create-sw-platform-branch
+  stage: generate_build
+  needs:
+    - check-on-top-of-master
+  rules:
+    - *development_job_rule
+
 # Generates conan child pipeline
 generate_build:conan:
   extends:
@@ -86,14 +132,18 @@ generate_build:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
-
+  needs:
+    - job: clang-format
+      optional: true
+    - job: check-on-top-of-master
+      optional: true
+  rules:
+    - *release_or_development_job_rule
   variables:
     TIMEOUT: 15m
-
     CMD_BUILD: |
       cd conan
       python3 -m ci_build
-  
   artifacts:
     expire_in: 1d 
     paths:
@@ -104,13 +154,23 @@ generate_build:conan:
 ###############################################################################
 ###############################################################################
 
+create-sw-platform-trigger:
+  extends: .create-sw-platform-trigger
+  stage: build
+  needs:
+    - create-sw-platform-branch
+  rules:
+    - *development_job_rule
+
 # conan child build pipeline
 build:conan:
   stage: build
   extends:
     - .exec_maybe_interactively
   needs:
-  - generate_build:conan
+    - generate_build:conan
+  rules:
+    - *release_or_development_job_rule
   trigger:
     include:
     - artifact: conan/build_pipeline.yml
@@ -128,6 +188,8 @@ tests:conan:sysemu:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: test
+  rules:
+    - *development_job_rule
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
@@ -196,6 +258,19 @@ nightly_torture_tests:conan:sysemu:
 #
 # This is automatically done thanks to this included file:
 #   /jobs/sw-platform-trigger.yaml
+tests:integration-repo:
+  extends: .meta-trigger
+  stage: test
+  needs:
+    - create-sw-platform-trigger
+    - build:conan
+  rules:
+    - *development_job_rule
+  trigger:
+    strategy: depend
+    include:
+      - artifact: generated-trigger-job.yaml
+        job: create-sw-platform-trigger
 
 ###############################################################################
 ###############################################################################
@@ -206,15 +281,12 @@ on_success:promote:
     - .pod_nano
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
-  
   stage: deploy
-
   needs:
     - generate_build:conan
     - build:conan
-    - tests:conan:sysemu
-    - meta-trigger
-  
+  rules:
+    - *release_job_rule
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
