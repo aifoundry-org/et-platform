@@ -214,7 +214,6 @@ on_success:promote:
   needs:
     - generate_build:conan
     - build:conan
-    - tests:integration-repo
 
   rules:
     - *release_job_rule

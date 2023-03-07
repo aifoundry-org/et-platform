@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [CI] Fix dependency when promoting a job
 ### Security
 
 ## [2.0.0]  - 2022-02-23
