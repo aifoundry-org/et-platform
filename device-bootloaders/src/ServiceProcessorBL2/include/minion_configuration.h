@@ -66,6 +66,20 @@
     \brief Shire mask of Compute Minions Shires.
 */
 #define CM_SHIRE_MASK 0xFFFFFFFFUL
+/*! \def CM_HART_ID_2047
+    \brief Define for CM hart ID 2047
+*/
+#define CM_HART_ID_2047 2047
+
+/*! \def CM_HART_ID_2080
+    \brief Define for CM hart ID 2080
+*/
+#define CM_HART_ID_2080 2080
+
+/*! \def CM_HART_ID_2111
+    \brief Define for CM hart ID 2111
+*/
+#define CM_HART_ID_2111 2111
 
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion

@@ -13,51 +13,149 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "mem_controller.h"
+#include "minion_configuration.h"
+#include "bl_error_code.h"
 
 extern QueueHandle_t q_dm_mdi_bp_notify_handle;
 
-static mem_region mdi_debug_access_mem_region[DEBUG_ACCESS_MEM_REGION_COUNT] = {
+/*! \def MDI_UNPRIVILEGED_MEM_REGION_COUNT
+    \brief Define to calculate unprivileged memory region count
+*/
+#define MDI_UNPRIVILEGED_MEM_REGION_COUNT sizeof(mdi_unprivileged_mem_region) / sizeof(mem_region)
+
+#ifndef MDI_PRIVILEDGED_ACCESS
+
+/*! \def CHECK_ALLOWED_HART_ID(hart_id)
+    \brief Validates if given hart id is allowed
+*/
+#define CHECK_ALLOWED_HART_ID(hart_id) \
+    ((hart_id <= CM_HART_ID_2047) || (hart_id >= CM_HART_ID_2080 && hart_id <= CM_HART_ID_2111))
+
+/*! \def VALIDATE_ADDRESS(addr, region_found, mem_region, reg_count)
+    \brief Validates if the address is in range of specified memory regions
+*/
+#define VALIDATE_ADDRESS(addr, region_found)                                   \
+    do                                                                         \
+    {                                                                          \
+        uint8_t count = 0;                                                     \
+        while ((!region_found) && (count < MDI_UNPRIVILEGED_MEM_REGION_COUNT)) \
+        {                                                                      \
+            /* Check if address is within the current region */                \
+            if ((addr >= (mdi_unprivileged_mem_region[count].start_addr)) &&   \
+                (addr < (mdi_unprivileged_mem_region[count].start_addr +       \
+                         mdi_unprivileged_mem_region[count].size)))            \
+            {                                                                  \
+                /* Set flag to show address is in valid range */               \
+                region_found = true;                                           \
+            }                                                                  \
+            else                                                               \
+            {                                                                  \
+                /* Check next region */                                        \
+                count++;                                                       \
+            }                                                                  \
+        }                                                                      \
+    } while (0);
+#else
+
+/*! \def MDI_PRIVILEGED_MEM_REGION_COUNT
+    \brief Define to calculate privileged memory region count
+*/
+#define MDI_PRIVILEGED_MEM_REGION_COUNT sizeof(mdi_privileged_mem_region) / sizeof(mem_region)
+
+/*! \def CHECK_ALLOWED_HART_ID(hart_id)
+    \brief Validates if given hart id is allowed
+*/
+#define CHECK_ALLOWED_HART_ID(hart_id)  true
+
+/*! \def VALIDATE_ADDRESS(addr, region_found, mem_region, reg_count)
+    \brief Validates if the address is in range of specified memory regions
+*/
+#define VALIDATE_ADDRESS(addr, region_found)                                   \
+    do                                                                         \
+    {                                                                          \
+        uint8_t count = 0;                                                     \
+        while ((!region_found) && (count < MDI_UNPRIVILEGED_MEM_REGION_COUNT)) \
+        {                                                                      \
+            /* Check if address is within the current region */                \
+            if ((addr >= (mdi_unprivileged_mem_region[count].start_addr)) &&   \
+                (addr < (mdi_unprivileged_mem_region[count].start_addr +       \
+                         mdi_unprivileged_mem_region[count].size)))            \
+            {                                                                  \
+                /* Set flag to show address is in valid range */               \
+                region_found = true;                                           \
+            }                                                                  \
+            else                                                               \
+            {                                                                  \
+                /* Check next region */                                        \
+                count++;                                                       \
+            }                                                                  \
+        }                                                                      \
+        count = 0;                                                             \
+        while ((!region_found) && (count < MDI_PRIVILEGED_MEM_REGION_COUNT))   \
+        {                                                                      \
+            /* Check if address is within the current region */                \
+            if ((addr >= (mdi_privileged_mem_region[count].start_addr)) &&     \
+                (addr < (mdi_privileged_mem_region[count].start_addr +         \
+                         mdi_privileged_mem_region[count].size)))              \
+            {                                                                  \
+                /* Set flag to show address is in valid range */               \
+                region_found = true;                                           \
+            }                                                                  \
+            else                                                               \
+            {                                                                  \
+                /* Check next region */                                        \
+                count++;                                                       \
+            }                                                                  \
+        }                                                                      \
+    } while (0);
+
+static mem_region mdi_privileged_mem_region[] = {
+
+    /* MEMORY REGION 1 - Worker Minion FW SData region */
+    {
+        FW_WORKER_SDATA_BASE, /* Start  Address   */
+        FW_WORKER_SDATA_SIZE  /* Size             */
+    },
+
+    /* MEMORY REGION 2 - Master Minion FW SData region */
+    {
+        FW_MASTER_SDATA_BASE, /* Start  Address   */
+        FW_MASTER_SDATA_SIZE  /* Size             */
+    },
+
+    /* MEMORY REGION 3 - Supervisor mode Stack region        */
+    {
+        FW_SMODE_STACK_END, /* Start  Address   */
+        FW_SMODE_STACK_BASE /* Size             */
+    }
+};
+#endif
+
+static mem_region mdi_unprivileged_mem_region[] = {
+
     /* MEMORY REGION 1 - DRAM                                 */
     {
         HOST_MANAGED_DRAM_START, /* Start  Address   */
         0                        /* Size will be populated in init function */
     },
 
-    /* MEMORY REGION 2 - Worker Minion FW SData region */
+    /* MEMORY REGION 2 - User mode Kernel Stack region        */
     {
-        FW_WORKER_SDATA_BASE, /* Start  Address   */
-        FW_WORKER_SDATA_SIZE  /* Size             */
+        KERNEL_UMODE_STACK_END, /* Start  Address   */
+        KERNEL_UMODE_STACK_SIZE /* Size             */
     },
 
-    /* MEMORY REGION 3 - Master Minion FW SData region */
+    /* MEMORY REGION 3 - MM S MODE TRACE Buffer region        */
     {
-        FW_MASTER_SDATA_BASE, /* Start  Address   */
-        FW_MASTER_SDATA_SIZE  /* Size             */
+        MM_TRACE_BUFFER_BASE, /* Start  Address   */
+        MM_TRACE_BUFFER_SIZE  /* Size             */
     },
 
     /* MEMORY REGION 4 - CM S MODE TRACE Buffer region         */
     {
         CM_SMODE_TRACE_BUFFER_BASE, /* Start  Address   */
         CM_SMODE_TRACE_BUFFER_SIZE  /* Size             */
-    },
-
-    /* MEMORY REGION 5 - MM S MODE TRACE Buffer region        */
-    {
-        MM_TRACE_BUFFER_BASE, /* Start  Address   */
-        MM_TRACE_BUFFER_SIZE  /* Size             */
-    },
-
-    /* MEMORY REGION 6 - User mode Kernel Stack region        */
-    {
-        KERNEL_UMODE_STACK_END, /* Start  Address   */
-        KERNEL_UMODE_STACK_SIZE /* Size             */
-    },
-
-    /* MEMORY REGION 7 - Supervisor mode Stack region        */
-    {
-        FW_SMODE_STACK_END, /* Start  Address   */
-        FW_SMODE_STACK_BASE /* Size             */
-    },
+    }
 };
 
 int32_t minion_debug_init(void)
@@ -66,13 +164,13 @@ int32_t minion_debug_init(void)
 
     /* get DDR size and update debug memory region size */
     mem_info = mem_controller_get_ddr_info();
-    mdi_debug_access_mem_region[0].size =
+    mdi_unprivileged_mem_region[0].size =
         mem_info->ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE);
 
     Log_Write(
         LOG_LEVEL_DEBUG,
         "minion_debug_init: DDR Size: 0x%lx Host Managed DRAM Size: 0x%lx Reserved DDR size: 0x%lx\n",
-        mem_info->ddr_mem_size, mdi_debug_access_mem_region[0].size,
+        mem_info->ddr_mem_size, mdi_unprivileged_mem_region[0].size,
         (uint64_t)(KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE));
 
     return STATUS_SUCCESS;
@@ -80,30 +178,10 @@ int32_t minion_debug_init(void)
 
 static bool mdi_debug_access_addr_in_valid_range(uint64_t addr)
 {
-    int count = 0;
     bool region_found = false;
-    uint64_t region_start;
-    uint64_t region_end;
 
-    /* Loop through all memory regions */
-    while ((!region_found) && (count < DEBUG_ACCESS_MEM_REGION_COUNT))
-    {
-        /* Get start and end addresses for memory region */
-        region_start = mdi_debug_access_mem_region[count].start_addr;
-        region_end = region_start + mdi_debug_access_mem_region[count].size;
-
-        /* Check if address is within the current region */
-        if ((addr >= region_start) && (addr < region_end))
-        {
-            /* Set flag to show address is in valid range */
-            region_found = true;
-        }
-        else
-        {
-            /* Check next region */
-            count++;
-        }
-    }
+    /* Loop through privileged memory regions */
+    VALIDATE_ADDRESS(addr, region_found)
 
     /* Return if address was within valid range */
     return region_found;
@@ -283,7 +361,7 @@ static void mdi_reset_hart(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_
 
 static int32_t get_hart_status(uint64_t hart_id)
 {
-    int32_t hart_status = -1;
+    int32_t hart_status = MDI_HART_STATUS_ERROR;
 
     if (HART_HALT_STATUS(hart_id))
     {
@@ -312,12 +390,16 @@ static void mdi_hart_status(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
 {
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_GET_HART_STATUS\n");
     const struct mdi_hart_control_cmd_t *mdi_cmd_req = (struct mdi_hart_control_cmd_t *)buffer;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
 
-    /* Get the status of the Hart  */
-    int32_t status = get_hart_status(mdi_cmd_req->cmd_attr.hart_id);
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        /* Get the status of the Hart  */
+        status = get_hart_status(mdi_cmd_req->cmd_attr.hart_id);
 
-    Log_Write(LOG_LEVEL_INFO, "Hart ID:%ld  Hart Status: %d\n", mdi_cmd_req->cmd_attr.hart_id,
-              status);
+        Log_Write(LOG_LEVEL_INFO, "Hart ID:%ld  Hart Status: %d\n", mdi_cmd_req->cmd_attr.hart_id,
+                  status);
+    }
 
     send_mdi_hart_control_response(tag_id, msg_id, req_start_time, status);
 }
@@ -325,20 +407,24 @@ static void mdi_hart_status(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start
 static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_SET_BREAKPOINT\n");
 
-    Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, BP Address: %lx, Mode:%ld  Timeout: %ld\n",
-              mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
-              mdi_cmd_req->cmd_attr.mode, mdi_cmd_req->cmd_attr.bp_event_wait_timeout);
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        status = STATUS_SUCCESS;
+        Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, BP Address: %lx, Mode:%ld  Timeout: %ld\n",
+                  mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
+                  mdi_cmd_req->cmd_attr.mode, mdi_cmd_req->cmd_attr.bp_event_wait_timeout);
 
-    Set_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
-                      mdi_cmd_req->cmd_attr.mode);
+        Set_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.bp_address,
+                          mdi_cmd_req->cmd_attr.mode);
 
-    /* Send BP Halt success/failure event to host */
-    xQueueSend(q_dm_mdi_bp_notify_handle, (void *)mdi_cmd_req, portMAX_DELAY);
+        /* Send BP Halt success/failure event to host */
+        xQueueSend(q_dm_mdi_bp_notify_handle, (void *)mdi_cmd_req, portMAX_DELAY);
+    }
 
     /* Send MDI Set BP cmd response */
     send_mdi_bp_control_response(tag_id, msg_id, req_start_time, status);
@@ -347,14 +433,18 @@ static void mdi_set_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_st
 static void mdi_unset_breakpoint(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
                                  void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_bp_control_cmd_t *mdi_cmd_req = (struct mdi_bp_control_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_UNSET_BREAKPOINT\n");
 
-    Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld\n", mdi_cmd_req->cmd_attr.hart_id);
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        status = STATUS_SUCCESS;
+        Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld\n", mdi_cmd_req->cmd_attr.hart_id);
 
-    Unset_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id);
+        Unset_PC_Breakpoint(mdi_cmd_req->cmd_attr.hart_id);
+    }
 
     send_mdi_bp_control_response(tag_id, msg_id, req_start_time, status);
 }
@@ -385,22 +475,26 @@ static void mdi_disable_single_step(tag_id_t tag_id, msg_id_t msg_id, uint64_t r
 
 static void mdi_read_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_read_gpr_cmd_t *mdi_cmd_req = (struct mdi_read_gpr_cmd_t *)buffer;
     struct mdi_read_gpr_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_GPR\n");
 
-    if (mdi_cmd_req->cmd_attr.gpr_index < NO_OF_GPR_REGS)
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
     {
-        mdi_rsp.data = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
-        Log_Write(LOG_LEVEL_INFO, "GPR Index:%x, GPR value:%lx\n", mdi_cmd_req->cmd_attr.gpr_index,
-                  mdi_rsp.data);
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_WARNING, "Invalid GPR Read Request\r\n");
-        status = MDI_INVALID_GPR_INDEX;
+        status = STATUS_SUCCESS;
+        if (mdi_cmd_req->cmd_attr.gpr_index < NO_OF_GPR_REGS)
+        {
+            mdi_rsp.data = Read_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index);
+            Log_Write(LOG_LEVEL_INFO, "GPR Index:%x, GPR value:%lx\n",
+                      mdi_cmd_req->cmd_attr.gpr_index, mdi_rsp.data);
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_WARNING, "Invalid GPR Read Request\r\n");
+            status = MDI_INVALID_GPR_INDEX;
+        }
     }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
@@ -416,17 +510,20 @@ static void mdi_read_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_dump_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_dump_gpr_cmd_t *mdi_cmd_req = (struct mdi_dump_gpr_cmd_t *)buffer;
     struct mdi_dump_gpr_rsp_t mdi_rsp;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_DUMP_GPR\n");
 
-    const uint64_t *gprs = Read_All_GPR(mdi_cmd_req->hart_id);
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->hart_id))
+    {
+        status = STATUS_SUCCESS;
+        const uint64_t *gprs = Read_All_GPR(mdi_cmd_req->hart_id);
+        memcpy(&mdi_rsp.gprs, gprs, sizeof(uint64_t) * NO_OF_GPR_REGS);
+    }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-    memcpy(&mdi_rsp.gprs, gprs, sizeof(uint64_t) * NO_OF_GPR_REGS);
-
     Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u\n",
               mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id);
 
@@ -438,57 +535,68 @@ static void mdi_dump_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_write_gpr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_write_gpr_cmd_t *mdi_cmd_req = (struct mdi_write_gpr_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_GPR\n");
 
-    Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, GPR:%x, Data:%lx\n", mdi_cmd_req->cmd_attr.hart_id,
-              mdi_cmd_req->cmd_attr.gpr_index, mdi_cmd_req->cmd_attr.data);
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        status = STATUS_SUCCESS;
+        Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, GPR:%x, Data:%lx\n", mdi_cmd_req->cmd_attr.hart_id,
+                  mdi_cmd_req->cmd_attr.gpr_index, mdi_cmd_req->cmd_attr.data);
 
-    Write_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index,
-              mdi_cmd_req->cmd_attr.data);
+        Write_GPR(mdi_cmd_req->cmd_attr.hart_id, mdi_cmd_req->cmd_attr.gpr_index,
+                  mdi_cmd_req->cmd_attr.data);
+    }
 
     send_status_response(tag_id, msg_id, req_start_time, status);
 }
 
 static void mdi_write_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_write_csr_cmd_t *mdi_cmd_req = (struct mdi_write_csr_cmd_t *)buffer;
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_CSR\n");
 
-    uint32_t csr_name = (mdi_cmd_req->cmd_attr.csr_name == GDB_RISCV_PC_INDEX) ?
-                            MINION_CSR_DPC_OFFSET :
-                            mdi_cmd_req->cmd_attr.csr_name;
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        status = STATUS_SUCCESS;
+        uint32_t csr_name = (mdi_cmd_req->cmd_attr.csr_name == GDB_RISCV_PC_INDEX) ?
+                                MINION_CSR_DPC_OFFSET :
+                                mdi_cmd_req->cmd_attr.csr_name;
 
-    Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, CSR:%x, Data:%lx\n", mdi_cmd_req->cmd_attr.hart_id,
-              csr_name, mdi_cmd_req->cmd_attr.data);
+        Log_Write(LOG_LEVEL_INFO, "Hart ID: %ld, CSR:%x, Data:%lx\n", mdi_cmd_req->cmd_attr.hart_id,
+                  csr_name, mdi_cmd_req->cmd_attr.data);
 
-    Write_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_name, mdi_cmd_req->cmd_attr.data);
+        Write_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_name, mdi_cmd_req->cmd_attr.data);
+    }
 
     send_status_response(tag_id, msg_id, req_start_time, status);
 }
 
 static void mdi_read_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_read_csr_cmd_t *mdi_cmd_req = (struct mdi_read_csr_cmd_t *)buffer;
-    struct mdi_read_csr_rsp_t mdi_rsp;
+    struct mdi_read_csr_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_CSR\n");
 
-    uint32_t csr_addr = csr_addr_lookup[mdi_cmd_req->cmd_attr.csr_name];
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        status = STATUS_SUCCESS;
+        uint32_t csr_addr = csr_addr_lookup[mdi_cmd_req->cmd_attr.csr_name];
 
-    mdi_rsp.data = Read_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_addr);
+        mdi_rsp.data = Read_CSR(mdi_cmd_req->cmd_attr.hart_id, csr_addr);
+        Log_Write(LOG_LEVEL_INFO,
+                  "Response for msg_id = %u, tag_id = %u, CSR addr = 0x%x CSR Value:%lx\n",
+                  mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id,
+                  csr_addr_lookup[mdi_cmd_req->cmd_attr.csr_name], mdi_rsp.data);
+    }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-
-    Log_Write(LOG_LEVEL_INFO,
-              "Response for msg_id = %u, tag_id = %u, CSR addr = 0x%x CSR Value:%lx\n",
-              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id,
-              csr_addr_lookup[mdi_cmd_req->cmd_attr.csr_name], mdi_rsp.data);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_read_csr_rsp_t)))
     {
@@ -498,14 +606,20 @@ static void mdi_read_csr(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_HART_ID_ACCESS_NOT_ALLOWED;
     const struct mdi_mem_read_cmd_t *mdi_cmd_req = (struct mdi_mem_read_cmd_t *)buffer;
     uint64_t addr = mdi_cmd_req->cmd_attr.address;
     struct mdi_mem_read_rsp_t mdi_rsp = { 0 };
 
-    Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_MEM\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "MDI Request: DM_CMD_MDI_READ_MEM hart_id %ld\n",
+              mdi_cmd_req->cmd_attr.hart_id);
 
-    if (mdi_debug_access_addr_in_valid_range(addr))
+    if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
+    {
+        status = STATUS_SUCCESS;
+    }
+
+    if (mdi_debug_access_addr_in_valid_range(addr) && status == STATUS_SUCCESS)
     {
         if (((addr >= FW_WORKER_SDATA_BASE) &&
              (addr < (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE))) ||
@@ -562,8 +676,10 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
                 "ETSOC_Memory_Read_Write_Cacheable Mem Read Status:%d  Read address: %lx, Value: %lx\r\n",
                 status, addr, mdi_rsp.data);
         }
-    }
 
+        Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u\n",
+                  mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id);
+    }
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "MDI Invalid Memory read request!\n");
@@ -571,8 +687,7 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
     }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u\n",
-              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id);
+
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_mem_read_rsp_t)))
     {
         Log_Write(LOG_LEVEL_ERROR, "Cqueue push error!\n");
@@ -581,26 +696,30 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
 
 static void mdi_mem_write(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time, void *buffer)
 {
-    int32_t status = SUCCESS;
+    int32_t status = MDI_INVALID_MEMORY_WRITE_REQUEST;
     const struct mdi_mem_write_cmd_t *mdi_cmd_req = (struct mdi_mem_write_cmd_t *)buffer;
     struct mdi_mem_write_rsp_t mdi_rsp = { 0 };
 
     Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_WRITE_MEM\n");
 
-    status = ETSOC_Memory_Read_Write_Cacheable(&mdi_cmd_req->cmd_attr.data,
-                                               (void *)mdi_cmd_req->cmd_attr.address,
-                                               mdi_cmd_req->cmd_attr.size);
+    if (mdi_debug_access_addr_in_valid_range(mdi_cmd_req->cmd_attr.address))
+    {
+        status = ETSOC_Memory_Read_Write_Cacheable(&mdi_cmd_req->cmd_attr.data,
+                                                   (void *)mdi_cmd_req->cmd_attr.address,
+                                                   mdi_cmd_req->cmd_attr.size);
 
-    //  SP to request CM to perform memory write using the program buffers interface.
-    //  https://esperantotech.atlassian.net/browse/SW-11458
+        //  SP to request CM to perform memory write using the program buffers interface.
+        //  https://esperantotech.atlassian.net/browse/SW-11458
 
-    Log_Write(LOG_LEVEL_DEBUG, "Write address: 0x%lx, Data: %lx\n, Size:%d  Status:%d\r\n",
-              mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.data, mdi_cmd_req->cmd_attr.size,
-              status);
+        Log_Write(LOG_LEVEL_DEBUG, "Write address: 0x%lx, Data: %lx\n, Size:%d  Status:%d\r\n",
+                  mdi_cmd_req->cmd_attr.address, mdi_cmd_req->cmd_attr.data,
+                  mdi_cmd_req->cmd_attr.size, status);
+
+        Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.status:%u\n",
+                  mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id, status);
+    }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
-    Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.status:%u\n",
-              mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id, status);
 
     if (0 != SP_Host_Iface_CQ_Push_Cmd((char *)&mdi_rsp, sizeof(struct mdi_mem_write_rsp_t)))
     {

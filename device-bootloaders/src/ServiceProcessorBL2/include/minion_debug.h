@@ -25,8 +25,6 @@
 #include "cache_flush_ops.h"
 #include "log.h"
 
-#define DEBUG_ACCESS_MEM_REGION_COUNT 7
-
 /*! \fn int32_t minion_debug_init(void)
     \brief Function to configure MDI DDR region by requesting DDr size from SP.
     \returns status of function call

@@ -26,22 +26,18 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         # Fast Boot version
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
-        set(MINION_DEBUG_INTERFACE 0)
     elseif (BL2_BUILD_VARIANT STREQUAL "testframework")
         # Test Frame work version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 1)
-        set(MINION_DEBUG_INTERFACE 0)
     elseif (BL2_BUILD_VARIANT STREQUAL "production")
         # Production version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
-        set(MINION_DEBUG_INTERFACE 0)
     else()
         # Debug enabled
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
-        set(MINION_DEBUG_INTERFACE 1)
     endif()
 
     add_riscv_executable(${TARGET_NAME}
@@ -117,7 +113,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
             -DBL2_VARIANT="${BL2_BUILD_VARIANT}"
             -DFAST_BOOT=${FAST_BOOT}
             -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
-            -DMINION_DEBUG_INTERFACE=${MINION_DEBUG_INTERFACE}
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE

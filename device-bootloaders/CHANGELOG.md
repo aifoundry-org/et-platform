@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15663] Increased pmic timeout and report error on timeout from I2C.
 - [SW-15697] Replacing threshold_data with threshold value in trace buffer full notification.
 - [SW-16315] Increase boot voltage to 450mV to avoid bit errors
+- [SW-16237] Enabled MDI commands in release mode, separated privileged and non privileged memory access regions.
 ### Deprecated
 ### Removed
 ### Fixed
