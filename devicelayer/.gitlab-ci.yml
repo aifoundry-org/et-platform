@@ -171,7 +171,7 @@ build:conan:
   needs:
     - generate_build:conan
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
   trigger:
     include:
     - artifact: conan/build_pipeline.yml
