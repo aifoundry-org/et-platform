@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] 
 ### Added
 ### Changed
+- [SW-16268] Migrate CI pipeline to use pre-release strategy
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+
 ## [2.0.0]  - 2022-02-23
 ### Added
 - [SW-15659] Added doxygen generated documentation support.
