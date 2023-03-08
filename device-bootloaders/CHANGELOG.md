@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Fixed a bug in the shire_cache_configuration algo
+- Fixed bug in using the right OTP init call
 ### Security
 
 ## [0.9.0] - 2023-01-11

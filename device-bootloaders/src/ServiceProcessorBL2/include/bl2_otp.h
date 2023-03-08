@@ -37,13 +37,6 @@ typedef struct
     char lot_id_str[ECID_LOT_ID_LENGTH + 1];
 } ecid_t;
 
-/*! \fn uint8_t* OTP_Initialize()
-    \brief Interface to initialize OTP
-    \param None
-    \returns Status indicating success or negative error
-*/
-int OTP_Initialize(void);
-
 /*! \fn int otp_get_chip_revision(char *chip_rev)
     \brief Interface read word from OTP
     \param bank

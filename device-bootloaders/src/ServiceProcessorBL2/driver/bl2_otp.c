@@ -54,8 +54,6 @@
 
 static uint32_t gs_sp_otp_lock_bits[2];
 static bool gs_is_otp_available;
-static OTP_CHICKEN_BITS_t gs_chicken_bits;
-static MISC_CONFIGURATION_BITS_t gs_misc_configuration;
 
 static inline bool otp_is_bank_locked(uint32_t bank_index)
 {
@@ -71,70 +69,6 @@ static inline bool otp_is_bank_locked(uint32_t bank_index)
     {
         return true;
     }
-}
-
-int OTP_Initialize(void)
-{
-    const volatile uint32_t *sp_otp_data = (uint32_t *)R_SP_EFUSE_BASEADDR;
-    uint32_t main_wrck;
-    uint32_t vault_wrck;
-    uint32_t timeout;
-
-    /* Use the fast clock (100 MHz) to drive the SP WRCK */
-
-    main_wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS);
-    main_wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_MODIFY(main_wrck, 1);
-    iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS, main_wrck);
-    timeout = WRCK_TIMEOUT;
-    do
-    {
-        timeout--;
-        if (0 == timeout)
-        {
-            main_wrck = CLOCK_MANAGER_CM_CLK_MAIN_WRCK_SEL_MODIFY(main_wrck, 0);
-            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS, main_wrck);
-            break;
-        }
-        main_wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_MAIN_WRCK_ADDRESS);
-    } while (0 == CLOCK_MANAGER_CM_CLK_MAIN_WRCK_STABLE_GET(main_wrck));
-
-    /* Use the fast clock (100 MHz) to drive the VaultIP WRCK */
-    vault_wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_VAULT_WRCK_ADDRESS);
-    vault_wrck = CLOCK_MANAGER_CM_CLK_VAULT_WRCK_SEL_MODIFY(vault_wrck, 1);
-    iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_VAULT_WRCK_ADDRESS, vault_wrck);
-    timeout = WRCK_TIMEOUT;
-    do
-    {
-        timeout--;
-        if (0 == timeout)
-        {
-            vault_wrck = CLOCK_MANAGER_CM_CLK_VAULT_WRCK_SEL_MODIFY(vault_wrck, 0);
-            iowrite32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_VAULT_WRCK_ADDRESS, vault_wrck);
-            break;
-        }
-        vault_wrck = ioread32(R_SP_CRU_BASEADDR + CLOCK_MANAGER_CM_CLK_VAULT_WRCK_ADDRESS);
-    } while (0 == CLOCK_MANAGER_CM_CLK_VAULT_WRCK_STABLE_GET(vault_wrck));
-
-    /* check the bootstrap pins to test if the OTP is available */
-    if (RESET_MANAGER_RM_STATUS2_ERROR_SMS_UDR_GET(
-            ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS)))
-    {
-        gs_sp_otp_lock_bits[0] = 0xFFFFFFFF;
-        gs_sp_otp_lock_bits[1] = 0xFFFFFFFF;
-        gs_chicken_bits.R = 0xFFFFFFFF;
-        gs_misc_configuration.R = 0xFFFFFFFF;
-        gs_is_otp_available = false;
-    }
-    else
-    {
-        gs_sp_otp_lock_bits[0] = sp_otp_data[SP_OTP_INDEX_LOCK_REG_BITS_31_00_OFFSET];
-        gs_sp_otp_lock_bits[1] = sp_otp_data[SP_OTP_INDEX_LOCK_REG_BITS_63_32_OFFSET];
-        gs_chicken_bits.R = sp_otp_data[SP_OTP_INDEX_CHICKEN_BITS];
-        gs_misc_configuration.R = sp_otp_data[SP_OTP_INDEX_MISC_CONFIGURATION];
-        gs_is_otp_available = true;
-    }
-
-    return 0;
 }
 
 uint32_t OTP_Read_Word(uint32_t bank, uint32_t row, uint32_t mask)
