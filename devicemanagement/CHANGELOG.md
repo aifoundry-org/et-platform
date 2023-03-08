@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-16234] Adding shire cache config command 
 ### Changed
+- (Conan) Generate full SemVer versions only when tagging the project. Generate pre-release otherwise.
+- (CI) Enable tags pipelines and filter out MR "development/testing" jobs from release pipeline
 ### Deprecated
 ### Removed
 - (Conan) Remove setting CMAKE_MODULE_PATH with cmake-modules
