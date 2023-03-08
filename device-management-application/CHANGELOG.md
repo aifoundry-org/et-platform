@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-16234] Adding shire cache config command
 ### Changed
 - [SW-15581] Define a default verbosity level for DM_VLOG.
+- [SW-16446] (Conan) Generate full SemVer versions only when tagging the project. Generate pre-release otherwise.
+             (CI) Enable tags pipelines and filter out MR "development/testing" jobs from release pipeline
 ### Deprecated
 ### Removed
 ### Fixed
