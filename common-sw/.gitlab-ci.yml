@@ -1,15 +1,15 @@
 include:
-  - project: 'software/gitlab-ci-common'
-    ref: eaa145e684411db579462b41feb7736c6ed0028c
+  - project: software/gitlab-ci-common
+    ref: 62dd746e59efef47d61463c22bc84254e1437ebe
     file:
-      - 'pods/nano-pod.yaml'
-      - 'pods/large-pod.yaml'
-      - 'jobs/generic-k8s-job.yaml'
+      - pods/nano-pod.yaml
+      - pods/large-pod.yaml
+      - jobs/generic-k8s-job.yaml
 
-  - project: 'software/gitlab-ci-common'
+  - project: software/gitlab-ci-common
     ref: master
     file:
-      - 'jobs/conan-jobs.yaml'
+      - jobs/conan-jobs.yaml
 
 stages:
   - smoke
@@ -18,6 +18,29 @@ stages:
   - test
   - deploy
 
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+.release_job:
+  rules:
+    - &release_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - &release_or_development_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) || ($CI_PIPELINE_SOURCE == "merge_request_event")
+
+# Only run job in these cases:
+# - if there is a MR open
+.development_job:
+  rules:
+    - &development_job_rule
+      if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
 
 ###############################################################################
 ###############################################################################
@@ -28,16 +51,14 @@ smoke_tests:conan:sysemu:
     - .pod_large
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
-  
   stage: smoke
-
+  rules:
+    - *development_job_rule
   parallel:
     matrix:
       - BUILD_TYPE: [ Release, Debug ]
-  
   variables:
     TIMEOUT: 30m
-
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
@@ -57,16 +78,18 @@ generate_build:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
-
+  needs:
+    - job: smoke_tests:conan:sysemu
+      optional: true
+  rules:
+    - *release_or_development_job_rule
   variables:
     TIMEOUT: 15m
-
     CMD_BUILD: |
       cd conan
       python3 -m ci_build
-  
   artifacts:
-    expire_in: 1h 
+    expire_in: 1h
     paths:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
@@ -78,12 +101,13 @@ generate_build:conan:
 build:conan:
   stage: build
   needs:
-  - generate_build:conan
-  stage: build
+    - generate_build:conan
+  rules:
+    - *release_or_development_job_rule
   trigger:
     include:
-    - artifact: conan/build_pipeline.yml
-      job: generate_build:conan
+      - artifact: conan/build_pipeline.yml
+        job: generate_build:conan
     strategy: depend
 
 ###############################################################################
@@ -101,13 +125,12 @@ on_success:promote:
     - .pod_nano
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
-  
   stage: deploy
-
   needs:
     - generate_build:conan
     - build:conan
-  
+  rules:
+    - *release_job_rule
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
