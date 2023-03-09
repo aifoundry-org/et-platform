@@ -133,6 +133,19 @@
         ETSOC_MEM_EVICT((void *)(uintptr_t)kernel_env, sizeof(kernel_environment_t), to_L2) \
     }
 
+#define KW_COPY_CM_UMODE_TRACE_CFG_OPTIONALLY(slot, kernel_cmd)                                    \
+    {                                                                                              \
+        /* TODO: SW-16477: make the CM U-mode trace cfg per slot */                                \
+        if (kernel_cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)        \
+        {                                                                                          \
+            /* Copy the Trace config from command payload to provided address */                   \
+            /* NOTE: Trace config is always present at the begining of payload with fixed size. */ \
+            ETSOC_MEM_COPY_AND_EVICT((void *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,               \
+                (void *)(uintptr_t)kernel_cmd->argument_payload, sizeof(struct trace_init_info_t), \
+                to_L3)                                                                             \
+        }                                                                                          \
+    }
+
 /*! \typedef kernel_instance_t
     \brief Kernel Instance Control Block structure.
     Kernel instance maintains information related to
@@ -647,12 +660,10 @@ static inline int32_t process_kernel_launch_cmd_payload(
             }
             else
             {
-                /* Copy the Trace configs from command payload to provided address
-                NOTE: Trace configs are always present at the beginning of the payload
-                    and its size is fixed.*/
-                ETSOC_MEM_COPY_AND_EVICT((void *)(uintptr_t)CM_UMODE_TRACE_CFG_BASEADDR,
-                    (void *)payload, sizeof(struct trace_init_info_t), to_L3)
+                /* Since the U-mode trace config is per kernel slot, the contents from
+                command to the assigned address in S-mode will be done after reserving the slot */
 
+                /* Just increment the pointer and size */
                 args_size -= sizeof(struct trace_init_info_t);
                 payload += sizeof(struct trace_init_info_t);
             }
@@ -701,6 +712,7 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
     struct device_ops_kernel_launch_cmd_t *cmd, uint8_t sqw_idx, uint8_t *kw_idx)
 {
     kernel_instance_t *kernel = 0;
+    mm_to_cm_message_kernel_launch_t launch_args = { 0 };
     int32_t status = KW_ERROR_KERNEL_INVALID_ADDRESS;
     uint8_t slot_index;
 
@@ -719,6 +731,33 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         kw_check_address_bounds(cmd->pointer_to_args, true) &&
         kw_check_address_bounds(cmd->exception_buffer, true))
     {
+        /* Process the kernel launch cmd optional payload */
+        status = process_kernel_launch_cmd_payload(sqw_idx, cmd);
+    }
+
+    if (status == STATUS_SUCCESS)
+    {
+        /* Populate the initial kernel launch CM msg params */
+        launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
+        launch_args.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
+        launch_args.header.flags = CM_IFACE_FLAG_ASYNC_CMD;
+        launch_args.kernel.kw_base_id = (uint8_t)KW_MS_BASE_HART;
+        launch_args.kernel.code_start_address = cmd->code_start_address;
+        launch_args.kernel.pointer_to_args = cmd->pointer_to_args;
+        launch_args.kernel.shire_mask = cmd->shire_mask;
+        launch_args.kernel.exception_buffer = cmd->exception_buffer;
+
+        /* If the flag bit flush L3 is set */
+        if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3)
+        {
+            launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
+        }
+        /* Check if U-mode trace is enabled */
+        if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
+        {
+            launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
+        }
+
         /* First we allocate resources needed for the kernel launch */
         /* Reserve a slot for the kernel */
         status =
@@ -741,44 +780,21 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
                 kw_unreserve_kernel_slot(kernel);
             }
         }
-    }
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Process the kernel optional payload */
-        status = process_kernel_launch_cmd_payload(sqw_idx, cmd);
 
         if (status == STATUS_SUCCESS)
         {
+            /* Populate the assigned slot ID in the CM kernel launch msg */
+            launch_args.kernel.slot_index = slot_index;
+
+            /* Copy the CM U-mode config to S-mode region - config verification was done above */
+            KW_COPY_CM_UMODE_TRACE_CFG_OPTIONALLY(slot_index, cmd)
+
             /* Setup kernel environment shire mask */
             KW_INIT_KERNEL_ENV_SHIRE_MASK(slot_index, cmd->shire_mask)
 
             /* Populate the tag_id and sqw_idx for KW */
             atomic_store_local_16(&kernel->launch_tag_id, cmd->command_info.cmd_hdr.tag_id);
             atomic_store_local_8(&kernel->sqw_idx, sqw_idx);
-
-            /* Populate the kernel launch params */
-            mm_to_cm_message_kernel_launch_t launch_args = { 0 };
-            launch_args.header.id = MM_TO_CM_MESSAGE_ID_KERNEL_LAUNCH;
-            launch_args.header.tag_id = cmd->command_info.cmd_hdr.tag_id;
-            launch_args.header.flags = CM_IFACE_FLAG_ASYNC_CMD;
-            launch_args.kernel.kw_base_id = (uint8_t)KW_MS_BASE_HART;
-            launch_args.kernel.slot_index = slot_index;
-            launch_args.kernel.code_start_address = cmd->code_start_address;
-            launch_args.kernel.pointer_to_args = cmd->pointer_to_args;
-            launch_args.kernel.shire_mask = cmd->shire_mask;
-            launch_args.kernel.exception_buffer = cmd->exception_buffer;
-
-            /* If the flag bit flush L3 is set */
-            if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3)
-            {
-                launch_args.kernel.flags = KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
-            }
-
-            if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
-            {
-                launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
-            }
 
             /* Reset the L2 SCP kernel launched flag for the acquired kernel worker slot */
             atomic_store_global_32(&CM_KERNEL_LAUNCHED_FLAG[slot_index].flag, 0);
@@ -814,12 +830,6 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
                     MM_RECOVERABLE_FW_MM_KW_ERROR, MM_CM_MULTICAST_KERNEL_LAUNCH_ERROR);
                 status = KW_ERROR_CM_IFACE_MULTICAST_FAILED;
             }
-        }
-        else
-        {
-            /* Failure detected. Reclaim the resources */
-            kw_unreserve_kernel_shires(cmd->shire_mask);
-            kw_unreserve_kernel_slot(kernel);
         }
     }
 
