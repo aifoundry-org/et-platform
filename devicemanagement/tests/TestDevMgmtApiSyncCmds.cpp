@@ -3354,6 +3354,8 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
     device_mgmt_api::mdi_mem_read_t mdi_mem_read;
     mdi_mem_read.address = writeAddr;
     mdi_mem_read.size = sizeof(uint64_t);
+    mdi_mem_read.hart_id = 0;
+    mdi_mem_read.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
     uint64_t mem_read_output = 0;
 
     EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&mdi_mem_read,
