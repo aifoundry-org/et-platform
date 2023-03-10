@@ -611,15 +611,14 @@ static void mdi_mem_read(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_ti
     uint64_t addr = mdi_cmd_req->cmd_attr.address;
     struct mdi_mem_read_rsp_t mdi_rsp = { 0 };
 
-    Log_Write(LOG_LEVEL_CRITICAL, "MDI Request: DM_CMD_MDI_READ_MEM hart_id %ld\n",
-              mdi_cmd_req->cmd_attr.hart_id);
+    Log_Write(LOG_LEVEL_INFO, "MDI Request: DM_CMD_MDI_READ_MEM\n");
 
     if (CHECK_ALLOWED_HART_ID(mdi_cmd_req->cmd_attr.hart_id))
     {
         status = STATUS_SUCCESS;
     }
 
-    if (mdi_debug_access_addr_in_valid_range(addr) && status == STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS && mdi_debug_access_addr_in_valid_range(addr))
     {
         if (((addr >= FW_WORKER_SDATA_BASE) &&
              (addr < (FW_WORKER_SDATA_BASE + FW_WORKER_SDATA_SIZE))) ||
@@ -717,6 +716,10 @@ static void mdi_mem_write(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_t
 
         Log_Write(LOG_LEVEL_INFO, "Response for msg_id = %u, tag_id = %u, mdi_rsp.status:%u\n",
                   mdi_rsp.rsp_hdr.rsp_hdr.msg_id, mdi_rsp.rsp_hdr.rsp_hdr.msg_id, status);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MDI Invalid Memory write request!\n");
     }
 
     FILL_RSP_HEADER(mdi_rsp, tag_id, msg_id, timer_get_ticks_count() - req_start_time, status)
