@@ -83,6 +83,15 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, resetSOCMultiDevice) {
   resetSOC(false /* Multiple Devices */);
 }
 
+TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, testShireCacheConfig) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    testShireCacheConfig(false /* Multiple Devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");

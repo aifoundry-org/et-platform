@@ -116,6 +116,7 @@ protected:
   void getModuleFWRevision(bool singleDevice);
   void setSpRootCertificate(bool singleDevice);
   void updateFirmwareImage(bool singleDevice);
+  void testShireCacheConfig(bool singleDevice);
 
   // Integration tests for SP tracing and error events
   void initTestTrace();

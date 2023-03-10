@@ -3975,3 +3975,60 @@ void TestDevMgmtApiSyncCmds::resetSOCWithOpsInUse(bool singleDevice) {
     }
   }
 }
+
+void TestDevMgmtApiSyncCmds::testShireCacheConfig(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+
+    /* Fetch shire cache config */
+    device_mgmt_api::shire_cache_config_t sc_config = {0};
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG, nullptr, 0,
+                                (char*)&sc_config, sizeof(sc_config), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    DV_LOG(INFO) << "SC config scp size: " << sc_config.scp_size << "  L2 size " << sc_config.l2_size << " L3 size "
+                 << sc_config.l3_size;
+
+    device_mgmt_api::shire_cache_config_t sc_config_modified = {320, 64, 128};
+    DV_LOG(INFO) << "Modifying SC config to scp size: " << sc_config_modified.scp_size << "  L2 size "
+                 << sc_config_modified.l2_size << " L3 size " << sc_config_modified.l3_size;
+
+    /* Modify shire cache config*/
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG,
+                                (char*)&sc_config_modified, sizeof(sc_config_modified), nullptr, 0, hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    /* Fetch shire cache config */
+    device_mgmt_api::shire_cache_config_t tmp_sc_config = {0};
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG, nullptr, 0,
+                                (char*)&tmp_sc_config, sizeof(tmp_sc_config), hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    /* Validate if the configuration has changed */
+    EXPECT_EQ(sc_config_modified.scp_size, tmp_sc_config.scp_size);
+    EXPECT_EQ(sc_config_modified.l2_size, tmp_sc_config.l2_size);
+    EXPECT_EQ(sc_config_modified.l3_size, tmp_sc_config.l3_size);
+
+    /* Restore shire cache config values */
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG, (char*)&sc_config,
+                                sizeof(sc_config), nullptr, 0, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    // Check if trace control works after reset
+    controlTraceLogging();
+  }
+}
