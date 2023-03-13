@@ -3290,14 +3290,14 @@ void TestDevMgmtApiSyncCmds::resetMMWithOpsInUse(bool singleDevice) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::readMem(uint64_t readAddr) {
+void TestDevMgmtApiSyncCmds::readMem_unprivileged(uint64_t readAddr) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
   const uint32_t input_size = sizeof(device_mgmt_api::mdi_mem_read_t);
   device_mgmt_api::mdi_mem_read_t input_buff;
-  /* Test address in HOST_MANAGED_DRAM_START - HOST_MANAGED_DRAM_END address range */
+  /* Test address in un-privileged memory regions. */
   input_buff.address = readAddr;
   input_buff.hart_id = 0;
   input_buff.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
@@ -3323,7 +3323,34 @@ void TestDevMgmtApiSyncCmds::readMem(uint64_t readAddr) {
   }
 }
 
-void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr) {
+void TestDevMgmtApiSyncCmds::readMem_privileged(uint64_t readAddr) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  const uint32_t input_size = sizeof(device_mgmt_api::mdi_mem_read_t);
+  device_mgmt_api::mdi_mem_read_t input_buff;
+  /* Test address in privileged memory regions. */
+  input_buff.address = readAddr;
+  input_buff.hart_id = 0;
+  input_buff.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
+  input_buff.size = sizeof(uint64_t);
+  const uint32_t output_size = sizeof(uint64_t);
+
+  auto deviceCount = dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    uint64_t output = 0;
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
+                                (char*)&output, output_size, hst_latency.get(), dev_latency.get(),
+                                DM_SERVICE_REQUEST_TIMEOUT),
+              -EIO);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::writeMem_unprivileged(uint64_t testInputData, uint64_t writeAddr) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -3353,6 +3380,8 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
     const uint32_t mdi_mem_read_cmd_size = sizeof(device_mgmt_api::mdi_mem_read_t);
     device_mgmt_api::mdi_mem_read_t mdi_mem_read;
     mdi_mem_read.address = writeAddr;
+    mdi_mem_read.hart_id = 0;
+    mdi_mem_read.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
     mdi_mem_read.size = sizeof(uint64_t);
     mdi_mem_read.hart_id = 0;
     mdi_mem_read.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
@@ -3367,6 +3396,36 @@ void TestDevMgmtApiSyncCmds::writeMem(uint64_t testInputData, uint64_t writeAddr
 
     EXPECT_EQ(mem_read_output, testInputData);
 
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  }
+}
+
+void TestDevMgmtApiSyncCmds::writeMem_privileged(uint64_t testInputData, uint64_t writeAddr) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  auto deviceCount = dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    const uint32_t mdi_mem_write_cmd_size = sizeof(device_mgmt_api::mdi_mem_write_t);
+    device_mgmt_api::mdi_mem_write_t mdi_mem_write;
+    mdi_mem_write.address = writeAddr;
+    mdi_mem_write.size = sizeof(uint64_t);
+    mdi_mem_write.data = testInputData;
+    uint64_t mem_write_status = 0;
+
+    DV_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex
+                 << mdi_mem_write.data;
+
+    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
+                                mdi_mem_write_cmd_size, (char*)&mem_write_status, sizeof(uint64_t), hst_latency.get(),
+                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+              -EIO);
+
+    EXPECT_EQ(mem_write_status, device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }

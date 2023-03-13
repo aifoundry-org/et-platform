@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (Conan) Generate full SemVer versions only when tagging the project. Generate pre-release otherwise.
 - (CI) Enable tags pipelines and filter out MR "development/testing" jobs from release pipeline
 - [SW-16237] Enabled MDI commands in release mode and fixed MDI tests
+- [SW-16237] Added MDI privileged region access validation tests
 ### Deprecated
 ### Removed
 - (Conan) Remove setting CMAKE_MODULE_PATH with cmake-modules
