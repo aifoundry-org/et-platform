@@ -58,9 +58,13 @@ target_include_directories(cm-umode
     PRIVATE
         ${PROJECT_SOURCE_DIR}/src/libc_stub
 )
+
+target_compile_features(cm-umode PUBLIC c_std_11)
+
 target_compile_options(cm-umode
     PRIVATE
         -Wall
+        -fno-zero-initialized-in-bss -fdata-sections
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 target_link_libraries(cm-umode

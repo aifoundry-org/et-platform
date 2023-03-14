@@ -86,10 +86,13 @@ target_include_directories(mm-rt-svcs
         $<INSTALL_INTERFACE:${MM_RT_SVCS_INSTALL_PREFIX}/include>
 )
 
+target_compile_features(mm-rt-svcs PUBLIC c_std_11)
+
 target_compile_options(mm-rt-svcs
     PRIVATE
         -Wall
         -fno-strict-aliasing
+        -fno-zero-initialized-in-bss -fdata-sections
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 

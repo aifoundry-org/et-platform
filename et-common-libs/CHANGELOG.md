@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15803] Adding doxygen docs support for tensor operations API
 - [SW-15806] Adding doxygen docs support for sync operations APIs
 - [SW-16238] Added ABI header and kernel environment related datastructures.
+- [SW-15063] Moving out non-generic C flags from toolchain config to consumer projects
 ### Changed
 - [SW-16451] Generate pre-releases by default and full SemVer versions on tag pipelines
 ### Deprecated

@@ -61,10 +61,13 @@ target_include_directories(minion-bl
         $<INSTALL_INTERFACE:${MINION_BL_INSTALL_PREFIX}/include>
 )
 
+target_compile_features(minion-bl PUBLIC c_std_11)
+
 target_compile_options(minion-bl
     PRIVATE
         -Wall
-        -fno-strict-aliasing
+        -fno-strict-aliasing 
+        -fno-zero-initialized-in-bss -fdata-sections
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 

@@ -80,10 +80,13 @@ target_include_directories(sp-bl2
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
 )
 
+target_compile_features(sp-bl2 PUBLIC c_std_11)
+
 target_compile_options(sp-bl2
     PRIVATE
         -Wall
         -fno-strict-aliasing
+        -fno-zero-initialized-in-bss -fdata-sections
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 
