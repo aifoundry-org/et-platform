@@ -33,6 +33,10 @@ include(DeviceUtils)
 cmake_policy(SET CMP0076 NEW)
 
 set(ET_DEFAULT_BUILD_TYPE "Release")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-zero-initialized-in-bss -fdata-sections")
+if (NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+endif()
 
 option(ENABLE_STRICT_BUILD_TYPES "Whether project configuration should fail if build_type is not one of the allowed values: Debug Release RelWithDebInfo MinSizeRel" ON)
 option(ENABLE_REPORT_GLOBAL_FLAGS "Wether global flags should be shown when configuring the project" ON)
