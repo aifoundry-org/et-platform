@@ -1,8 +1,8 @@
 from conan import ConanFile
+from conan.tools.build import can_run
 from conan.tools.cmake import CMake, CMakeToolchain
 from conan.tools.layout import cmake_layout
-from conans import tools
-import re
+from conan.tools.files import rmdir
 import os
 
 
@@ -26,10 +26,11 @@ class EsperantoTraceConan(ConanFile):
     }
     generator = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, self.name)
+        get_version = self.python_requires["conan-common"].module.get_version
+        self.version = get_version(self, self.name)
     
     def layout(self):
         cmake_layout(self)
@@ -43,16 +44,16 @@ class EsperantoTraceConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-        if self.options.with_tests and not tools.cross_building(self.settings):
+        if self.options.with_tests and not can_run(self):
             cmake.test()
     
     def package(self):
         cmake = CMake(self)
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib"))
+        rmdir(self, os.path.join(self.package_folder, "lib"))
     
     def package_id(self):
-        self.info.header_only()
+        self.info.clear()
         
         # If user requests package without tests but only packages with tests are available
         # it is legal to use a package with tests
