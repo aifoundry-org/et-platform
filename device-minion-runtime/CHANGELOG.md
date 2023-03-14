@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updating the gitlab CI repo pointer to latest.
 - [SW-15697] Replacing threshold_data with threshold value in trace buffer full notification.
 - [SW-16430] Optimizing the kernel launch path to process command fields before waiting on idle slot search.
+- [SW-16452] Generate pre-release packages by default and full versions in tags pipelines
 ### Deprecated
 ### Removed
 ### Fixed

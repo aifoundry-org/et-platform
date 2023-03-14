@@ -1,12 +1,11 @@
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
-from conans import tools
-from conans.errors import ConanInvalidConfiguration
+from conan.tools.files import rmdir
 import os
 import textwrap
 
-
-required_conan_version = ">=1.46.0"
+required_conan_version = ">=1.53.0"
 
 
 class DeviceMinionRuntimeConan(ConanFile):
@@ -17,10 +16,10 @@ class DeviceMinionRuntimeConan(ConanFile):
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
-        "warnings_as_errors" : [True, False]
+        "warnings_as_errors": [True, False]
     }
     default_options = {
-        "warnings_as_errors" : True
+        "warnings_as_errors": True
     }
 
     scm = {
@@ -28,16 +27,16 @@ class DeviceMinionRuntimeConan(ConanFile):
         "url": "git@gitlab.esperanto.ai:software/device-minion-runtime.git",
         "revision": "auto",
     }
-    generators = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "deviceMinionRuntime")
+        get_version = self.python_requires["conan-common"].module.get_version
+        self.version = get_version(self, "deviceMinionRuntime")
 
     def configure(self):
-        del self.settings.compiler.libcxx
-        del self.settings.compiler.cppstd
+        self.settings.rm_safe("compiler.libcxx")
+        self.settings.rm_safe("compiler.cppstd")
 
     def requirements(self):
         # header-only libs
@@ -52,7 +51,7 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
 
     def build_requirements(self):
-        self.build_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+        self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
     def validate(self):
         if self.settings.arch != "rv64":
@@ -78,12 +77,16 @@ class DeviceMinionRuntimeConan(ConanFile):
         tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors
         tc.variables["DEVICE_MINION_RUNTIME_DEPRECATED"] = True
         tc.variables["BUILD_DOC"] = False
-        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
+        tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder,
+                                                         "cmake")
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
 
         tc.preprocessor_definitions["RISCV_ET_MINION"] = ""
 
         tc.generate()
+
+        deps = CMakeDeps(self)
+        deps.generate()
 
     def build(self):
         cmake = CMake(self)
@@ -102,7 +105,7 @@ class DeviceMinionRuntimeConan(ConanFile):
     def package(self):
         cmake = CMake(self)
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
 
         build_modules_folder = os.path.join(self.package_folder, "lib", "cmake")
         os.makedirs(build_modules_folder)
@@ -135,7 +138,6 @@ class DeviceMinionRuntimeConan(ConanFile):
                 set(ESPERANTO_DEVICE_MINION_RUNTIME_LIB_DIR "${{CMAKE_CURRENT_LIST_DIR}}/../../lib")
                 get_filename_component(ESPERANTO_DEVICE_MINION_RUNTIME_LIB_DIR "${{ESPERANTO_DEVICE_MINION_RUNTIME_LIB_DIR}}" ABSOLUTE)
                 """.format(exec=elf, exec_dir=elf_dir)))
-
 
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "EsperantoDeviceMinionRuntime")
