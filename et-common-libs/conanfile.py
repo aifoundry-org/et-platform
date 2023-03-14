@@ -1,11 +1,11 @@
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
-from conans import tools
-from conans.errors import ConanInvalidConfiguration
+from conan.tools.files import rmdir
 import os
-import re
 
-required_conan_version = ">=1.46.0"
+required_conan_version = ">=1.53.0"
+
 
 class EtCommonLibsConan(ConanFile):
     name = "et-common-libs"
@@ -36,17 +36,17 @@ class EtCommonLibsConan(ConanFile):
         "url": "git@gitlab.esperanto.ai:software/et-common-libs.git",
         "revision": "auto",
     }
-    generators = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "et-common-libs")
+        get_version = self.python_requires["conan-common"].module.get_version
+        self.version = get_version(self, self.name)
 
     def configure(self):
         # et-common-libs is a C library, doesn't depend on any C++ standard library
-        del self.settings.compiler.libcxx
-        del self.settings.compiler.cppstd
+        self.settings.rm_safe("compiler.libcxx")
+        self.settings.rm_safe("compiler.cppstd")
 
     def requirements(self):
         self.requires("esperantoTrace/[>=1.0.0 <2.0.0]")
@@ -74,6 +74,8 @@ class EtCommonLibsConan(ConanFile):
         tc.variables["WITH_CM_RT_SVCS"] = self.options.with_cm_rt_svcs
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.generate()
+        deps = CMakeDeps(self)
+        deps.generate()
 
     def build(self):
         cmake = CMake(self)
@@ -83,7 +85,7 @@ class EtCommonLibsConan(ConanFile):
     def package(self):
         cmake = CMake(self)
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
 
     def package_info(self):
 
