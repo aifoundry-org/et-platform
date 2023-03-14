@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15697] Replacing threshold_data with threshold value in trace buffer full notification.
 - [SW-16315] Increase boot voltage to 450mV to avoid bit errors
 - [SW-16237] Enabled MDI commands in release mode, separated privileged and non privileged memory access regions.
-  - Fixed a bug in mdi.
+- Fixed a bug in mdi.
+- [SW-16453] Generate pre-release versions by default and full versions on tags pipelines
 ### Deprecated
 ### Removed
 ### Fixed
