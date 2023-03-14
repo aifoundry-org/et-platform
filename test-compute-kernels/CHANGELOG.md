@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-16253] Added environment kernel for verifying the kernel env params.
 ### Changed
+- [SW-16520] Generate pre-release versions by default and full versions in tags pipelines
 ### Deprecated
 ### Removed
 ### Fixed
