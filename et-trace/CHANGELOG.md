@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-15697] Changing threshold data in CB to threshold notify flag.
+- [SW-16449] Generate pre-release packages by default and full SemVer pkgs on tags pipelines
 ### Deprecated
 ### Removed
 ### Fixed
