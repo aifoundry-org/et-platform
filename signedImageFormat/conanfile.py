@@ -1,4 +1,8 @@
-from conans import ConanFile, tools
+from conan import ConanFile
+from conan.tools.files import copy
+
+required_conan_version = ">=1.53.0"
+
 
 class SignedImageFormatConan(ConanFile):
     name = "signedImageFormat"
@@ -11,13 +15,14 @@ class SignedImageFormatConan(ConanFile):
 
     no_copy_source = True
 
-    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, self.name)
-    
+        get_version = self.python_requires["conan-common"].module.get_version
+        self.version = get_version(self, self.name)
+
     def package(self):
-        self.copy("*.h")
+        copy(self, "*.h", self.source_folder, self.package_folder, keep_path=True)
 
     def package_id(self):
-        self.info.header_only()
+        self.info.clear()
