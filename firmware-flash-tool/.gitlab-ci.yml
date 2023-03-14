@@ -1,27 +1,52 @@
 include:
-  - project: 'software/gitlab-ci-common'
+  - project: software/gitlab-ci-common
     ref: 1e82845ec49b8294f606238749542e6053056da4
     file:
-      - 'pods/nano-pod.yaml'
-      - 'misc/retries.yaml'
-      - 'jobs/generic-k8s-job.yaml'
-      - 'rules/generic-workflow-conan.yaml'
+      - pods/nano-pod.yaml
+      - misc/retries.yaml
+      - jobs/generic-k8s-job.yaml
+      - rules/generic-workflow-conan.yaml
  
-  - project: 'software/gitlab-ci-common'
+  - project: software/gitlab-ci-common
     ref: master
     file:
-      - 'jobs/conan-jobs.yaml'
+      - jobs/conan-jobs.yaml
 
-  - project: 'software/sw-platform'
+  - project: software/sw-platform
     ref: develop/system-sw
     file:
-      - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
+      - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
 stages:
   - generate_build
   - build
   - test
   - deploy
+
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+.release_job:
+  rules:
+    - &release_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - &release_or_development_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) || ($CI_PIPELINE_SOURCE == "merge_request_event")
+
+# Only run job in these cases:
+# - if there is a MR open
+.development_job:
+  rules:
+    - &development_job_rule
+      if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
 
 ###############################################################################
 ###############################################################################
@@ -35,7 +60,7 @@ verify_project_changes:
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
   stage: .pre
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - *development_job_rule
   variables:
     PROJ_VER_FILE_NAME: CMakeLists.txt
 
@@ -49,14 +74,16 @@ generate_build:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
-
+  needs:
+    - job: verify_project_changes
+      optional: true
+  rules:
+    - *release_or_development_job_rule
   variables:
     TIMEOUT: 15m
-
     CMD_BUILD: |
       cd conan
       python3 -m ci_build
-  
   artifacts:
     expire_in: 1h 
     paths:
@@ -70,8 +97,9 @@ generate_build:conan:
 build:conan:
   stage: build
   needs:
-  - generate_build:conan
-  stage: build
+    - generate_build:conan
+  rules:
+    - *release_or_development_job_rule
   trigger:
     include:
     - artifact: conan/build_pipeline.yml
@@ -97,6 +125,8 @@ on_success:promote:
   needs:
     - generate_build:conan
     - build:conan
+  rules:
+    - *release_job_rule
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |

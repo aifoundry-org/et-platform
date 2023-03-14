@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-16531] Generate pre-release versions by default and full versions on tags pipelines
 ### Deprecated
 ### Removed
 ### Fixed

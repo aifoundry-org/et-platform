@@ -1,7 +1,7 @@
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
-from conans import tools
-from conans.errors import ConanInvalidConfiguration
+from conan.tools.files import rmdir
 import os
 
 
@@ -23,12 +23,12 @@ class EsperantoFlashToolConan(ConanFile):
         "url": "git@gitlab.esperanto.ai:software/firmware-flash-tool.git",
         "revision": "auto",
     }
-    generators = "CMakeDeps"
 
-    python_requires = "conan-common/[>=0.5.0 <1.0.0]"
+    python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
-        self.version = self.python_requires["conan-common"].module.get_version_from_cmake_project(self, "EsperantoFlashTool")
+        get_version = self.python_requires["conan-common"].module.get_version
+        self.version = get_version(self, "EsperantoFlashTool")
 
     def requirements(self):
         if not self.options.header_only:
@@ -36,7 +36,7 @@ class EsperantoFlashToolConan(ConanFile):
 
     def package_id(self):
         if self.options.header_only:
-            self.info.header_only()
+            self.info.clear()
 
     def validate(self):
         if self.settings.arch == "rv64" and not self.options.header_only:
@@ -51,6 +51,9 @@ class EsperantoFlashToolConan(ConanFile):
             tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
             tc.generate()
 
+            deps = CMakeDeps(self)
+            deps.generate()
+
     def build(self):
         if not self.options.header_only:
             cmake = CMake(self)
@@ -64,7 +67,7 @@ class EsperantoFlashToolConan(ConanFile):
         else:
             cmake = CMake(self)
             cmake.install()
-            tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+            rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
         self.cpp_info.set_property("cmake_file_name", "EsperantoFlashTool")
