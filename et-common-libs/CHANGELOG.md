@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.15.0] - 2023-03-15
+### Added
 - [SW-15710] Baseline implementation for Accelerator lib docs.
 - [SW-15710] Adding a docs prototype with examples
 - [SW-15805] Adding doxygen docs support for memory operations API with examples
