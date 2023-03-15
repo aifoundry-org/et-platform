@@ -12,7 +12,7 @@ project(EsperantoTestKernels VERSION 1.6.0 LANGUAGES C ASM)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-zero-initialized-in-bss -fdata-sections")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections ")
 if (NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 11)
 endif()
