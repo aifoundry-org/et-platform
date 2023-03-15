@@ -43,6 +43,19 @@ struct dma_write_node {
   
 } __attribute__((packed));
 
+/*! \struct p2pdma_node
+    \brief Node containing one P2P DMA (read/write) transfer information
+*/
+struct p2pdma_node {
+  uint64_t  dst_device_phy_addr; /**< Physical address in src_device Host Managed DRAM range */
+  uint64_t  src_device_phy_addr; /**< Physical address in dst_device Host Managed DRAM range */
+  uint64_t  pci_p2pmem_bus_addr; /**< Translated bus address of peer partner device physical address */
+  uint32_t  size; /**< Size */
+  uint16_t  peer_devnum; /**< The devnum of the peer partner device in P2P DMA */
+  uint16_t  pad; /**< Padding for alignment */
+
+} __attribute__((packed));
+
 /*! \struct kernel_rsp_error_ptr_t
     \brief This contains U-mode exception buffer pointer and U-mode trace buffer pointer
 */
@@ -213,6 +226,52 @@ struct device_ops_dma_writelist_cmd_t {
     \brief DMA writelist command response
 */
 struct device_ops_dma_writelist_rsp_t {
+  struct rsp_header_t response_info; /**< Response header */
+  uint64_t  device_cmd_start_ts; /**< Timestamp (in cycles) at which the command was dispatched */
+  uint64_t  device_cmd_execute_dur; /**< Time transpired between command dispatch and command completion */
+  uint64_t  device_cmd_wait_dur; /**< Time transpired between command arrival and dispatch */
+  dev_ops_api_dma_response_e  status; /**< Status of the DMA operation */
+  uint32_t  pad; /**< Padding for alignment */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_ops_p2pdma_readlist_cmd_t
+    \brief Single list command to perform multiple P2P DMA read transfers. The read terminology is w.r.t to the peer
+           partner device i.e. the peer partner (dst_device) will be reading from DRAM of main peer (src_device) and
+           this command is to be sent to the src_device
+*/
+struct device_ops_p2pdma_readlist_cmd_t {
+  struct cmd_header_t command_info;
+  struct p2pdma_node  list[]; /**< Arrays of Structs containing Src/Dst/Size of numerous P2P data transfers to be performed in a single command.
+            Each entry is 1 Data transfer with its own Src/Dst/Size and peer partner Device Id */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_ops_p2pdma_readlist_rsp_t
+    \brief P2P DMA readlist command response
+*/
+struct device_ops_p2pdma_readlist_rsp_t {
+  struct rsp_header_t response_info; /**< Response header */
+  uint64_t  device_cmd_start_ts; /**< Timestamp (in cycles) at which the command was dispatched */
+  uint64_t  device_cmd_execute_dur; /**< Time transpired between command dispatch and command completion */
+  uint64_t  device_cmd_wait_dur; /**< Time transpired between command arrival and dispatch */
+  dev_ops_api_dma_response_e  status; /**< Status of the DMA operation */
+  uint32_t  pad; /**< Padding for alignment */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_ops_p2pdma_writelist_cmd_t
+    \brief Single list command to perform multiple P2P DMA write transfers. The write terminology is w.r.t to the peer
+           partner device i.e. the peer partner (src_device) will be writing into DRAM of main peer (dst_device) and
+           this command is to be sent to the dst_device
+*/
+struct device_ops_p2pdma_writelist_cmd_t {
+  struct cmd_header_t command_info;
+  struct p2pdma_node  list[]; /**< Arrays of Structs containing Src/Dst/Size of numerous data transfers to be performed in a single command.
+            Each entry is 1 Data transfer with its own Src/Dst/Size and peer partner Device Id */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_ops_p2pdma_writelist_rsp_t
+    \brief P2P DMA writelist command response
+*/
+struct device_ops_p2pdma_writelist_rsp_t {
   struct rsp_header_t response_info; /**< Response header */
   uint64_t  device_cmd_start_ts; /**< Timestamp (in cycles) at which the command was dispatched */
   uint64_t  device_cmd_execute_dur; /**< Time transpired between command dispatch and command completion */

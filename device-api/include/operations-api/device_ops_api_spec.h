@@ -270,30 +270,34 @@ enum DEV_OPS_TRACE_RT_CONTROL_RESPONSE {
 */
 enum device_ops_api_msg_e {
     DEV_OPS_API_MID_NONE = 512,
-    DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD = 513, /**< < Request the version of the device_ops_api supported by the target */
-    DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP = 514, /**< < Return the version implemented by the target */
-    DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD = 515, /**< < Request the version of the device firmware, advertise the one we support */
-    DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP = 516, /**< < Return the device fw version for the requested type */
-    DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD = 517, /**< < Echo command */
-    DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP = 518, /**< < Echo response */
-    DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD = 519, /**< < Command to abort a currently pipelined command in the device */
-    DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP = 520, /**< < Response to an abort request */
-    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD = 521, /**< < Launch a kernel on the target */
-    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP = 522, /**< < Response and result of a kernel launch on the device */
-    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD = 523, /**< < Command to abort a currently running kernel on the device */
-    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP = 524, /**< < Response to an abort request */
-    DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD = 525, /**< < Single list Command to perform multiple DMA reads from device memory */
-    DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP = 526, /**< < DMA readlist command response */
-    DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD = 527, /**< < Single list Command to perform multiple DMA writes on device memory */
-    DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP = 528, /**< < DMA writelist command response */
-    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD = 529, /**< < Configure the trace configuration */
-    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP = 530, /**< < Trace configure command reply */
-    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD = 531, /**< < Configure options to start, stop, OR fetch trace logs. */
-    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP = 532, /**< < Trace runtime control command reply */
-    DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD = 533, /**< < CM Reset command */
-    DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_RSP = 534, /**< < CM Reset response */
-    DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR = 535, /**< < Generic error reported by the device */
-    DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT = 536, /**< < Event triggered when trace buffer has reached threshold or is full */
+    DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD, /**< < Request the version of the device_ops_api supported by the target */
+    DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP, /**< < Return the version implemented by the target */
+    DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_VERSION_CMD, /**< < Request the version of the device firmware, advertise the one we support */
+    DEV_OPS_API_MID_DEVICE_OPS_FW_VERSION_RSP, /**< < Return the device fw version for the requested type */
+    DEV_OPS_API_MID_DEVICE_OPS_ECHO_CMD, /**< < Echo command */
+    DEV_OPS_API_MID_DEVICE_OPS_ECHO_RSP, /**< < Echo response */
+    DEV_OPS_API_MID_DEVICE_OPS_ABORT_CMD, /**< < Command to abort a currently pipelined command in the device */
+    DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP, /**< < Response to an abort request */
+    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD, /**< < Launch a kernel on the target */
+    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP, /**< < Response and result of a kernel launch on the device */
+    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_CMD, /**< < Command to abort a currently running kernel on the device */
+    DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP, /**< < Response to an abort request */
+    DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD, /**< < Single list Command to perform multiple DMA reads from device memory */
+    DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP, /**< < DMA readlist command response */
+    DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD, /**< < Single list Command to perform multiple DMA writes on device memory */
+    DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP, /**< < DMA writelist command response */
+    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_CMD, /**< < Configure the trace configuration */
+    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONFIG_RSP, /**< < Trace configure command reply */
+    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD, /**< < Configure options to start, stop, OR fetch trace logs. */
+    DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_RSP, /**< < Trace runtime control command reply */
+    DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_CMD, /**< < CM Reset command */
+    DEV_OPS_API_MID_DEVICE_OPS_CM_RESET_RSP, /**< < CM Reset response */
+    DEV_OPS_API_MID_DEVICE_OPS_DEVICE_FW_ERROR, /**< < Generic error reported by the device */
+    DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT, /**< < Event triggered when trace buffer has reached threshold or is full */
+    DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_CMD, /**< < Single list command to perform multiple P2P DMA read transfers */
+    DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_RSP, /**< < P2P DMA readlist command response */
+    DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_WRITELIST_CMD, /**< < Single list command to perform multiple P2P DMA write transfers */
+    DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_WRITELIST_RSP, /**< < P2P DMA writelist command response */
     DEV_OPS_API_MID_LAST  = 1023
 };
 
