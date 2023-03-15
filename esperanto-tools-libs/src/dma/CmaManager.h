@@ -13,6 +13,7 @@
 #include "runtime/Types.h"
 #include <condition_variable>
 #include <cstddef>
+#include <hostUtils/actionList/Runner.h>
 #include <mutex>
 namespace rt {
 class IRuntime;
@@ -24,18 +25,18 @@ public:
   size_t getTotalSize() const;
 
   // returns max contiguous bytes (max allocation)
-  size_t getFreeBytes(bool isPrioritary) const;
+  size_t getFreeBytes() const;
 
-  // will return nullptr if there is not enough mem to alloc. When isPrioritary = false, it will allow to allocate a
-  // maximum of totalFreeBytes - maxBytesPerCommand. Prioritary commands however, can allocate all available memory
-  std::byte* alloc(size_t size, bool isPrioritary);
+  // will return nullptr if there is not enough mem to alloc.
+  std::byte* alloc(size_t size);
 
   void free(std::byte* buffer);
 
-  // will block the caller until someone frees this amount of cma memory
-  void waitUntilFree(size_t size);
+  // add an asynchronous memcpy operation to be executed
+  void addMemcpyAction(std::unique_ptr<actionList::IAction> action);
 
 private:
+  actionList::Runner memcpyActionManager_;
   std::unique_ptr<IDmaBuffer> dmaBuffer_;
   MemoryManager memoryManager_;
   std::condition_variable cv_;

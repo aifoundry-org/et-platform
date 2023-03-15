@@ -40,11 +40,9 @@ public:
 
   void addOnDispatchCallback(OnDispatchCallback callback);
 
-  // THIS CALL IS NOT THREADSAFE, this is called internally and could be called from a OnDispatchCallback safely, don't
-  // call it from other places
+private:
   bool isDispatched(EventId event) const;
 
-private:
   mutable std::mutex mutex_;
   bool throwOnMissingEvent_ = false;
   std::set<EventId> onflyEvents_;

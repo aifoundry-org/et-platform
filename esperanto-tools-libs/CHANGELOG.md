@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+- [SW-15922] new sync mechanism is cleaner and less error prone than the older one. Threadpools are using just for task execution, as they should be, and all sync points are done using events and not blocking workers from the threadpool.
 - [SW-15882] adapted to changes in the devicelayer api (2.0.0)
 - [SW-16044] added deviceId and streamId to StreamError. Note streamId will not be present when recovering from a crash.
 - [SW-16249] DeviceLayerFake is now parametrizable. MP server new parameters: num-devices (valid for sysemu and fake), frequency (valid for fake), dramsize (valid for fake).

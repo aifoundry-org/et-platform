@@ -13,6 +13,11 @@
 #include "ScopedProfileEvent.h"
 #include "Utils.h"
 #include "dma/CmaManager.h"
+#include "dma/MemcpyContext.h"
+#include "dma/MemcpyD2HAction.h"
+#include "dma/MemcpyH2DAction.h"
+#include "dma/MemcpyListD2HAction.h"
+#include "dma/MemcpyListH2DAction.h"
 #include "runtime/Types.h"
 #include <algorithm>
 #include <chrono>
@@ -34,10 +39,6 @@ static_assert(sizeof(dma_write_node) == sizeof(dma_read_node));
 static_assert(offsetof(dma_write_node, src_host_virt_addr) == offsetof(dma_read_node, dst_host_virt_addr));
 static_assert(offsetof(dma_write_node, dst_device_phy_addr) == offsetof(dma_read_node, src_device_phy_addr));
 static_assert(offsetof(dma_write_node, size) == offsetof(dma_read_node, size));
-
-namespace {
-constexpr auto kMinBytesPerEntry = 128UL;
-} // namespace
 
 namespace rt {
 
@@ -88,12 +89,11 @@ void MemcpyCommandBuilder::clear() {
 EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                          bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
-  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     mm.checkOperation(d_dst, size);
   }
-  lock.unlock();
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
@@ -105,86 +105,20 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
 
-  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
-  // be that later tasks are waiting for this command. See BUG SW-15901
-  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
 
-  threadPools_.at(device)->pushTask([this, size, barrier, d_dst, h_src, evt, stream, streamInfo, cmaCopyFunction] {
-    RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
-    std::vector<EventId> cmdEvents;
-    auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-    auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
-    MemcpyCommandBuilder builder(MemcpyType::H2D, barrier, static_cast<uint32_t>(dmaInfo.maxElementCount_));
-    auto offset = 0UL;
-    auto pendingBytes = size;
-    auto deviceId = DeviceId{streamInfo.device_};
-    auto cmaManager = cmaManagers_.at(deviceId).get();
-    while (pendingBytes > 0) {
-      auto topPrio = cs.getFirstDmaCommand();
-      assert(topPrio);
-      auto isPrioritary = topPrio == evt;
-      auto freeSize = cmaManager->getFreeBytes(isPrioritary);
-      if (freeSize > kMinBytesPerEntry) {
-        // calculate current memcpy command size
-        auto currentSize =
-          std::min(std::min(freeSize, pendingBytes), dmaInfo.maxElementSize_ * dmaInfo.maxElementCount_);
-        // prepare the command
-        auto cmaPtr = cmaManager->alloc(currentSize, isPrioritary);
-        if (!cmaPtr) {
-          RT_VLOG(MID) << "Not enough CMA, loop again.";
-          continue;
-        }
-        auto entrySize = std::min(currentSize, dmaInfo.maxElementSize_);
-        auto cmaPtrOffset = 0UL;
-        auto cmdEvt = eventManager_.getNextId();
-        while (currentSize > 0) {
-          ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), cmdEvt);
-          pevent.setParentId(evt);
-          entrySize = std::min(entrySize, currentSize);
-          builder.addOp(cmaPtr + cmaPtrOffset, d_dst + offset, entrySize);
-          // copy the data to the cma buffer
-          cmaCopyFunction(h_src + offset, cmaPtr + cmaPtrOffset, entrySize, CmaCopyType::TO_CMA);
-          offset += entrySize;
-          cmaPtrOffset += entrySize;
-          currentSize -= entrySize;
-          pendingBytes -= entrySize;
-        }
+  auto& cmaManager = cmaManagers_.at(device);
 
-        streamManager_.addEvent(stream, cmdEvt);
-        builder.setTagId(cmdEvt);
-        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
-        builder.clear();
-        cmdEvents.emplace_back(cmdEvt);
-
-        // add a thread which will free the cma memory
-        eventManager_.addOnDispatchCallback({{cmdEvt}, [cmaManager, cmaPtr] { cmaManager->free(cmaPtr); }});
-      } else {
-        ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
-        if (topPrio != evt) {
-          RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-          doWaitForEvent(topPrio.value());
-        } else {
-          RT_VLOG(LOW) << "H2D. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
-          cmaManager->waitUntilFree(kMinBytesPerEntry);
-        }
-      }
-    }
-    eventManager_.addOnDispatchCallback({cmdEvents, [this, evt] {
-                                           RT_VLOG(LOW)
-                                             << "MemcpyH2D done, dispatching last event: " << static_cast<int>(evt);
-                                           dispatch(evt);
-                                         }});
-
-    // remove the ghost
-    cs.cancel(evt);
-    RT_VLOG(MID) << "H2D: Cancelled GHOST command: " << static_cast<int>(evt);
-    RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
-  });
-  lock.unlock();
+  MemcpyContext mc{cmaCopyFunction, deviceLayer_->getDmaInfo(streamInfo.device_),
+                   *this,           *cmaManager,
+                   streamManager_,  eventManager_,
+                   commandSender,   *threadPools_.at(device),
+                   stream,          evt};
+  auto action = std::make_unique<MemcpyH2DAction>(h_src, d_dst, size, barrier, std::move(mc));
+  cmaManager->addMemcpyAction(std::move(action));
   Sync(evt);
   return evt;
 }
@@ -194,12 +128,11 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
-  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     mm.checkOperation(d_src, size);
   }
-  lock.unlock();
   auto evt = eventManager_.getNextId();
   RT_VLOG(LOW) << "MemcpyDeviceToHost stream: " << static_cast<int>(stream) << " EventId: " << static_cast<int>(evt)
                << std::hex << " Host address: " << h_dst << " Device address: " << d_src << " Size: " << size;
@@ -209,105 +142,20 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them.
 
-  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
-  // be that later tasks are waiting for this command. See BUG SW-15901
-
-  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
 
-  threadPools_.at(device)->pushTask([this, stream, size, barrier, d_src, h_dst, evt, streamInfo, cmaCopyFunction] {
-    RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
-    std::vector<EventId> cmdEvents;
-    auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-    auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_);
-    MemcpyCommandBuilder builder(MemcpyType::D2H, barrier, static_cast<uint32_t>(dmaInfo.maxElementCount_));
-    auto offset = 0UL;
-    auto pendingBytes = size;
-    auto deviceId = DeviceId{streamInfo.device_};
-    auto cmaManager = cmaManagers_.at(deviceId).get();
-    while (pendingBytes > 0) {
-      auto topPrio = cs.getFirstDmaCommand();
-      assert(topPrio);
-      auto isPrioritary = topPrio == evt;
-      auto freeSize = cmaManager->getFreeBytes(isPrioritary);
-      if (freeSize > kMinBytesPerEntry) {
-        struct FinalCopy {
-          std::byte* src;
-          std::byte* dst;
-          size_t size;
-        };
-        // this is needed to make the final copy from the cma to the user memory; after all commands finish
-        std::vector<FinalCopy> cmdFinalCopies;
-        // calculate current memcpy command size
-        auto currentSize =
-          std::min(std::min(freeSize, pendingBytes), dmaInfo.maxElementSize_ * dmaInfo.maxElementCount_);
-        // prepare the command
-        auto cmaPtr = cmaManager->alloc(currentSize, isPrioritary);
-        if (!cmaPtr) {
-          RT_VLOG(MID) << "Not enough CMA, loop again.";
-          continue;
-        }
-        auto entrySize = std::min(currentSize, dmaInfo.maxElementSize_);
-        auto cmaPtrOffset = 0UL;
-        while (currentSize > 0) {
-          entrySize = std::min(entrySize, currentSize);
-          builder.addOp(cmaPtr + cmaPtrOffset, d_src + offset, entrySize);
-          cmdFinalCopies.emplace_back(FinalCopy{cmaPtr + cmaPtrOffset, h_dst + offset, entrySize});
-          offset += entrySize;
-          cmaPtrOffset += entrySize;
-          currentSize -= entrySize;
-          pendingBytes -= entrySize;
-        }
+  auto& cmaManager = cmaManagers_.at(device);
 
-        auto cmdEvt = eventManager_.getNextId();
-        streamManager_.addEvent(stream, cmdEvt);
-        builder.setTagId(cmdEvt);
-        cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
-        builder.clear();
-
-        // this extra event is needed to make sure we wait till the final copy between cma and user memory
-        auto syncCopyEvt = eventManager_.getNextId();
-        streamManager_.addEvent(stream, syncCopyEvt);
-        cmdEvents.emplace_back(syncCopyEvt);
-
-        // add a callback which will free the cma memory
-        eventManager_.addOnDispatchCallback(
-          {{cmdEvt},
-           [this, cmdEvt, cmaManager, cmaPtr, cmdFinalCopies = std::move(cmdFinalCopies), syncCopyEvt,
-            cmaCopyFunction] {
-             for (auto& copy : cmdFinalCopies) {
-               ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), cmdEvt);
-               pevent.setParentId(syncCopyEvt);
-               cmaCopyFunction(copy.src, copy.dst, copy.size, CmaCopyType::FROM_CMA);
-             }
-             cmaManager->free(cmaPtr);
-             dispatch(syncCopyEvt);
-           }});
-      } else {
-        ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
-        if (topPrio != evt) {
-          RT_VLOG(LOW) << "D2H. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-          doWaitForEvent(topPrio.value());
-        } else {
-          RT_VLOG(LOW) << "D2H. I'm top prio command (" << static_cast<int>(evt) << "); waiting for cma free. ";
-          cmaManager->waitUntilFree(kMinBytesPerEntry);
-        }
-      }
-    }
-    eventManager_.addOnDispatchCallback({cmdEvents, [this, evt] {
-                                           RT_VLOG(LOW)
-                                             << "MemcpyD2H done, dispatching last event: " << static_cast<int>(evt);
-                                           dispatch(evt);
-                                         }});
-    // remove the ghost
-    cs.cancel(evt);
-    RT_VLOG(MID) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
-    RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
-  });
-  lock.unlock();
+  MemcpyContext mc{cmaCopyFunction, deviceLayer_->getDmaInfo(streamInfo.device_),
+                   *this,           *cmaManager,
+                   streamManager_,  eventManager_,
+                   commandSender,   *threadPools_.at(device),
+                   stream,          evt};
+  auto action = std::make_unique<MemcpyD2HAction>(d_src, h_dst, size, barrier, std::move(mc));
+  cmaManager->addMemcpyAction(std::move(action));
   Sync(evt);
   return evt;
 }
@@ -317,14 +165,13 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
 
-  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     for (auto& elem : memcpyList.operations_) {
       mm.checkOperation(elem.dst_, elem.size_);
     }
   }
-  lock.unlock();
 
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
@@ -333,53 +180,20 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
-  // be that later tasks are waiting for this command. See BUG SW-15901
-  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
 
-  threadPools_.at(device)->pushTask([this, barrier, memcpyList, evt, streamInfo, cmaCopyFunction] {
-    RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
-    auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-    auto totalSize = 0UL;
-    for (auto& op : memcpyList.operations_) {
-      totalSize += op.size_;
-    }
-    MemcpyCommandBuilder builder(MemcpyType::H2D, barrier, static_cast<uint32_t>(memcpyList.operations_.size()));
-    builder.setTagId(evt);
-    auto deviceId = DeviceId{streamInfo.device_};
-    auto cmaManager = cmaManagers_.at(deviceId).get();
-    auto topPrio = cs.getFirstDmaCommand();
-    auto cmaPtr = cmaManager->alloc(totalSize, topPrio == evt);
-    while (!cmaPtr) {
-      ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
-      if (topPrio == evt) {
-        RT_VLOG(MID) << "Waiting for CMA ...";
-        cmaManager->waitUntilFree(totalSize);
-      } else {
-        RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-        doWaitForEvent(topPrio.value());
-      }
-      topPrio = cs.getFirstDmaCommand();
-      cmaPtr = cmaManager->alloc(totalSize, topPrio == evt);
-    }
-    auto cmaPtrOffset = 0UL;
-    for (auto& op : memcpyList.operations_) {
-      ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), evt);
-      pevent.setParentId(evt);
-      builder.addOp(cmaPtr + cmaPtrOffset, op.dst_, op.size_);
-      cmaCopyFunction(op.src_, cmaPtr + cmaPtrOffset, op.size_, CmaCopyType::TO_CMA);
-      cmaPtrOffset += op.size_;
-    }
-    cs.setCommandData(evt, builder.build());
-    cs.enable(evt);
-    eventManager_.addOnDispatchCallback({{evt}, [cmaManager, cmaPtr] { cmaManager->free(cmaPtr); }});
-    RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
-  });
-  lock.unlock();
+  auto& cmaManager = cmaManagers_.at(device);
+
+  MemcpyContext mc{cmaCopyFunction, deviceLayer_->getDmaInfo(streamInfo.device_),
+                   *this,           *cmaManager,
+                   streamManager_,  eventManager_,
+                   commandSender,   *threadPools_.at(device),
+                   stream,          evt};
+  auto action = std::make_unique<MemcpyListH2DAction>(memcpyList, barrier, std::move(mc));
+  cmaManager->addMemcpyAction(std::move(action));
   Sync(evt);
   return evt;
 }
@@ -387,14 +201,13 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                                          const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   checkList(streamInfo.device_, memcpyList);
-  SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
+    SpinLock lock(mutex_);
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});
     for (auto& elem : memcpyList.operations_) {
       mm.checkOperation(elem.src_, elem.size_);
     }
   }
-  lock.unlock();
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
 
   auto evt = eventManager_.getNextId();
@@ -402,67 +215,20 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  // We need to lock here to ensure the task is pushed before any other task is pushed in the same threadpool, it could
-  // be that later tasks are waiting for this command. See BUG SW-15901
-  lock.lock();
   commandSender.send(Command{{}, commandSender, evt, evt, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
+  auto& cmaManager = cmaManagers_.at(device);
 
-  threadPools_.at(device)->pushTask([this, barrier, memcpyList, evt, streamInfo, stream, cmaCopyFunction] {
-    RT_VLOG(MID) << "Start processing command id " << static_cast<int>(evt);
-    auto& cs = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-    auto totalSize = 0UL;
-    for (auto& op : memcpyList.operations_) {
-      totalSize += op.size_;
-    }
-    auto deviceId = DeviceId{streamInfo.device_};
+  MemcpyContext mc{cmaCopyFunction, deviceLayer_->getDmaInfo(streamInfo.device_),
+                   *this,           *cmaManager,
+                   streamManager_,  eventManager_,
+                   commandSender,   *threadPools_.at(device),
+                   stream,          evt};
+  auto action = std::make_unique<MemcpyListD2HAction>(memcpyList, barrier, std::move(mc));
+  cmaManager->addMemcpyAction(std::move(action));
 
-    auto cmaManager = cmaManagers_.at(deviceId).get();
-    auto topPrio = cs.getFirstDmaCommand();
-    auto cmaPtr = cmaManager->alloc(totalSize, topPrio == evt);
-    while (!cmaPtr) {
-      ScopedProfileEvent pevent(profiling::Class::CmaWait, *getProfiler(), evt);
-      if (topPrio == evt) {
-        RT_VLOG(MID) << "Waiting for CMA ...";
-        cmaManager->waitUntilFree(totalSize);
-      } else {
-        RT_VLOG(LOW) << "H2D. Waiting for top prio command: " << static_cast<int>(topPrio.value());
-        doWaitForEvent(topPrio.value());
-      }
-      topPrio = cs.getFirstDmaCommand();
-      cmaPtr = cmaManager->alloc(totalSize, topPrio == evt);
-    }
-    auto cmaPtrOffset = 0UL;
-    MemcpyCommandBuilder builder(MemcpyType::D2H, barrier, static_cast<uint32_t>(memcpyList.operations_.size()));
-    auto cmdEvt = eventManager_.getNextId();
-    streamManager_.addEvent(stream, cmdEvt);
-    builder.setTagId(cmdEvt);
-    for (auto& op : memcpyList.operations_) {
-      builder.addOp(cmaPtr + cmaPtrOffset, op.src_, op.size_);
-      cmaPtrOffset += op.size_;
-    }
-    cs.sendBefore(evt, {builder.build(), cs, cmdEvt, evt, true, true});
-    cs.cancel(evt);
-    RT_VLOG(MID) << "D2H: Cancelled GHOST command: " << static_cast<int>(evt);
-    // This part is needed because we have to copy the data into the user buffer before triggering that the event is
-    // finished
-    eventManager_.addOnDispatchCallback(
-      {{cmdEvt}, [this, cmdEvt, cmaManager, evt, cmaPtr, ops = memcpyList.operations_, cmaCopyFunction] {
-         auto offset = 0UL;
-         for (auto& op : ops) {
-           ScopedProfileEvent pevent(profiling::Class::CmaCopy, *getProfiler(), cmdEvt);
-           pevent.setParentId(evt);
-           cmaCopyFunction(cmaPtr + offset, op.dst_, op.size_, CmaCopyType::FROM_CMA);
-           offset += op.size_;
-         }
-         cmaManager->free(cmaPtr);
-         dispatch(evt);
-       }});
-    RT_VLOG(MID) << "End processing command id " << static_cast<int>(evt);
-  });
-  lock.unlock();
   Sync(evt);
   return evt;
 }

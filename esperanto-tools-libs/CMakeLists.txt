@@ -75,6 +75,15 @@ add_library(etrt_obj OBJECT
     src/KernelLaunch.cpp
     src/MemcpyOps.cpp
     src/dma/CmaManager.cpp
+    src/dma/MemcpyContext.h
+    src/dma/MemcpyD2HAction.h
+    src/dma/MemcpyH2DAction.cpp
+    src/dma/MemcpyH2DAction.h
+    src/dma/MemcpyListD2HAction.cpp
+    src/dma/MemcpyListD2HAction.h
+    src/dma/MemcpyListH2DAction.cpp
+    src/dma/MemcpyListH2DAction.h
+    src/dma/MemcpyD2HAction.cpp
     src/ProfileEvent.cpp
     src/StreamManager.cpp
     src/Types.cpp
@@ -115,6 +124,7 @@ target_link_libraries(etrt_obj
         deviceLayer::deviceLayer
         hostUtils::logging
         hostUtils::threadPool
+        hostUtils::actionList
         elfio::elfio
 )
 

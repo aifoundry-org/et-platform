@@ -25,42 +25,35 @@ CmaManager::CmaManager(std::unique_ptr<IDmaBuffer> dmaBuffer, size_t maxBytesPer
   RT_VLOG(LOW) << "Runtime CMA allocation size: 0x" << std::hex << dmaBuffer_->getSize();
 }
 
+void CmaManager::addMemcpyAction(std::unique_ptr<actionList::IAction> action) {
+  memcpyActionManager_.addAction(std::move(action));
+}
+
 size_t CmaManager::getTotalSize() const {
   return dmaBuffer_->getSize();
 }
 
-size_t CmaManager::getFreeBytes(bool isPrioritary) const {
+size_t CmaManager::getFreeBytes() const {
   SpinLock lock(mutex_);
   auto freeBytes = memoryManager_.getFreeContiguousBytes();
-  if (!isPrioritary) {
-    freeBytes = freeBytes > maxBytesPerCommand_ ? freeBytes - maxBytesPerCommand_ : 0;
-  }
-  RT_VLOG(HIGH) << "Free CMA bytes: " << freeBytes << " prioritary? " << (isPrioritary ? "True" : "False");
+  RT_VLOG(MID) << "Free CMA bytes: " << freeBytes;
   return freeBytes;
 }
 
 void CmaManager::free(std::byte* buffer) {
   SpinLock lock(mutex_);
   memoryManager_.free(buffer);
-  cv_.notify_all();
+  // we have more memory available so greedily wakeup the runner
+  memcpyActionManager_.update();
 }
 
-void CmaManager::waitUntilFree(size_t size) {
+std::byte* CmaManager::alloc(size_t size) {
+  RT_VLOG(MID) << "Trying to allocate: " << size << " bytes of CMA memory";
   SpinLock lock(mutex_);
-  cv_.wait(lock, [this, size] { return size <= memoryManager_.getFreeContiguousBytes(); });
-}
-
-std::byte* CmaManager::alloc(size_t size, bool isPrioritary) {
-  RT_VLOG(HIGH) << "Trying to allocate: " << size << " bytes of CMA memory. Prioritary? "
-                << (isPrioritary ? "True" : "False");
-  SpinLock lock(mutex_);
-  if (!isPrioritary && memoryManager_.getFreeContiguousBytes() < size + maxBytesPerCommand_) {
-    return nullptr;
-  }
   try {
     return memoryManager_.malloc(size, kCmaBlockSize);
   } catch (...) {
-    RT_VLOG(HIGH) << "CMA allocation failed";
+    RT_VLOG(MID) << "CMA allocation failed; not enough memory.";
     return nullptr;
   }
 }
