@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [0.13.0] - 2023-03-15
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - [SW-15696] Fixed recovery for nonfatal AER errors.
 ### Security
 
