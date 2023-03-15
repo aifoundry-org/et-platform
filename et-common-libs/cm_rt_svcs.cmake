@@ -80,7 +80,7 @@ target_compile_options(cm-rt-svcs
     PRIVATE
         -Wall
         -fno-strict-aliasing
-        -fno-zero-initialized-in-bss -fdata-sections
+        -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections 
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 

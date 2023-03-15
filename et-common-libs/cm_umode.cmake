@@ -64,7 +64,7 @@ target_compile_features(cm-umode PUBLIC c_std_11)
 target_compile_options(cm-umode
     PRIVATE
         -Wall
-        -fno-zero-initialized-in-bss -fdata-sections
+        -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections 
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
 target_link_libraries(cm-umode
