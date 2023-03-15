@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.3.0] - 2023-03-15
+### Added
 - [SW-16234] Adding shire cache configuration command: DM_CMD_SET_SHIRE_CACHE_CONFIG
 ### Changed
 ### Deprecated
