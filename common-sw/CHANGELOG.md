@@ -5,14 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-
 ## [Unreleased]
 ### Added
-### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+## [0.3.0]
+### Added
+- [SW-16456] added a basic actionList. Also added a simple Runner which will use a worker thread to run the actionList.
 
 ## [0.2.0]
 ### Added

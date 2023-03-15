@@ -64,6 +64,8 @@ class HostUtilsConan(ConanFile):
         cmake.build()
         if self.options.with_tests and not tools.cross_building(self):
             self.run("ctest", cwd=os.path.join("threadPool", "tests"), run_environment=True)
+        if self.options.with_tests and not tools.cross_building(self):
+            self.run("ctest", cwd=os.path.join("actionList", "tests"), run_environment=True)            
     
     def package(self):
         cmake = CMake(self)
@@ -97,3 +99,11 @@ class HostUtilsConan(ConanFile):
         self.cpp_info.components["threadPool"].libs = ["threadPool"]
         self.cpp_info.components["threadPool"].includedirs =  ["include"]
         self.cpp_info.components["threadPool"].libdirs = ["lib", "lib64"]
+
+        self.cpp_info.components["actionList"].set_property("cmake_target_name", "hostUtils::actionList")
+        self.cpp_info.components["actionList"].requires = ["logging"]
+        if self.options.with_tests:
+            self.cpp_info.components["actionList"].requires.append("gtest::gmock")
+        self.cpp_info.components["actionList"].libs = ["actionList"]
+        self.cpp_info.components["actionList"].includedirs =  ["include"]
+        self.cpp_info.components["actionList"].libdirs = ["lib", "lib64"]
