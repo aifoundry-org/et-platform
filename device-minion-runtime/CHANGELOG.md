@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.16.0] - 2023-03-15
+### Added
 - [SW-16238] Adding support for kernel environment variables.
 ### Changed
 - Updating the gitlab CI repo pointer to latest.
