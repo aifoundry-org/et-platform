@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.17)
 project(signedImageFormat VERSION 1.3.0 LANGUAGES C)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-zero-initialized-in-bss -fdata-sections")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections ")
 if (NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 11)
 endif()

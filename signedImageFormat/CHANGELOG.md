@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-16532] Generate pre-release packages by default and full versions with tags pipelines
-- [SW-15063] Moving out non-generic C flags from toolchain config to consumer projects
+- [SW-15063] Moving out non-generic C flags (-fno-zero-initialized-in-bss -ffunction-sections -fdata-sections) from toolchain config to consumer projects
 ### Deprecated
 ### Removed
 ### Fixed
