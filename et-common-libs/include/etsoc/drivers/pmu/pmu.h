@@ -381,37 +381,6 @@ static inline uint64_t pmu_core_counter_read_priv(uint64_t pmc)
     return val;
 }
 
-/* Read a core (minion and neighborhood) U-mode and S-mode event counters */
-static inline uint64_t pmu_core_counter_read_unpriv(hpm_counter_e pmc)
-{
-    uint64_t value = 0;
-
-    switch (pmc)
-    {
-        case HPM_COUNTER_3:
-            __asm__ __volatile__("csrr %0, hpmcounter3\n" : "=r"(value));
-            break;
-        case HPM_COUNTER_4:
-            __asm__ __volatile__("csrr %0, hpmcounter4\n" : "=r"(value));
-            break;
-        case HPM_COUNTER_5:
-            __asm__ __volatile__("csrr %0, hpmcounter5\n" : "=r"(value));
-            break;
-        case HPM_COUNTER_6:
-            __asm__ __volatile__("csrr %0, hpmcounter6\n" : "=r"(value));
-            break;
-        case HPM_COUNTER_7:
-            __asm__ __volatile__("csrr %0, hpmcounter7\n" : "=r"(value));
-            break;
-        case HPM_COUNTER_8:
-            __asm__ __volatile__("csrr %0, hpmcounter8\n" : "=r"(value));
-            break;
-        default:
-            break;
-    }
-
-    return value;
-}
 
 /* implement WAR for RTLMIN-6496:
  * - 4 consecutive reads, les than 11 cycles from first to last read:
@@ -429,10 +398,8 @@ static inline uint64_t pmu_core_counter_read_unpriv(hpm_counter_e pmc)
                              : "=r"(value));         \
     } while (0)
 
-/* Read a core (minion and neighborhood) U-mode and S-mode event counters 
-   Safe mode read implements WAR for RTLMIN-6496 (potential corruption when both
-    minion threads read pmc simultaneously).*/
-static inline uint64_t pmu_core_counter_read_unpriv_safe(hpm_counter_e pmc)
+/* Read a core (minion and neighborhood) U-mode and S-mode event counters*/
+static inline uint64_t pmu_core_counter_read_unpriv(hpm_counter_e pmc)
 {
     uint64_t value = 0;
 
@@ -810,22 +777,11 @@ be improved */
 
 /*! \fn PMC_Get_Current_Cycles
     \brief A function to get current minion cycles based on PMC Counter 3 which
-    setup by default to count the Minion cycles
-*/
-static inline uint64_t PMC_Get_Current_Cycles(void)
-{
-    uint64_t val;
-    __asm__ __volatile__("csrr %0, hpmcounter3\n" : "=r"(val));
-    return val;
-}
-
-/*! \fn PMC_Get_Current_Cycles_Safe
-    \brief A function to get current minion cycles based on PMC Counter 3 which
     setup by default to count the Minion cycles.
     Safe mode read implements WAR for RTLMIN-6496 (potential corruption when both minion i
     threads read pmc coutnesrs simultaneously).
 */
-static inline uint64_t PMC_Get_Current_Cycles_Safe(void)
+static inline uint64_t PMC_Get_Current_Cycles(void)
 {
     uint64_t val;
     HPM_SAFE_READ("hpmcounter3", val);
@@ -837,7 +793,6 @@ static inline uint64_t PMC_Get_Current_Cycles_Safe(void)
     minus start_cycle(argument)
 */
 #define PMC_GET_LATENCY(x) (PMC_Get_Current_Cycles() - x)
-#define PMC_GET_LATENCY_SAFE(x) (PMC_Get_Current_Cycles_Safe() - x)
 
 #undef HPM_SAFE_READ
 
