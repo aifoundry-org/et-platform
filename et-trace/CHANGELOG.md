@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- [SW-15924] Suppot simultaneous profiling from both Minion threads w/o corruptions.
 ### Security
 
 ## [1.1.1] 2023-01-18
