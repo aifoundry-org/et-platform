@@ -25,6 +25,7 @@
 #include <interrupt.h>
 #include "bl2_reset.h"
 
+#include "hwinc/dwc_pcie4_phy_x4_ns.h"
 #include "hwinc/sp_cru_reset.h"
 #include "hwinc/hal_device.h"
 
@@ -181,6 +182,23 @@ void PCIe_init(bool expect_link_up)
        pcie_boot_config()), and it's not, try again anyways; however, the init timing may be
       slow enough that the device will not be enumerated by the host properly. */
     bool init_link = true;
+
+    // Print status of the PCIe Phy
+    Log_Write(LOG_LEVEL_INFO, "PE0_LINK_DBG_2: 0x%x \r\n",
+              ioread32(PCIE_CUST_SS +
+                       DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_LINK_DBG_2_ADDRESS));
+    Log_Write(
+        LOG_LEVEL_INFO, "PE0_ERR_STS: 0x%x\r\n",
+        ioread32(PCIE_CUST_SS + DWC_PCIE_SUBSYSTEM_CUSTOM_APB_SLAVE_SUBSYSTEM_PE0_ERR_STS_ADDRESS));
+
+    // Extract PCie Phy FW version
+    // TODO: Add a Macro in ETSOC HAL to define PHY{0|1}_BASE_ADDR and replace the below
+    uint32_t phy_addr = R_PCIE_APB_SUBSYS_BASEADDR + 0x100000 +
+                        (PCIE4_PHY_RAWCMN_DIG_AON_FW_VERSION_0_ADDRESS << 2);
+    Log_Write(LOG_LEVEL_INFO, "Phy FW Version 0 0x%x\r\n", ioread16(phy_addr));
+    phy_addr = R_PCIE_APB_SUBSYS_BASEADDR + 0x100000 +
+               (PCIE4_PHY_RAWCMN_DIG_AON_FW_VERSION_1_ADDRESS << 2);
+    Log_Write(LOG_LEVEL_INFO, "Phy FW Version 1 0x%x\r\n", ioread16(phy_addr));
 
     if (expect_link_up)
     {
