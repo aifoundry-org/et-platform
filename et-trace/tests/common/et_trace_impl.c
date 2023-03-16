@@ -27,9 +27,7 @@ static uint64_t et_trace_get_counter(pmc_counter_e id)
 #endif
 
 #define ET_TRACE_GET_TIMESTAMP()     reg_hpmcounter3
-#define ET_TRACE_GET_TIMESTAMP_SAFE()     reg_hpmcounter3
 #define ET_TRACE_GET_HPM_COUNTER(id) et_trace_get_counter(id)
-#define ET_TRACE_GET_HPM_COUNTER_SAFE(id) et_trace_get_counter(id)
 #define ET_TRACE_GET_HART_ID()       reg_mhartid
 
 #define ET_TRACE_ENCODER_IMPL
