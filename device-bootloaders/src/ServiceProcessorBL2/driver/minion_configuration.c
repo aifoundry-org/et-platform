@@ -620,8 +620,7 @@ static int enable_minion_shire(uint64_t shire_mask)
     status = flash_fs_get_sc_config(&sc_config_data);
     if (status == STATUS_SUCCESS)
     {
-        cache_scp_l2_l3_size_config(sc_config_data.scp_size, sc_config_data.l2_size,
-                                    sc_config_data.l3_size, CM_SHIRE_MASK);
+        cache_scp_l2_l3_size_config(&sc_config_data, CM_SHIRE_MASK);
     }
     else
     {

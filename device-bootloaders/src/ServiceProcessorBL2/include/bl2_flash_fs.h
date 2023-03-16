@@ -22,6 +22,11 @@
 #include "bl2_spi_flash.h"
 #include "dm.h"
 
+/*! \def SUBBANK
+    \brief Shire cache configuration: MB size value should be divided by the # of compute shires, and # of sub bank
+*/
+#define SUBBANK(size_mb) (uint16_t)((size_mb * 1024) / (NUM_COMPUTE_SHIRES * NEIGH_PER_SHIRE))
+
 /*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     \brief This function initialize partition infos.
     \param flash_fs_bl2_info - bl2 flash info struct to initialize

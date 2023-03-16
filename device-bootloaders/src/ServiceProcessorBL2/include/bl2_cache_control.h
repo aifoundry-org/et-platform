@@ -285,21 +285,17 @@ uint32_t Cache_Control_L2_size(uint64_t shire_mask);
 */
 uint32_t Cache_Control_L3_size(uint64_t shire_mask);
 
-/*! \fn int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
-*                                    uint64_t shire_mask)
+/*! \fn int cache_scp_l2_l3_size_config(struct shire_cache_config_t *sc_config_data, uint64_t shire_mask)
     \brief This function sets cache configuration.
 *          Configuration is per cache bank (1MB), and all banks are configured the same.
 *          Following constraint must be followed:
 *             - (scp_size + l2_size + l3_size) <= 0x400
 *             - scp_size, l2_size and l3_size must be multiple of 2
 *             - if l2_size !=0 then l2_size >= 0x40
-    \param scp_size scratchpad size
-    \param l2_size l2 cache size
-    \param l3_size l3 cache size
-    \param shire_mask shire_mask
+    \param sc_config_data config data containing scratchpad size l2 cache size and l3 cache size
     \return Status indicating success or negative error
 */
-int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
+int cache_scp_l2_l3_size_config(const struct shire_cache_config_t *sc_config_data,
                                 uint64_t shire_mask);
 
 /*! \fn void cache_control_process_cmd(uint16_t tag, msg_id_t msg_id, void *buffer)

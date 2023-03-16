@@ -652,7 +652,7 @@ uint32_t Cache_Control_L3_size(uint64_t shire_mask)
     return (uint32_t)(num_of_active_shires * SC_BANK_NUM * bank_l3_size);
 }
 
-int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3_size,
+int cache_scp_l2_l3_size_config(const struct shire_cache_config_t *sc_config_data,
                                 uint64_t shire_mask)
 {
     uint64_t scp_ctl_value;
@@ -664,6 +664,11 @@ int cache_scp_l2_l3_size_config(uint16_t scp_size, uint16_t l2_size, uint16_t l3
     uint16_t set_mask;
     uint16_t tag_mask;
     uint8_t high_bit;
+
+    /* Shire cache configuration stored in MBs, convert it to appropriate values*/
+    uint16_t scp_size = SUBBANK(sc_config_data->scp_size);
+    uint16_t l2_size = SUBBANK(sc_config_data->l2_size);
+    uint16_t l3_size = SUBBANK(sc_config_data->l3_size);
 
     if (VALIDATE_SC_CONFIG_PARAMS(scp_size, l2_size, l3_size))
     {
@@ -779,7 +784,8 @@ static void cache_control_set_sc_config(uint16_t tag, void *buffer, uint64_t req
     int32_t status = STATUS_SUCCESS;
 
     /* Validate configuration parameters*/
-    if (VALIDATE_SC_CONFIG_PARAMS(sc_config->scp_size, sc_config->l2_size, sc_config->l3_size))
+    if (VALIDATE_SC_CONFIG_PARAMS(SUBBANK(sc_config->scp_size), SUBBANK(sc_config->l2_size),
+                                  SUBBANK(sc_config->l3_size)))
     {
         status = ERROR_INVALID_ARGUMENT;
         Log_Write(LOG_LEVEL_ERROR, " cache_control_process_cmd error: invalid argument \r\n");
