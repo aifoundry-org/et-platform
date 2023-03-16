@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-16234] Adding shire cache config command
+    - Shire cache configuration command to accept scp, l2 and l3 sizes in MB
 ### Changed
 - [SW-15581] Define a default verbosity level for DM_VLOG.
 - [SW-16446] (Conan) Generate full SemVer versions only when tagging the project. Generate pre-release otherwise.

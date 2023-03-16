@@ -1634,7 +1634,7 @@ bool validVoltage() {
 bool validSCConfig() {
 
   if (!std::regex_match(std::string(optarg), std::regex("^[0-9]+,[0-9]+,[0-9]+$"))) {
-    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid, e.g: 640,128,256" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid, e.g: 80,16,32" << std::endl;
     return false;
   }
 
@@ -2005,16 +2005,16 @@ void printPartIdUsage(char* argv) {
 void printSCConfigUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-z <L2 SCP size>, <L2 size>, <L3 size>" << std::endl;
+            << "-z <L2 SCP size>, <L2 size>, <L3 size>  in (MB)" << std::endl;
   std::cout << "\t\t"
             << "Set shire cache configuration" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG
-            << " -z 640,128,256" << std::endl;
+            << " -z 80,16,32 (Default Cache partition values in MB)" << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " DM_CMD_SET_SHIRE_CACHE_CONFIG"
-            << " -z 640,128,256 (Default Cache partition values)" << std::endl;
+            << " -z 80,16,32 (Default Cache partition values in MB)" << std::endl;
 }
 
 void printUsage(char* argv) {
