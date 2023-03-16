@@ -4056,7 +4056,7 @@ void TestDevMgmtApiSyncCmds::testShireCacheConfig(bool singleDevice) {
     DV_LOG(INFO) << "SC config scp size: " << sc_config.scp_size << "  L2 size " << sc_config.l2_size << " L3 size "
                  << sc_config.l3_size;
 
-    device_mgmt_api::shire_cache_config_t sc_config_modified = {320, 64, 128};
+    device_mgmt_api::shire_cache_config_t sc_config_modified = {64, 32, 32};
     DV_LOG(INFO) << "Modifying SC config to scp size: " << sc_config_modified.scp_size << "  L2 size "
                  << sc_config_modified.l2_size << " L3 size " << sc_config_modified.l3_size;
 

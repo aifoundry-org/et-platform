@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- [SW-16234] Adding shire cache config command 
-- [SW-16234] Added test to verify shore cache get/set configuration command
+- [SW-16234] Added test to verify shire cache get/set configuration command
+  - Modify Shire cache configuration test to use scp, l2 and l3 sizes in MB
 ### Changed
 - (Conan) Generate full SemVer versions only when tagging the project. Generate pre-release otherwise.
 - (CI) Enable tags pipelines and filter out MR "development/testing" jobs from release pipeline
