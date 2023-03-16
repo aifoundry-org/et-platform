@@ -36,8 +36,8 @@ class DeviceManagementConan(ConanFile):
         self.version = get_version(self, self.name)
 
     def requirements(self):
-        self.requires("deviceApi/[>=1.0.0 <2.0.0]")
-        self.requires("deviceLayer/[>=1.1.0 <2.0.0]")
+        self.requires("deviceApi/[>=1.3.0 <2.0.0]")
+        self.requires("deviceLayer/[>=2.0.0 <3.0.0]")
         self.requires("hostUtils/[>=0.1.0 <1.0.0]")
 
     def validate(self):
