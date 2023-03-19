@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Updated the Artifact list for embedded FW generation to match SysSW - 0.9.0
 ### Security
 
 ## [0.8.0] - 2023-01-11

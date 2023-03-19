@@ -1,13 +1,13 @@
 [requires]
-deviceApi/1.1.0
+deviceApi/1.3.0
 
-device-minion-runtime/0.15.0
-device-bootloaders/0.9.1
+device-minion-runtime/0.16.0
+device-bootloaders/0.10.1
 
 # overrides
-esperantoTrace/1.1.0
-et-common-libs/0.14.0
-etsoc_hal/1.3.0
+esperantoTrace/1.2.0
+et-common-libs/0.15.0
+etsoc_hal/1.4.0
 
 tf-protocol/1.2.0
 signedImageFormat/1.2.0
