@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-16557] Fix the trace buffer threshold value to be within limits.
 ### Security
 
 ## [1.2.0] - 2023-03-15
