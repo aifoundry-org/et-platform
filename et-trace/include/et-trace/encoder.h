@@ -661,8 +661,11 @@ int32_t Trace_Init(const struct trace_init_info_t *init_info, struct trace_contr
     cb->offset_per_hart = header_size;
 
     cb->event_mask = init_info->event_mask;
-    /* A threshold of 0 means set the threshold to max size of buffer */
-    cb->threshold = ((init_info->threshold > 0) || (init_info->threshold < cb->size_per_hart)) ?
+    /* Threshold will always be within buffer size limits.
+    Threshold will be set to total size per hart if input value is:
+     * zero
+     * greater than size per hart */
+    cb->threshold = ((init_info->threshold > 0) && (init_info->threshold <= cb->size_per_hart)) ?
                       init_info->threshold : cb->size_per_hart;
     cb->header = buff_header;
     cb->threshold_data = 0; /* deprecated, to be removed */
