@@ -972,14 +972,18 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         location  = COH_GLOBAL;
         break;
     case bemu::Mem_Access_CacheOp:
-        if((cop == bemu::CacheOp_EvictL2) || (cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR))
+        // NB: Flushes and evicts are modelled in the same way for the purpose of the memory checker
+        if((cop == bemu::CacheOp_EvictL2) || (cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR) ||
+           (cop == bemu::CacheOp_FlushL2) || (cop == bemu::CacheOp_FlushL3) || (cop == bemu::CacheOp_FlushDDR))
             operation = 6;
         else
             LOG_AGENT(FTL, *this, "CacheOp %i not supported yet!!", (int) cop);
         if((cop == bemu::CacheOp_EvictL3) || (cop == bemu::CacheOp_EvictDDR) ||
-           (cop == bemu::CacheOp_EvictL2 && bemu::paddr_is_scratchpad(addr))) // evict l2 scp to l2 can be interpreted as 'global' (it cannot be evicted to l3)
+           (cop == bemu::CacheOp_FlushL3) || (cop == bemu::CacheOp_FlushDDR) ||
+           (cop == bemu::CacheOp_EvictL2 && bemu::paddr_is_scratchpad(addr)) || // evict l2 scp to l2 can be interpreted as 'global' (it cannot be evicted to l3)
+           (cop == bemu::CacheOp_FlushL2 && bemu::paddr_is_scratchpad(addr)))
             location = COH_GLOBAL;
-        else if(cop == bemu::CacheOp_EvictL2)
+        else if((cop == bemu::CacheOp_EvictL2) || (cop == bemu::CacheOp_FlushL2))
             location = COH_SHIRE;
         break;
     case bemu::Mem_Access_Fetch: // Load instruction from memory. This must not be included in the directory. Do nothing
