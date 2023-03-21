@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-16558] Updated setPCIELaneWidth test to restore the default lane width
+- [SW-16538] Disabled setAndGetModuleVoltage test
 ### Deprecated
 ### Removed
 ### Fixed

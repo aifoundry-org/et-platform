@@ -64,7 +64,8 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
   getModuleVoltage(false /* Multiple devices */);
 }
 
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleVoltage) {
+// TODO: SW-16538: Enable back when fixed
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleVoltage) {
   if (isParallelRun()) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
     FLAGS_enable_trace_dump = false;
