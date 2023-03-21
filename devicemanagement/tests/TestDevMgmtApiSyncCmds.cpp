@@ -1834,27 +1834,70 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth(bool singleDevice) {
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
 
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::pcie_lane_w_split_e);
-    const char input_buff[input_size] = {device_mgmt_api::PCIE_LANE_W_SPLIT_x4};
-
-    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
-    const uint32_t output_size = sizeof(uint32_t);
-    char output_buff[output_size] = {0};
-
+  auto setLaneWidth = [&](int deviceIdx, const device_mgmt_api::pcie_lane_w_split_e laneWidth) {
+    std::array<char, sizeof(device_mgmt_api::pcie_lane_w_split_e)> input_buff;
+    memcpy(input_buff.data(), &laneWidth, input_buff.size());
+    DV_LOG(INFO) << fmt::format("Device[{}]: Setting Lane Width x{}", deviceIdx,
+                                laneWidth == device_mgmt_api::PCIE_LANE_W_SPLIT_x8 ? 8 : 4);
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff.data(),
+                          input_buff.size(), nullptr, 0, hst_latency.get(), dev_latency.get(),
+                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      return false;
+    }
+    DV_LOG(INFO) << fmt::format("Service Request Completed for Device: {}", deviceIdx);
+    return true;
+  };
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+  auto getLaneWidth = [&](int deviceIdx) -> std::optional<device_mgmt_api::pcie_lane_w_split_e> {
+    auto laneWidth =
+      std::stoi(devLayer_->getDeviceAttribute(deviceIdx, "max_link_width")); // available for silicon only
+    if (laneWidth == 4) {
+      return device_mgmt_api::PCIE_LANE_W_SPLIT_x4;
+    } else if (laneWidth == 8) {
+      return device_mgmt_api::PCIE_LANE_W_SPLIT_x8;
+    }
+    return std::nullopt;
+  };
 
-    // Skip validation if loopback driver
-    if (getTestTarget() != Target::Loopback) {
-      EXPECT_EQ(output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    device_mgmt_api::pcie_lane_w_split_e defaultLaneWidth;
+    device_mgmt_api::pcie_lane_w_split_e testLaneWidth;
+    if (getTestTarget() == Target::Silicon) {
+      auto container = getLaneWidth(deviceIdx);
+      if (!container.has_value()) {
+        DV_LOG(INFO) << fmt::format("Device[{}]: The default lane width is not restorable, skipping the test",
+                                    deviceIdx);
+        continue;
+      }
+      defaultLaneWidth = container.value();
+    } else {
+      defaultLaneWidth = device_mgmt_api::PCIE_LANE_W_SPLIT_x4;
+    }
+
+    if (defaultLaneWidth == device_mgmt_api::PCIE_LANE_W_SPLIT_x4) {
+      testLaneWidth = device_mgmt_api::PCIE_LANE_W_SPLIT_x8;
+    } else {
+      testLaneWidth = device_mgmt_api::PCIE_LANE_W_SPLIT_x4;
+    }
+
+    // Set test lane width
+    ASSERT_TRUE(setLaneWidth(deviceIdx, testLaneWidth)) << fmt::format("Device[{}]: setLaneWidth() failed!", deviceIdx);
+    // Validate on Target::Silicon only
+    if (getTestTarget() == Target::Silicon) {
+      ASSERT_EQ(testLaneWidth, getLaneWidth(deviceIdx).value())
+        << fmt::format("Device[{}]: Failed to set testLaneWidth!", deviceIdx);
+    }
+
+    // Restore default lane width
+    ASSERT_TRUE(setLaneWidth(deviceIdx, defaultLaneWidth))
+      << fmt::format("Device[{}]: setLaneWidth() failed!", deviceIdx);
+    // Validate on Target::Silicon only
+    if (getTestTarget() == Target::Silicon) {
+      ASSERT_EQ(defaultLaneWidth, getLaneWidth(deviceIdx).value())
+        << fmt::format("Device[{}]: Failed to restore defaultLaneWidth!", deviceIdx);
     }
   }
 }
