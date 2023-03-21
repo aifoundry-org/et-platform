@@ -16,6 +16,15 @@
 #include <runtime/Types.h>
 #include <string>
 namespace rt {
+inline std::string stringizeEvents(const std::vector<EventId>& events) {
+  std::stringstream ss;
+  ss << "Events: ";
+  for (auto e : events) {
+    ss << int(e) << " ";
+  }
+  return ss.str();
+}
+
 template <typename Container, typename Key> auto find(Container& c, Key&& k, const std::string& error = "Not found") {
   auto it = c.find(std::forward<Key>(k));
   if (it == end(c)) {

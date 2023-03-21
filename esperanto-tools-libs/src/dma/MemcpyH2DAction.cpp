@@ -68,6 +68,8 @@ bool MemcpyH2DAction::update() {
   }
   pos_ += currentSize;
 
+  RT_VLOG(MID) << ">>> Alloc cmaPtr: " << std::hex << cmaPtr << " associated event: " << int(cmdEvt);
+
   // set the proper data once the builder has been filled
   ctx_.commandSender_.sendBefore(ctx_.eventId_,
                                  {builder.build(), ctx_.commandSender_, cmdEvt, ctx_.eventId_, true, false});
@@ -78,7 +80,10 @@ bool MemcpyH2DAction::update() {
   cmdEvents_.emplace_back(cmdEvt);
 
   // release the buffer once the command has been completed
-  ctx_.eventManager_.addOnDispatchCallback({{cmdEvt}, [& cm = ctx_.cmaManager_, cmaPtr] { cm.free(cmaPtr); }});
+  ctx_.eventManager_.addOnDispatchCallback({{cmdEvt}, [& cm = ctx_.cmaManager_, cmaPtr] {
+                                              RT_VLOG(MID) << ">>> Free cmaPtr: " << std::hex << cmaPtr;
+                                              cm.free(cmaPtr);
+                                            }});
 
   return pos_ == size_;
 }

@@ -68,6 +68,8 @@ bool MemcpyListD2HAction::update() {
     processed += chunkSize;
   }
 
+  RT_VLOG(MID) << ">>> Alloc cmaPtr: " << std::hex << cmaPtr << " associated events: " << stringizeEvents(syncEvents);
+
   // set the proper data once the builder has been filled
   ctx_.commandSender_.sendBefore(ctx_.eventId_,
                                  {builder.build(), ctx_.commandSender_, cmdEvt, ctx_.eventId_, true, true});
@@ -75,6 +77,7 @@ bool MemcpyListD2HAction::update() {
   // release the buffer once the command has been completed
   ctx_.eventManager_.addOnDispatchCallback(
     {syncEvents, [& cm = ctx_.cmaManager_, &rt = ctx_.runtime_, cmaPtr, evt = ctx_.eventId_] {
+       RT_VLOG(MID) << ">>> Free cmaPtr: " << std::hex << cmaPtr;
        cm.free(cmaPtr);
        rt.dispatch(evt);
      }});

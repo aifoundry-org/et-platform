@@ -59,13 +59,18 @@ bool MemcpyListH2DAction::update() {
     });
     processed += chunkSize;
   }
+  RT_VLOG(MID) << ">>> Alloc cmaPtr: " << std::hex << cmaPtr << " associated events: " << stringizeEvents(syncEvents);
 
   // set the correct command data, once built
   ctx_.commandSender_.setCommandData(ctx_.eventId_, builder.build());
 
   // once all cmacopies has been done, enable the command
   ctx_.eventManager_.addOnDispatchCallback(
-    {std::move(syncEvents), [& cs = ctx_.commandSender_, evt = ctx_.eventId_] { cs.enable(evt); }});
+    {std::move(syncEvents), [& cs = ctx_.commandSender_, evt = ctx_.eventId_, cmaPtr, &cm = ctx_.cmaManager_] {
+       RT_VLOG(MID) << ">>> Free cmaPtr: " << std::hex << cmaPtr;
+       cm.free(cmaPtr);
+       cs.enable(evt);
+     }});
 
   return true;
 }
