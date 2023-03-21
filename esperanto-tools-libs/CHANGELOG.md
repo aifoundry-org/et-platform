@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+## Fixed
+ - [SW-16619] There is a responsereceiver thread per device. This thread is polling for responses (since interrupts or don't work or don't are performant enough.). The thread was quite agressively polling, tunning the polling times has fixed the leap in CPU usage.
+At the same time I have tuned down the CMA pool, since we have seen a huge increase in required time to allocate bigger chunks of CMA.
 ### Security
 
 ## [0.9.0]
