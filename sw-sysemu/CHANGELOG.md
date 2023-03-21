@@ -8,11 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- ARCHSIM-696: Support for flush_va in mem_checker
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
 - Fixed et_trace to 1.2.1
+- Code smells in devices
 ### Security
 
 ## [0.9.0] - 2023-03-07
