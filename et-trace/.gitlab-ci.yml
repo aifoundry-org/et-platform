@@ -1,6 +1,6 @@
 include:
   - project: software/gitlab-ci-common
-    ref: 1e82845ec49b8294f606238749542e6053056da4
+    ref: 62dd746e59efef47d61463c22bc84254e1437ebe
     file:
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
