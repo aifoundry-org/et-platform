@@ -50,7 +50,8 @@ struct Uart : public MemoryRegion {
         case DW_APB_UART_RBR_THR: {
             char data = 0;
             if (rx_fd != -1 && fd_read_data_available(rx_fd)) {
-                ::read(rx_fd, &data, 1);
+                auto res = ::read(rx_fd, &data, 1);
+                (void)res;
             }
            *reinterpret_cast<uint32_t*>(result) = data;
             break;

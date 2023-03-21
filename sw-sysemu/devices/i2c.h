@@ -137,6 +137,7 @@ protected:
         case PMIC_RESET_CAUSE_ADDR:
             // Return cause of Reset
             result = 0x8; // Defaults to SW Reset requested by SOC
+            break;
         default: 
             result = 0;
             break;
