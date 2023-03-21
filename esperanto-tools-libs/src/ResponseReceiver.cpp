@@ -22,9 +22,9 @@
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {
-constexpr auto kResponsePollingIntervalWithEventsOnFly = 1us;
-constexpr auto kResponsePollingIntervalNoEventsOnFly = 10us;
-constexpr auto kResponseNumTriesBeforePolling = 20;
+constexpr auto kResponsePollingIntervalWithEventsOnFly = 50us;
+constexpr auto kResponsePollingIntervalNoEventsOnFly = 500us;
+constexpr auto kResponseNumTriesBeforePolling = 1;
 constexpr auto kCheckDevicesInterval = 5s;
 constexpr auto kCheckDevicesPolling = 1ms;
 } // namespace

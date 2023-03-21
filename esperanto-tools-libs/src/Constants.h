@@ -17,7 +17,7 @@ namespace rt {
 constexpr auto kNumErrorContexts = 2080;
 constexpr auto kExceptionBufferSize = sizeof(ErrorContext) * kNumErrorContexts;
 constexpr auto kNumExecutionCacheBuffers = 5;  // initial number of execution cache buffers
-constexpr auto kAllocFactorTotalMaxMemory = 4; // this will affect the size of memory we allocate for CMA
+constexpr auto kAllocFactorTotalMaxMemory = 2; // this will affect the size of memory we allocate for CMA
 
 constexpr auto kCmPrevExecutionPath = "./fw_trace_cm_last_execution";
 constexpr auto kMmPrevExecutionPath = "./fw_trace_mm_last_execution";
