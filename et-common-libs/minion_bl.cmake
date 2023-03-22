@@ -66,11 +66,9 @@ target_compile_features(minion-bl PUBLIC c_std_11)
 target_compile_options(minion-bl
     PRIVATE
         -Wall
-        -fno-strict-aliasing 
-        -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections 
+        -fno-strict-aliasing
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
-
 
 #################################################
 #Install and export minion-bl library and headers

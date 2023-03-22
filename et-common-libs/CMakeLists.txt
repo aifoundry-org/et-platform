@@ -22,6 +22,12 @@ find_package(esperantoTrace REQUIRED)
 
 include(GNUInstallDirs)
 
+# Set the project C flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections ")
+if (NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+endif()
+
 option(WITH_SP_BL "Build sp_bl1/sp_bl2 component" ON)
 if (WITH_SP_BL)
     # Build and install SP Bootloader lib

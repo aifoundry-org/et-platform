@@ -86,10 +86,8 @@ target_compile_options(sp-bl2
     PRIVATE
         -Wall
         -fno-strict-aliasing
-        -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections 
         $<$<BOOL:${ENABLE_WARNINGS_AS_ERRORS}>:-Werror>
 )
-
 
 #################################################
 #Install and export sp-bl2 library and headers
