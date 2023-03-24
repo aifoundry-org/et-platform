@@ -66,11 +66,12 @@ bool MemcpyListH2DAction::update() {
 
   // once all cmacopies has been done, enable the command
   ctx_.eventManager_.addOnDispatchCallback(
-    {std::move(syncEvents), [& cs = ctx_.commandSender_, evt = ctx_.eventId_, cmaPtr, &cm = ctx_.cmaManager_] {
-       RT_VLOG(MID) << ">>> Free cmaPtr: " << std::hex << cmaPtr;
-       cm.free(cmaPtr);
-       cs.enable(evt);
-     }});
+    {std::move(syncEvents), [& cs = ctx_.commandSender_, evt = ctx_.eventId_] { cs.enable(evt); }});
+
+  ctx_.eventManager_.addOnDispatchCallback({{ctx_.eventId_}, [& cm = ctx_.cmaManager_, cmaPtr] {
+                                              RT_VLOG(MID) << ">>> Free cmaPtr: " << std::hex << cmaPtr;
+                                              cm.free(cmaPtr);
+                                            }});
 
   return true;
 }

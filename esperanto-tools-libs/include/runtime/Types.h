@@ -173,7 +173,7 @@ enum class DeviceErrorCode {
 /// \brief This struct contains the errorCode given by de device when some command fail and the associated
 /// \ref rt::ErrorContext (if any)
 struct StreamError {
-  explicit StreamError(DeviceErrorCode errorCode, DeviceId device)
+  explicit StreamError(DeviceErrorCode errorCode, DeviceId device = DeviceId{-1})
     : errorCode_(errorCode)
     , device_(device) {
   }

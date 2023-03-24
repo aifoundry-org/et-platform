@@ -87,6 +87,14 @@ TEST_F(StressMem, 1KB_2_memcpys_2stream_1thread) {
   run_stress_mem(runtime_.get(), 1<<10, 2, 2, 1);
 }
 
+TEST_F(StressMem, 1KB_10_memcpys_1stream_10thread_1ratio) {
+  run_stress_mem(runtime_.get(), 1 << 10, 10, 1, 10, true, 0, 1.0f);
+}
+
+TEST_F(StressMem, 16B_10_memcpys_1stream_10thread_1ratio) {
+  run_stress_mem(runtime_.get(), 1 << 4, 10, 1, 10, true, 0, 1.0f);
+}
+
 TEST_F(StressMem, 1MB_1000_memcpys_1stream_10thread_05ratio) {
   if (sDlType == DeviceLayerImp::SYSEMU) {
     RT_LOG(INFO) << "This test is too slow to be run on sysemu.";
