@@ -39,7 +39,7 @@ class DeviceLayerConan(ConanFile):
     
     def requirements(self):
         self.requires("sw-sysemu/0.7.0")
-        self.requires("hostUtils/0.2.0")
+        self.requires("hostUtils/0.3.0")
         self.requires("linuxDriver/0.12.0")
         self.requires("boost/1.72.0")
 

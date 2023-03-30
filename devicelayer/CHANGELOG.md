@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-16268] Migrate CI pipeline to use pre-release strategy
+- (Conan) Depend on hostUtils/0.3.0
 ### Deprecated
 ### Removed
 ### Fixed
