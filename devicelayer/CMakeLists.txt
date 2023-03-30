@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.15)
-project(deviceLayer VERSION 2.0.0 LANGUAGES CXX)
+project(deviceLayer VERSION 2.1.0 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -34,7 +34,7 @@ option(ENABLE_SANITIZER_MEMORY "" OFF)
 include(CompilerSanitizers)
 
 option(ENABLE_TESTS "Enable compiling tests" ON)
-option(BUILD_DOCS "Enable/disable building documentation" ON)
+option(BUILD_DOCS "Enable/disable building documentation" OFF)
 
 option(ENABLE_DEPRECATED "Generate Deprecated config file" ON)
 
