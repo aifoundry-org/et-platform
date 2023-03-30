@@ -73,6 +73,7 @@
 #include "bl2_i2c_driver.h"
 #include "bl2_gpio_controller.h"
 #include "bl2_pmic_controller.h"
+#include "bl2_scratch_buffer.h"
 #include "bl2_main.h"
 #include "interrupt.h"
 #include "bl_error_code.h"
@@ -2282,7 +2283,6 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *       match   pmic update version and currently running version match
 *
 ***********************************************************************/
-
 int pmic_firmware_update(bool *match)
 {
     int status;
@@ -2292,16 +2292,25 @@ int pmic_firmware_update(bool *match)
     uint32_t sum;
     uint32_t cksum_result;
     uint32_t flash_addr = 0;
+    uint32_t scratch_buffer_size = 0;
     uint64_t start;
     uint64_t end;
     uint64_t prog_start;
     uint64_t prog_end;
     uint64_t verify_start;
     uint64_t verify_end;
-    uint32_t fw[256];                   // 1K block of firmware to send
+    uint32_t *fw;
+    const uint32_t fw_data_size = 1024; // 1K block of firmware to send
     const uint32_t fw_send_count = 100; // send 1K firmware block this many times (must be <= 122)
-    const uint32_t fw_size = sizeof(fw) * fw_send_count;
+    const uint32_t fw_size = fw_data_size * fw_send_count;
     const uint32_t fw_image_location = 0x2000;
+
+    /* Get the pointer to BL2 scratch region */
+    fw = get_scratch_buffer(&scratch_buffer_size);
+    if (scratch_buffer_size < fw_data_size)
+    {
+        return ERROR_INSUFFICIENT_MEMORY;
+    }
 
     start = timer_get_ticks_count();
 
@@ -2329,7 +2338,7 @@ int pmic_firmware_update(bool *match)
 
     // Create a test pattern to send
     sum = 0;
-    for (i = 0; i < sizeof(fw) / sizeof(fw[0]); i++)
+    for (i = 0; i < fw_data_size / sizeof(fw[0]); i++)
     {
         fw[i] = 0x1u << (i % 32);
         sum += fw[i];
@@ -2337,13 +2346,14 @@ int pmic_firmware_update(bool *match)
     sum *= fw_send_count;
 
     // The first sent firmare block has special info, so adjust it accordingly
+    // TODO: Old FW convention, fix it for new layout
     sum += (fw_image_location - fw[0]) + (fw_size - fw[2]) - fw[3];
     fw[0] = fw_image_location; // loadable image location
     fw[2] = fw_size;           // loadable image length
     fw[3] = 0 - sum;           // cksum adjustment so all words in the fw image sum to zero
 
     flash_addr = 0;
-    status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, sizeof(fw));
+    status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_data_size);
     if (status != STATUS_SUCCESS)
     {
         return status;
@@ -2355,8 +2365,8 @@ int pmic_firmware_update(bool *match)
     fw[3] = 1 << 3;
     for (i = 1; i < fw_send_count; i++)
     {
-        flash_addr += (uint32_t)sizeof(fw);
-        status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, sizeof(fw));
+        flash_addr += fw_data_size;
+        status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_data_size);
         if (status != STATUS_SUCCESS)
         {
             return status;
@@ -2381,6 +2391,7 @@ int pmic_firmware_update(bool *match)
         return status;
     }
 
+    /* TODO: SW-16740: Check why checksum fails */
     status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
     if (status == STATUS_SUCCESS && cksum_result != 1)
     {
@@ -2402,6 +2413,7 @@ int pmic_firmware_update(bool *match)
 
     return STATUS_SUCCESS;
 }
+
 /************************************************************************
 *
 *   FUNCTION

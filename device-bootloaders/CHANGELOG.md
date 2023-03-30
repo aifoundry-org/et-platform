@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-16739] Fixes to PMIC FW update code.
+  Changed the BL2 code region size.
 ### Security
 
 ## [0.10.0] - 2023-03-15
