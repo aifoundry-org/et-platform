@@ -21,6 +21,8 @@
 
 /*! \struct dma_read_node
     \brief Node containing one DMA read transfer information
+    \warning Precaution must be taken in order to change the positioning of fields in this struct
+             since some of the consumers are using the fixed offsets of these fields
 */
 struct dma_read_node {
   uint64_t  dst_host_virt_addr; /**< Host Virtual Address */
@@ -33,6 +35,8 @@ struct dma_read_node {
 
 /*! \struct dma_write_node
     \brief Node containing one DMA write transfer information
+    \warning Precaution must be taken in order to change the positioning of fields in this struct
+             since some of the consumers are using the fixed offsets of these fields
 */
 struct dma_write_node {
   uint64_t  src_host_virt_addr; /**< Host Virtual Address */
@@ -43,15 +47,32 @@ struct dma_write_node {
   
 } __attribute__((packed));
 
-/*! \struct p2pdma_node
-    \brief Node containing one P2P DMA (read/write) transfer information
+/*! \struct p2pdma_read_node
+    \brief Node containing one P2P DMA read transfer information
+    \warning Precaution must be taken in order to change the positioning of fields in this struct
+             since some of the consumers are using the fixed offsets of these fields
 */
-struct p2pdma_node {
-  uint64_t  dst_device_phy_addr; /**< Physical address in src_device Host Managed DRAM range */
-  uint64_t  src_device_phy_addr; /**< Physical address in dst_device Host Managed DRAM range */
-  uint64_t  pci_p2pmem_bus_addr; /**< Translated bus address of peer partner device physical address */
+struct p2pdma_read_node {
+  uint64_t  dst_device_phy_addr; /**< Physical address in Host Managed DRAM range of peer device */
+  uint64_t  dst_device_bus_addr; /**< Translated bus address of dst peer device physical address */
+  uint64_t  src_device_phy_addr; /**< Physical address in Host Managed DRAM range of current device */
   uint32_t  size; /**< Size */
-  uint16_t  peer_devnum; /**< The devnum of the peer partner device in P2P DMA */
+  uint16_t  peer_devnum; /**< The devnum of the peer device in P2P DMA */
+  uint16_t  pad; /**< Padding for alignment */
+
+} __attribute__((packed));
+
+/*! \struct p2pdma_node
+    \brief Node containing one P2P DMA write transfer information
+    \warning Precaution must be taken in order to change the positioning of fields in this struct
+             since some of the consumers are using the fixed offsets of these fields
+*/
+struct p2pdma_write_node {
+  uint64_t  src_device_phy_addr; /**< Physical address in Host Managed DRAM range of peer device */
+  uint64_t  src_device_bus_addr; /**< Translated bus address of src peer device physical address */
+  uint64_t  dst_device_phy_addr; /**< Physical address in Host Managed DRAM range of current device */
+  uint32_t  size; /**< Size */
+  uint16_t  peer_devnum; /**< The devnum of the peer device in P2P DMA */
   uint16_t  pad; /**< Padding for alignment */
 
 } __attribute__((packed));
@@ -235,14 +256,14 @@ struct device_ops_dma_writelist_rsp_t {
 } __attribute__((packed, aligned(8)));
 
 /*! \struct device_ops_p2pdma_readlist_cmd_t
-    \brief Single list command to perform multiple P2P DMA read transfers. The read terminology is w.r.t to the peer
-           partner device i.e. the peer partner (dst_device) will be reading from DRAM of main peer (src_device) and
-           this command is to be sent to the src_device
+    \brief Single list command to perform multiple P2P DMA read transfers. The read terminology is w.r.t the device
+           receiving this command, will be read from it's current own DRAM space (src_device_phy_addr), and it will
+           write into its peer's device DRAM space (dst_device_phy_addr).
 */
 struct device_ops_p2pdma_readlist_cmd_t {
   struct cmd_header_t command_info;
-  struct p2pdma_node  list[]; /**< Arrays of Structs containing Src/Dst/Size of numerous P2P data transfers to be performed in a single command.
-            Each entry is 1 Data transfer with its own Src/Dst/Size and peer partner Device Id */
+  struct p2pdma_read_node  list[]; /**< Arrays of structs containing information of numerous P2P data transfers to be performed in a single command.
+            Each entry is 1 data transfer with src/dst devices addresses, transfer size and peer device number */
 } __attribute__((packed, aligned(8)));
 
 /*! \struct device_ops_p2pdma_readlist_rsp_t
@@ -258,14 +279,14 @@ struct device_ops_p2pdma_readlist_rsp_t {
 } __attribute__((packed, aligned(8)));
 
 /*! \struct device_ops_p2pdma_writelist_cmd_t
-    \brief Single list command to perform multiple P2P DMA write transfers. The write terminology is w.r.t to the peer
-           partner device i.e. the peer partner (src_device) will be writing into DRAM of main peer (dst_device) and
-           this command is to be sent to the dst_device
+    \brief Single list command to perform multiple P2P DMA write transfers. The write terminology is w.r.t the device
+           receiving this command, will be read from it's peer's DRAM space (src_device_phy_addr), and it will write
+           into its own DRAM space (dst_device_phy_addr).
 */
 struct device_ops_p2pdma_writelist_cmd_t {
   struct cmd_header_t command_info;
-  struct p2pdma_node  list[]; /**< Arrays of Structs containing Src/Dst/Size of numerous data transfers to be performed in a single command.
-            Each entry is 1 Data transfer with its own Src/Dst/Size and peer partner Device Id */
+  struct p2pdma_write_node  list[]; /**< Arrays of structs containing information of numerous P2P data transfers to be performed in a single command.
+            Each entry is 1 data transfer with src/dst devices addresses, transfer size and peer device number */
 } __attribute__((packed, aligned(8)));
 
 /*! \struct device_ops_p2pdma_writelist_rsp_t
