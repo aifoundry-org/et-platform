@@ -118,6 +118,7 @@ struct dev_config {
 	__u8 num_l2_cache_banks;	/* Number of L2 Shire Cache banks */
 	__u8 sync_min_shire_id;		/* Spare/sync Minion Shire ID */
 	__u8 arch_rev;			/* Device architecture revision */
+	__u8 devnum;			/* Device physical number */
 };
 
 struct trace_desc {

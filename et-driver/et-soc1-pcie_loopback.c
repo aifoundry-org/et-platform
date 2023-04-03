@@ -75,16 +75,16 @@ module_param(ops_discovery_timeout, uint, 0);
 
 static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
-static int get_dev_index(void)
+static int get_next_devnum(void)
 {
-	int index = -ENODEV;
+	int devnum = -ENODEV;
 
 	if (bitmap_full(dev_bitmap, ET_MAX_DEVS))
-		return index;
+		return devnum;
 
-	index = find_first_zero_bit(dev_bitmap, ET_MAX_DEVS);
-	set_bit(index, dev_bitmap);
-	return index;
+	devnum = find_first_zero_bit(dev_bitmap, ET_MAX_DEVS);
+	set_bit(devnum, dev_bitmap);
+	return devnum;
 }
 
 static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
@@ -973,17 +973,17 @@ static const struct file_operations et_pcie_mgmt_fops = {
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
-	int index = get_dev_index();
+	int devnum = get_next_devnum();
 
-	if (index < 0)
-		return index;
+	if (devnum < 0)
+		return devnum;
 
 	et_dev = devm_kzalloc(&pdev->dev, sizeof(*et_dev), GFP_KERNEL);
 	if (!et_dev)
 		return -ENOMEM;
 
 	et_dev->pdev = pdev;
-	et_dev->dev_index = (u8)index;
+	et_dev->devnum = (u8)devnum;
 	*new_dev = et_dev;
 
 	INIT_LIST_HEAD(&et_dev->bar_region_list);
@@ -1033,6 +1033,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	et_dev->cfg.cache_line_size = 64;
 	et_dev->cfg.minion_boot_freq = 650;
 	et_dev->cfg.cm_shire_mask = 0xffffffff;
+	et_dev->cfg.devnum = et_dev->devnum;
 	et_dev->mgmt.dir_vq.sq_count = 1;
 	et_dev->mgmt.dir_vq.sq_size = 0x700UL;
 	et_dev->mgmt.dir_vq.sq_offset = 0;
@@ -1084,7 +1085,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
 							    GFP_KERNEL,
 							    "et%d_mgmt",
-							    et_dev->dev_index);
+							    et_dev->devnum);
 		rv = misc_register(&et_dev->mgmt.misc_dev);
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
@@ -1233,7 +1234,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
 							   GFP_KERNEL,
 							   "et%d_ops",
-							   et_dev->dev_index);
+							   et_dev->devnum);
 		rv = misc_register(&et_dev->ops.misc_dev);
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
@@ -1292,13 +1293,13 @@ unlock_init_mutex:
 
 static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 {
-	u8 dev_index;
+	u8 devnum;
 
 	if (!et_dev)
 		return;
 
-	dev_index = et_dev->dev_index;
-	clear_bit(dev_index, dev_bitmap);
+	devnum = et_dev->devnum;
+	clear_bit(devnum, dev_bitmap);
 	mutex_destroy(&et_dev->mgmt.init_mutex);
 	mutex_destroy(&et_dev->mgmt.reset_mutex);
 	mutex_destroy(&et_dev->ops.init_mutex);
@@ -1484,7 +1485,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 						  WQ_MEM_RECLAIM | WQ_UNBOUND,
 						  1,
 						  dev_name(&et_dev->pdev->dev),
-						  et_dev->dev_index);
+						  et_dev->devnum);
 	if (!et_dev->reset_workqueue) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		rv = -ENOMEM;

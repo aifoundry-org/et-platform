@@ -283,7 +283,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 				vq_data->vq_common.sq_count,
 				dev_name(&et_dev->pdev->dev),
 				(is_mgmt) ? "mgmt" : "ops",
-				et_dev->dev_index);
+				et_dev->devnum);
 	if (!vq_data->vq_common.sq_workqueue)
 		return -ENOMEM;
 
@@ -328,7 +328,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 					GFP_KERNEL,
 					"%s%d_irq%ld",
 					is_mgmt ? "mgmt" : "ops",
-					et_dev->dev_index,
+					et_dev->devnum,
 					vec_idx),
 			 (void *)vq_data->sqs);
 	if (rv) {
@@ -390,7 +390,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 				vq_data->vq_common.cq_count,
 				dev_name(&et_dev->pdev->dev),
 				(is_mgmt) ? "mgmt" : "ops",
-				et_dev->dev_index);
+				et_dev->devnum);
 	if (!vq_data->vq_common.cq_workqueue)
 		return -ENOMEM;
 
@@ -434,7 +434,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 					GFP_KERNEL,
 					"%s%d_irq%ld",
 					is_mgmt ? "mgmt" : "ops",
-					et_dev->dev_index,
+					et_dev->devnum,
 					vec_idx),
 			 (void *)vq_data->cqs);
 	if (rv) {

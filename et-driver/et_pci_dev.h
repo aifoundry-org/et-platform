@@ -78,7 +78,7 @@ struct et_mgmt_dev {
 };
 
 struct et_pci_dev {
-	u8 dev_index;
+	u8 devnum;
 	bool is_initialized;
 	bool is_err_reporting;
 	struct pci_dev *pdev;

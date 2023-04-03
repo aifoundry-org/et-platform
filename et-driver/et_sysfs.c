@@ -100,7 +100,7 @@ devnum_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%u\n", et_dev->dev_index);
+	return sysfs_emit(buf, "%u\n", et_dev->devnum);
 }
 
 static DEVICE_ATTR_RO(devnum);
