@@ -1295,7 +1295,6 @@ int verifyService() {
     if ((ret = runService(input_buff, input_size, nullptr, 0)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    return true;
   } break;
   case DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG: {
     const uint32_t output_size = sizeof(struct shire_cache_config_t);
@@ -1310,7 +1309,6 @@ int verifyService() {
     DM_LOG(INFO) << "Scratchpad size: " << dm_rsp->scp_size << std::endl;
     DM_LOG(INFO) << "L2 cache size: " << dm_rsp->l2_size << std::endl;
     DM_LOG(INFO) << "L3 cache size: " << dm_rsp->l3_size << std::endl;
-    return true;
   } break;
   default:
     DM_VLOG(LOW) << "Aborting, command: " << cmd << " (" << code << ") is currently unsupported" << std::endl;
