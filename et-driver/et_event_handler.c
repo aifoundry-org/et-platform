@@ -395,7 +395,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	trace_stack = (struct trace_execution_stack *)trace_buf;
 
 	/* Get the Device Trace base address */
-	trace_addr = (u8 __iomem *)trace_region->mapped_baseaddr;
+	trace_addr = (u8 __iomem *)trace_region->io.mapped_baseaddr;
 
 	/* Read the Device Trace buffer (Base + Offset(from Syndrome) */
 	et_ioread(trace_addr,

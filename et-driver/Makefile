@@ -15,6 +15,7 @@ esperanto-y := et_io.o \
 	       et_event_handler.o \
 	       et_vqueue.o \
 	       et_dma.o \
+	       et_p2pdma.o \
 	       et_pci_dev.o \
 	       et-soc1-pcie.o
 else

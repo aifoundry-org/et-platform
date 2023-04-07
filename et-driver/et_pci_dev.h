@@ -13,6 +13,9 @@
 #include "et_sysfs.h"
 #include "et_vqueue.h"
 
+#define ET_MAX_DEVS 64
+extern DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
+
 // clang-format off
 struct et_bar_region {
 	struct list_head list;

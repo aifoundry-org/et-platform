@@ -27,6 +27,7 @@
 
 #include <linux/dev_printk.h>
 #include <linux/mutex.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 /*
  * The structure arrangment of DIRs is same for both Mgmt and Ops devices. Mgmt
@@ -81,6 +82,10 @@
  * increment of 32 MBytes.
  */
 #define MEM_REGION_DMA_ELEMENT_STEP_SIZE (32 * 1024 * 1024)
+
+/* MEM_REGION_P2PACCESS */
+#define MEM_REGION_P2PACCESS_DISABLED (0x0)
+#define MEM_REGION_P2PACCESS_ENABLED  (0x1)
 
 /*
  * Holds the information memory region access attributes
@@ -147,7 +152,17 @@ struct et_dir_reg_access {
 	 *	NOTE: 4GB is maximum size that can be transferred per element
 	 */
 	u32 dma_elem_size : 8; /* bit 9-16 */
-	u32 reserved : 15;
+
+	/* Description:
+	 *
+	 *	p2p_access: Indicates whether the region needs to be used as P2P
+	 *	resource
+	 *
+	 *	Region not to be mapped for P2P accesses:	0x0
+	 *	Region to be mapped for P2P accesses:		0x1
+	 */
+	u32 p2p_access : 1; /* bit 17 */
+	u32 reserved : 14;
 } __packed;
 
 /*
@@ -269,9 +284,18 @@ struct et_mapped_region {
 					 * not be valid
 					 */
 	struct et_dir_reg_access access;
-	void __iomem *mapped_baseaddr;
+	union {
+		struct {
+			void __iomem *mapped_baseaddr;
+			phys_addr_t host_phys_addr;
+		} io;
+		struct {
+			void *devres_id;
+			void *virt_addr;
+			pci_bus_addr_t pci_bus_addr;
+		} p2p;
+	};
 	u64 dev_phys_addr;
-	u64 host_phys_addr;
 	u64 size;
 };
 
@@ -461,14 +485,18 @@ static inline void et_print_mgmt_dir(struct device *dev,
 			mgmt_dir->mem_region[i].bar_size);
 		dev_dbg(dev,
 			"BAR Region PhysAddr     : 0x%llx\n",
-			region[mgmt_dir->mem_region[i].type].host_phys_addr);
-		if (!region[mgmt_dir->mem_region[i].type].mapped_baseaddr)
+			region[mgmt_dir->mem_region[i].type].access.p2p_access ?
+				region[mgmt_dir->mem_region[i].type]
+					.p2p.pci_bus_addr :
+				region[mgmt_dir->mem_region[i].type]
+					.io.host_phys_addr);
+		if (!region[mgmt_dir->mem_region[i].type].io.mapped_baseaddr)
 			dev_dbg(dev, "BAR Region Kern VirtAddr: N/A\n");
 		else
 			dev_dbg(dev,
 				"BAR Region Kern VirtAddr: 0x%px\n",
 				region[mgmt_dir->mem_region[i].type]
-					.mapped_baseaddr);
+					.io.mapped_baseaddr);
 		if (mgmt_dir->mem_region[i].dev_address == 0)
 			dev_dbg(dev, "Dev Address             : N/A\n\n");
 		else
@@ -672,14 +700,18 @@ static inline void et_print_ops_dir(struct device *dev,
 			ops_dir->mem_region[i].bar_size);
 		dev_dbg(dev,
 			"BAR Region PhysAddr     : 0x%llx\n",
-			region[ops_dir->mem_region[i].type].host_phys_addr);
-		if (!region[ops_dir->mem_region[i].type].mapped_baseaddr)
+			region[ops_dir->mem_region[i].type].access.p2p_access ?
+				region[ops_dir->mem_region[i].type]
+					.p2p.pci_bus_addr :
+				region[ops_dir->mem_region[i].type]
+					.io.host_phys_addr);
+		if (!region[ops_dir->mem_region[i].type].io.mapped_baseaddr)
 			dev_dbg(dev, "BAR Region Kern VirtAddr: N/A\n");
 		else
 			dev_dbg(dev,
 				"BAR Region Kern VirtAddr: 0x%px\n",
 				region[ops_dir->mem_region[i].type]
-					.mapped_baseaddr);
+					.io.mapped_baseaddr);
 		if (ops_dir->mem_region[i].dev_address == 0)
 			dev_dbg(dev, "Dev Address             : N/A\n\n");
 		else

@@ -6,13 +6,13 @@
 
 #define ESPERANTO_PCIE_IOCTL_MAGIC 0xE7
 
-// These flags are valid for Ops Device only
 enum cmd_desc_flag {
 	CMD_DESC_FLAG_NONE = 0x0,
 	CMD_DESC_FLAG_DMA = 0x1 << 0,
 	CMD_DESC_FLAG_MM_RESET = 0x1 << 1,
 	CMD_DESC_FLAG_HIGH_PRIORITY = 0x1 << 2,
-	CMD_DESC_FLAG_ETSOC_RESET = 0x1 << 3
+	CMD_DESC_FLAG_ETSOC_RESET = 0x1 << 3,
+	CMD_DESC_FLAG_P2PDMA = 0x1 << 4
 };
 
 enum dev_config_form_factor {
@@ -168,5 +168,8 @@ struct trace_desc {
 
 #define ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME(N)                                 \
 	_IOC(_IOC_READ, ESPERANTO_PCIE_IOCTL_MAGIC, 14, (N))
+
+#define ETSOC1_IOCTL_GET_P2PDMA_DEVICE_COMPAT_BITMAP                           \
+	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 15, __u64)
 
 #endif

@@ -34,6 +34,7 @@
 #include "et_fw_update.h"
 #include "et_io.h"
 #include "et_ioctl.h"
+#include "et_p2pdma.h"
 #include "et_pci_dev.h"
 #include "et_sysfs.h"
 #include "et_vma.h"
@@ -52,7 +53,6 @@ MODULE_VERSION(ET_MODULE_VERSION);
 #define ET_PCIE_VENDOR_ID      0x1e0a
 #define ET_PCIE_TEST_DEVICE_ID 0x9038
 #define ET_PCIE_SOC1_ID	       0xeb01
-#define ET_MAX_DEVS	       64
 
 static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_TEST_DEVICE_ID) },
@@ -72,7 +72,7 @@ module_param(mgmt_discovery_timeout, uint, 0);
 static uint ops_discovery_timeout = 100;
 module_param(ops_discovery_timeout, uint, 0);
 
-static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
+DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS) = { 0 };
 
 static int get_next_devnum(void)
 {
@@ -131,6 +131,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 max_size;
 	u32 ops_state;
 	u8 trace_type;
+	u64 dev_compat_bitmap;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
@@ -316,7 +317,8 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (!cmd_info.cmd || !cmd_info.size ||
 		    cmd_info.flags & CMD_DESC_FLAG_MM_RESET ||
 		    cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET ||
-		    (cmd_info.flags & CMD_DESC_FLAG_DMA &&
+		    ((cmd_info.flags & CMD_DESC_FLAG_DMA ||
+		      cmd_info.flags & CMD_DESC_FLAG_P2PDMA) &&
 		     cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY))
 			return -EINVAL;
 
@@ -337,7 +339,13 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			    ops->vq_data.vq_common.sq_count)
 				return -EINVAL;
 
-			if (cmd_info.flags & CMD_DESC_FLAG_DMA)
+			if (cmd_info.flags & CMD_DESC_FLAG_P2PDMA)
+				rv = et_p2pdma_move_data(
+					et_dev,
+					cmd_info.sq_index,
+					(char __user __force *)cmd_info.cmd,
+					cmd_info.size);
+			else if (cmd_info.flags & CMD_DESC_FLAG_DMA)
 				rv = et_dma_move_data(
 					et_dev,
 					cmd_info.sq_index,
@@ -423,6 +431,17 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		// Update sq_bitmap w.r.t new threshold
 		et_squeue_sync_bitmap(
 			&ops->vq_data.sqs[sq_threshold_info.sq_index]);
+
+		break;
+
+	case ETSOC1_IOCTL_GET_P2PDMA_DEVICE_COMPAT_BITMAP:
+		dev_compat_bitmap = et_p2pdma_get_compat_bitmap(et_dev->devnum);
+		if (copy_to_user(usr_arg, &dev_compat_bitmap, _IOC_SIZE(cmd))) {
+			dev_err(&et_dev->pdev->dev,
+				"ops_ioctl[%u]: failed to copy to user!\n",
+				_IOC_NR(cmd));
+			return -EFAULT;
+		}
 
 		break;
 
@@ -963,7 +982,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (!trace_buf)
 			return -ENOMEM;
 
-		et_ioread(region->mapped_baseaddr, 0, trace_buf, region->size);
+		et_ioread(region->io.mapped_baseaddr,
+			  0,
+			  trace_buf,
+			  region->size);
 		if (copy_to_user((char __user __force *)trace_info.buf,
 				 trace_buf,
 				 region->size)) {
@@ -1199,6 +1221,7 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	*new_dev = et_dev;
 
 	INIT_LIST_HEAD(&et_dev->bar_region_list);
+	et_p2pdma_init(devnum);
 
 	et_dev->is_initialized = false;
 
@@ -1246,7 +1269,10 @@ static void et_unmap_discovered_regions(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	for (i = 0; i < num_reg_types; i++) {
 		if (regions[i].is_valid) {
-			et_unmap_bar(regions[i].mapped_baseaddr);
+			if (regions[i].access.p2p_access)
+				et_p2pdma_release_resource(et_dev, &regions[i]);
+			else
+				et_unmap_bar(regions[i].io.mapped_baseaddr);
 			regions[i].is_valid = false;
 		}
 	}
@@ -1378,13 +1404,15 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			goto error_unmap_discovered_regions;
 		}
 
-		// Skip BAR mapping of region if IO access is disabled by device
-		if (!dir_mem_region->access.io_access) {
+		// Skip BAR mapping of region if IO/P2P access is disabled by
+		// device
+		if (!dir_mem_region->access.io_access &&
+		    !dir_mem_region->access.p2p_access) {
 			regions[dir_mem_region->type].is_valid = true;
-			regions[dir_mem_region->type].host_phys_addr =
+			regions[dir_mem_region->type].io.host_phys_addr =
 				pci_resource_start(et_dev->pdev, bm_info.bar) +
 				bm_info.bar_offset;
-			regions[dir_mem_region->type].mapped_baseaddr = NULL;
+			regions[dir_mem_region->type].io.mapped_baseaddr = NULL;
 			regions[dir_mem_region->type].dev_phys_addr =
 				dir_mem_region->dev_address;
 			regions[dir_mem_region->type].size =
@@ -1423,8 +1451,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				dir_mem_region->bar);
 			et_print_event(et_dev->pdev, &dbg_msg);
 			rv = -EINVAL;
-			kfree(new_node);
-			goto error_unmap_discovered_regions;
+			goto error_free_new_node;
 		}
 
 		list_for_each_entry (existing_node,
@@ -1465,9 +1492,20 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 					new_node->region_end);
 				et_print_event(et_dev->pdev, &dbg_msg);
 				rv = -EINVAL;
-				kfree(new_node);
-				goto error_unmap_discovered_regions;
+				goto error_free_new_node;
 			}
+		}
+
+		if (dir_mem_region->access.io_access &&
+		    dir_mem_region->access.p2p_access) {
+			dbg_msg.level = LEVEL_WARN;
+			dbg_msg.desc =
+				"DIR discovered region has both IO and P2P accesses enabled!, falling back to IO access only!";
+			sprintf(dbg_msg.syndrome,
+				"\nDevice: %s\nRegion type: %d\n",
+				(is_mgmt) ? "Mgmt" : "Ops",
+				dir_mem_region->type);
+			et_print_event(et_dev->pdev, &dbg_msg);
 		}
 
 		// BAR mapping for the discovered region
@@ -1475,27 +1513,57 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		bm_info.bar_offset = dir_mem_region->bar_offset;
 		bm_info.size = dir_mem_region->bar_size;
 
-		rv = et_map_bar(et_dev,
+		// Prioritize IO access If both IO and P2P accesses are enabled
+		if (dir_mem_region->access.io_access) {
+			rv = et_map_bar(et_dev,
+					&bm_info,
+					&regions[dir_mem_region->type]
+						 .io.mapped_baseaddr);
+			if (rv) {
+				dbg_msg.level = LEVEL_FATAL;
+				dbg_msg.desc =
+					"DIR discovered region mapping failed!";
+				sprintf(dbg_msg.syndrome,
+					"\nDevice: %s\nRegion type: %d\n",
+					(is_mgmt) ? "Mgmt" : "Ops",
+					dir_mem_region->type);
+				et_print_event(et_dev->pdev, &dbg_msg);
+				goto error_free_new_node;
+			}
+			regions[dir_mem_region->type].io.host_phys_addr =
+				pci_resource_start(et_dev->pdev, bm_info.bar) +
+				bm_info.bar_offset;
+		} else if (dir_mem_region->access.p2p_access) {
+			if (bm_info.size != round_down(bm_info.size, SZ_2M)) {
+				dbg_msg.level = LEVEL_FATAL;
+				dbg_msg.desc =
+					"DIR discovered P2P region is not 2MB aligned!";
+				sprintf(dbg_msg.syndrome,
+					"\nDevice: %s\nRegion type: %d\n",
+					(is_mgmt) ? "Mgmt" : "Ops",
+					dir_mem_region->type);
+				et_print_event(et_dev->pdev, &dbg_msg);
+				rv = -EINVAL;
+				goto error_free_new_node;
+			}
+			rv = et_p2pdma_add_resource(
+				et_dev,
 				&bm_info,
-				&regions[dir_mem_region->type].mapped_baseaddr);
-		if (rv) {
-			dbg_msg.level = LEVEL_FATAL;
-			dbg_msg.desc = "DIR discovered region mapping failed!";
-			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\n",
-				(is_mgmt) ? "Mgmt" : "Ops",
-				dir_mem_region->type);
-			et_print_event(et_dev->pdev, &dbg_msg);
-			kfree(new_node);
-			goto error_unmap_discovered_regions;
+				&regions[dir_mem_region->type]);
+			if (rv) {
+				dbg_msg.level = LEVEL_FATAL;
+				dbg_msg.desc =
+					"DIR discovered P2P region mapping failed!";
+				sprintf(dbg_msg.syndrome,
+					"\nDevice: %s\nRegion type: %d\n",
+					(is_mgmt) ? "Mgmt" : "Ops",
+					dir_mem_region->type);
+				et_print_event(et_dev->pdev, &dbg_msg);
+				goto error_free_new_node;
+			}
 		}
 
 		// Save other region information
-		regions[dir_mem_region->type].host_phys_addr =
-			pci_resource_start(et_dev->pdev, bm_info.bar) +
-			bm_info.bar_offset;
-		regions[dir_mem_region->type].mapped_baseaddr =
-			regions[dir_mem_region->type].mapped_baseaddr;
 		regions[dir_mem_region->type].size = dir_mem_region->bar_size;
 		regions[dir_mem_region->type].dev_phys_addr =
 			dir_mem_region->dev_address;
@@ -1545,6 +1613,9 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	}
 
 	return (ssize_t)((u64)reg_pos - (u64)regs_data);
+
+error_free_new_node:
+	kfree(new_node);
 
 error_unmap_discovered_regions:
 	et_unmap_discovered_regions(et_dev, is_mgmt);

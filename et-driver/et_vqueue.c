@@ -210,7 +210,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 
 	vq_data = &et_dev->ops.vq_data;
 	vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-	hp_sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+	hp_sq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			 et_dev->ops.dir_vq.hp_sq_offset;
 	hp_sq_size = et_dev->ops.dir_vq.hp_sq_size;
 
@@ -257,7 +257,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data = &et_dev->mgmt.vq_data;
 		vq_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
-		sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		sq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->mgmt.dir_vq.sq_offset;
 		sq_size = et_dev->mgmt.dir_vq.sq_size;
 
@@ -269,7 +269,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		}
 		vq_data = &et_dev->ops.vq_data;
 		vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-		sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		sq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->ops.dir_vq.sq_offset;
 		sq_size = et_dev->ops.dir_vq.sq_size;
 
@@ -364,7 +364,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data = &et_dev->mgmt.vq_data;
 		vq_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
-		cq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		cq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->mgmt.dir_vq.cq_offset;
 		cq_size = et_dev->mgmt.dir_vq.cq_size;
 
@@ -376,7 +376,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		}
 		vq_data = &et_dev->ops.vq_data;
 		vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-		cq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		cq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->ops.dir_vq.cq_offset;
 		cq_size = et_dev->ops.dir_vq.cq_size;
 
@@ -480,7 +480,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->intrpt_trg_size =
 			et_dev->mgmt.dir_vq.intrpt_trg_size;
 		vq_common->intrpt_addr =
-			(u8 __iomem *)intrpt_region->mapped_baseaddr +
+			(u8 __iomem *)intrpt_region->io.mapped_baseaddr +
 			et_dev->mgmt.dir_vq.intrpt_trg_offset;
 
 		// Save Mgmt trace region reference
@@ -499,7 +499,7 @@ ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_common->intrpt_id = et_dev->ops.dir_vq.intrpt_id;
 		vq_common->intrpt_trg_size = et_dev->ops.dir_vq.intrpt_trg_size;
 		vq_common->intrpt_addr =
-			(u8 __iomem *)intrpt_region->mapped_baseaddr +
+			(u8 __iomem *)intrpt_region->io.mapped_baseaddr +
 			et_dev->ops.dir_vq.intrpt_trg_offset;
 
 		vq_stats_gid = ET_SYSFS_GID_OPS_VQ_STATS;

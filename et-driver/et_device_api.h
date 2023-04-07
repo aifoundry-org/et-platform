@@ -93,8 +93,8 @@ enum dev_mgmt_api_mm_reset_response_e {
  */
 struct dma_node {
 	u64 host_virt_addr;
-	u64 host_phy_addr;
-	u64 device_phy_addr;
+	u64 host_phys_addr;
+	u64 device_phys_addr;
 	u32 size;
 	u8 pad[4];
 } __packed __aligned(8);
@@ -105,15 +105,39 @@ struct dma_node {
  * but device-api has separate commands as of now. Hence, both commands should
  * be kept identical in device-api.
  */
-struct device_ops_dmalist_cmd_t {
+struct device_ops_dma_list_cmd_t {
 	struct cmd_header_t command_info;
 	struct dma_node list[];
 } __packed __aligned(8);
 
 /*
- * DMA list command response
+ * Node containing one P2PDMA transfer information
  */
-struct device_ops_dmalist_rsp_t {
+struct p2pdma_node {
+	u64 peer_device_phys_addr;
+	u64 peer_device_bus_addr;
+	u64 this_device_phys_addr;
+	u32 size;
+	u16 peer_devnum;
+	u8 pad[2];
+} __packed __aligned(8);
+
+/*
+ * Single list Command to perform multiple P2PDMA to/from main device memory
+ * from/to peer device memory
+ * NOTE: P2P DMA readlist/writelist commands are internally consolidated in
+ * driver but device-api has separate commands as of now. Hence, both commands
+ * should be kept identical in device-api.
+ */
+struct device_ops_p2pdma_list_cmd_t {
+	struct cmd_header_t command_info;
+	struct p2pdma_node list[];
+} __packed __aligned(8);
+
+/*
+ * DMA/P2PDMA list command response
+ */
+struct device_ops_dma_list_rsp_t {
 	struct rsp_header_t response_info;
 	u64 cmd_start_ts;
 	u64 cmd_execution_time;

@@ -44,6 +44,10 @@ enum device_ops_api_msg_e {
 	DEV_OPS_API_MID_CM_RESET_RSP,
 	DEV_OPS_API_MID_DEVICE_FW_ERROR,
 	DEV_OPS_API_MID_TRACE_BUFFER_FULL_EVENT,
+	DEV_OPS_API_MID_P2PDMA_READLIST_CMD,
+	DEV_OPS_API_MID_P2PDMA_READLIST_RSP,
+	DEV_OPS_API_MID_P2PDMA_WRITELIST_CMD,
+	DEV_OPS_API_MID_P2PDMA_WRITELIST_RSP,
 	/* Device Ops Message IDs reserved */
 	DEV_OPS_API_MID_END = 1023,
 };
@@ -825,7 +829,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 
 	vq_data = &et_dev->ops.vq_data;
 	vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-	hp_sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+	hp_sq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			 et_dev->ops.dir_vq.hp_sq_offset;
 	hp_sq_size = et_dev->ops.dir_vq.hp_sq_size;
 
@@ -874,7 +878,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data = &et_dev->mgmt.vq_data;
 		vq_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
-		sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		sq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->mgmt.dir_vq.sq_offset;
 		sq_size = et_dev->mgmt.dir_vq.sq_size;
 	} else {
@@ -884,7 +888,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		}
 		vq_data = &et_dev->ops.vq_data;
 		vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-		sq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		sq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->ops.dir_vq.sq_offset;
 		sq_size = et_dev->ops.dir_vq.sq_size;
 	}
@@ -960,7 +964,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data = &et_dev->mgmt.vq_data;
 		vq_region =
 			&et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER];
-		cq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		cq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->mgmt.dir_vq.cq_offset;
 		cq_size = et_dev->mgmt.dir_vq.cq_size;
 	} else {
@@ -970,7 +974,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		}
 		vq_data = &et_dev->ops.vq_data;
 		vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
-		cq_baseaddr = (u8 __iomem *)vq_region->mapped_baseaddr +
+		cq_baseaddr = (u8 __iomem *)vq_region->io.mapped_baseaddr +
 			      et_dev->ops.dir_vq.cq_offset;
 		cq_size = et_dev->ops.dir_vq.cq_size;
 	}
@@ -1220,8 +1224,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct device_ops_compatibility_rsp_t compat_rsp = { 0 };
 	struct device_ops_fw_version_cmd_t *fw_version_cmd;
 	struct device_ops_fw_version_rsp_t fw_version_rsp = { 0 };
-	struct device_ops_dmalist_cmd_t *dmalist_cmd;
-	struct device_ops_dmalist_rsp_t dmalist_rsp = { 0 };
+	struct device_ops_dma_list_cmd_t *dma_list_cmd;
+	struct device_ops_p2pdma_list_cmd_t *p2pdma_list_cmd;
+	struct device_ops_dma_list_rsp_t dma_list_rsp = { 0 },
+					 p2pdma_list_rsp = { 0 };
 	struct device_ops_kernel_launch_cmd_t *kernel_launch_cmd;
 	struct device_ops_kernel_launch_rsp_t kernel_launch_rsp = { 0 };
 	struct device_ops_kernel_abort_cmd_t *kernel_abort_cmd;
@@ -1314,18 +1320,37 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 
 	case DEV_OPS_API_MID_DMA_READLIST_CMD:
 	case DEV_OPS_API_MID_DMA_WRITELIST_CMD:
-		dmalist_cmd = (struct device_ops_dmalist_cmd_t *)cmd;
-		dmalist_rsp.response_info.rsp_hdr.size =
-			sizeof(dmalist_rsp) - sizeof(header);
-		dmalist_rsp.response_info.rsp_hdr.tag_id =
-			dmalist_cmd->command_info.cmd_hdr.tag_id;
-		dmalist_rsp.response_info.rsp_hdr.msg_id =
-			dmalist_cmd->command_info.cmd_hdr.msg_id + 1;
-		dmalist_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+		dma_list_cmd = (struct device_ops_dma_list_cmd_t *)cmd;
+		dma_list_rsp.response_info.rsp_hdr.size =
+			sizeof(dma_list_rsp) - sizeof(header);
+		dma_list_rsp.response_info.rsp_hdr.tag_id =
+			dma_list_cmd->command_info.cmd_hdr.tag_id;
+		dma_list_rsp.response_info.rsp_hdr.msg_id =
+			dma_list_cmd->command_info.cmd_hdr.msg_id + 1;
+		dma_list_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
 		if (!et_circbuffer_push(&cq->cb,
 					cq->cb_mem,
-					(u8 *)&dmalist_rsp,
-					sizeof(dmalist_rsp),
+					(u8 *)&dma_list_rsp,
+					sizeof(dma_list_rsp),
+					ET_CB_SYNC_FOR_HOST |
+						ET_CB_SYNC_FOR_DEVICE))
+			rv = -EAGAIN;
+		break;
+
+	case DEV_OPS_API_MID_P2PDMA_READLIST_CMD:
+	case DEV_OPS_API_MID_P2PDMA_WRITELIST_CMD:
+		p2pdma_list_cmd = (struct device_ops_p2pdma_list_cmd_t *)cmd;
+		p2pdma_list_rsp.response_info.rsp_hdr.size =
+			sizeof(p2pdma_list_rsp) - sizeof(header);
+		p2pdma_list_rsp.response_info.rsp_hdr.tag_id =
+			p2pdma_list_cmd->command_info.cmd_hdr.tag_id;
+		p2pdma_list_rsp.response_info.rsp_hdr.msg_id =
+			p2pdma_list_cmd->command_info.cmd_hdr.msg_id + 1;
+		p2pdma_list_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
+		if (!et_circbuffer_push(&cq->cb,
+					cq->cb_mem,
+					(u8 *)&p2pdma_list_rsp,
+					sizeof(p2pdma_list_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;

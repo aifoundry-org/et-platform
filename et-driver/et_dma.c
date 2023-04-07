@@ -19,7 +19,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 	u32 node_num, nodes_count = 0;
 	struct et_dma_mapping *map;
 	struct vm_area_struct *vma;
-	struct device_ops_dmalist_cmd_t *cmd;
+	struct device_ops_dma_list_cmd_t *cmd;
 
 	nodes_count = (cmd_size - sizeof(*cmd)) / sizeof(cmd->list[0]);
 
@@ -104,7 +104,7 @@ ssize_t et_dma_move_data(struct et_pci_dev *et_dev,
 			goto free_cmd_mem;
 		}
 
-		cmd->list[node_num].host_phy_addr =
+		cmd->list[node_num].host_phys_addr =
 			map->dma_addr + cmd->list[node_num].host_virt_addr -
 			vma->vm_start;
 	}

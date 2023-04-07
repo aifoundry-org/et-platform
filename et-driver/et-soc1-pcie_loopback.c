@@ -53,7 +53,6 @@ MODULE_VERSION(ET_MODULE_VERSION);
 #define ET_PCIE_VENDOR_ID      PCI_VENDOR_ID_REDHAT
 #define ET_PCIE_TEST_DEVICE_ID PCI_DEVICE_ID_REDHAT_TEST
 #define ET_PCIE_SOC1_ID	       0xeb01
-#define ET_MAX_DEVS	       64
 
 static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_TEST_DEVICE_ID) },
@@ -73,7 +72,7 @@ module_param(mgmt_discovery_timeout, uint, 0);
 static uint ops_discovery_timeout = 0;
 module_param(ops_discovery_timeout, uint, 0);
 
-static DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
+DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
 
 static int get_next_devnum(void)
 {
@@ -130,6 +129,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	u16 sq_idx;
 	u16 max_size;
 	u32 ops_state;
+	u64 dev_compat_bitmap;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	et_dev = container_of(ops, struct et_pci_dev, ops);
@@ -284,7 +284,8 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (!cmd_info.cmd || !cmd_info.size ||
 		    cmd_info.flags & CMD_DESC_FLAG_MM_RESET ||
 		    cmd_info.flags & CMD_DESC_FLAG_ETSOC_RESET ||
-		    (cmd_info.flags & CMD_DESC_FLAG_DMA &&
+		    ((cmd_info.flags & CMD_DESC_FLAG_DMA ||
+		      cmd_info.flags & CMD_DESC_FLAG_P2PDMA) &&
 		     cmd_info.flags & CMD_DESC_FLAG_HIGH_PRIORITY))
 			return -EINVAL;
 
@@ -305,7 +306,10 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			    ops->vq_data.vq_common.sq_count)
 				return -EINVAL;
 
-			if (cmd_info.flags & CMD_DESC_FLAG_DMA)
+			if (cmd_info.flags & CMD_DESC_FLAG_P2PDMA)
+				// TODO: Add P2P DMA support
+				rv = -EOPNOTSUPP;
+			else if (cmd_info.flags & CMD_DESC_FLAG_DMA)
 				rv = et_dma_move_data(
 					et_dev,
 					cmd_info.sq_index,
@@ -391,6 +395,18 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		// Update sq_bitmap w.r.t new threshold
 		et_squeue_sync_bitmap(
 			&ops->vq_data.sqs[sq_threshold_info.sq_index]);
+
+		break;
+
+	case ETSOC1_IOCTL_GET_P2PDMA_DEVICE_COMPAT_BITMAP:
+		// TODO: Add P2P DMA support
+		dev_compat_bitmap = 0;
+		if (copy_to_user(usr_arg, &dev_compat_bitmap, _IOC_SIZE(cmd))) {
+			dev_err(&et_dev->pdev->dev,
+				"ops_ioctl[%u]: failed to copy to user!\n",
+				_IOC_NR(cmd));
+			return -EFAULT;
+		}
 
 		break;
 
@@ -1051,9 +1067,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	region->size =
 		et_dev->mgmt.dir_vq.sq_count * et_dev->mgmt.dir_vq.sq_size +
 		et_dev->mgmt.dir_vq.cq_count * et_dev->mgmt.dir_vq.cq_size;
-	region->mapped_baseaddr =
+	region->io.mapped_baseaddr =
 		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
-	if (!region->mapped_baseaddr) {
+	if (!region->io.mapped_baseaddr) {
 		region->is_valid = false;
 		rv = -ENOMEM;
 		goto error_unlock_init_mutex;
@@ -1109,7 +1125,7 @@ error_sysfs_remove_group:
 error_free_vq_buffer:
 	kfree((void __force *)et_dev->mgmt
 		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
-		      .mapped_baseaddr);
+		      .io.mapped_baseaddr);
 	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 error_unlock_init_mutex:
@@ -1135,7 +1151,7 @@ void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 
 	kfree((void __force *)et_dev->mgmt
 		      .regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER]
-		      .mapped_baseaddr);
+		      .io.mapped_baseaddr);
 	et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 	et_dev->mgmt.is_initialized = false;
@@ -1188,9 +1204,9 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		et_dev->ops.dir_vq.sq_count * et_dev->ops.dir_vq.sq_size +
 		et_dev->ops.dir_vq.hp_sq_count * et_dev->ops.dir_vq.hp_sq_size +
 		et_dev->ops.dir_vq.cq_count * et_dev->ops.dir_vq.cq_size;
-	region->mapped_baseaddr =
+	region->io.mapped_baseaddr =
 		(void __iomem __force *)kzalloc(region->size, GFP_KERNEL);
-	if (!region->mapped_baseaddr) {
+	if (!region->io.mapped_baseaddr) {
 		region->is_valid = false;
 		rv = -ENOMEM;
 		goto error_unlock_init_mutex;
@@ -1200,13 +1216,16 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED];
 	region->is_valid = true;
 	region->access.io_access = MEM_REGION_IOACCESS_DISABLED;
+	region->access.p2p_access = MEM_REGION_P2PACCESS_ENABLED;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_OPS;
 	region->access.dma_elem_size = 0x4; /* 4 * 32MB = 128MB */
 	region->access.dma_elem_count = 0x4;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_64BIT;
 	region->dev_phys_addr = 0x8101000000ULL;
 	region->size = 0x2FF000000ULL;
-	region->mapped_baseaddr = NULL;
+	region->p2p.devres_id = NULL;
+	region->p2p.virt_addr = NULL;
+	region->p2p.pci_bus_addr = region->dev_phys_addr;
 
 	// SysFs memory statistics initialization
 	rv = et_sysfs_add_group(et_dev, ET_SYSFS_GID_MEM_STATS);
@@ -1257,7 +1276,7 @@ error_sysfs_remove_group:
 
 error_free_vq_buffer:
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
-		      .mapped_baseaddr);
+		      .io.mapped_baseaddr);
 	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 error_unlock_init_mutex:
@@ -1282,7 +1301,7 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
 
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
-		      .mapped_baseaddr);
+		      .io.mapped_baseaddr);
 	et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid = false;
 
 	et_dev->ops.is_initialized = false;

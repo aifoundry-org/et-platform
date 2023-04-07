@@ -44,7 +44,7 @@ ssize_t et_mmio_write_fw_image(struct et_pci_dev *et_dev,
 	}
 
 	et_iowrite(et_dev->mgmt.regions[MGMT_MEM_REGION_TYPE_SCRATCH]
-			   .mapped_baseaddr,
+			   .io.mapped_baseaddr,
 		   0,
 		   kern_buf,
 		   count);

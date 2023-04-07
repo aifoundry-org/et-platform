@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-16696] Add support for peer-to-peer (P2P) DMA
 ### Changed
 - [SW-16696] Consistently use devnum to represent device number and provide devnum through ioctl
 ### Deprecated
