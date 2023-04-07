@@ -61,6 +61,7 @@ public:
   MOCK_CONST_METHOD1(getDmaInfo, DmaInfo(int));
   MOCK_METHOD3(reinitDeviceInstance, void(int device, bool masterMinionOnly, std::chrono::milliseconds timeout));
   MOCK_METHOD1(hintInactivity, void(int));
+  MOCK_CONST_METHOD2(checkP2pDmaCompatibility, bool(int, int));
 
   void Delegate() {
     ON_CALL(*this, sendCommandMasterMinion)
@@ -147,6 +148,9 @@ public:
       .WillByDefault([this](int device, bool masterMinionOnly, std::chrono::milliseconds timeout) {
         delegate_->reinitDeviceInstance(device, masterMinionOnly, timeout);
       });
+    ON_CALL(*this, checkP2pDmaCompatibility).WillByDefault([this](int deviceA, int deviceB) {
+      return delegate_->checkP2pDmaCompatibility(deviceA, deviceB);
+    });
   }
 
 private:

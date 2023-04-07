@@ -30,7 +30,7 @@ namespace fs = std::experimental::filesystem;
 
 namespace {
 
-constexpr auto kMinReqDriverVersion = "0.12.0";
+constexpr auto kMinReqDriverVersion = "0.14.0";
 
 int countDeviceNodes(bool isMgmt) {
   auto it = fs::directory_iterator("/dev");
@@ -76,6 +76,9 @@ inline cmd_desc_flag parseCmdFlagMM(CmdFlagMM flags) {
   }
   if (flags.isHpSq_) {
     descFlags |= static_cast<std::byte>(CMD_DESC_FLAG_HIGH_PRIORITY);
+  }
+  if (flags.isP2pDma_) {
+    descFlags |= static_cast<std::byte>(CMD_DESC_FLAG_P2PDMA);
   }
   return static_cast<cmd_desc_flag>(static_cast<uint8_t>(descFlags));
 }
@@ -330,6 +333,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
     wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_USER_DRAM_INFO, &deviceInfo.userDram_);
     wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_COUNT, &deviceInfo.mmSqCount_);
     wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE, &deviceInfo.mmSqMaxMsgSize_);
+    wrap_ioctl(deviceInfo.fdOps_, ETSOC1_IOCTL_GET_P2PDMA_DEVICE_COMPAT_BITMAP, &deviceInfo.p2pCompatBitmap_);
 
     logs << std::endl;
     logInfoLine(logs, "PCIe target:", path);
@@ -338,6 +342,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
     logInfoLine(logs, "DRAM alignment (bits):", deviceInfo.userDram_.align_in_bits);
     logInfoLine(logs, "MM SQ count:", deviceInfo.mmSqCount_, true);
     logInfoLine(logs, "MM VQ Maximum message size (B):", deviceInfo.mmSqMaxMsgSize_, true);
+    logInfoLine(logs, "P2P compatibility bitmap:", deviceInfo.p2pCompatBitmap_, true);
   }
 
   auto fd = mgmtEnabled_ ? deviceInfo.fdMgmt_ : deviceInfo.fdOps_;
@@ -357,9 +362,11 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
                                  cfg.minion_boot_freq,
                                  cfg.cm_shire_mask,
                                  cfg.sync_min_shire_id,
-                                 parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev))};
+                                 parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev)),
+                                 cfg.devnum};
 
   logInfoLine(logs, "PCIBUS device name:", deviceInfo.devName_.data());
+  logInfoLine(logs, "Physical device ID:", +deviceInfo.cfg_.physDeviceId_, true);
   logInfoLine(logs, "Form Factor:", deviceInfo.cfg_.formFactor_, true);
   logInfoLine(logs, "TDP (W):", +deviceInfo.cfg_.tdp_);
   logInfoLine(logs, "Minion boot frequency (MHz):", +deviceInfo.cfg_.minionBootFrequency_);
@@ -536,6 +543,14 @@ size_t DevicePcie::getSubmissionQueueSizeMasterMinion(int device) const {
   CHECK_OPS_ENABLED();
   CHECK_VALID_DEVICE(device);
   return devices_[static_cast<unsigned long>(device)].mmSqMaxMsgSize_;
+}
+
+bool DevicePcie::checkP2pDmaCompatibility(int deviceA, int deviceB) const {
+  CHECK_OPS_ENABLED();
+  CHECK_VALID_DEVICE(deviceA);
+  CHECK_VALID_DEVICE(deviceB);
+  return (1U << devices_[static_cast<unsigned long>(deviceB)].cfg_.physDeviceId_) &
+         devices_[static_cast<unsigned long>(deviceA)].p2pCompatBitmap_;
 }
 
 void* DevicePcie::allocDmaBuffer(int device, size_t sizeInBytes, bool writeable) {

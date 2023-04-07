@@ -57,6 +57,7 @@ public:
   std::string getDeviceAttribute(int device, std::string relAttrPath) const override;
   void clearDeviceAttributes(int device, std::string relGroupPath) const override;
   void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) override;
+  bool checkP2pDmaCompatibility(int deviceA, int deviceB) const override;
 
 private:
   struct DevInfo {
@@ -70,6 +71,7 @@ private:
     int epFdOps_;
     int fdMgmt_;
     int epFdMgmt_;
+    uint64_t p2pCompatBitmap_;
   };
 
   void setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgmt, bool enableOps,

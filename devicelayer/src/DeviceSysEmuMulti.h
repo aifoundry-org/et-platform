@@ -53,6 +53,7 @@ public:
   void clearDeviceAttributes(int device, std::string relGroupPath) const override;
   void reinitDeviceInstance(int device, bool masterMinionOnly, std::chrono::milliseconds timeout) override;
   void hintInactivity(int device) override;
+  bool checkP2pDmaCompatibility(int deviceA, int deviceB) const override;
 
 private:
   DeviceSysEmu& getDevice(int device);

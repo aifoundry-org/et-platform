@@ -55,6 +55,7 @@ struct DeviceConfig {
   uint32_t computeMinionShireMask_;    ///< mask which indicates what are the compute minion shires
   uint8_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
   ArchRevision archRevision_;          ///< architecture revision
+  uint8_t physDeviceId_;               ///< physical device ID
 };
 
 /// \brief This struct contains the limitations / optimal DMA parameters.
@@ -76,6 +77,7 @@ struct CmdFlagSP {
 struct CmdFlagMM {
   bool isDma_ = false;
   bool isHpSq_ = false;
+  bool isP2pDma_ = false;
 };
 
 /// \brief This enum contains possible trace buffer types to extract from SP
@@ -385,6 +387,15 @@ public:
   /// @param[in] device the device to be hinted
   ///
   virtual void hintInactivity(int device);
+
+  /// \brief Evaluates the Peer-to-Peer DMA compatibility of given devices.
+  ///
+  /// @param[in] deviceA the peer device A
+  /// @param[in] deviceB the peer device B
+  ///
+  /// @returns true if deviceA and deviceB are compatible for P2P DMA, false otherwise
+  ///
+  virtual bool checkP2pDmaCompatibility(int deviceA, int deviceB) const;
 };
 
 class IDeviceLayer : public IDeviceAsync, public IDeviceSync {

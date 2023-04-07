@@ -139,3 +139,6 @@ void DeviceSysEmuMulti::reinitDeviceInstance(int device, bool masterMinionOnly, 
 void DeviceSysEmuMulti::hintInactivity(int device) {
   return getDevice(device).hintInactivity(device);
 }
+bool DeviceSysEmuMulti::checkP2pDmaCompatibility(int deviceA, int deviceB) const {
+  return getDevice(deviceA).checkP2pDmaCompatibility(deviceA, deviceB);
+}

@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased] 
 ### Added
+- [SW-16508] Add support for peer-to-peer DMA.
 ### Changed
 - [SW-16268] Migrate CI pipeline to use pre-release strategy
 - (Conan) Depend on hostUtils/0.3.0
+- [SW-16508] Peer-to-peer DMA requires 0.14.0 driver hence updating kMinReqDriverVersion=0.14.0
 ### Deprecated
 ### Removed
 ### Fixed

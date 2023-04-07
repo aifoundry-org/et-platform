@@ -39,3 +39,8 @@ void IDeviceSync::reinitDeviceInstance(int, bool, std::chrono::milliseconds) {
 void IDeviceSync::hintInactivity(int) {
   // do nothing by default
 }
+
+bool IDeviceSync::checkP2pDmaCompatibility(int, int) const {
+  // return false by default
+  return false;
+}

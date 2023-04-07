@@ -641,7 +641,7 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
   free(dmaBuffer);
 }
 
-DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
+DeviceConfig DeviceSysEmu::getDeviceConfig(int device) {
   return DeviceConfig{
     DeviceConfig::FormFactor::PCIE,      /* form factor */
     25,                                  /* tdp (W) */
@@ -654,7 +654,8 @@ DeviceConfig DeviceSysEmu::getDeviceConfig(int) {
     1000,                                /* Mhz */
     spInfo_.generic_attr.cm_shires_mask, /* shire mask */
     32,                                  /* spare minion shire id */
-    DeviceConfig::ArchRevision::ETSOC1   /* Arch revision */
+    DeviceConfig::ArchRevision::ETSOC1,  /* Arch revision */
+    static_cast<uint8_t>(device)         /* Physical device ID */
   };
 }
 
@@ -701,6 +702,12 @@ void DeviceSysEmu::clearDeviceAttributes(int, std::string) const {
 void DeviceSysEmu::reinitDeviceInstance(int, bool, std::chrono::milliseconds) {
   // No implementation for DeviceSysEmu class
 }
+
 void DeviceSysEmu::hintInactivity(int) {
   sysEmu_->pause();
+}
+
+bool DeviceSysEmu::checkP2pDmaCompatibility(int, int) const {
+  // No implementation for DeviceSysEmu class
+  return false;
 }
