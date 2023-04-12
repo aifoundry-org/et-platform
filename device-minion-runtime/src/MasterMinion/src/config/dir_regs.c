@@ -120,7 +120,8 @@ void DIR_Init(void)
     Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_VQ_BUFFER].access_attr =
         MEM_REGION_IOACCESS_SET(MEM_REGION_IOACCESS_ENABLED) |
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_NONE) |
-        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE);
+        MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_NONE) |
+        MEM_REGION_P2PACCESS_SET(MEM_REGION_P2PACCESS_DISABLED);
 
     /* Populate the OPS Host Managed memory region attributes */
     Gbl_MM_DIRs->mem_regions[MM_DEV_INTF_MEM_REGION_TYPE_OPS_HOST_MANAGED].type =
@@ -138,7 +139,8 @@ void DIR_Init(void)
         MEM_REGION_NODE_ACCESSIBLE_SET(MEM_REGION_NODE_ACCESSIBLE_OPS) |
         MEM_REGION_DMA_ALIGNMENT_SET(MEM_REGION_DMA_ALIGNMENT_64_BIT) |
         MEM_REGION_DMA_ELEMENT_COUNT_SET(MEM_REGION_DMA_ELEMENT_COUNT) |
-        MEM_REGION_DMA_ELEMENT_SIZE_SET(MEM_REGION_DMA_ELEMENT_SIZE);
+        MEM_REGION_DMA_ELEMENT_SIZE_SET(MEM_REGION_DMA_ELEMENT_SIZE) |
+        MEM_REGION_P2PACCESS_SET(MEM_REGION_P2PACCESS_ENABLED);
 
     return;
 }
@@ -211,7 +213,7 @@ void DIR_Update_Interface_Ready(void)
 *
 *   DESCRIPTION
 *
-*       Set Mem region bar size based on DDR size retrieved from SP
+*       Sets Mem region bar size.
 *
 *   INPUTS
 *
@@ -225,6 +227,5 @@ void DIR_Update_Interface_Ready(void)
 ***********************************************************************/
 void DIR_Update_Mem_Region_Size(int16_t region_type, uint64_t region_size)
 {
-    /* update ops mem region with DDR size */
     Gbl_MM_DIRs->mem_regions[region_type].bar_size = region_size;
 }

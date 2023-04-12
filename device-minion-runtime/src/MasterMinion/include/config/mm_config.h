@@ -48,6 +48,16 @@
 /*     MM CQs           0xA00         0x600     */
 /************************************************/
 
+/*******************/
+/* Generic defines */
+/*******************/
+
+/*! \def MM_HOST_MANAGED_DRAM_OS_P2PDMA_ALIGNMENT
+    \brief A macro that provides the alignment requirement of
+    P2P DMA by Linux OS for host managed DRAM space.
+*/
+#define MM_HOST_MANAGED_DRAM_OS_P2PDMA_ALIGNMENT (SIZE_1MB * 2)
+
 /**********************/
 /* DIR Configuration  */
 /**********************/

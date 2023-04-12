@@ -84,13 +84,17 @@ int32_t MM_Config_Init(void)
         /* Validate DDR size limit */
         if (ddr_mem_size <= HOST_MANAGED_DRAM_SIZE_MAX)
         {
+            uint64_t host_dram_size =
+                (ddr_mem_size - (HOST_MANAGED_DRAM_START - LOW_MCODE_SUBREGION_BASE));
+
+            /* Align the total size of the region */
+            host_dram_size -= (host_dram_size % MM_HOST_MANAGED_DRAM_OS_P2PDMA_ALIGNMENT);
+
             /* Save DDR size and DRAM end based on size in CB */
             atomic_store_local_64(&MM_Config_CB.ddr_size, ddr_mem_size);
-            atomic_store_local_64(&MM_Config_CB.host_managed_dram_size,
-                (ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE)));
-            atomic_store_local_64(&MM_Config_CB.host_managed_dram_end,
-                (HOST_MANAGED_DRAM_START +
-                    (ddr_mem_size - (KERNEL_UMODE_ENTRY - LOW_MCODE_SUBREGION_BASE))));
+            atomic_store_local_64(&MM_Config_CB.host_managed_dram_size, host_dram_size);
+            atomic_store_local_64(
+                &MM_Config_CB.host_managed_dram_end, HOST_MANAGED_DRAM_START + host_dram_size);
         }
         else
         {

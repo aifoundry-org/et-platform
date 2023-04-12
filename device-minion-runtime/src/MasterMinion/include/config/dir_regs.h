@@ -127,6 +127,21 @@
 */
 #define MEM_REGION_DMA_ELEMENT_COUNT DMA_MAX_ENTRIES_PER_LL
 
+/*! \def MEM_REGION_P2PACCESS_SET(x)
+    \brief Macro that sets the P2P access for a memory region
+*/
+#define MEM_REGION_P2PACCESS_SET(x) (((x)&0x1) << 17)
+
+/*! \def MEM_REGION_P2PACCESS_DISABLED
+    \brief Macro representing P2P access disabled for a memory region
+*/
+#define MEM_REGION_P2PACCESS_DISABLED 0x0
+
+/*! \def MEM_REGION_P2PACCESS_ENABLED
+    \brief Macro representing P2P access enabled for a memory region
+*/
+#define MEM_REGION_P2PACCESS_ENABLED 0x1
+
 /***************************/
 /* MM DIRs data structures */
 /***************************/

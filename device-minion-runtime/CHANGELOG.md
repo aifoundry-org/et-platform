@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+[SW-16695] Added support for P2P node accessibility and host managed DRAM alignment requirements.
 ### Changed
 ### Deprecated
 ### Removed
