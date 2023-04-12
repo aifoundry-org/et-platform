@@ -2542,6 +2542,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 
     return status;
 }
+
 #if !(FAST_BOOT || TEST_FRAMEWORK)
 /************************************************************************
 *
@@ -2557,7 +2558,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 *   INPUTS
 *
 *       voltage_type      voltage type to be set
-*       voltage           voltage value to be set  
+*       voltage           voltage value to be set
 *
 *   OUTPUTS
 *
@@ -2580,7 +2581,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_memshire_avg_low_high_voltage,
                                     memshire_voltage, memshire_voltage.vdd_ms.current, voltage_mv,
                                     status)
-            return status;
+            break;
         case MODULE_L2CACHE:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_SRAM_VOLTAGE_BASE,
                                                          PMIC_SRAM_VOLTAGE_MULTIPLIER,
@@ -2588,7 +2589,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             MinShire_VM_sample minshire_voltage = { 0 };
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, minshire_voltage,
                                     minshire_voltage.vdd_sram.current, voltage_mv, status)
-            return status;
+            break;
         case MODULE_MAXION:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_MAXION_VOLTAGE_BASE,
                                                          PMIC_MAXION_VOLTAGE_MULTIPLIER,
@@ -2596,7 +2597,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             IOShire_VM_sample ioshire_voltage = { 0 };
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_ioshire_vm_sample, ioshire_voltage,
                                     ioshire_voltage.vdd_mxn.current, voltage_mv, status)
-            return status;
+            break;
         case MODULE_MINION:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_MINION_VOLTAGE_BASE,
                                                          PMIC_MINION_VOLTAGE_MULTIPLIER,
@@ -2604,7 +2605,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             MinShire_VM_sample mnn_voltage = { 0 };
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, mnn_voltage,
                                     mnn_voltage.vdd_mnn.current, voltage_mv, status)
-            return status;
+            break;
         case MODULE_NOC:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_NOC_VOLTAGE_BASE,
                                                          PMIC_NOC_VOLTAGE_MULTIPLIER,
@@ -2612,7 +2613,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             MinShire_VM_sample noc_voltage = { 0 };
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, noc_voltage,
                                     noc_voltage.vdd_noc.current, voltage_mv, status)
-            return status;
+            break;
         case MODULE_PCIE_LOGIC:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_PCIE_LOGIC_VOLTAGE_BASE,
                                                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER,
@@ -2620,19 +2621,30 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             IOShire_VM_sample pcie_logic_voltage = { 0 };
             VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_ioshire_vm_sample, pcie_logic_voltage,
                                     pcie_logic_voltage.vdd_0p75.current, voltage_mv, status)
-            return status;
+            break;
         case MODULE_PCIE: /* pvt is reporting wrong pcie voltage for PCIE */
         case MODULE_VDDQLP:
         case MODULE_VDDQ:
             /* pvt sensors for these modules are not available */
-            return STATUS_SUCCESS;
+            status = STATUS_SUCCESS;
+            break;
         default: {
             MESSAGE_ERROR("Error invalid voltage type to set Voltage");
-            return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
+            status = ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
+            break;
         }
     }
+
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "%s:Module:%d:Voltage to set:%d\r\n", __func__, voltage_type,
+                  voltage);
+    }
+
+    return status;
 }
 #endif
+
 /************************************************************************
 *
 *   FUNCTION
@@ -2646,7 +2658,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
 *   INPUTS
 *
 *       voltage_type      voltage type to be set
-*       voltage           voltage value to be set  
+*       voltage           voltage value to be set
 *
 *   OUTPUTS
 *
