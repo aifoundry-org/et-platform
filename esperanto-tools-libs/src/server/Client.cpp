@@ -16,6 +16,9 @@
 #include "Utils.h"
 #include "runtime/Types.h"
 
+#include <easy/arbitrary_value.h>
+#include <easy/details/profiler_colors.h>
+#include <easy/profiler.h>
 #include <poll.h>
 #include <sstream>
 #include <sys/socket.h>
@@ -78,9 +81,11 @@ Client::Client(const std::string& socketPath) {
 }
 
 void Client::responseProcessor() {
+  EASY_THREAD_SCOPE("Client::responseProcessor")
   auto requestBuffer = std::vector<char>(kMaxMessageSize);
   try {
     while (running_) {
+      EASY_BLOCK("Client::responseProcessor::loop")
       RT_VLOG(LOW) << "Reading response ...";
 
       pollfd pfd;
@@ -91,6 +96,7 @@ void Client::responseProcessor() {
       }
 
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); running_) {
+        EASY_BLOCK("Client::responseProcessor::read")
         if (res < 0) {
           RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
           break;
@@ -103,14 +109,19 @@ void Client::responseProcessor() {
           RT_VLOG(HIGH) << "Got response, size: " << res << ". Type: " << static_cast<uint32_t>(response.type_)
                         << " id: " << response.id_;
           bool done = false;
-          for (int i = 0; i < kProcessResponseTries && !done;) {
+          for (int i = 0; i < kProcessResponseTries && !done; ++i) {
             try {
               processResponse(response);
               done = true;
-            } catch (const Exception&) {
+            } catch (const Exception& e) {
+              EASY_EVENT("Response arrived before request, sometimes happens. Will retry.")
+              RT_LOG(WARNING) << "Exception happened (response arrived before request): " << e.what();
               using namespace std::literals;
-              std::this_thread::sleep_for(100ms);
+              std::this_thread::sleep_for(1us);
             }
+          }
+          if (!done) {
+            RT_LOG(FATAL) << "Failed to process response after " << kProcessResponseTries << " tries. Aborting.";
           }
         } else {
           RT_LOG(INFO) << "Socket closed, ending client listener thread.";
@@ -126,6 +137,7 @@ void Client::responseProcessor() {
 }
 
 bool Client::doWaitForEvent(EventId event, std::chrono::seconds timeout) {
+  EASY_FUNCTION(profiler::colors::Red300)
   SpinLock lock(mutex_);
   if (eventToStream_.find(event) == end(eventToStream_)) {
     return true;
@@ -157,18 +169,21 @@ req::Id Client::getNextId() {
 }
 
 void Client::sendRequest(const req::Request& request) {
+  EASY_FUNCTION()
+  EASY_BLOCK("Serialize request")
   RT_VLOG(MID) << "Sending request " << static_cast<uint32_t>(request.type_) << " with id: " << request.id_;
-  SpinLock lock(mutex_);
   std::stringstream sreq;
   cereal::PortableBinaryOutputArchive archive(sreq);
   archive(request);
+  EASY_END_BLOCK
   auto str = sreq.str();
+  SpinLock lock(mutex_);
   if (responseWaiters_.find(request.id_) != end(responseWaiters_)) {
     RT_LOG(WARNING) << "There was a previous response structure (Waiter) for request ID: " << request.id_
                     << ". New request ID will erase the previous one. This is likely a BUG.";
   }
   responseWaiters_[request.id_] = std::make_unique<Waiter>();
-
+  EASY_BLOCK("Write socket")
   if (auto res = write(socket_, str.data(), str.size()); res < static_cast<long>(str.size())) {
     auto errorMsg = std::string{strerror(errno)};
     RT_VLOG(LOW) << "Write socket error: " << errorMsg;
@@ -176,6 +191,7 @@ void Client::sendRequest(const req::Request& request) {
   }
 }
 resp::Response::Payload_t Client::waitForResponse(req::Id req) {
+  EASY_FUNCTION()
   SpinLock lock(mutex_);
   auto it = find(responseWaiters_, req, "Request not registered");
   auto& waiter = *it->second;
@@ -192,14 +208,18 @@ resp::Response::Payload_t Client::waitForResponse(req::Id req) {
 }
 
 void Client::dispatch(EventId event) {
+  EASY_FUNCTION()
+  EASY_VALUE("Event", static_cast<int>(event))
   auto st = find(eventToStream_, event, "Event does not exist")->second;
   eventToStream_.erase(event);
   auto& events = find(streamToEvents_, st, "Stream not found")->second;
-  std::remove(begin(events), end(events), event);
+  auto it = std::remove(begin(events), end(events), event);
+  events.erase(it, end(events));
   eventSync_.notify_all();
 }
 
 void Client::processResponse(const resp::Response& response) {
+  EASY_FUNCTION()
   RT_VLOG(MID) << "Processing response";
   SpinLock lock(mutex_);
   switch (response.type_) {
@@ -252,16 +272,21 @@ void Client::processResponse(const resp::Response& response) {
 }
 
 EventId Client::registerEvent(const resp::Response::Payload_t& payload, StreamId st) {
+  EASY_FUNCTION(profiler::colors::Purple)
   auto evt = std::get<resp::Event>(payload).event_;
+  EASY_VALUE("Event", static_cast<int>(evt))
   registerEvent(evt, st);
   return evt;
 }
 
 void Client::registerEvent(EventId evt, StreamId st) {
+  EASY_FUNCTION(profiler::colors::Purple)
   SpinLock lock(mutex_);
   find(streamToEvents_, st, "Stream does not exist");
   eventToStream_[evt] = st;
   streamToEvents_[st].emplace_back(evt);
+  EASY_VALUE("Event", static_cast<int>(evt))
+  EASY_VALUE("Stream", static_cast<int>(st))
 }
 
 EventId Client::doAbortStream(StreamId st) {
@@ -270,6 +295,7 @@ EventId Client::doAbortStream(StreamId st) {
 }
 
 void Client::handShake() {
+  EASY_FUNCTION()
   auto payload = sendRequestAndWait(req::Type::VERSION, std::monostate{});
   if (std::get<resp::Version>(payload).version_ != 2) {
     throw Exception("Unsupported version. Current client version only supports version: 2. Please update the runtime "

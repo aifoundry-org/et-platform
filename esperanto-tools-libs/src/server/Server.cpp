@@ -12,6 +12,7 @@
 #include "Utils.h"
 #include "Worker.h"
 #include "runtime/Types.h"
+#include <easy/profiler.h>
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <linux/capability.h>
 #include <mutex>
@@ -45,6 +46,7 @@ Server::~Server() {
 
 Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options)
   : deviceLayer_{std::move(deviceLayer)} {
+
   cap_t caps;
   cap_value_t capList = CAP_SYS_PTRACE;
 
@@ -92,14 +94,17 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
 }
 
 void Server::listen() {
-
+  EASY_THREAD_SCOPE("Server::listener")
   while (running_) {
     pollfd pfd;
     pfd.events = POLLIN;
     pfd.fd = socket_;
+    EASY_BLOCK("Server::listener::poll", profiler::colors::Blue)
     if (poll(&pfd, 1, 5) == 0) {
       continue;
     }
+    EASY_END_BLOCK
+    EASY_BLOCK("Server::listener::accept", profiler::colors::Blue)
     auto cl = accept(socket_, nullptr, nullptr);
     if (cl < 0) {
       RT_LOG(WARNING) << "Accept error: " << strerror(errno) << ". Ignoring this client connection.";
@@ -136,6 +141,7 @@ void Server::listen() {
 
 void Server::removeWorker(Worker* worker) {
   tp_.pushTask([this, worker] {
+    EASY_THREAD("Server::removeWorker");
     RT_VLOG(LOW) << "Removing worker: " << worker;
     SpinLock lock(mutex_);
     if (running_) {

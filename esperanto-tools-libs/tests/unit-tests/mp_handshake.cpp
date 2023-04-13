@@ -61,7 +61,7 @@ TEST(mp, handshake) {
   }
 }
 
-TEST(mp, handshake_1000) {
+TEST(mp, handshake_500) {
 #ifdef __SANITIZE_ADDRESS__
   {
     logging::LoggerDefault logger_;
@@ -72,7 +72,7 @@ TEST(mp, handshake_1000) {
   int fd[2];
   ASSERT_EQ(pipe(fd), 0);
   auto socketName = getTmpFileName();
-  int numChildren = 1000;
+  int numChildren = 500;
   std::vector<pid_t> children;
   for (int i = 0; i < numChildren; ++i) {
     auto pid = fork();

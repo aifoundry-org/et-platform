@@ -14,7 +14,7 @@ include:
       - /jobs/sw-platform-trigger-template.yaml
 
   - project: 'software/gitlab-ci-common'
-    ref: master
+    ref: 62dd746e59efef47d61463c22bc84254e1437ebe
     file:
       - 'jobs/conan-jobs.yaml'
 
@@ -30,7 +30,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: develop/runtime
+  SW_PLATFORM_BRANCH: jvera/run-only-1job-for-testing-debug
   PIPELINE_CI_SUBPROJECT: esperanto-tools-libs
 
 # Only run job in these cases:
@@ -211,7 +211,7 @@ tests:conan:sysemu:
       cmake --build --preset ${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
       ctest -L 'Generic' -LE 'MP' --output-on-failure -j 4
-      ctest -L 'Generic' -L 'MP' --output-on-failure
+      sudo ctest -L 'Generic' -L 'MP' --output-on-failure
 
 # FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
 # dependencies (java, sonar-scanner)
@@ -257,7 +257,7 @@ nightly_torture_tests:conan:sysemu:
       cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset ${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
-      ctest -L 'Generic' --repeat until-fail:10 --output-on-failure
+      sudo ctest -L 'Generic' --repeat until-fail:10 --output-on-failure
 
 # integration testing with sw-platform
 #

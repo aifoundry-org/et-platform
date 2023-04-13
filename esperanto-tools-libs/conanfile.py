@@ -18,11 +18,13 @@ class RuntimeConan(ConanFile):
         "with_tools": [True, False],
         "with_tests": [True, False],
         "with_sysemu_artifacts": ['current'],
+        "with_easy_profiler": [True, False],
     }
     default_options = {
         "with_tools": False,
         "with_tests": False,
         "with_sysemu_artifacts": "current",
+        "with_easy_profiler": False,
     }
 
     scm = {
@@ -70,6 +72,8 @@ class RuntimeConan(ConanFile):
             if self.settings.build_type == "Debug":
                 extra_settings = "-s:h *:build_type=Release"
             self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing")
+        
+        self.requires("easy_profiler/2.1.0")            #need this nevertheless for the include files
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -84,6 +88,7 @@ class RuntimeConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["BUILD_TOOLS"] = self.options.get_safe("with_tools")
+        tc.variables["DISABLE_EASY_PROFILER"] = not self.options.get_safe("with_easy_profiler")
         tc.variables["BUILD_DOCS"] = False
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
@@ -94,7 +99,7 @@ class RuntimeConan(ConanFile):
         cmake.configure()
         cmake.build()
         if self.options.with_tests and not tools.cross_building(self.settings):
-            self.run("ctest -L 'Generic' --no-compress-output")
+            self.run("sudo ctest -L 'Generic' --no-compress-output")
 
     def package(self):
         cmake = CMake(self)
@@ -106,7 +111,7 @@ class RuntimeConan(ConanFile):
         self.cpp_info.components["etrt"].names["cmake_find_package"] = "etrt"
         self.cpp_info.components["etrt"].names["cmake_find_package_multi"] = "etrt"
         self.cpp_info.components["etrt"].set_property("cmake_target_name", "runtime::etrt")
-        self.cpp_info.components["etrt"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "elfio::elfio"]
+        self.cpp_info.components["etrt"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "elfio::elfio", "easyprofiler::easyprofiler"]
         self.cpp_info.components["etrt"].libs = ["etrt"]
         self.cpp_info.components["etrt"].includedirs = ["include"]
         self.cpp_info.components["etrt"].libdirs = ["lib"]
@@ -114,7 +119,7 @@ class RuntimeConan(ConanFile):
         self.cpp_info.components["etrt_static"].names["cmake_find_package"] = "etrt_static"
         self.cpp_info.components["etrt_static"].names["cmake_find_package_multi"] = "etrt_static"
         self.cpp_info.components["etrt_static"].set_property("cmake_target_name", "runtime::etrt_static")
-        self.cpp_info.components["etrt_static"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "elfio::elfio"]
+        self.cpp_info.components["etrt_static"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "elfio::elfio", "easyprofiler::easyprofiler"]
         self.cpp_info.components["etrt_static"].libs = ["etrt_static"]
         self.cpp_info.components["etrt_static"].includedirs = ["include"]
         self.cpp_info.components["etrt_static"].libdirs = ["lib"]

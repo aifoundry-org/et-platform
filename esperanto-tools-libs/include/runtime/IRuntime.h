@@ -319,7 +319,7 @@ public:
   DmaInfo getDmaInfo(DeviceId deviceId) const;
 
   /// \brief Virtual Destructor to enable polymorphic release of the runtime instances
-  virtual ~IRuntime() = default;
+  virtual ~IRuntime();
   ///
 
   /// \brief Constructor to initialize with a dummy profiler

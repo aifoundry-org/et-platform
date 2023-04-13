@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cassert>
 #include <condition_variable>
+#include <easy/profiler.h>
 #include <mutex>
 #include <thread>
 
@@ -40,6 +41,7 @@ EventId EventManager::getNextId() {
 }
 
 void EventManager::dispatch(EventId event) {
+  EASY_FUNCTION()
   std::unique_lock lock(mutex_);
   RT_VLOG(LOW) << "Dispatching event " << static_cast<int>(event);
   if (onflyEvents_.erase(event) != 1) {

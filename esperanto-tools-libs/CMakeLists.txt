@@ -27,6 +27,7 @@ include(CoverageSupport)
 option(BUILD_TESTS "Enable/disable building tests" ON)
 option(BUILD_TOOLS "Enable/disable building tools" ON)
 option(BUILD_DOCS "Enable/disable building documentation" ON)
+option(DISABLE_EASY_PROFILER "Enable/disable easy profiler" ON)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 option(ENABLE_SANITIZER_ADDRESS "" OFF)
 option(ENABLE_SANITIZER_LEAK "" OFF)
@@ -56,13 +57,19 @@ set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install
 find_package(cereal REQUIRED)
 find_package(elfio REQUIRED)
 find_package(gflags REQUIRED)
+find_package(libcap REQUIRED)
+find_package(easy_profiler REQUIRED)  
+
+
+if (NOT TARGET easy_profiler)
+  add_library(easy_profiler ALIAS easy_profiler::easy_profiler)
+endif()
+
 
 # Esperanto dependencies
-find_package(libcap REQUIRED)
 find_package(deviceApi REQUIRED)
 find_package(deviceLayer REQUIRED)
 find_package(hostUtils REQUIRED)
-
 # Runtime base object library
 add_library(etrt_obj OBJECT
     src/Runtime.cpp
@@ -97,11 +104,13 @@ set_target_properties(etrt_obj PROPERTIES
     PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/Types.h;include/runtime/DeviceLayerFake.h"
     POSITION_INDEPENDENT_CODE ON
 )
-    target_compile_definitions(etrt_obj
-        PRIVATE
-            $<$<BOOL:${SYNCHRONOUS_MODE}>: RUNTIME_SYNCHRONOUS_MODE>
-            $<$<BOOL:${DISABLE_SANITY_CHECKS}>: DISABLE_SANITY_CHECKS>
-    )
+
+target_compile_definitions(etrt_obj
+    PRIVATE
+        $<$<BOOL:${SYNCHRONOUS_MODE}>: RUNTIME_SYNCHRONOUS_MODE>
+        $<$<BOOL:${DISABLE_SANITY_CHECKS}>: DISABLE_SANITY_CHECKS>
+        $<$<BOOL:${DISABLE_EASY_PROFILER}>: DISABLE_EASY_PROFILER>
+)
 
 target_include_directories(etrt_obj
     PUBLIC
@@ -119,6 +128,7 @@ target_link_libraries(etrt_obj
         hostUtils::debug
         deviceApi::deviceApi
     PRIVATE
+        easy_profiler
         libcap::libcap
         cereal::cereal
         deviceLayer::deviceLayer
@@ -127,6 +137,7 @@ target_link_libraries(etrt_obj
         hostUtils::actionList
         elfio::elfio
 )
+
 
 ## Build shared library
 add_library(etrt SHARED)
@@ -143,11 +154,15 @@ add_executable(server src/server/main.cpp)
 target_include_directories(server PRIVATE src)
 target_link_libraries(server 
     PRIVATE 
-        runtime::etrt_static
+        runtime::etrt
         deviceLayer::deviceLayer
         gflags::gflags
         cereal::cereal)
-
+target_compile_definitions(server 
+    PRIVATE
+        $<$<BOOL:${DISABLE_EASY_PROFILER}>: DISABLE_EASY_PROFILER>
+    )    
+    
 ## Install library targets (new)
 install(TARGETS etrt_obj etrt etrt_static server
     EXPORT runtimeTargets

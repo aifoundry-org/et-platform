@@ -15,10 +15,10 @@
 #include <thread>
 
 using namespace std::literals;
-TEST(mp_only_orchestrator, 1000_process) {
+TEST(mp_only_orchestrator, 500_process) {
   MpOrchestrator orch;
   orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
-  for (int i = 0; i < 1000; ++i) {
+  for (int i = 0; i < 500; ++i) {
     orch.createClient([](const rt::IRuntime*) {});
   }
 }

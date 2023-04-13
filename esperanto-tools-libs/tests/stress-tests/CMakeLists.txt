@@ -24,6 +24,7 @@ set(MP_SYSEMU_TEST_LIST
   stress_mem.cpp:"--mp --mode=sysemu"
   stress_kernel.cpp:"--mp --mode=sysemu"
   launchKernel1M.cpp:"--mp --mode=sysemu"
+  #latency_mp_vs_sp.cpp:"" this test was used only for debugging SW-16519, to be removed (or add support for easyprofiler in tests directly)
 )
 
 set(MP_PCIE_TEST_LIST
@@ -31,7 +32,6 @@ set(MP_PCIE_TEST_LIST
   stress_kernel.cpp:"--mp --mode=pcie"
   launchKernel1M.cpp:"--mp --mode=pcie"
 )
-
 create_test_targets("${TEST_LIST}" "LABELS;Stress;LABELS;Generic;LABELS;Sysemu;TIMEOUT;300" "st_")
 
 create_test_targets("${MP_SYSEMU_TEST_LIST}" "LABELS;Sysemu;LABELS;Generic;LABELS;Stress;LABELS;MP;TIMEOUT;300" "st_mp_")

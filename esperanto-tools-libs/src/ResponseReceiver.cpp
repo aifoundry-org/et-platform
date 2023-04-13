@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <easy/profiler.h>
 #include <random>
 #include <thread>
 #include <utility>
@@ -30,6 +31,7 @@ constexpr auto kCheckDevicesPolling = 1ms;
 } // namespace
 
 void ResponseReceiver::checkResponses(int deviceId) {
+  EASY_THREAD_SCOPE("ResponseReceiver")
   // Max ioctl size is 14b
   constexpr uint32_t kMaxMsgSize = (1UL << 14) - 1;
 

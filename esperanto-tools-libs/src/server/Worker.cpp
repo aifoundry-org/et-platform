@@ -17,6 +17,7 @@
 #include "runtime/Types.h"
 #include <cereal/archives/portable_binary.hpp>
 #include <cstring>
+#include <easy/profiler.h>
 #include <g3log/loglevels.hpp>
 #include <sys/poll.h>
 #include <sys/types.h>
@@ -42,13 +43,17 @@ void Worker::update(EventId event) {
 }
 
 void Worker::sendResponse(const resp::Response& resp) {
+  EASY_FUNCTION(profiler::colors::Green)
   SpinLock lock(mutex_);
   RT_VLOG(MID) << "Sending response. Type: " << static_cast<uint32_t>(resp.type_) << "(" << resp::getStr(resp.type_)
                << ") Id: " << resp.id_;
+  EASY_BLOCK("Serialize response")
   std::stringstream response;
   cereal::PortableBinaryOutputArchive archive(response);
   archive(resp);
   auto str = response.str();
+  EASY_END_BLOCK
+  EASY_BLOCK("Write socket")
   if (auto res = write(socket_, str.data(), str.size()); res < static_cast<long>(str.size())) {
     auto errorMsg = std::string{strerror(errno)};
     RT_VLOG(LOW) << "Write socket error: " << errorMsg;
@@ -63,6 +68,7 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
 
   runtime_.attach(this);
   cmaCopyFunction_ = [pid = credentials.pid](const std::byte* src, std::byte* dst, size_t size, CmaCopyType type) {
+    EASY_BLOCK("CMA copy", profiler::colors::Green)
     iovec local;
     iovec remote;
     local.iov_len = remote.iov_len = size;
@@ -96,23 +102,31 @@ Worker::~Worker() {
 }
 
 void Worker::requestProcessor() {
+  using namespace std::string_literals;
+  auto threadName = "Server::Worker"s + std::to_string(workerId_++);
+  EASY_THREAD_SCOPE(threadName.c_str())
   constexpr size_t kMaxRequestSize = req::kMaxKernelSize + 4096; // 4096 is for all metadata
   auto requestBuffer = std::vector<char>(kMaxRequestSize);
   try {
     while (running_) {
+      EASY_BLOCK("requestProcessor::loop", profiler::colors::Blue)
       RT_VLOG(MID) << "Reading next request";
       pollfd pfd;
       pfd.events = POLLIN;
       pfd.fd = socket_;
+      EASY_BLOCK("poll")
       if (poll(&pfd, 1, 5) == 0) {
         continue;
       }
-
+      EASY_END_BLOCK
+      EASY_BLOCK("read")
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
         auto msg = std::string{"Read socket error: "} + strerror(errno);
         RT_VLOG(LOW) << msg;
         throw NetworkException(msg);
       } else if (res > 0) {
+        EASY_END_BLOCK
+        EASY_BLOCK("decodeRequest")
         auto ms = MemStream{requestBuffer.data(), static_cast<size_t>(res)};
         std::istream is(&ms);
         req::Id id{req::INVALID_REQUEST_ID};
@@ -121,6 +135,7 @@ void Worker::requestProcessor() {
           req::Request request;
           archive >> request;
           id = request.id_; // save in case runtime triggers an exception to answer with correct id
+          EASY_END_BLOCK
           processRequest(request);
         } catch (const Exception& e) {
           if (running_) {
@@ -139,6 +154,7 @@ void Worker::requestProcessor() {
 }
 
 void Worker::processRequest(const req::Request& request) {
+  EASY_FUNCTION(profiler::colors::LightGreen)
   SpinLock lock(mutex_);
   RT_VLOG(MID) << "Processing request. Type: " << static_cast<uint32_t>(request.type_) << " Id: " << request.id_;
   switch (request.type_) {

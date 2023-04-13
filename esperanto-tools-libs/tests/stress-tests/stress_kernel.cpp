@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 #include "RuntimeFixture.h"
 #include <algorithm>
+#include <easy/profiler.h>
 #include <future>
 #include <g3log/loglevels.hpp>
 #include <gtest/gtest.h>
@@ -209,6 +210,42 @@ TEST_F(StressKernel, 128_ele_1K_exe_1st_10_th_nocheck_NOSYSEMU) {
   }
 }
 
+#if 0
+disabled test, this is used only for debugging locally, not for CI
+TEST_F(StressKernel, LatencyTestSysEmu64_ele_10_exe_1_st_1_th_8devs) {
+  // force to be sysemu
+  RuntimeFixture::sDlType = DeviceLayerImp::SYSEMU;
+  RuntimeFixture::sNumDevices = 8;
+  // run first SP
+  RuntimeFixture::sRtType = RtType::SP;
+  std::vector<std::thread> threads;
+  TearDown();
+  SetUp();
+  EASY_BLOCK("SP")
+  for (auto i = 0U; i < sNumDevices; ++i) {
+    threads.emplace_back([this, i] { run_stress_kernel(1 << 6, 10, 1, 10, false, i); });
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+  EASY_END_BLOCK
+  threads.clear();
+  // now run MP
+  RuntimeFixture::sRtType = RtType::MP;
+  TearDown();
+  SetUp();
+  EASY_BLOCK("MP")
+  for (auto i = 0U; i < sNumDevices; ++i) {
+    threads.emplace_back([this, i] { run_stress_kernel(1 << 6, 10, 1, 10, false, i); });
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+  EASY_END_BLOCK
+  threads.clear();
+  profiler::dumpBlocksToFile("LatencyTestSysEmu64_ele_10_exe_1_st_1_th_8devs.prof");
+}
+#endif
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   RuntimeFixture::ParseArguments(argc, argv);

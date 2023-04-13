@@ -52,8 +52,9 @@ macro(build_test_binary)
 
     target_link_libraries(${TEST_TARGET}
         PRIVATE
+            easy_profiler
             runtime::test_utils
-            runtime::etrt_static
+            runtime::etrt
             cereal::cereal
             gflags::gflags
             deviceLayer::deviceLayer
@@ -63,6 +64,11 @@ macro(build_test_binary)
             stdc++fs
             OpenMP::OpenMP_CXX
     )
+    target_compile_definitions(${TEST_TARGET} 
+        PRIVATE
+          $<$<BOOL:${DISABLE_EASY_PROFILER}>: DISABLE_EASY_PROFILER>
+    )    
+    
     
     target_set_project_warnings(${TEST_TARGET})
     target_add_sanitizers(${TEST_TARGET})

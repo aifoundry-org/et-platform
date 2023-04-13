@@ -43,6 +43,7 @@ private:
       return device_ < other.device_ || (device_ == other.device_ && ptr_ < other.ptr_);
     }
   };
+  inline static std::atomic<size_t> workerId_{0};
 
   RuntimeImp& runtime_;
   CmaCopyFunction cmaCopyFunction_;

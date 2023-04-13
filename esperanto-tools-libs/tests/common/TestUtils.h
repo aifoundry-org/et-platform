@@ -131,7 +131,6 @@ inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transac
                            float memcpyListRatio = 0.0f) {
   std::vector<std::thread> threads_;
   using namespace testing;
-
   for (auto i = 0U; i < threads; ++i) {
     threads_.emplace_back(
       std::bind(stressMemThreadFunc, runtime, streams, transactions, bytes, check_results, deviceId, memcpyListRatio));

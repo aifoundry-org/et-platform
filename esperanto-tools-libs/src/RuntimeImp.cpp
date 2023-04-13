@@ -17,19 +17,19 @@
 #include "Utils.h"
 #include "dma/CmaManager.h"
 #include "dma/DmaBufferImp.h"
-
 #include "dma/IDmaBuffer.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 
+#include <chrono>
 #include <cstdint>
 #include <device-layer/IDeviceLayer.h>
+#include <easy/arbitrary_value.h>
+#include <easy/details/profiler_colors.h>
+#include <easy/profiler.h>
+#include <elfio/elfio.hpp>
 #include <esperanto/device-apis/device_apis_message_types.h>
 #include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
-
-#include <elfio/elfio.hpp>
-
-#include <chrono>
 #include <esperanto/device-apis/operations-api/device_ops_api_rpc_types.h>
 #include <hostUtils/threadPool/ThreadPool.h>
 #include <memory>
@@ -65,6 +65,7 @@ void RuntimeImp::onProfilerChanged() {
 RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
   : deviceLayer_{deviceLayer} {
 
+  RT_LOG(INFO) << "Profiler enabled? " << (profiler::isEnabled() ? "True" : "False");
   checkMemcpyDeviceAddress_ = options.checkMemcpyDeviceOperations_;
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);
@@ -330,6 +331,7 @@ void RuntimeImp::doDestroyStream(StreamId stream) {
 }
 
 bool RuntimeImp::doWaitForEvent(EventId event, std::chrono::seconds timeout) {
+  EASY_FUNCTION()
   if (!running_) {
     RT_LOG(WARNING) << "Trying to wait for an event but runtime is not running anymore, returning.";
     return true;
@@ -367,6 +369,7 @@ void RuntimeImp::doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& 
 }
 
 void RuntimeImp::processResponseError(DeviceId device, const ResponseError& responseError) {
+  EASY_FUNCTION()
   threadPools_.at(device)->pushTask([this, device, responseError] {
     bool dispatchNow = true;
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
@@ -423,7 +426,7 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
 }
 
 void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte>& response) {
-
+  EASY_FUNCTION()
   // check the response header
   auto header = reinterpret_cast<const rsp_header_t*>(response.data());
   auto eventId = EventId{header->rsp_hdr.tag_id};
@@ -665,6 +668,8 @@ EventId RuntimeImp::doAbortStream(StreamId streamId) {
 }
 
 void RuntimeImp::dispatch(EventId event) {
+  EASY_FUNCTION(profiler::colors::Green)
+  EASY_VALUE("Event", static_cast<int>(event))
   if (!running_) {
     RT_LOG(WARNING) << "Trying to dispatch an event but runtime is not running. Ignoring the dispatch."
                     << static_cast<int>(event);
@@ -693,6 +698,7 @@ void RuntimeImp::checkDevice(DeviceId device) {
 }
 
 void RuntimeImp::abortDevice(DeviceId device) {
+  EASY_FUNCTION()
   using namespace std::chrono_literals;
   // we need to ensure runtime is in running state to allow dispatch and waitForStream to work properly
   auto oldRunningState = running_;
@@ -710,6 +716,7 @@ void RuntimeImp::abortDevice(DeviceId device) {
 }
 
 void RuntimeImp::checkList(int device, const MemcpyList& list) const {
+  EASY_FUNCTION()
   auto dmaInfo = deviceLayer_->getDmaInfo(device);
   if (list.operations_.size() > dmaInfo.maxElementCount_) {
     throw Exception("Invalid element count in memcpy list. Max elements allowed is:" +
