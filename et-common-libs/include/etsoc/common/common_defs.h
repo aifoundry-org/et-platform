@@ -53,6 +53,18 @@
 */
 #define ALIGN_TO(address, alignment)     (((address + (alignment - 1)) / alignment) * alignment)
 
+/*! \def ROUND_UP(x, y)
+    \brief This macro rounds x up to the y boundary.
+    \warning y must a power of 2
+*/
+#define ROUND_UP(x, y) (((x) + (y) - 1) & ~((y) - 1))
+
+/*! \def ROUND_DOWN(x, y)
+    \brief This macro rounds x down to the y boundary.
+    \warning y must a power of 2
+*/
+#define ROUND_DOWN(x, y) ((x) & ~((y) - 1))
+
 /*! \def HARTS_PER_SHIRE
     \brief A macro that provides number of Harts per Shire
 */
