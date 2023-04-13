@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Add round up and round down help macros
 ### Changed
 - Remove target level flags and add project level C flags
 ### Deprecated
