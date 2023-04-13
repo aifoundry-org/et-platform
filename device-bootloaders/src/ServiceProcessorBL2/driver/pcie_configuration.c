@@ -24,6 +24,7 @@
 #include "config/mgmt_build_config.h"
 #include <interrupt.h>
 #include "bl2_reset.h"
+#include "mem_controller.h"
 
 #include "hwinc/dwc_pcie4_phy_x4_ns.h"
 #include "hwinc/sp_cru_reset.h"
@@ -388,15 +389,15 @@ static void pcie_init_bars(void)
     /* Only allow the host to size BAR0 to 32GB */
     iowrite32(
         PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_ADDRESS,
-        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_RESBAR_CAP_REG_0_16MB_SET(
+        PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_RESBAR_CAP_REG_0_32GB_SET(
             1));
 
-    /* Default BAR0 to 16MB. 16MB = 2^24. BAR size is encoded as
+    /* Default BAR0 to 32GB. 32GB = 2^35. BAR size is encoded as
        2^(RESBAR_CTRL_REG_BAR_SIZE + 20). */
     iowrite32(
         PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_ADDRESS,
         PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_RESBAR_CTRL_REG_BAR_SIZE_SET(
-            4));
+            15));
 
     /* BAR0 config (maps DRAM) */
     bar0 = ioread32(PCIE0 + PE0_DWC_EP_PCIE_CTL_DBI_SLAVE_PF0_TYPE0_HDR_BAR0_REG_ADDRESS);
@@ -665,18 +666,23 @@ static void pcie_init_atus(void)
     Log_Write(LOG_LEVEL_INFO, "done!\r\n");
     Log_Write(LOG_LEVEL_INFO, "pcie_init_atus: BAR0 baseAddr: %lx\r\n", baseAddr);
 
-    /* Setup BAR0
-       Name                  Host Addr           SoC Addr      Size    Notes
-       SP_DM_SCRATCH_REGION  BAR0 + 0x00921000   0x80018418c0  4M      F/W update - Scratch
-       SP_TRACE_BUFFER       BAR0 + 0x00000000   0x8001C418C0  4K      SP SMode Trace
-       MM_TRACE_BUFFER       BAR0 + 0x00001000   0x8001C428C0  1M      MM SMode Trace
-       CM_TRACE_BUFFER       BAR0 + 0x00101000   0x8001D428C0  8.125M  CM SMode Trace */
+    uint64_t region_size;
 
-    config_inbound_iatu_0(baseAddr,                   /* baseAddr */
-                          SP_DM_SCRATCH_REGION_BEGIN, /* targetAddr */
-                          SP_DM_SCRATCH_REGION_SIZE + SP_TRACE_BUFFER_SIZE + MM_TRACE_BUFFER_SIZE +
-                              CM_SMODE_TRACE_BUFFER_SIZE + SP_STATS_BUFFER_SIZE +
-                              MM_STATS_BUFFER_SIZE); /* size */
+    /* Read the total installed DDR size on the SoC first.
+    Its safe to read DDR size here since it was initialized before */
+    ddr_get_memory_size(&region_size);
+
+    /* Calculate the exact region size that is to be mapped on BAR0.
+    Subtract the DDR size before DRAM_MEMMAP_BEGIN */
+    region_size -= (DRAM_MEMMAP_BEGIN - LOW_MCODE_SUBREGION_BASE);
+
+    /* Setup BAR0
+       Name                  Host Addr           SoC Addr      Size       Notes
+       DRAM_MEMMAP_BEGIN     BAR0 + 0x00000000   0x8004001000  Till end   See layout.h for details */
+
+    config_inbound_iatu_0(baseAddr,          /* baseAddr */
+                          DRAM_MEMMAP_BEGIN, /* targetAddr */
+                          region_size);      /* size */
 
     Log_Write(LOG_LEVEL_INFO, "Waiting for host to assign BAR2 address...\r\n");
     /* Poll wait for the bar2 address to be assigned */

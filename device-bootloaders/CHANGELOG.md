@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Adding log error for voltage stability check.
 ### Changed
+- [SW-16695] Change BAR0 size to 32G and map the DDR till end on BAR0.
 ### Deprecated
 ### Removed
 ### Fixed
