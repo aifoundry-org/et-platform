@@ -11,11 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ## Fixed
- - [SW-16619] There is a responsereceiver thread per device. This thread is polling for responses (since interrupts or don't work or don't are performant enough.). The thread was quite agressively polling, tunning the polling times has fixed the leap in CPU usage.
-At the same time I have tuned down the CMA pool, since we have seen a huge increase in required time to allocate bigger chunks of CMA.
+### Security
+
+## [0.10.0]
+### Added
+- [SW-15675] Added easyprofiler support.
+## Fixed
+ - [SW-16519] Fixed an issue freeing events in the multiprocess flow which made each subsequent waitForStream (for any stream) take longer and longer.
+
+## [0.9.2]
+## Fixed
  - Removed StreamError breaking change; it gets a -1 as a device default parameter.
  - [SW-16687] Fixed bug in MemcpyListH2D.
-### Security
+
+## [0.9.1]
+## Fixed
+ - [SW-16619] There is a responsereceiver thread per device. This thread is polling for responses (since interrupts or don't work or don't are performant enough.). The thread was quite agressively polling, tunning the polling times has fixed the leap in CPU usage.
+At the same time I have tuned down the CMA pool, since we have seen a huge increase in required time to allocate bigger chunks of CMA.
 
 ## [0.9.0]
 ### Added
