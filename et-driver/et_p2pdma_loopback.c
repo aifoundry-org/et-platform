@@ -13,8 +13,8 @@
  ******************************************************************************
  */
 
-#include "et_p2pdma.h"
 #include "et_device_api.h"
+#include "et_p2pdma.h"
 #include "et_vqueue.h"
 
 static struct et_p2pdma_mapping p2pdma_mappings[ET_MAX_DEVS] = {};
@@ -39,42 +39,19 @@ int et_p2pdma_add_resource(struct et_pci_dev *et_dev,
 			   const struct et_bar_mapping *bm_info,
 			   struct et_mapped_region *region)
 {
-	int rv;
+	int rv = 0;
 	u8 devnum;
 	bool first_map;
 	struct et_p2pdma_region *new_region;
 
-	region->p2p.devres_id =
-		devres_open_group(&et_dev->pdev->dev, NULL, GFP_KERNEL);
-	if (!region->p2p.devres_id)
-		return -ENOMEM;
-
-	rv = pci_p2pdma_add_resource(et_dev->pdev,
-				     bm_info->bar,
-				     bm_info->size,
-				     bm_info->bar_offset);
-	devres_close_group(&et_dev->pdev->dev, region->p2p.devres_id);
-	if (rv)
-		goto error_devres_release_group;
-
-	region->p2p.virt_addr = pci_alloc_p2pmem(et_dev->pdev, bm_info->size);
-	if (!region->p2p.virt_addr) {
-		rv = -ENOMEM;
-		goto error_devres_release_group;
-	}
-
-	region->p2p.pci_bus_addr =
-		pci_p2pmem_virt_to_bus(et_dev->pdev, region->p2p.virt_addr);
-	if (!region->p2p.pci_bus_addr) {
-		rv = -ENOMEM;
-		goto error_free_p2pmem;
-	}
+	(void)bm_info;
+	region->p2p.devres_id = NULL;
+	region->p2p.virt_addr = NULL;
+	region->p2p.pci_bus_addr = region->dev_phys_addr;
 
 	new_region = kmalloc(sizeof(*new_region), GFP_KERNEL);
-	if (!new_region) {
-		rv = -ENOMEM;
-		goto error_free_p2pmem;
-	}
+	if (!new_region)
+		return -ENOMEM;
 
 	new_region->region = region;
 
@@ -114,44 +91,22 @@ int et_p2pdma_add_resource(struct et_pci_dev *et_dev,
 			down_write(&p2pdma_mappings[et_dev->devnum].rwsem);
 		}
 
-		// Find compatibility of this device with other device
+		// Setting all devices to be P2P compatible as long they are
+		// initialized
 		if (p2pdma_mappings[et_dev->devnum].pdev &&
 		    p2pdma_mappings[devnum].pdev) {
-			if (pci_p2pdma_distance(
-				    p2pdma_mappings[et_dev->devnum].pdev,
-				    &p2pdma_mappings[devnum].pdev->dev,
-				    false) >= 0) {
-				// Set bit in dev_compat_bitmap of this device
-				set_bit(devnum,
-					p2pdma_mappings[et_dev->devnum]
-						.dev_compat_bitmap);
-				// Set bit in dev_compat_bitmap of other device
-				set_bit(et_dev->devnum,
-					p2pdma_mappings[devnum]
-						.dev_compat_bitmap);
-			} else {
-				dev_warn(
-					&et_dev->pdev->dev,
-					"peer-to-peer DMA not supported with %s",
-					dev_name(&p2pdma_mappings[devnum]
-							  .pdev->dev));
-			}
+			// Set bit in dev_compat_bitmap of this device
+			set_bit(devnum,
+				p2pdma_mappings[et_dev->devnum]
+					.dev_compat_bitmap);
+			// Set bit in dev_compat_bitmap of other device
+			set_bit(et_dev->devnum,
+				p2pdma_mappings[devnum].dev_compat_bitmap);
 		}
 
 		up_write(&p2pdma_mappings[devnum].rwsem);
 		up_write(&p2pdma_mappings[et_dev->devnum].rwsem);
 	}
-
-	return rv;
-
-error_free_p2pmem:
-	pci_free_p2pmem(et_dev->pdev, region->p2p.virt_addr, bm_info->size);
-	region->p2p.virt_addr = NULL;
-	region->p2p.pci_bus_addr = 0;
-
-error_devres_release_group:
-	devres_release_group(&et_dev->pdev->dev, region->p2p.devres_id);
-	region->p2p.devres_id = NULL;
 
 	return rv;
 }
@@ -172,14 +127,6 @@ void et_p2pdma_release_resource(struct et_pci_dev *et_dev,
 			list) {
 			if (pos->region == region) {
 				list_del(&pos->list);
-				pci_free_p2pmem(
-					p2pdma_mappings[et_dev->devnum].pdev,
-					pos->region->p2p.virt_addr,
-					pos->region->size);
-				devres_release_group(
-					&p2pdma_mappings[et_dev->devnum]
-						 .pdev->dev,
-					pos->region->p2p.devres_id);
 				kfree(pos);
 				break;
 			}

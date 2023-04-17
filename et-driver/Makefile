@@ -31,6 +31,7 @@ esperanto-y := et_io_loopback.o \
 	       et_event_handler.o \
 	       et_vqueue_loopback.o \
 	       et_dma.o \
+	       et_p2pdma_loopback.o \
 	       et_pci_dev.o \
 	       et-soc1-pcie_loopback.o
 endif

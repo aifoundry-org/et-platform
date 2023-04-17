@@ -32,6 +32,7 @@
 #include "et_fw_update.h"
 #include "et_io.h"
 #include "et_ioctl.h"
+#include "et_p2pdma.h"
 #include "et_pci_dev.h"
 #include "et_sysfs.h"
 #include "et_vma.h"
@@ -307,8 +308,11 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				return -EINVAL;
 
 			if (cmd_info.flags & CMD_DESC_FLAG_P2PDMA)
-				// TODO: Add P2P DMA support
-				rv = -EOPNOTSUPP;
+				rv = et_p2pdma_move_data(
+					et_dev,
+					cmd_info.sq_index,
+					(char __user __force *)cmd_info.cmd,
+					cmd_info.size);
 			else if (cmd_info.flags & CMD_DESC_FLAG_DMA)
 				rv = et_dma_move_data(
 					et_dev,
@@ -399,8 +403,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_P2PDMA_DEVICE_COMPAT_BITMAP:
-		// TODO: Add P2P DMA support
-		dev_compat_bitmap = 0;
+		dev_compat_bitmap = et_p2pdma_get_compat_bitmap(et_dev->devnum);
 		if (copy_to_user(usr_arg, &dev_compat_bitmap, _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -1003,6 +1006,7 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	*new_dev = et_dev;
 
 	INIT_LIST_HEAD(&et_dev->bar_region_list);
+	et_p2pdma_init(devnum);
 
 	et_dev->is_initialized = false;
 
@@ -1218,14 +1222,18 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	region->access.io_access = MEM_REGION_IOACCESS_DISABLED;
 	region->access.p2p_access = MEM_REGION_P2PACCESS_ENABLED;
 	region->access.node_access = MEM_REGION_NODE_ACCESSIBLE_OPS;
-	region->access.dma_elem_size = 0x4; /* 4 * 32MB = 128MB */
-	region->access.dma_elem_count = 0x4;
+	region->access.dma_elem_size =
+		SZ_128M / MEM_REGION_DMA_ELEMENT_STEP_SIZE;
+	region->access.dma_elem_count = 0x8;
 	region->access.dma_align = MEM_REGION_DMA_ALIGNMENT_64BIT;
-	region->dev_phys_addr = 0x8101000000ULL;
-	region->size = 0x2FF000000ULL;
-	region->p2p.devres_id = NULL;
-	region->p2p.virt_addr = NULL;
-	region->p2p.pci_bus_addr = region->dev_phys_addr;
+	region->dev_phys_addr = 0x8005801000ULL;
+	region->size = 0x7fa600000ULL;
+	rv = et_p2pdma_add_resource(et_dev, NULL, region);
+	if (rv) {
+		dev_err(&et_dev->pdev->dev,
+			"Ops: et_p2pdma_add_resource() failed!\n");
+		goto error_free_vq_buffer;
+	}
 
 	// SysFs memory statistics initialization
 	rv = et_sysfs_add_group(et_dev, ET_SYSFS_GID_MEM_STATS);
@@ -1233,7 +1241,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		dev_err(&et_dev->pdev->dev,
 			"Ops: et_sysfs_add_group() failed, group_id: %d\n",
 			ET_SYSFS_GID_MEM_STATS);
-		goto error_free_vq_buffer;
+		goto error_p2pdma_release_resource;
 	}
 	et_mem_stats_init(&et_dev->ops.mem_stats);
 
@@ -1274,6 +1282,11 @@ error_vqueue_destroy_all:
 error_sysfs_remove_group:
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
 
+error_p2pdma_release_resource:
+	et_p2pdma_release_resource(
+		et_dev,
+		&et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]);
+
 error_free_vq_buffer:
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
 		      .io.mapped_baseaddr);
@@ -1299,6 +1312,9 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
+	et_p2pdma_release_resource(
+		et_dev,
+		&et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]);
 
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
 		      .io.mapped_baseaddr);
