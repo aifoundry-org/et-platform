@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-16851] Save trace logs when service request times out
+  * Updated the service request timeout to be relatively less than the test timeout to ensure teardown path always executes
+  * Change service request return code checks from EXPECT to ASSERT to immediately get out of test body
 ### Security
 
 ## [0.9.0] - 2023-03-15

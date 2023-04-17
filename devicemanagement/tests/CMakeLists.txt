@@ -71,6 +71,18 @@ function(create_test)
             ${CMAKE_DL_LIBS}
     )
 
+    # set internal execution timeout value relative to actual timeout. Internal timeout
+    # is smaller for wraping up the execution and printing the test summary
+    string(REGEX MATCH "[T][I][M][E][O][U][T][0-9]*" TIMEOUT_ENTRY ${TEST_PROPERTIES})
+    string(REGEX REPLACE "[T][I][M][E][O][U][T]" "" TIMEOUT_VAL ${TIMEOUT_ENTRY})
+    if(TIMEOUT_VAL STREQUAL "")
+        # default timeout value
+        set(TIMEOUT_VAL "60")
+    endif()
+    set(WRAP_UP_TIME "15")
+    MATH(EXPR EXEC_TIMEOUT_MS "(${TIMEOUT_VAL}-${WRAP_UP_TIME})*1000")
+    set(TEST_ARGS ${TEST_ARGS} --exec_timeout_ms=${EXEC_TIMEOUT_MS})
+
     gtest_discover_tests(${TEST_TARGET}
         EXTRA_ARGS ${TEST_ARGS}
         TEST_PREFIX deviceManagement:

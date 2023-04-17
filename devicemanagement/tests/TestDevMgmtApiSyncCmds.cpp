@@ -39,7 +39,7 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 
-#define DM_SERVICE_REQUEST_TIMEOUT 100000
+#define DURATION2MS(dur) (((dur).count() > 0) ? std::chrono::duration_cast<std::chrono::milliseconds>(dur).count() : 0)
 #define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER, DIVIDER) (BASE + ((REG_VALUE * MULTIPLIER) / DIVIDER))
 #define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER, DIVIDER) (uint8_t)(((VOL_VALUE - BASE) * DIVIDER) / MULTIPLIER)
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
@@ -54,6 +54,7 @@ DEFINE_string(trace_txt_dir, FLAGS_trace_base_dir + "/txt_files",
               "A directory in the current path where the decoded device traces will be printed");
 DEFINE_string(trace_bin_dir, FLAGS_trace_base_dir + "/bin_files",
               "A directory in the current path where the raw device traces will be dumped");
+DEFINE_uint32(exec_timeout_ms, 30000, "Internal execution timeout in milliseconds");
 
 #define FORMAT_VERSION(major, minor, revision) ((major << 24) | (minor << 16) | (revision << 8))
 #define MAJOR_VERSION(ver) ((ver >> 24) & 0xff)
@@ -86,6 +87,7 @@ void TestDevMgmtApiSyncCmds::initTestTrace() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
 
@@ -110,6 +112,7 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(void) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   // Trace control input params
   std::array<char, sizeof(device_mgmt_api::trace_control_e)> input_buff;
@@ -126,9 +129,9 @@ void TestDevMgmtApiSyncCmds::controlTraceLogging(void) {
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff.data(),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff.data(),
                                 input_buff.size(), set_output_buff.data(), set_output_buff.size(), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -139,6 +142,7 @@ void TestDevMgmtApiSyncCmds::dmStatsRunControl(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto setStatsRunControl = [&](int deviceIdx, device_mgmt_api::stats_type_e type,
                                 device_mgmt_api::stats_control_e control) {
@@ -150,7 +154,7 @@ void TestDevMgmtApiSyncCmds::dmStatsRunControl(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL, input_buff.data(),
                           input_buff.size(), nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -177,12 +181,12 @@ void TestDevMgmtApiSyncCmds::dmStatsRunControl(bool singleDevice) {
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     // Disable the trace logging
-    EXPECT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
+    ASSERT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
                                    device_mgmt_api::STATS_CONTROL_TRACE_DISABLE))
       << fmt::format("Device[{}]: setStatsRunControl() failed!", deviceIdx);
 
     // Reset the trace buffer
-    EXPECT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
+    ASSERT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
                                    device_mgmt_api::STATS_CONTROL_TRACE_DISABLE |
                                      device_mgmt_api::STATS_CONTROL_RESET_COUNTER |
                                      device_mgmt_api::STATS_CONTROL_RESET_TRACEBUF))
@@ -192,7 +196,7 @@ void TestDevMgmtApiSyncCmds::dmStatsRunControl(bool singleDevice) {
     EXPECT_FALSE(findStatsSampleInStatsBuffer(deviceIdx, TraceBufferType::TraceBufferMMStats))
       << fmt::format("Device[{}]: No MM Stats should have received!", deviceIdx);
 
-    EXPECT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
+    ASSERT_TRUE(setStatsRunControl(deviceIdx, device_mgmt_api::STATS_TYPE_SP | device_mgmt_api::STATS_TYPE_MM,
                                    device_mgmt_api::STATS_CONTROL_TRACE_ENABLE))
       << fmt::format("Device[{}]: setStatsRunControl() failed!", deviceIdx);
   }
@@ -201,9 +205,8 @@ void TestDevMgmtApiSyncCmds::dmStatsRunControl(bool singleDevice) {
   std::vector<bool> mmStatsFound(deviceCount, false);
   auto loopDelay = (getTestTarget() == Target::Silicon) ? std::chrono::milliseconds(250) : std::chrono::seconds(1);
   // Stats not immediately available, requires a delay. Wait until SP and MM Stats of all devices are received.
-  for (auto endTime = Clock::now() + std::chrono::milliseconds(DM_SERVICE_REQUEST_TIMEOUT);
-       Clock::now() < endTime && !(std::all_of(spStatsFound.begin(), spStatsFound.end(), [](bool v) { return v; }) &&
-                                   std::all_of(mmStatsFound.begin(), mmStatsFound.end(), [](bool v) { return v; }));
+  for (; Clock::now() < end && !(std::all_of(spStatsFound.begin(), spStatsFound.end(), [](bool v) { return v; }) &&
+                                 std::all_of(mmStatsFound.begin(), mmStatsFound.end(), [](bool v) { return v; }));
        std::this_thread::sleep_for(loopDelay)) {
     for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
       if (!spStatsFound[deviceIdx]) {
@@ -430,6 +433,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -440,9 +444,9 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureName(bool singleDevice) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -460,6 +464,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   uint32_t partNumber;
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -467,7 +472,7 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
                                 static_cast<char*>(static_cast<void*>(&partNumber)), sizeof(partNumber),
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     DV_LOG(INFO) << fmt::format("Device[{}]: Received partNumber={:08x}", deviceIdx, partNumber);
@@ -478,6 +483,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePartNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto setModulePartNumber = [&](int deviceIdx, uint32_t partNumber) {
     auto hst_latency = std::make_unique<uint32_t>();
@@ -486,7 +492,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePartNumber(bool singleDevice) {
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_PART_NUMBER,
                           static_cast<char*>(static_cast<void*>(&partNumber)), sizeof(partNumber), nullptr, 0,
                           hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -499,7 +505,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePartNumber(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PART_NUMBER, nullptr, 0,
                           static_cast<char*>(static_cast<void*>(&partNumber)), sizeof(partNumber), hst_latency.get(),
-                          dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          dev_latency.get(), DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return std::nullopt;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -516,7 +522,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModulePartNumber(bool singleDevice) {
 
     // Set the testPartNumber (0xdeadbeef)
     uint32_t testPartNumber = 0xdeadbeef;
-    EXPECT_TRUE(setModulePartNumber(deviceIdx, testPartNumber)) << "setModulePartNumber() failed!";
+    ASSERT_TRUE(setModulePartNumber(deviceIdx, testPartNumber)) << "setModulePartNumber() failed!";
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
@@ -543,6 +549,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   ecid_t ecid;
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
@@ -552,9 +559,9 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SERIAL_NUMBER, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -574,6 +581,7 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -586,9 +594,9 @@ void TestDevMgmtApiSyncCmds::getASICChipRevision(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_CHIP_REVISION, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -607,6 +615,7 @@ void TestDevMgmtApiSyncCmds::getModulePCIEPortsMaxSpeed(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
 
@@ -616,9 +625,9 @@ void TestDevMgmtApiSyncCmds::getModulePCIEPortsMaxSpeed(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, nullptr,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, nullptr,
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -643,6 +652,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = 1;
   std::vector<std::array<uint8_t, output_size>> expected = {{16}, {32}};
@@ -653,9 +663,9 @@ void TestDevMgmtApiSyncCmds::getModuleMemorySizeMB(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_SIZE_MB, nullptr, 0,
                                 static_cast<char*>(static_cast<void*>(output_buff.data())), output_buff.size(),
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -674,6 +684,7 @@ void TestDevMgmtApiSyncCmds::getModuleRevision(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = 4;
   unsigned char expected[output_size] = {0x44, 0xab, 0x11, 0x22};
@@ -685,8 +696,8 @@ void TestDevMgmtApiSyncCmds::getModuleRevision(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_REVISION, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_REVISION, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -706,6 +717,7 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = 1;
   char expected[output_size] = {1};
@@ -717,9 +729,9 @@ void TestDevMgmtApiSyncCmds::getModuleFormFactor(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FORM_FACTOR, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -739,6 +751,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber(bool singleDevice) 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
 
@@ -748,9 +761,9 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryVendorPartNumber(bool singleDevice) 
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER,
                                 nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -769,6 +782,7 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -780,9 +794,9 @@ void TestDevMgmtApiSyncCmds::getModuleMemoryType(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -802,6 +816,7 @@ void TestDevMgmtApiSyncCmds::getModulePowerState(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -811,9 +826,9 @@ void TestDevMgmtApiSyncCmds::getModulePowerState(bool singleDevice) {
     const uint32_t get_output_size = sizeof(device_mgmt_api::power_state_e);
     char get_output_buff[get_output_size] = {0};
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER_STATE, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER_STATE, nullptr, 0,
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
@@ -829,6 +844,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -841,9 +857,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -854,9 +870,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement(bool singleDevice) {
 
     // The active power management is disabled by default, so disabling it to revert back to default state
     input_buff[input_size] = {device_mgmt_api::ACTIVE_POWER_MANAGEMENT_TURN_OFF};
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -873,6 +889,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -884,9 +901,9 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
@@ -897,9 +914,9 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
     const uint32_t get_output_size = sizeof(uint8_t);
     char get_output_buff[get_output_size] = {0};
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -915,6 +932,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -927,9 +945,9 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
@@ -940,9 +958,9 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
     const uint32_t get_output_size = sizeof(device_mgmt_api::temperature_threshold_t);
     char get_output_buff[get_output_size] = {0};
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr,
                                 0, get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -959,6 +977,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState(bool singleDevice) 
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   std::string throttle_state_name[7] = {"POWER_THROTTLE_STATE_POWER_IDLE",   "POWER_THROTTLE_STATE_THERMAL_IDLE",
                                         "POWER_THROTTLE_STATE_POWER_UP",     "POWER_THROTTLE_STATE_POWER_DOWN",
                                         "POWER_THROTTLE_STATE_THERMAL_DOWN", "POWER_THROTTLE_STATE_POWER_SAFE",
@@ -975,9 +994,9 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState(bool singleDevice) 
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
                                   input_buff, input_size, output_buff, output_size, hst_latency.get(),
-                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -999,6 +1018,7 @@ void TestDevMgmtApiSyncCmds::getModuleUptime(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::module_uptime_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -1007,8 +1027,8 @@ void TestDevMgmtApiSyncCmds::getModuleUptime(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_UPTIME, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1025,6 +1045,7 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::module_power_t);
 
@@ -1034,8 +1055,8 @@ void TestDevMgmtApiSyncCmds::getModulePower(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_POWER, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1056,6 +1077,7 @@ void TestDevMgmtApiSyncCmds::getAsicVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1065,7 +1087,7 @@ void TestDevMgmtApiSyncCmds::getAsicVoltage(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_VOLTAGE, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     device_mgmt_api::asic_voltage_t* voltages = (device_mgmt_api::asic_voltage_t*)output_buff;
@@ -1097,6 +1119,7 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1106,7 +1129,7 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     device_mgmt_api::module_voltage_t* voltages = (device_mgmt_api::module_voltage_t*)output_buff;
@@ -1138,6 +1161,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   double voltagePercentDrop = 0.0;
 
   auto setModuleVoltages = [&](int deviceIdx, const device_mgmt_api::module_voltage_t& voltages) {
@@ -1150,7 +1174,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1160,7 +1184,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.l2_cache);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1169,7 +1193,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.maxion);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1178,7 +1202,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.minion);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1187,7 +1211,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.pcie);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1196,7 +1220,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.noc);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1206,7 +1230,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.pcie_logic);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1215,7 +1239,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.vddq);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1225,7 +1249,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.vddqlp);
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1240,7 +1264,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
                           output_size, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return std::nullopt;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1289,7 +1313,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     testVoltages.pcie_logic = defaultVoltages.pcie_logic + 5;
     testVoltages.vddq = defaultVoltages.vddq + 1;
     testVoltages.vddqlp = defaultVoltages.vddqlp + 1;
-    EXPECT_TRUE(setModuleVoltages(deviceIdx, testVoltages)) << "setModuleVoltages() failed!";
+    ASSERT_TRUE(setModuleVoltages(deviceIdx, testVoltages)) << "setModuleVoltages() failed!";
 
     // Skip validation if loopback driver or SysEMU
     if (!targetInList({Target::Loopback, Target::SysEMU})) {
@@ -1371,6 +1395,7 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::current_temperature_t);
 
@@ -1380,9 +1405,9 @@ void TestDevMgmtApiSyncCmds::getModuleCurrentTemperature(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_CURRENT_TEMPERATURE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1407,6 +1432,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_temperature_t);
 
@@ -1416,9 +1442,9 @@ void TestDevMgmtApiSyncCmds::getModuleMaxTemperature(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1437,6 +1463,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_ecc_count_t);
 
@@ -1446,9 +1473,9 @@ void TestDevMgmtApiSyncCmds::getModuleMaxMemoryErrors(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1467,6 +1494,7 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::max_dram_bw_t);
 
@@ -1476,9 +1504,9 @@ void TestDevMgmtApiSyncCmds::getModuleMaxDDRBW(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -1488,6 +1516,7 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   std::string power_state_name[4] = {"POWER_STATE_MAX_POWER", "POWER_STATE_MANAGED_POWER", "POWER_STATE_SAFE_POWER",
                                      "POWER_STATE_LOW_POWER"};
 
@@ -1502,9 +1531,9 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
                                   input_buff, input_size, output_buff, output_size, hst_latency.get(),
-                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1526,6 +1555,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto setMinionAndNocFrequencies = [&](int deviceIdx,
                                         const std::pair<uint16_t /* minionFreq */, uint16_t /* nocFreq */>& freqs) {
@@ -1545,7 +1575,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
       auto dev_latency = std::make_unique<uint64_t>();
       if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FREQUENCY, input_buff, input_size, nullptr,
                             0, hst_latency.get(), dev_latency.get(),
-                            DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                            DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
         return false;
       }
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1561,7 +1591,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
 
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0, output_buff,
                           output_size, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return std::nullopt;
     }
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1580,7 +1610,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
     std::vector<std::pair<uint16_t, uint16_t>> testFreqsList = {{400, 200}, {500, 250}, {600, 300}};
     for (auto testFreqs : testFreqsList) {
       // Set test frequencies
-      EXPECT_TRUE(setMinionAndNocFrequencies(deviceIdx, testFreqs))
+      ASSERT_TRUE(setMinionAndNocFrequencies(deviceIdx, testFreqs))
         << fmt::format("Unable to set Minion={} MHz and NOC={} MHz Frequencies!", testFreqs.first, testFreqs.second);
       auto freqs = getMinionAndNocFrequencies(deviceIdx);
       ASSERT_TRUE(freqs.has_value()) << "Unable to get test Minion and NOC Frequencies!";
@@ -1591,7 +1621,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
     }
 
     // Revert back to original frequencies
-    EXPECT_TRUE(setMinionAndNocFrequencies(deviceIdx, origFreqs.value())) << fmt::format(
+    ASSERT_TRUE(setMinionAndNocFrequencies(deviceIdx, origFreqs.value())) << fmt::format(
       "Unable to set Minion={} MHz and NOC={} MHz Frequencies!", origFreqs.value().first, origFreqs.value().second);
     auto freqs = getMinionAndNocFrequencies(deviceIdx);
     ASSERT_TRUE(freqs.has_value()) << "Unable to get current Minion and NOC Frequencies!";
@@ -1606,6 +1636,7 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1619,9 +1650,9 @@ void TestDevMgmtApiSyncCmds::setAndGetDDRECCThresholdCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DDR_ECC_COUNT, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1636,6 +1667,7 @@ void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1648,9 +1680,9 @@ void TestDevMgmtApiSyncCmds::setAndGetSRAMECCThresholdCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SRAM_ECC_COUNT, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1665,6 +1697,7 @@ void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1677,9 +1710,9 @@ void TestDevMgmtApiSyncCmds::setAndGetPCIEECCThresholdCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_ECC_COUNT, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1694,6 +1727,7 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::errors_count_t);
 
@@ -1703,9 +1737,9 @@ void TestDevMgmtApiSyncCmds::getPCIEECCUECCCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ECC_UECC, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_PCIE_ECC_UECC, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1724,6 +1758,7 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::errors_count_t);
 
@@ -1733,9 +1768,9 @@ void TestDevMgmtApiSyncCmds::getDDRECCUECCCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_ECC_UECC, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1753,6 +1788,7 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::errors_count_t);
 
@@ -1762,9 +1798,9 @@ void TestDevMgmtApiSyncCmds::getSRAMECCUECCCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_SRAM_ECC_UECC, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1782,6 +1818,7 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::dram_bw_counter_t);
 
@@ -1791,9 +1828,9 @@ void TestDevMgmtApiSyncCmds::getDDRBWCounter(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_DDR_BW_COUNTER, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -1803,6 +1840,7 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1816,9 +1854,9 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeed(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -1833,6 +1871,7 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto setLaneWidth = [&](int deviceIdx, const device_mgmt_api::pcie_lane_w_split_e laneWidth) {
     std::array<char, sizeof(device_mgmt_api::pcie_lane_w_split_e)> input_buff;
@@ -1843,7 +1882,7 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidth(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff.data(),
                           input_buff.size(), nullptr, 0, hst_latency.get(), dev_latency.get(),
-                          DM_SERVICE_REQUEST_TIMEOUT) != device_mgmt_api::DM_STATUS_SUCCESS) {
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
       return false;
     }
     DV_LOG(INFO) << fmt::format("Service Request Completed for Device: {}", deviceIdx);
@@ -1906,6 +1945,7 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1919,9 +1959,9 @@ void TestDevMgmtApiSyncCmds::setPCIERetrainPhy(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY, input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_RETRAIN_PHY, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -1937,6 +1977,7 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asic_frequencies_t);
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -1945,9 +1986,9 @@ void TestDevMgmtApiSyncCmds::getASICFrequencies(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_FREQUENCIES, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -1957,6 +1998,7 @@ void TestDevMgmtApiSyncCmds::getDRAMBW(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1965,8 +2007,8 @@ void TestDevMgmtApiSyncCmds::getDRAMBW(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_BANDWIDTH, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -1976,6 +2018,7 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -1984,9 +2027,9 @@ void TestDevMgmtApiSyncCmds::getDRAMCapacityUtilization(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -1996,6 +2039,7 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization(bool singleDevice
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2005,9 +2049,9 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization(bool singleDevice
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2022,6 +2066,7 @@ void TestDevMgmtApiSyncCmds::getASICUtilization(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2031,8 +2076,8 @@ void TestDevMgmtApiSyncCmds::getASICUtilization(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2047,6 +2092,7 @@ void TestDevMgmtApiSyncCmds::getASICStalls(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2056,8 +2102,8 @@ void TestDevMgmtApiSyncCmds::getASICStalls(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2072,6 +2118,7 @@ void TestDevMgmtApiSyncCmds::getASICLatency(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2081,8 +2128,8 @@ void TestDevMgmtApiSyncCmds::getASICLatency(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2097,6 +2144,7 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2105,8 +2153,8 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2116,6 +2164,7 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2126,8 +2175,8 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2142,6 +2191,7 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2150,9 +2200,9 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2191,6 +2241,7 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2200,20 +2251,20 @@ void TestDevMgmtApiSyncCmds::serializeAccessMgmtNode(bool singleDevice) {
     std::promise<void> syncPromise;
     std::shared_future syncFuture(syncPromise.get_future());
 
-    auto testSerial = [&](uint32_t timeout, int* result) {
+    auto testSerial = [&](int* result) {
       const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
       char output_buff[output_size] = {0};
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
       syncFuture.wait();
       *result = dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
-                                  output_buff, output_size, hst_latency.get(), dev_latency.get(), timeout);
+                                  output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                  DURATION2MS(end - Clock::now()));
     };
 
     std::vector<std::thread> threads;
     for (auto threadId = 0; threadId < totalThreads; threadId++) {
-      threads.push_back(
-        std::thread(testSerial, (uint32_t)DM_SERVICE_REQUEST_TIMEOUT * totalThreads, &results[threadId]));
+      threads.push_back(std::thread(testSerial, &results[threadId]));
     }
 
     // Delay to ensure all threads started and reached the same point of sync
@@ -2237,6 +2288,7 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   std::vector<std::string> errTypes = {"DramCeEvent",        "MinionCeEvent",   "PcieCeEvent", "PmicCeEvent",
                                        "SpCeEvent",          "SpExceptCeEvent", "SramCeEvent", "DramUceEvent",
                                        "MinionHangUceEvent", "PcieUceEvent",    "SramUceEvent"};
@@ -2265,9 +2317,9 @@ void TestDevMgmtApiSyncCmds::getDeviceErrorEvents(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_DEVICE_ERROR_EVENTS, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2298,6 +2350,7 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2307,35 +2360,35 @@ void TestDevMgmtApiSyncCmds::isUnsupportedService(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
 
     // Invalid device node
-    EXPECT_EQ(dm.serviceRequest(deviceIdx + 66, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx + 66, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     // Invalid command code
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, 99999, nullptr, 0, output_buff, output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, 99999, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     // Invalid input_buffer
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, nullptr,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, nullptr,
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     // Invalid output_buffer
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0, nullptr,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0, nullptr,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     // Invalid host latency
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
-                                output_buff, output_size, nullptr, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+                                output_buff, output_size, nullptr, dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     // Invalid device latency
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MEMORY_TYPE, nullptr, 0,
+                                output_buff, output_size, hst_latency.get(), nullptr, DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Requests Completed for Device: " << deviceIdx;
   }
@@ -2347,6 +2400,7 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2357,9 +2411,9 @@ void TestDevMgmtApiSyncCmds::setSpRootCertificate(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT, SP_CRT_512_V002, 1,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT * 20),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2377,6 +2431,7 @@ void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice, uint32_t control
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2389,9 +2444,9 @@ void TestDevMgmtApiSyncCmds::setTraceControl(bool singleDevice, uint32_t control
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2407,6 +2462,7 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure(bool singleDevice, uint32_t event
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2420,9 +2476,9 @@ void TestDevMgmtApiSyncCmds::setTraceConfigure(bool singleDevice, uint32_t event
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_CONFIG,
                                 reinterpret_cast<const char*>(input_buff), input_size, set_output_buff, set_output_size,
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2439,6 +2495,7 @@ void TestDevMgmtApiSyncCmds::getTraceBuffer(bool singleDevice, TraceBufferType b
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   std::vector<std::byte> response;
   bool validEventFound = false;
   const struct trace_entry_header_t* entry = NULL;
@@ -2471,6 +2528,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange(bool singleDevi
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2483,9 +2541,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange(bool singleDevi
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2495,6 +2553,7 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange(bool singleDe
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2507,9 +2566,9 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange(bool singleDe
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2519,6 +2578,7 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2530,9 +2590,9 @@ void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2542,6 +2602,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2554,9 +2615,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputSize
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                                 input_buff, 0 /* Invalid size*/, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2567,6 +2628,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize(bool sing
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -2577,9 +2639,9 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputSize(bool sing
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, 0 /*Invalid output size*/, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2589,6 +2651,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode(bool sing
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -2599,9 +2662,9 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceNode(bool sing
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx + 250, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx + 250, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr,
                                 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2611,6 +2674,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency(bool sin
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -2620,9 +2684,9 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidHostLatency(bool sin
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, output_size, nullptr /*nullptr for invalid testing*/, dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2632,6 +2696,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency(bool s
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -2641,9 +2706,9 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidDeviceLatency(bool s
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), nullptr /*nullptr for invalid testing*/,
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2653,6 +2718,7 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer(bool si
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::asset_info_t);
   char expected[output_size] = {0};
@@ -2662,9 +2728,9 @@ void TestDevMgmtApiSyncCmds::getModuleManufactureNameInvalidOutputBuffer(bool si
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MANUFACTURE_NAME, nullptr, 0,
                                 nullptr /*nullptr instaed of output buffer*/, output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2674,6 +2740,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2684,9 +2751,9 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
                                 nullptr /*Nullptr instead of input buffer*/, input_size, set_output_buff,
-                                set_output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                set_output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2697,6 +2764,7 @@ void TestDevMgmtApiSyncCmds::updateFirmwareImage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2710,7 +2778,7 @@ void TestDevMgmtApiSyncCmds::updateFirmwareImage(bool singleDevice) {
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE, FLASH_IMG_PATH, 1,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2726,6 +2794,7 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed(bool singleDevic
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2739,9 +2808,9 @@ void TestDevMgmtApiSyncCmds::setPCIELinkSpeedToInvalidLinkSpeed(bool singleDevic
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED, input_buff,
                                 input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2751,6 +2820,7 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth(bool singleDevic
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -2764,9 +2834,9 @@ void TestDevMgmtApiSyncCmds::setPCIELaneWidthToInvalidLaneWidth(bool singleDevic
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_LANE_WIDTH, input_buff, input_size,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2776,6 +2846,7 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputSize(int32_t dmCmdType, bool singl
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = INVALID_OUTPUT_SIZE; /*Invalid output size*/
 
@@ -2784,8 +2855,8 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputSize(int32_t dmCmdType, bool singl
     char output_buff[OUTPUT_SIZE_TEST] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2795,6 +2866,7 @@ void TestDevMgmtApiSyncCmds::testInvalidDeviceNode(int32_t dmCmdType, bool singl
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = OUTPUT_SIZE_TEST;
 
@@ -2804,8 +2876,8 @@ void TestDevMgmtApiSyncCmds::testInvalidDeviceNode(int32_t dmCmdType, bool singl
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
     int device_node = deviceIdx + MAX_DEVICE_NODE; /*Invalid device node*/
-    EXPECT_EQ(dm.serviceRequest(device_node, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(device_node, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2815,6 +2887,7 @@ void TestDevMgmtApiSyncCmds::testInvalidHostLatency(int32_t dmCmdType, bool sing
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = OUTPUT_SIZE_TEST;
 
@@ -2822,8 +2895,9 @@ void TestDevMgmtApiSyncCmds::testInvalidHostLatency(int32_t dmCmdType, bool sing
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size,
-                                nullptr /*nullptr for invalid testing*/, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size,
+                                nullptr /*nullptr for invalid testing*/, dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2833,6 +2907,7 @@ void TestDevMgmtApiSyncCmds::testInvalidDeviceLatency(int32_t dmCmdType, bool si
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = OUTPUT_SIZE_TEST;
 
@@ -2840,8 +2915,8 @@ void TestDevMgmtApiSyncCmds::testInvalidDeviceLatency(int32_t dmCmdType, bool si
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
-                                nullptr /*nullptr for invalid testing*/, DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                nullptr /*nullptr for invalid testing*/, DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -2851,6 +2926,7 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputBuffer(int32_t dmCmdType, bool sin
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = OUTPUT_SIZE_TEST;
 
@@ -2859,8 +2935,8 @@ void TestDevMgmtApiSyncCmds::testInvalidOutputBuffer(int32_t dmCmdType, bool sin
     char* output_buff = nullptr; /*nullptr for invalid testing*/
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3010,6 +3086,7 @@ void TestDevMgmtApiSyncCmds::testInvalidCmdCode(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = OUTPUT_SIZE_TEST;
 
@@ -3018,8 +3095,8 @@ void TestDevMgmtApiSyncCmds::testInvalidCmdCode(bool singleDevice) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, DM_CMD_INVALID, nullptr, 0, output_buff, output_size, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, DM_CMD_INVALID, nullptr, 0, output_buff, output_size, hst_latency.get(),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3029,6 +3106,7 @@ void TestDevMgmtApiSyncCmds::testInvalidInputBuffer(int32_t dmCmdType, bool sing
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3040,8 +3118,8 @@ void TestDevMgmtApiSyncCmds::testInvalidInputBuffer(int32_t dmCmdType, bool sing
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3051,6 +3129,7 @@ void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool single
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3062,8 +3141,8 @@ void TestDevMgmtApiSyncCmds::testInvalidInputSize(int32_t dmCmdType, bool single
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, dmCmdType, input_buff, input_size, output_buff, output_size,
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3157,6 +3236,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode(bool sing
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
   char expected[output_size] = {0};
@@ -3166,9 +3246,9 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceNode(bool sing
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx + deviceCount, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx + deviceCount, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE,
                                 nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -3179,6 +3259,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency(bool sin
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
 
@@ -3186,8 +3267,8 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidHostLatency(bool sin
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
-                                output_buff, output_size, nullptr, dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_TEMPERATURE, nullptr, 0,
+                                output_buff, output_size, nullptr, dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -3198,6 +3279,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency(bool s
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
 
@@ -3205,8 +3287,8 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidDeviceLatency(bool s
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), nullptr, DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_MAX_DDR_BW, nullptr, 0,
+                                output_buff, output_size, hst_latency.get(), nullptr, DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -3217,6 +3299,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer(bool si
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
 
@@ -3225,8 +3308,8 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputBuffer(bool si
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0, nullptr,
-                                output_size, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0, nullptr,
+                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -3237,6 +3320,7 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize(bool sing
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t output_size = sizeof(device_mgmt_api::dm_cmd_e);
 
@@ -3245,8 +3329,8 @@ void TestDevMgmtApiSyncCmds::getHistoricalExtremeWithInvalidOutputSize(bool sing
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
-                                output_buff, 0, hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MAX_MEMORY_ERROR, nullptr, 0,
+                                output_buff, 0, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -3259,6 +3343,7 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
   bool validEventFound = false;
   std::vector<std::byte> response;
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
   const uint32_t output_size = sizeof(uint32_t);
@@ -3270,9 +3355,9 @@ void TestDevMgmtApiSyncCmds::setThrottlePowerStatus(bool singleDevice) {
     for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_DOWN;
          throttle_state >= device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP; throttle_state--) {
       char input_buff[input_size] = {(char)throttle_state};
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST, input_buff,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_THROTTLE_POWER_STATE_TEST, input_buff,
                                   input_size, output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                  DM_SERVICE_REQUEST_TIMEOUT),
+                                  DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -3300,14 +3385,15 @@ void TestDevMgmtApiSyncCmds::resetMM(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3317,6 +3403,7 @@ void TestDevMgmtApiSyncCmds::resetMMWithOpsInUse(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3324,7 +3411,7 @@ void TestDevMgmtApiSyncCmds::resetMMWithOpsInUse(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     try {
       dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
-                        dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT);
+                        dev_latency.get(), DURATION2MS(end - Clock::now()));
 
     } catch (const dev::Exception& ex) {
       // Resetting of MM is not permitted when Ops node is open.
@@ -3337,6 +3424,7 @@ void TestDevMgmtApiSyncCmds::readMem_unprivileged(uint64_t readAddr) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t input_size = sizeof(device_mgmt_api::mdi_mem_read_t);
   device_mgmt_api::mdi_mem_read_t input_buff;
@@ -3352,9 +3440,9 @@ void TestDevMgmtApiSyncCmds::readMem_unprivileged(uint64_t readAddr) {
     uint64_t output = 0;
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
                                 (char*)&output, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     // Skip validation if loopback driver
@@ -3370,6 +3458,7 @@ void TestDevMgmtApiSyncCmds::readMem_privileged(uint64_t readAddr) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   const uint32_t input_size = sizeof(device_mgmt_api::mdi_mem_read_t);
   device_mgmt_api::mdi_mem_read_t input_buff;
@@ -3385,9 +3474,9 @@ void TestDevMgmtApiSyncCmds::readMem_privileged(uint64_t readAddr) {
     uint64_t output = 0;
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&input_buff, input_size,
                                 (char*)&output, output_size, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               -EIO);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3397,6 +3486,7 @@ void TestDevMgmtApiSyncCmds::writeMem_unprivileged(uint64_t testInputData, uint6
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3413,9 +3503,9 @@ void TestDevMgmtApiSyncCmds::writeMem_unprivileged(uint64_t testInputData, uint6
     DV_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex
                  << mdi_mem_write.data;
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
                                 mdi_mem_write_cmd_size, (char*)&mem_write_status, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(mem_write_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3430,9 +3520,9 @@ void TestDevMgmtApiSyncCmds::writeMem_unprivileged(uint64_t testInputData, uint6
     mdi_mem_read.access_type = 2; /* MEM_ACCESS_TYPE_NORMAL */
     uint64_t mem_read_output = 0;
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&mdi_mem_read,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM, (char*)&mdi_mem_read,
                                 mdi_mem_read_cmd_size, (char*)&mem_read_output, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_read.address << " Read Value:" << std::hex << mem_read_output;
@@ -3447,6 +3537,7 @@ void TestDevMgmtApiSyncCmds::writeMem_privileged(uint64_t testInputData, uint64_
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3463,9 +3554,9 @@ void TestDevMgmtApiSyncCmds::writeMem_privileged(uint64_t testInputData, uint64_
     DV_LOG(INFO) << "Mem addr: 0x" << std::hex << mdi_mem_write.address << " Write Value:" << std::hex
                  << mdi_mem_write.data;
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM, (char*)&mdi_mem_write,
                                 mdi_mem_write_cmd_size, (char*)&mem_write_status, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EIO);
 
     EXPECT_EQ(mem_write_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3478,6 +3569,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3491,10 +3583,10 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
     int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3503,9 +3595,9 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
     int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3519,14 +3611,14 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     mdi_bp_input_buff.bp_address = bpAddr;
     mdi_bp_input_buff.mode = device_mgmt_api::PRIV_MASK_PRIV_UMODE;
     int32_t bp_cmd_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SET_BREAKPOINT,
                                 (char*)&mdi_bp_input_buff, mdi_bp_input_size, (char*)&bp_cmd_status, sizeof(int32_t),
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Wait for set break point event */
     std::vector<std::byte> buf;
-    EXPECT_TRUE(dm.getEvent(deviceIdx, buf, DM_SERVICE_REQUEST_TIMEOUT));
+    EXPECT_TRUE(dm.getEvent(deviceIdx, buf, DURATION2MS(end - Clock::now())));
 
     auto rCB = reinterpret_cast<const dm_evt*>(buf.data());
     EXPECT_EQ(rCB->info.event_hdr.msg_id, device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT);
@@ -3535,9 +3627,9 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     mdi_bp_input_buff = {0};
     mdi_bp_input_buff.hart_id = hartID;
     bp_cmd_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSET_BREAKPOINT,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSET_BREAKPOINT,
                                 (char*)&mdi_bp_input_buff, mdi_bp_input_size, (char*)&bp_cmd_status, sizeof(int32_t),
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(bp_cmd_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3546,18 +3638,18 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsSetandUnsetBreakpoint(uint64_t sh
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
     int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3570,6 +3662,7 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3585,10 +3678,10 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
     int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3597,9 +3690,9 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
     int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3608,9 +3701,10 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
     device_mgmt_api::mdi_hart_control_t mdi_hart_control_input;
     mdi_hart_control_input.hart_id = hartID;
     uint32_t hart_status;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS,
                                 (char*)&mdi_hart_control_input, sizeof(mdi_hart_control_input), (char*)&hart_status,
-                                sizeof(uint32_t), hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                sizeof(uint32_t), hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
@@ -3623,17 +3717,18 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
     int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Get the Hart Status */
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_GET_HART_STATUS,
                                 (char*)&mdi_hart_control_input, sizeof(mdi_hart_control_input), (char*)&hart_status,
-                                sizeof(uint32_t), hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                sizeof(uint32_t), hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
@@ -3644,10 +3739,10 @@ void TestDevMgmtApiSyncCmds::testRunControlCmdsGetHartStatus(uint64_t shireID, u
 
     /* Unselect Hart */
     int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3660,6 +3755,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3673,10 +3769,10 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
     int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3685,9 +3781,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
     int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3700,9 +3796,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
       uint64_t output = 0;
       gpr_read_input_buff.gpr_index = i;
       const uint32_t read_output_size = sizeof(uint64_t);
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
                                   gpr_read_input_size, (char*)&output, read_output_size, hst_latency.get(),
-                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
       if (getTestTarget() != Target::Loopback) {
@@ -3715,19 +3811,19 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadGPR(uint64_t shireID, uint64
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
     int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Unselect Hart */
     int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3741,6 +3837,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3754,10 +3851,10 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
     int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3766,9 +3863,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
     int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3789,9 +3886,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
       gpr_read_input_buff.gpr_index = i;
       gpr_write_input_buff.gpr_index = i;
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
                                   gpr_read_input_size, (char*)&gpr_val, read_output_size, hst_latency.get(),
-                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
       DV_LOG(INFO) << "Before update HartID:" << std::hex << gpr_read_input_buff.hart_id
@@ -3799,14 +3896,14 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
 
       gpr_write_input_buff.data = writeTestData + i; /* Test Data */
       DV_LOG(INFO) << "Write Value:" << std::hex << gpr_write_input_buff.data;
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
                                   (char*)&gpr_write_input_buff, gpr_write_input_size, (char*)&dummy, sizeof(uint64_t),
-                                  hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_GPR, (char*)&gpr_read_input_buff,
                                   gpr_read_input_size, (char*)&output, read_output_size, hst_latency.get(),
-                                  dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
 
       DV_LOG(INFO) << "After update HartID:" << std::hex << gpr_read_input_buff.hart_id
@@ -3816,9 +3913,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
 
       /* Restore GPR value */
       gpr_write_input_buff.data = gpr_val;
-      EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_GPR,
                                   (char*)&gpr_write_input_buff, gpr_write_input_size, (char*)&dummy, sizeof(uint64_t),
-                                  hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                  hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
     }
 
@@ -3826,19 +3923,19 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteGPR(uint64_t shireID, uint6
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
     int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Unselect Hart */
     int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3852,6 +3949,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3865,10 +3963,10 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
     int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3877,9 +3975,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
     int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3890,9 +3988,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
     /* PC offset */
     csr_read_input_buff.csr_name = csrName;
     uint64_t csr_value = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
                                 csr_read_input_size, (char*)&csr_value, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     if (getTestTarget() != Target::Loopback) {
@@ -3903,19 +4001,19 @@ void TestDevMgmtApiSyncCmds::testStateInspectionReadCSR(uint64_t shireID, uint64
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
     int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Unselect Hart */
     int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3929,6 +4027,7 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -3941,10 +4040,10 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     mdi_hart_select_input_buff.shire_id = shireID;
     mdi_hart_select_input_buff.thread_mask = threadMask;
     int32_t hart_select_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&hart_select_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(hart_select_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3953,9 +4052,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     uint32_t hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     char hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_HALT_HART};
     int32_t halt_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_HALT_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&halt_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(halt_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3966,9 +4065,9 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     /* PC offset */
     csr_read_input_buff.csr_name = csrName;
     uint64_t intial_pc_addr = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
                                 csr_read_input_size, (char*)&intial_pc_addr, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Initial PC Value:" << std::hex
@@ -3980,15 +4079,15 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     csr_write_input_buff.csr_name = csrName;
     csr_write_input_buff.data = csrData;
     uint64_t dummy = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff,
                                 csr_write_input_size, (char*)&dummy, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     uint64_t updated_pc_addr = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
                                 csr_read_input_size, (char*)&updated_pc_addr, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Updated PC Value:" << std::hex
@@ -3998,15 +4097,15 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
 
     /* Reset the PC to initial PC address */
     csr_write_input_buff.data = intial_pc_addr; /* Reset it to initial PC address */
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR, (char*)&csr_write_input_buff,
                                 csr_write_input_size, (char*)&dummy, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     updated_pc_addr = 0;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_CSR, (char*)&csr_read_input_buff,
                                 csr_read_input_size, (char*)&updated_pc_addr, sizeof(uint64_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "HartID:" << std::hex << csr_read_input_buff.hart_id << " Changed PC to initial value:" << std::hex
@@ -4018,19 +4117,19 @@ void TestDevMgmtApiSyncCmds::testStateInspectionWriteCSR(uint64_t shireID, uint6
     hart_control_input_size = sizeof(device_mgmt_api::mdi_hart_control_t);
     hart_control_input_buff[hart_control_input_size] = {device_mgmt_api::MDI_HART_CTRL_FLAG_RESUME_HART};
     int32_t resume_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_RESUME_HART, hart_control_input_buff,
                                 hart_control_input_size, (char*)&resume_hart_status, sizeof(int32_t), hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(resume_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
 
     /* Unselect Hart */
     int32_t unselect_hart_status = device_mgmt_api::DM_STATUS_ERROR;
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART,
                                 (char*)&mdi_hart_select_input_buff, mdi_hart_select_input_size,
                                 (char*)&unselect_hart_status, sizeof(int32_t), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     EXPECT_EQ(unselect_hart_status, device_mgmt_api::DM_STATUS_SUCCESS);
@@ -4043,14 +4142,15 @@ void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
-                                hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -4063,6 +4163,7 @@ void TestDevMgmtApiSyncCmds::resetSOCWithOpsInUse(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
@@ -4070,7 +4171,7 @@ void TestDevMgmtApiSyncCmds::resetSOCWithOpsInUse(bool singleDevice) {
     auto dev_latency = std::make_unique<uint64_t>();
     try {
       dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
-                        hst_latency.get(), dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT);
+                        hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now()));
     } catch (const dev::Exception& ex) {
       // ETSOC reset is not permitted when Ops node is open.
       EXPECT_THAT(ex.what(), testing::HasSubstr("Operation not permitted"));
@@ -4082,6 +4183,7 @@ void TestDevMgmtApiSyncCmds::testShireCacheConfig(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
 
@@ -4090,9 +4192,9 @@ void TestDevMgmtApiSyncCmds::testShireCacheConfig(bool singleDevice) {
 
     /* Fetch shire cache config */
     device_mgmt_api::shire_cache_config_t sc_config = {0};
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG, nullptr, 0,
                                 (char*)&sc_config, sizeof(sc_config), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
 
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -4104,17 +4206,17 @@ void TestDevMgmtApiSyncCmds::testShireCacheConfig(bool singleDevice) {
                  << sc_config_modified.l2_size << " L3 size " << sc_config_modified.l3_size;
 
     /* Modify shire cache config*/
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG,
                                 (char*)&sc_config_modified, sizeof(sc_config_modified), nullptr, 0, hst_latency.get(),
-                                dev_latency.get(), DM_SERVICE_REQUEST_TIMEOUT),
+                                dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     /* Fetch shire cache config */
     device_mgmt_api::shire_cache_config_t tmp_sc_config = {0};
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG, nullptr, 0,
                                 (char*)&tmp_sc_config, sizeof(tmp_sc_config), hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -4124,9 +4226,9 @@ void TestDevMgmtApiSyncCmds::testShireCacheConfig(bool singleDevice) {
     EXPECT_EQ(sc_config_modified.l3_size, tmp_sc_config.l3_size);
 
     /* Restore shire cache config values */
-    EXPECT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG, (char*)&sc_config,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG, (char*)&sc_config,
                                 sizeof(sc_config), nullptr, 0, hst_latency.get(), dev_latency.get(),
-                                DM_SERVICE_REQUEST_TIMEOUT),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
