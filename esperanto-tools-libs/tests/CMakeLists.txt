@@ -16,9 +16,10 @@ find_package(deviceLayer REQUIRED)
 find_package(sw-sysemu REQUIRED)
 
 # Esperanto dependencies
-find_package(EsperantoBootLoader REQUIRED)
-find_package(EsperantoDeviceMinionRuntime REQUIRED)
-find_package(EsperantoTestKernels REQUIRED)
+find_package(EsperantoBootLoader)
+find_package(EsperantoDeviceMinionRuntime)
+find_package(EsperantoTestKernels)
+
 find_package(gflags REQUIRED)
 find_package(OpenMP REQUIRED)
 
@@ -109,17 +110,32 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES PREFIX_TARGET_NAME)
       PROPERTIES ${TEST_PROPERTIES}
       TEST_LIST DISCOVERED_TESTS
       )
+    
+    install(TARGETS ${TEST_TARGET}
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+      )
   endforeach(TEST_INFO)
 endfunction()
 
-get_property(BOOTROM_TRAMPOLINE_TO_BL2_ELF TARGET EsperantoBootLoader::BootromTrampolineToBL2.elf PROPERTY LOCATION)
-get_property(BL2_ELF TARGET EsperantoBootLoader::ServiceProcessorBL2_fast-boot.elf PROPERTY LOCATION)
-get_property(MASTER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinion.elf PROPERTY LOCATION)
-get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
-get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
+if (EsperantoBootLoader_FOUND)
+    get_property(BOOTROM_TRAMPOLINE_TO_BL2_ELF TARGET EsperantoBootLoader::BootromTrampolineToBL2.elf PROPERTY LOCATION)
+    get_property(BL2_ELF TARGET EsperantoBootLoader::ServiceProcessorBL2_fast-boot.elf PROPERTY LOCATION)
+endif()
+if (EsperantoDeviceMinionRuntime_FOUND)
+    get_property(MASTER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MasterMinion.elf PROPERTY LOCATION)
+    get_property(MACHINE_MINION_ELF TARGET EsperantoDeviceMinionRuntime::MachineMinion.elf PROPERTY LOCATION)
+    get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion.elf PROPERTY LOCATION)
+endif()
 
-set(KERNELS_DIR "${ESPERANTO_TEST_KERNELS_LIB_DIR}/esperanto-fw/kernels")
-message(STATUS "${KERNELS_DIR}")
+if (EsperantoTestKernels_FOUND)
+    message(STATUS "EsperantoTestKernels FOUND, setting KERNELS_DIR from install location")
+    set(KERNELS_DIR "${ESPERANTO_TEST_KERNELS_LIB_DIR}/esperanto-fw/kernels")
+    message(STATUS "KERNELS_DIR: ${KERNELS_DIR}")
+else()
+    message(STATUS "EsperantoTestKernels NOT FOUND, setting KERNELS_DIR from PROJECT_SOURCE_DIR.")
+    set(KERNELS_DIR "${PROJECT_SOURCE_DIR}/esperanto-test-kernels/lib/esperanto-fw/kernels")
+    message(STATUS "KERNELS_DIR: ${KERNELS_DIR}")
+endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 

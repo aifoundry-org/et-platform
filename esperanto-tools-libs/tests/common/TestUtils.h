@@ -24,16 +24,28 @@
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
+namespace fs = std::experimental::filesystem;
+
 inline auto getSysemuDefaultOptions() {
   constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
   constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 
   emu::SysEmuOptions sysEmuOptions;
-  sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
-  sysEmuOptions.spBL2ElfPath = BL2_ELF;
-  sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
-  sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
-  sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
+  if (fs::exists(BOOTROM_TRAMPOLINE_TO_BL2_ELF)) {
+    sysEmuOptions.bootromTrampolineToBL2ElfPath = BOOTROM_TRAMPOLINE_TO_BL2_ELF;
+  }
+  if (fs::exists(BL2_ELF)) {
+    sysEmuOptions.spBL2ElfPath = BL2_ELF;
+  }
+  if (fs::exists(MACHINE_MINION_ELF)) {
+    sysEmuOptions.machineMinionElfPath = MACHINE_MINION_ELF;
+  }
+  if (fs::exists(MASTER_MINION_ELF)) {
+    sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
+  }
+  if (fs::exists(WORKER_MINION_ELF)) {
+    sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
+  }
   sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
   sysEmuOptions.runDir = std::experimental::filesystem::current_path();
   sysEmuOptions.maxCycles = kSysEmuMaxCycles;

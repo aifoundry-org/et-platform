@@ -12,6 +12,10 @@
 #include "TestUtils.h"
 #include "server/Client.h"
 
+#include <experimental/filesystem>
+
+namespace fs = std::experimental::filesystem;
+
 class RuntimeFixture : public testing::Test {
 public:
   enum class DeviceLayerImp { PCIE, SYSEMU, FAKE };
@@ -86,7 +90,14 @@ public:
   }
 
   rt::KernelId loadKernel(const std::string& kernel_name, uint32_t deviceIdx = 0) {
-    auto kernelContent = readFile(std::string{KERNELS_DIR} + "/" + kernel_name);
+    std::string kernels_dir = std::string{KERNELS_DIR};
+    if (not fs::exists(kernels_dir)) {
+      auto kernels_dir_env = getenv("ET_RUNTIME_TEST_KERNELS_DIR");
+      if (kernels_dir_env != nullptr) {
+        kernels_dir = std::string{kernels_dir_env};
+      }
+    }
+    auto kernelContent = readFile(kernels_dir + "/" + kernel_name);
     EXPECT_FALSE(kernelContent.empty());
     EXPECT_TRUE(devices_.size() > deviceIdx);
     auto st = defaultStreams_[deviceIdx];

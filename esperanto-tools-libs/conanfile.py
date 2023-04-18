@@ -17,14 +17,14 @@ class RuntimeConan(ConanFile):
     options = {
         "with_tools": [True, False],
         "with_tests": [True, False],
-        "with_sysemu_artifacts": ['current'],
         "with_easy_profiler": [True, False],
+        "run_tests": [True, False],
     }
     default_options = {
         "with_tools": False,
-        "with_tests": False,
-        "with_sysemu_artifacts": "current",
+        "with_tests": True,
         "with_easy_profiler": False,
+        "run_tests": False,
     }
 
     scm = {
@@ -48,7 +48,7 @@ class RuntimeConan(ConanFile):
     def _min_device_api(self):
         return {
             "current": "1.1.0",
-        }.get(str(self.options.with_sysemu_artifacts))
+        }.get(str("current"))
 
     def requirements(self):
         self.requires(f"deviceApi/{self._min_device_api}")
@@ -66,12 +66,12 @@ class RuntimeConan(ConanFile):
             self.requires("gtest/1.10.0")
             self.requires("sw-sysemu/[>=0.5.0 <1.0.0]")
 
-            sysemu_artifacts_conanfile = f"conanfile_device_artifacts_{self.options.with_sysemu_artifacts}.txt"
+            sysemu_artifacts_conanfile = f"conanfile_device_artifacts_current.txt"
             host_ctx_profile = "baremetal-rv64-gcc8.2-debug" if self.settings.build_type == "Debug" else "baremetal-rv64-gcc8.2-release"
             extra_settings = ""
             if self.settings.build_type == "Debug":
                 extra_settings = "-s:h *:build_type=Release"
-            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing")
+            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing -g deploy")
         
         self.requires("easy_profiler/2.1.0")            #need this nevertheless for the include files
 
@@ -82,6 +82,8 @@ class RuntimeConan(ConanFile):
     def layout(self):
         cmake_layout(self)
         self.folders.source = "."
+        et_runtime_test_kernels_dir = os.path.join("res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels")
+        self.layouts.source.buildenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', et_runtime_test_kernels_dir)
 
     def generate(self):
         device_api = self.dependencies["deviceApi"]
@@ -98,13 +100,14 @@ class RuntimeConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-        if self.options.with_tests and not tools.cross_building(self.settings):
+        if self.options.with_tests and not tools.cross_building(self.settings) and self.options.run_tests:
             self.run("sudo ctest -L 'Generic' --no-compress-output")
 
     def package(self):
         cmake = CMake(self)
         cmake.install()
         tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+        self.copy(os.path.join(self.source_folder, "esperanto-test-kernels"), os.path.join(self.package_folder, "res", "esperanto-test-kernels"))
 
     def package_info(self):
         # library components
@@ -127,6 +130,7 @@ class RuntimeConan(ConanFile):
         binpath = os.path.join(self.package_folder, "bin")
         self.output.info("Appending PATH env var: {}".format(binpath))
         self.runenv_info.prepend_path('PATH', binpath)
+        self.runenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', os.path.join(self.package_folder, "res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels"))
 
         # TODO: to remove in conan v2 once old virtualrunenv is removed
         self.env_info.PATH.append(binpath)
