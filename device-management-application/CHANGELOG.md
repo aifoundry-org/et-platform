@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [1.10.0] - 2023-04-19
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - [SW-16770] Remove return true for SET/GET{SHIRE_CACHE_CONFIG}
 ### Security
 
