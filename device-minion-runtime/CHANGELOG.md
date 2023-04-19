@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.17.0] - 2023-04-19
+### Added
 - [SW-16695] Added support for P2P node accessibility and host managed DRAM alignment requirements.
 ### Changed
 - [SW-16847] Unifying the code for P2P and normal DMA commands.
