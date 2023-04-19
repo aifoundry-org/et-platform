@@ -49,7 +49,7 @@ class EtCommonLibsConan(ConanFile):
         self.settings.rm_safe("compiler.cppstd")
 
     def requirements(self):
-        self.requires("esperantoTrace/[>=1.2.0 <2.0.0]")
+        self.requires("esperantoTrace/[>=1.3.0 <2.0.0]")
         # cm-umode doens't require etsoc_hal
         if self.options.with_sp_bl or \
            self.options.with_minion_bl or \
