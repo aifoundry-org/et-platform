@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.4.0] - 2023-04-19
+### Added
 - [SW-16508] Adding P2P DMA read/write commands and responses
 ### Changed
 - [SW-16508b] Split struct p2pdma_node into read/write node structs
