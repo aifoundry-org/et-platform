@@ -100,6 +100,8 @@ typedef struct dma_channel_status_cb {
     uint64_t prev_cycles;      /* previous cycles froma continued transaction */
     uint64_t transfer_size;    /* Transfer size of data. This is only valid when channel state
                                        is 'in use'. */
+    uint16_t rsp_id;           /* Holds the response ID of the command */
+    uint8_t pad[6];            /* Padding for alignment */
 } dma_channel_status_cb_t;
 
 /*! \fn void DMAW_Init(void)
@@ -132,7 +134,7 @@ int32_t DMAW_Read_Find_Idle_Chan_And_Reserve(dma_read_chan_id_e *chan_id, uint8_
 int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint8_t sqw_idx);
 
 /*! \fn int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
-    const struct device_ops_dma_writelist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
+    const struct cmd_header_t *cmd_info, uint16_t xfer_count, uint8_t sqw_idx,
     execution_cycles_t *cycles, uint8_t sw_timer_idx)
     \brief This function is used to trigger a DMA read transaction by calling the
     PCIe device driver routine
@@ -143,12 +145,11 @@ int32_t DMAW_Write_Find_Idle_Chan_And_Reserve(dma_write_chan_id_e *chan_id, uint
     \param cycles Pointer to latency cycles struct
     \return Status success or error
 */
-int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
-    const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
-    const execution_cycles_t *cycles);
+int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id, const struct cmd_header_t *cmd_info,
+    uint8_t xfer_count, uint8_t sqw_idx, const execution_cycles_t *cycles);
 
 /*! \fn int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
-    const struct device_ops_dma_readlist_cmd_t *cmd, uint16_t xfer_count, uint8_t sqw_idx,
+    const struct cmd_header_t *cmd_info, uint16_t xfer_count, uint8_t sqw_idx,
     execution_cycles_t *cycles, uint8_t sw_timer_idx, dma_flags_e flags)
     \brief This function is used to trigger a DMA write transaction by calling the
     PCIe device driver routine
@@ -161,7 +162,7 @@ int32_t DMAW_Read_Trigger_Transfer(dma_read_chan_id_e chan_id,
     \return Status success or error
 */
 int32_t DMAW_Write_Trigger_Transfer(dma_write_chan_id_e chan_id,
-    const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t xfer_count, uint8_t sqw_idx,
+    const struct cmd_header_t *cmd_info, uint8_t xfer_count, uint8_t sqw_idx,
     const execution_cycles_t *cycles, dma_flags_e flags);
 
 /*! \fn uint64_t DMAW_Get_Average_Exec_Cycles(void)

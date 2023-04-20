@@ -1077,11 +1077,11 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
 *       int32_t           Successful status or error code.
 *
 ***********************************************************************/
-static inline int32_t dma_readlist_cmd_process_trace_flags(
-    struct device_ops_dma_readlist_cmd_t *cmd)
+static inline int32_t dma_readlist_cmd_process_trace_flags(struct cmd_header_t *cmd_info)
 {
     int32_t status = STATUS_SUCCESS;
     uint64_t cm_shire_mask;
+    struct device_ops_dma_readlist_cmd_t *cmd = (struct device_ops_dma_readlist_cmd_t *)cmd_info;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
     if ((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) &&
@@ -1196,7 +1196,7 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
 *
 *   INPUTS
 *
-*       cmd               Buffer containing command to process
+*       cmd_info          Buffer containing command to process
 *       dma_xfer_count    Pointer to dma nodes count
 *
 *   OUTPUTS
@@ -1205,13 +1205,16 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(
 *
 ***********************************************************************/
 static inline int32_t dma_readlist_cmd_verify_limits(
-    const struct device_ops_dma_readlist_cmd_t *cmd, uint8_t *dma_xfer_count)
+    const struct cmd_header_t *cmd_info, uint8_t *dma_xfer_count)
 {
     int32_t status;
 
     /* Get number of transfer commands in the read list, based on message payload length. */
-    *dma_xfer_count = (uint8_t)(
-        (cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) / sizeof(struct dma_read_node));
+    *dma_xfer_count =
+        (uint8_t)((cmd_info->cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                  ((cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) ?
+                          sizeof(struct dma_read_node) :
+                          sizeof(struct p2pdma_read_node)));
 
     /* Ensure the count of Xfer is within limits */
     status = ((*dma_xfer_count > 0) && (*dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
@@ -1221,10 +1224,15 @@ static inline int32_t dma_readlist_cmd_verify_limits(
     /* Ensure the size of Xfer is within limits */
     for (int loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < *dma_xfer_count); ++loop_cnt)
     {
-        status = ((cmd->list[loop_cnt].size > 0) &&
-                     (cmd->list[loop_cnt].size <= DMAW_MAX_ELEMENT_SIZE)) ?
-                     STATUS_SUCCESS :
-                     DMAW_ERROR_INVALID_XFER_SIZE;
+        uint32_t size =
+            (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) ?
+                ((const struct device_ops_dma_readlist_cmd_t *)cmd_info)->list[loop_cnt].size :
+                ((const struct device_ops_p2pdma_readlist_cmd_t *)cmd_info)->list[loop_cnt].size;
+
+        if ((size == 0) || (size > DMAW_MAX_ELEMENT_SIZE))
+        {
+            status = DMAW_ERROR_INVALID_XFER_SIZE;
+        }
     }
 
     return status;
@@ -1254,27 +1262,29 @@ static inline int32_t dma_readlist_cmd_verify_limits(
 static inline int32_t dma_readlist_cmd_handler(
     void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
-    struct device_ops_dma_readlist_cmd_t *cmd =
-        (struct device_ops_dma_readlist_cmd_t *)command_buffer;
+    struct cmd_header_t *cmd_info = (struct cmd_header_t *)command_buffer;
     struct device_ops_dma_readlist_rsp_t rsp;
     dma_flags_e dma_flag;
     dma_write_chan_id_e chan = DMA_CHAN_ID_WRITE_INVALID;
     int32_t status = STATUS_SUCCESS;
-    uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
     execution_cycles_t cycles;
+    const char read_cmds[2][7] = { "DMA\0", "P2PDMA\0" };
+    uint8_t read_type =
+        (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) ? 0 : 1;
 
-    TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
-        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+    TRACE_LOG_CMD_STATUS(
+        cmd_info->cmd_hdr.msg_id, sqw_idx, cmd_info->cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     /* Design Notes: Note a DMA write command from host will
     trigger the implementation to configure a DMA read channel
     on device to move data from host to device, similarly a read
     command from host will trigger the implementation to configure
     a DMA write channel on device to move data from device to host */
-    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DMA_READLIST_CMD\r\n",
-        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG,
+        "TID[%u]:SQW[%d]:HostCommandHandler:Processing:%s_READLIST_CMD:msg_id:%d\r\n",
+        cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], cmd_info->cmd_hdr.msg_id);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -1285,19 +1295,20 @@ static inline int32_t dma_readlist_cmd_handler(
     if (status == STATUS_SUCCESS)
     {
         /* Check if no special flag is set. */
-        if ((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) ||
-            (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF))
+        if ((cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) &&
+            ((cmd_info->cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) ||
+                (cmd_info->cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF)))
         {
             dma_xfer_count = 1;
             dma_flag = DMA_SOC_NO_BOUNDS_CHECK;
-            status = dma_readlist_cmd_process_trace_flags(cmd);
+            status = dma_readlist_cmd_process_trace_flags(cmd_info);
         }
         else
         {
             dma_flag = DMA_NORMAL;
 
             /* Verify the dma count and size */
-            status = dma_readlist_cmd_verify_limits(cmd, &dma_xfer_count);
+            status = dma_readlist_cmd_verify_limits(cmd_info, &dma_xfer_count);
         }
 
         if (status == STATUS_SUCCESS)
@@ -1309,21 +1320,62 @@ static inline int32_t dma_readlist_cmd_handler(
 
     if (status == STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:DMA_READ:channel_used:%d, dma xfer count=%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, chan, dma_xfer_count);
+        Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:%s_READ:channel_used:%d, dma xfer count=%d\r\n",
+            cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], chan, dma_xfer_count);
 
-        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+        if (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:DMA_READ:src_device_phy_addr:%" PRIx64 "\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_device_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:DMA_READ:dst_host_phy_addr:%" PRIx64 "\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_host_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:DMA_READ:size:%" PRIx32 "\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].size);
+            const struct device_ops_dma_readlist_cmd_t *dmalist_cmd =
+                (const struct device_ops_dma_readlist_cmd_t *)command_buffer;
 
-            total_dma_size += cmd->list[loop_cnt].size;
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "TID[%u]:SQW[%d]:%s_READLIST:src_device_phy_addr:%" PRIx64 "\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                        dmalist_cmd->list[loop_cnt].src_device_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_READLIST:dst_host_phy_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                    dmalist_cmd->list[loop_cnt].dst_host_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:%s_READLIST:size:%" PRIx32 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                    dmalist_cmd->list[loop_cnt].size);
+            }
+        }
+        else
+        {
+            const struct device_ops_p2pdma_readlist_cmd_t *p2p_dmalist_cmd =
+                (const struct device_ops_p2pdma_readlist_cmd_t *)command_buffer;
+
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "TID[%u]:SQW[%d]:%s_READLIST:dst_device_phy_addr:%" PRIx64 "\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                        p2p_dmalist_cmd->list[loop_cnt].dst_device_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_READLIST:dst_device_bus_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                    p2p_dmalist_cmd->list[loop_cnt].dst_device_bus_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_READLIST:src_device_phy_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                    p2p_dmalist_cmd->list[loop_cnt].src_device_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:%s_READLIST:size:%" PRIx32 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                    p2p_dmalist_cmd->list[loop_cnt].size);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_READLIST:peer_devnum:%" PRIx32 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type],
+                    p2p_dmalist_cmd->list[loop_cnt].peer_devnum);
+            }
         }
 
         /* Compute Wait Cycles (cycles the command was sitting in
@@ -1333,7 +1385,8 @@ static inline int32_t dma_readlist_cmd_handler(
         cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
         /* Initiate DMA write transfer */
-        status = DMAW_Write_Trigger_Transfer(chan, cmd, dma_xfer_count, sqw_idx, &cycles, dma_flag);
+        status =
+            DMAW_Write_Trigger_Transfer(chan, cmd_info, dma_xfer_count, sqw_idx, &cycles, dma_flag);
     }
 
     if (status != STATUS_SUCCESS)
@@ -1342,8 +1395,11 @@ static inline int32_t dma_readlist_cmd_handler(
         dmar_fail_msg[sizeof(dmar_fail_msg) - 1] = 0;
 
         /* Construct and transmit command response */
-        rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP;
+        rsp.response_info.rsp_hdr.tag_id = cmd_info->cmd_hdr.tag_id;
+        rsp.response_info.rsp_hdr.msg_id =
+            (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) ?
+                DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP :
+                DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_RSP;
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
         /* Compute Wait Cycles (cycles the command was sitting
         in SQ prior to launch) Snapshot current cycle */
@@ -1354,25 +1410,60 @@ static inline int32_t dma_readlist_cmd_handler(
         /* Populate the error type response */
         DMA_TO_DEVICEAPI_STATUS(status, rsp.status, dmar_fail_msg)
 
-        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg, status);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:%s_READLIST:%s:%d\r\n",
+            cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], dmar_fail_msg, status);
 
-        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+        if (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:src_device_phy_addr:0x%lx:size:0x%x\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg,
-                cmd->list[loop_cnt].src_device_phy_addr, cmd->list[loop_cnt].size);
+            const struct device_ops_dma_readlist_cmd_t *dmalist_cmd =
+                (const struct device_ops_dma_readlist_cmd_t *)command_buffer;
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMARead:%s:dst_host_virt_addr:0x%lx:dst_host_phy_addr:0x%lx\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmar_fail_msg,
-                cmd->list[loop_cnt].dst_host_virt_addr, cmd->list[loop_cnt].dst_host_phy_addr);
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "TID[%u]:SQW[%d]:HostCmdHdlr:%s_READLIST:%s:src_device_phy_addr:0x%lx:size:0x%x\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], dmar_fail_msg,
+                        dmalist_cmd->list[loop_cnt].src_device_phy_addr,
+                        dmalist_cmd->list[loop_cnt].size);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:HostCmdHdlr:%s_READLIST:%s:dst_host_virt_addr:0x%lx:dst_host_phy_addr:0x%lx\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], dmar_fail_msg,
+                    dmalist_cmd->list[loop_cnt].dst_host_virt_addr,
+                    dmalist_cmd->list[loop_cnt].dst_host_phy_addr);
+            }
+        }
+        else
+        {
+            const struct device_ops_p2pdma_readlist_cmd_t *p2p_dmalist_cmd =
+                (const struct device_ops_p2pdma_readlist_cmd_t *)command_buffer;
+
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "TID[%u]:SQW[%d]:HostCmdHdlr:%s_READLIST:%s:peer_devnum:%d:src_device_phy_addr:0x%lx:dst_device_phy_addr:0x%lx:size:0x%x\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], dmar_fail_msg,
+                        p2p_dmalist_cmd->list[loop_cnt].peer_devnum,
+                        p2p_dmalist_cmd->list[loop_cnt].src_device_phy_addr,
+                        p2p_dmalist_cmd->list[loop_cnt].dst_device_phy_addr,
+                        p2p_dmalist_cmd->list[loop_cnt].size);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:HostCmdHdlr:%s_READLIST:%s:dst_device_bus_addr:0x%lx\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type], dmar_fail_msg,
+                    p2p_dmalist_cmd->list[loop_cnt].dst_device_bus_addr);
+            }
         }
 
         Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:DMA_READLIST_CMD_RSP:Host_CQ\r\n",
-            rsp.response_info.rsp_hdr.tag_id, sqw_idx);
+            "TID[%u]:SQW[%d]:HostCommandHandler:Pushing:%s_READLIST_RSP:Host_CQ\r\n",
+            rsp.response_info.rsp_hdr.tag_id, sqw_idx, read_cmds[read_type]);
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
 
@@ -1380,20 +1471,20 @@ static inline int32_t dma_readlist_cmd_handler(
         Since we are in failure path, we will ignore CQ push status for logging to trace. */
         if (rsp.status == DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED)
         {
-            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+            TRACE_LOG_CMD_STATUS(
+                cmd_info->cmd_hdr.msg_id, sqw_idx, cmd_info->cmd_hdr.tag_id, CMD_STATUS_ABORTED)
         }
         else
         {
-            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+            TRACE_LOG_CMD_STATUS(
+                cmd_info->cmd_hdr.msg_id, sqw_idx, cmd_info->cmd_hdr.tag_id, CMD_STATUS_FAILED)
         }
 
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
+                "TID[%u]:SQW[%d]:HostCommandHandler:Push:%s_READLIST_RSP:Host_CQ:Failed\r\n",
+                cmd_info->cmd_hdr.tag_id, sqw_idx, read_cmds[read_type]);
             SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
@@ -1419,7 +1510,7 @@ static inline int32_t dma_readlist_cmd_handler(
 *
 *   INPUTS
 *
-*       cmd               Buffer containing command to process
+*       cmd_info          Buffer containing command to process
 *       dma_xfer_count    Pointer to dma nodes count
 *
 *   OUTPUTS
@@ -1428,13 +1519,16 @@ static inline int32_t dma_readlist_cmd_handler(
 *
 ***********************************************************************/
 static inline int32_t dma_writelist_cmd_verify_limits(
-    const struct device_ops_dma_writelist_cmd_t *cmd, uint8_t *dma_xfer_count)
+    const struct cmd_header_t *cmd_info, uint8_t *dma_xfer_count)
 {
     int32_t status;
 
     /* Get number of transfer commands in the write list, based on message payload length. */
-    *dma_xfer_count = (uint8_t)(
-        (cmd->command_info.cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) / sizeof(struct dma_write_node));
+    *dma_xfer_count =
+        (uint8_t)((cmd_info->cmd_hdr.size - DEVICE_CMD_HEADER_SIZE) /
+                  ((cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) ?
+                          sizeof(struct dma_write_node) :
+                          sizeof(struct p2pdma_write_node)));
 
     /* Ensure the count of Xfer is within limits */
     status = ((*dma_xfer_count > 0) && (*dma_xfer_count <= MEM_REGION_DMA_ELEMENT_COUNT)) ?
@@ -1444,10 +1538,15 @@ static inline int32_t dma_writelist_cmd_verify_limits(
     /* Ensure the size of Xfer is within limits */
     for (int loop_cnt = 0; (status == STATUS_SUCCESS) && (loop_cnt < *dma_xfer_count); ++loop_cnt)
     {
-        status = ((cmd->list[loop_cnt].size > 0) &&
-                     (cmd->list[loop_cnt].size <= DMAW_MAX_ELEMENT_SIZE)) ?
-                     STATUS_SUCCESS :
-                     DMAW_ERROR_INVALID_XFER_SIZE;
+        uint32_t size =
+            (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) ?
+                ((const struct device_ops_dma_writelist_cmd_t *)cmd_info)->list[loop_cnt].size :
+                ((const struct device_ops_p2pdma_writelist_cmd_t *)cmd_info)->list[loop_cnt].size;
+
+        if ((size == 0) || (size > DMAW_MAX_ELEMENT_SIZE))
+        {
+            status = DMAW_ERROR_INVALID_XFER_SIZE;
+        }
     }
 
     return status;
@@ -1477,27 +1576,27 @@ static inline int32_t dma_writelist_cmd_verify_limits(
 static inline int32_t dma_writelist_cmd_handler(
     void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
-    const struct device_ops_dma_writelist_cmd_t *cmd =
-        (struct device_ops_dma_writelist_cmd_t *)command_buffer;
+    const struct cmd_header_t *cmd_info = (const struct cmd_header_t *)command_buffer;
     struct device_ops_dma_writelist_rsp_t rsp;
     dma_read_chan_id_e chan = DMA_CHAN_ID_READ_INVALID;
-    uint64_t total_dma_size = 0;
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
     int32_t status = STATUS_SUCCESS;
     execution_cycles_t cycles;
+    const char write_cmds[2][7] = { "DMA\0", "P2PDMA\0" };
+    uint8_t write_type =
+        (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) ? 0 : 1;
 
-    TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
-        cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
+    TRACE_LOG_CMD_STATUS(
+        cmd_info->cmd_hdr.msg_id, sqw_idx, cmd_info->cmd_hdr.tag_id, CMD_STATUS_RECEIVED)
 
     /* Design Notes: Note a DMA write command from host will trigger
     the implementation to configure a DMA read channel on device to move
     data from host to device, similarly a read command from host will
     trigger the implementation to configure a DMA write channel on device
     to move data from device to host */
-    Log_Write(LOG_LEVEL_DEBUG,
-        "TID[%u]:SQW[%d]:HostCommandHandler:Processing:DMA_WRITELIST_CMD\r\n",
-        cmd->command_info.cmd_hdr.tag_id, sqw_idx);
+    Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:HostCommandHandler:Processing:%s_WRITELIST_CMD\r\n",
+        cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type]);
 
     /* Get the SQW state to check for command abort */
     if (SQW_Get_State(sqw_idx) == SQW_STATE_ABORTED)
@@ -1508,7 +1607,7 @@ static inline int32_t dma_writelist_cmd_handler(
     if (status == STATUS_SUCCESS)
     {
         /* Verify the dma count and size */
-        status = dma_writelist_cmd_verify_limits(cmd, &dma_xfer_count);
+        status = dma_writelist_cmd_verify_limits(cmd_info, &dma_xfer_count);
 
         if (status == STATUS_SUCCESS)
         {
@@ -1520,23 +1619,66 @@ static inline int32_t dma_writelist_cmd_handler(
     if (status == STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_DEBUG,
-            "TID[%u]:SQW[%d]:DMA_WRITE:channel_used:%d, dma xfer count=%d \r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, chan, dma_xfer_count);
+            "TID[%u]:SQW[%d]:%s_WRITELIST:channel_used:%d, dma xfer count=%d \r\n",
+            cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type], chan, dma_xfer_count);
 
-        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+        if (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD)
         {
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:DMA_WRITE:src_host_virt_addr:%" PRIx64 "\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_host_virt_addr);
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:DMA_WRITE:src_host_phy_addr:%" PRIx64 "\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].src_host_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:DMA_WRITE:dst_device_phy_addr:%" PRIx64 "\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->list[loop_cnt].dst_device_phy_addr);
-            Log_Write(LOG_LEVEL_DEBUG, "DMA_WRITE:size:%" PRIx32 "\r\n", cmd->list[loop_cnt].size);
+            const struct device_ops_dma_writelist_cmd_t *dmalist_cmd =
+                (const struct device_ops_dma_writelist_cmd_t *)command_buffer;
 
-            total_dma_size += cmd->list[loop_cnt].size;
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "TID[%u]:SQW[%d]:%s_WRITELIST:src_host_virt_addr:%" PRIx64 "\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                        dmalist_cmd->list[loop_cnt].src_host_virt_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_WRITELIST:src_host_phy_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    dmalist_cmd->list[loop_cnt].src_host_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_WRITELIST:dst_device_phy_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    dmalist_cmd->list[loop_cnt].dst_device_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:%s_WRITE:size:%" PRIx32 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    dmalist_cmd->list[loop_cnt].size);
+            }
+        }
+        else
+        {
+            const struct device_ops_p2pdma_writelist_cmd_t *p2p_dmalist_cmd =
+                (const struct device_ops_p2pdma_writelist_cmd_t *)command_buffer;
+
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_DEBUG,
+                        "TID[%u]:SQW[%d]:%s_WRITELIST:src_device_phy_addr:%" PRIx64 "\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                        p2p_dmalist_cmd->list[loop_cnt].src_device_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_WRITELIST:src_device_bus_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    p2p_dmalist_cmd->list[loop_cnt].src_device_bus_addr);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_WRITELIST:dst_device_phy_addr:%" PRIx64 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    p2p_dmalist_cmd->list[loop_cnt].dst_device_phy_addr);
+                Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:%s_WRITELIST:size:%" PRIx32 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    p2p_dmalist_cmd->list[loop_cnt].size);
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:%s_WRITELIST:peer_devnum:%" PRIx32 "\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type],
+                    p2p_dmalist_cmd->list[loop_cnt].peer_devnum);
+            }
         }
 
         /* Compute Wait Cycles (cycles the command was sitting in
@@ -1546,7 +1688,7 @@ static inline int32_t dma_writelist_cmd_handler(
         cycles.exec_start_cycles = PMC_Get_Current_Cycles();
 
         /* Initiate DMA read transfer */
-        status = DMAW_Read_Trigger_Transfer(chan, cmd, dma_xfer_count, sqw_idx, &cycles);
+        status = DMAW_Read_Trigger_Transfer(chan, cmd_info, dma_xfer_count, sqw_idx, &cycles);
     }
 
     if (status != STATUS_SUCCESS)
@@ -1555,8 +1697,11 @@ static inline int32_t dma_writelist_cmd_handler(
         dmaw_fail_msg[sizeof(dmaw_fail_msg) - 1] = 0;
 
         /* Construct and transit command response */
-        rsp.response_info.rsp_hdr.tag_id = cmd->command_info.cmd_hdr.tag_id;
-        rsp.response_info.rsp_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP;
+        rsp.response_info.rsp_hdr.tag_id = cmd_info->cmd_hdr.tag_id;
+        rsp.response_info.rsp_hdr.msg_id =
+            (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) ?
+                DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_RSP :
+                DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_WRITELIST_RSP;
         rsp.response_info.rsp_hdr.size = sizeof(rsp) - sizeof(struct cmn_header_t);
         /* Compute Wait Cycles (cycles the command was sitting
         in SQ prior to launch) Snapshot current cycle */
@@ -1567,20 +1712,55 @@ static inline int32_t dma_writelist_cmd_handler(
         /* Populate the error type response */
         DMA_TO_DEVICEAPI_STATUS(status, rsp.status, dmaw_fail_msg)
 
-        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:%d\r\n",
-            cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg, status);
+        Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:HostCmdHdlr:%s_WRITELIST:%s:%d\r\n",
+            cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type], dmaw_fail_msg, status);
 
-        for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+        if (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD)
         {
-            Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:dst_device_phy_addr:0x%lx:size:0x%x\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg,
-                cmd->list[loop_cnt].dst_device_phy_addr, cmd->list[loop_cnt].size);
+            const struct device_ops_dma_writelist_cmd_t *dmalist_cmd =
+                (const struct device_ops_dma_writelist_cmd_t *)command_buffer;
 
-            Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCmdHdlr:DMAWrite:%s:src_host_virt_addr:0x%lx:src_host_phy_addr:0x%lx\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx, dmaw_fail_msg,
-                cmd->list[loop_cnt].src_host_virt_addr, cmd->list[loop_cnt].src_host_phy_addr);
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "TID[%u]:SQW[%d]:HostCmdHdlr:%s_WRITELIST:%s:dst_device_phy_addr:0x%lx:size:0x%x\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type], dmaw_fail_msg,
+                        dmalist_cmd->list[loop_cnt].dst_device_phy_addr,
+                        dmalist_cmd->list[loop_cnt].size);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:HostCmdHdlr:%s_WRITELIST:%s:src_host_virt_addr:0x%lx:src_host_phy_addr:0x%lx\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type], dmaw_fail_msg,
+                    dmalist_cmd->list[loop_cnt].src_host_virt_addr,
+                    dmalist_cmd->list[loop_cnt].src_host_phy_addr);
+            }
+        }
+        else
+        {
+            const struct device_ops_p2pdma_writelist_cmd_t *p2p_dmalist_cmd =
+                (const struct device_ops_p2pdma_writelist_cmd_t *)command_buffer;
+
+            for (loop_cnt = 0; loop_cnt < dma_xfer_count; ++loop_cnt)
+            {
+                /* To avoid empty loop */
+                NOP
+
+                    Log_Write(LOG_LEVEL_ERROR,
+                        "TID[%u]:SQW[%d]:HostCmdHdlr:%s_WRITELIST:%s:peer_devnum:%d:src_device_phy_addr:0x%lx:dst_device_phy_addr:0x%lx:size:0x%x\r\n",
+                        cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type], dmaw_fail_msg,
+                        p2p_dmalist_cmd->list[loop_cnt].peer_devnum,
+                        p2p_dmalist_cmd->list[loop_cnt].src_device_phy_addr,
+                        p2p_dmalist_cmd->list[loop_cnt].dst_device_phy_addr,
+                        p2p_dmalist_cmd->list[loop_cnt].size);
+
+                Log_Write(LOG_LEVEL_DEBUG,
+                    "TID[%u]:SQW[%d]:HostCmdHdlr:%s_WRITELIST:%s:src_device_bus_addr:0x%lx\r\n",
+                    cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type], dmaw_fail_msg,
+                    p2p_dmalist_cmd->list[loop_cnt].src_device_bus_addr);
+            }
         }
 
         status = Host_Iface_CQ_Push_Cmd(0, &rsp, sizeof(rsp));
@@ -1589,26 +1769,27 @@ static inline int32_t dma_writelist_cmd_handler(
         Since we are in failure path, we will ignore CQ push status for logging to trace. */
         if (rsp.status == DEV_OPS_API_DMA_RESPONSE_HOST_ABORTED)
         {
-            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_ABORTED)
+            TRACE_LOG_CMD_STATUS(
+                cmd_info->cmd_hdr.msg_id, sqw_idx, cmd_info->cmd_hdr.tag_id, CMD_STATUS_ABORTED)
         }
         else
         {
-            TRACE_LOG_CMD_STATUS(cmd->command_info.cmd_hdr.msg_id, sqw_idx,
-                cmd->command_info.cmd_hdr.tag_id, CMD_STATUS_FAILED)
+            TRACE_LOG_CMD_STATUS(
+                cmd_info->cmd_hdr.msg_id, sqw_idx, cmd_info->cmd_hdr.tag_id, CMD_STATUS_FAILED)
         }
 
         if (status == STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_DEBUG,
-                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:DMA_WRITELIST_CMD_RSP:Host_CQ\r\n",
-                rsp.response_info.rsp_hdr.tag_id, sqw_idx);
+                "TID[%u]:SQW[%d]:HostCommandHandler:Pushed:%s_WRITELIST_RSP:Host_CQ\r\n",
+                rsp.response_info.rsp_hdr.tag_id, sqw_idx, write_cmds[write_type]);
         }
         else
         {
             Log_Write(LOG_LEVEL_ERROR,
-                "TID[%u]::SQW[%d]:HostCommandHandler:HostIface:Push:Failed\r\n",
-                cmd->command_info.cmd_hdr.tag_id, sqw_idx);
+                "TID[%u]::SQW[%d]:HostCommandHandler:Push:%s_WRITELIST_RSP:Host_CQ:Failed\r\n",
+                cmd_info->cmd_hdr.tag_id, sqw_idx, write_cmds[write_type]);
+
             SP_Iface_Report_Error(MM_RECOVERABLE_FW_MM_SQW_ERROR, MM_CQ_PUSH_ERROR);
         }
 
@@ -2018,9 +2199,11 @@ int32_t Host_Command_Handler(void *command_buffer, uint8_t sqw_idx, uint64_t sta
             status = kernel_abort_cmd_handler(command_buffer, sqw_idx);
             break;
         case DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD:
+        case DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_CMD:
             status = dma_readlist_cmd_handler(command_buffer, sqw_idx, start_cycles);
             break;
         case DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD:
+        case DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_WRITELIST_CMD:
             status = dma_writelist_cmd_handler(command_buffer, sqw_idx, start_cycles);
             break;
         case DEV_OPS_API_MID_DEVICE_OPS_TRACE_RT_CONTROL_CMD:
