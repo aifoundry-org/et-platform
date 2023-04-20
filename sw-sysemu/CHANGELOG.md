@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed et_trace to 1.2.1
 - Code smells in devices
+- Fixed bug in Cmakefile to point to 0.10.0
 ### Security
 
 ## [0.9.0] - 2023-03-07
