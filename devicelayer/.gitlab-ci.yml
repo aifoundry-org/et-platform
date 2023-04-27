@@ -1,6 +1,6 @@
 include:
-  - project: 'software/gitlab-ci-common'
-    ref: 62dd746e59efef47d61463c22bc84254e1437ebe
+  - project: software/gitlab-ci-common
+    ref: 598eab92c6151682f5b7ac28a5fda2a116ab15d0
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
@@ -108,9 +108,9 @@ smoke_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o deviceLayer:with_tests=True --build missing
-      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
-      cmake --build --preset ${BUILD_TYPE_LOWER}
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o deviceLayer:with_tests=True --build missing
+      cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}/tests/integration
       ctest --output-on-failure
 
