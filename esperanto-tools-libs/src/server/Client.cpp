@@ -423,3 +423,23 @@ DeviceProperties Client::doGetDeviceProperties(DeviceId device) const {
   }
   return deviceLayerProperties_[idx].deviceProperties_;
 }
+
+size_t Client::getCurrentClients() {
+  auto payload = sendRequestAndWait(req::Type::GET_CURRENT_CLIENTS, std::monostate{});
+  return std::get<resp::NumClients>(payload).numClients_;
+}
+
+std::unordered_map<DeviceId, uint64_t> Client::getFreeMemory() {
+  auto payload = sendRequestAndWait(req::Type::GET_FREE_MEMORY, std::monostate{});
+  return std::get<resp::FreeMemory>(payload).freeMemory_;
+}
+
+std::unordered_map<DeviceId, uint32_t> Client::getWaitingCommands() {
+  auto payload = sendRequestAndWait(req::Type::GET_WAITING_COMMANDS, std::monostate{});
+  return std::get<resp::WaitingCommands>(payload).waitingCommands_;
+}
+
+std::unordered_map<DeviceId, uint32_t> Client::getAliveEvents() {
+  auto payload = sendRequestAndWait(req::Type::GET_ALIVE_EVENTS, std::monostate{});
+  return std::get<resp::AliveEvents>(payload).aliveEvents_;
+}

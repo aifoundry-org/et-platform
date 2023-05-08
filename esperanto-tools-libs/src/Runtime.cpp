@@ -11,6 +11,7 @@
 #include "ProfilerImp.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
+#include "runtime/IMonitor.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include "server/Client.h"
@@ -191,5 +192,10 @@ RuntimePtr IRuntime::create(const std::string& socketPath) {
   auto res = std::make_unique<Client>(socketPath);
   res->setProfiler(std::make_unique<profiling::ProfilerImp>());
   return res;
+}
+
+std::unique_ptr<IMonitor> IMonitor::create(const std::string& socketPath) {
+  EASY_FUNCTION()
+  return std::make_unique<Client>(socketPath);
 }
 } // namespace rt

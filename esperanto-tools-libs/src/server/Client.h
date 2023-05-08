@@ -11,11 +11,12 @@
 #include "ProfilerImp.h"
 #include "Protocol.h"
 #include "StreamManager.h"
+#include "runtime/IMonitor.h"
 #include "runtime/Types.h"
 #include <hostUtils/threadPool/ThreadPool.h>
 
 namespace rt {
-class Client : public IRuntime {
+class Client : public IRuntime, public IMonitor {
 public:
   explicit Client(const std::string& socketPath);
 
@@ -62,6 +63,15 @@ public:
   EventId doAbortStream(StreamId streamId) override;
 
   DmaInfo doGetDmaInfo(DeviceId deviceId) const final;
+
+  // IMonitor implementation
+  size_t getCurrentClients() override;
+
+  std::unordered_map<DeviceId, uint64_t> getFreeMemory() override;
+
+  std::unordered_map<DeviceId, uint32_t> getWaitingCommands() override;
+
+  std::unordered_map<DeviceId, uint32_t> getAliveEvents() override;
 
 private:
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
