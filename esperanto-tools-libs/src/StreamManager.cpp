@@ -65,6 +65,16 @@ bool StreamManager::hasEventsOnFly(DeviceId device) const {
   return false;
 }
 
+std::unordered_map<DeviceId, uint32_t> StreamManager::getEventCount() const {
+  SpinLock lock(mutex_);
+  std::unordered_map<DeviceId, uint32_t> res;
+  for (auto& [id, stream] : streams_) {
+    unused(id);
+    res[static_cast<DeviceId>(stream.info_.device_)] += stream.submittedEvents_.size();
+  }
+  return res;
+}
+
 void StreamManager::addDevice(DeviceId device, int queueCount) {
   SpinLock lock(mutex_);
   queueHelper_.addDevice(device, queueCount);

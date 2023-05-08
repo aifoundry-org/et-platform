@@ -735,3 +735,31 @@ void RuntimeImp::checkList(int device, const MemcpyList& list) const {
                     std::to_string(cmaManagers_.at(DeviceId{device})->getTotalSize()) + " bytes.");
   }
 }
+
+std::unordered_map<DeviceId, uint64_t> RuntimeImp::getFreeMemory() const {
+  std::unordered_map<DeviceId, uint64_t> res;
+  SpinLock lock(mutex_);
+  for (auto d : devices_) {
+    res.emplace(d, memoryManagers_.at(d).getFreeBytes());
+  }
+  return res;
+}
+
+std::unordered_map<DeviceId, uint32_t> RuntimeImp::getWaitingCommands() const {
+  std::unordered_map<DeviceId, uint32_t> res;
+
+  for (auto d : devices_) {
+    auto dev = static_cast<int>(d);
+    auto sqCount = deviceLayer_->getSubmissionQueuesCount(static_cast<int>(d));
+    auto totalCommands = 0U;
+    for (int sq = 0; sq < sqCount; ++sq) {
+      totalCommands += commandSenders_.at(getCommandSenderIdx(dev, sq)).getCurrentSize();
+    }
+    res.emplace(d, totalCommands);
+  }
+  return res;
+}
+
+std::unordered_map<DeviceId, uint32_t> RuntimeImp::getAliveEvents() const {
+  return streamManager_.getEventCount();
+}

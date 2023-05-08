@@ -64,7 +64,11 @@ enum class Type : uint32_t {
   ABORT_COMMAND,
   DMA_INFO,
   DEVICE_PROPERTIES,
-  KERNEL_ABORT_RELEASE_RESOURCES
+  KERNEL_ABORT_RELEASE_RESOURCES,
+  GET_CURRENT_CLIENTS,
+  GET_FREE_MEMORY,
+  GET_WAITING_COMMANDS,
+  GET_ALIVE_EVENTS
 };
 
 using Id = uint32_t;
@@ -244,7 +248,11 @@ enum class Type : uint32_t {
   DMA_INFO,
   DEVICE_PROPERTIES,
   KERNEL_ABORTED,
-  KERNEL_ABORT_RELEASE_RESOURCES
+  KERNEL_ABORT_RELEASE_RESOURCES,
+  GET_CURRENT_CLIENTS,
+  GET_FREE_MEMORY,
+  GET_WAITING_COMMANDS,
+  GET_ALIVE_EVENTS
 };
 
 constexpr auto getStr(Type t) {
@@ -274,6 +282,10 @@ constexpr auto getStr(Type t) {
     STR_TYPE(DEVICE_PROPERTIES)
     STR_TYPE(KERNEL_ABORTED)
     STR_TYPE(KERNEL_ABORT_RELEASE_RESOURCES)
+    STR_TYPE(GET_CURRENT_CLIENTS)
+    STR_TYPE(GET_FREE_MEMORY)
+    STR_TYPE(GET_WAITING_COMMANDS)
+    STR_TYPE(GET_ALIVE_EVENTS)
   default:
     return "Unknown type";
   }
@@ -281,6 +293,30 @@ constexpr auto getStr(Type t) {
 
 using Id = req::Id;
 
+struct NumClients {
+  size_t numClients_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(numClients_);
+  }
+};
+struct FreeMemory {
+  std::unordered_map<DeviceId, uint64_t> freeMemory_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(freeMemory_);
+  }
+};
+struct WaitingCommands {
+  std::unordered_map<DeviceId, uint32_t> waitingCommands_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(waitingCommands_);
+  }
+};
+struct AliveEvents {
+  std::unordered_map<DeviceId, uint32_t> aliveEvents_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(aliveEvents_);
+  }
+};
 struct GetDevices {
   std::vector<DeviceId> devices_;
   template <class Archive> void serialize(Archive& archive) {
@@ -289,9 +325,12 @@ struct GetDevices {
 };
 
 struct Version {
-  uint64_t version_;
+  static constexpr auto INVALID_VERSION = 0xFFFFFFFF;
+  uint32_t major_ = INVALID_VERSION;
+  uint32_t minor_ = INVALID_VERSION;
+
   template <class Archive> void serialize(Archive& archive) {
-    archive(version_);
+    archive(major_, minor_);
   }
 };
 
@@ -367,7 +406,8 @@ struct Response {
   }
 
   using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
-                                 StreamError, RuntimeException, DmaInfo, DeviceProperties, KernelAborted>;
+                                 StreamError, RuntimeException, DmaInfo, DeviceProperties, KernelAborted, NumClients,
+                                 FreeMemory, WaitingCommands, AliveEvents>;
   Type type_;
   Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;

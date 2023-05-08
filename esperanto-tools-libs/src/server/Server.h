@@ -29,6 +29,10 @@ public:
     return runtime_->getProfiler();
   }
 
+  size_t getNumWorkers() const {
+    return workers_.size();
+  }
+
 private:
   void listen();
 

@@ -58,6 +58,10 @@ public:
     profiler_ = profiler;
   }
 
+  size_t getCurrentSize() const {
+    return commands_.size();
+  }
+
 private:
   CommandSender(const CommandSender&) = delete;
   CommandSender& operator=(const CommandSender&) = delete;

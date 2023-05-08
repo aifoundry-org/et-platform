@@ -160,7 +160,7 @@ void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
 
   case req::Type::VERSION: {
-    sendResponse({resp::Type::VERSION, request.id_, resp::Version{2}}); // current version is "2"
+    sendResponse({resp::Type::VERSION, request.id_, resp::Version{3, 0}}); // current version is "2"
     break;
   }
 
@@ -326,6 +326,26 @@ void Worker::processRequest(const req::Request& request) {
       kernelAbortedFreeResources_.erase(it);
     }
     sendResponse({resp::Type::KERNEL_ABORT_RELEASE_RESOURCES, request.id_, std::monostate{}});
+    break;
+  }
+
+  case req::Type::GET_FREE_MEMORY: {
+    sendResponse({resp::Type::GET_FREE_MEMORY, request.id_, resp::FreeMemory{runtime_.getFreeMemory()}});
+    break;
+  }
+
+  case req::Type::GET_CURRENT_CLIENTS: {
+    sendResponse({resp::Type::GET_CURRENT_CLIENTS, request.id_, resp::NumClients{server_.getNumWorkers()}});
+    break;
+  }
+
+  case req::Type::GET_WAITING_COMMANDS: {
+    sendResponse({resp::Type::GET_WAITING_COMMANDS, request.id_, resp::WaitingCommands{runtime_.getWaitingCommands()}});
+    break;
+  }
+
+  case req::Type::GET_ALIVE_EVENTS: {
+    sendResponse({resp::Type::GET_ALIVE_EVENTS, request.id_, resp::AliveEvents{runtime_.getAliveEvents()}});
     break;
   }
 

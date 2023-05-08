@@ -106,6 +106,13 @@ public:
   }
   void setSentCommandCallback(DeviceId device, CommandSender::CommandSentCallback callback);
 
+  // methods not part of the public API, used mainly for client/server implementation
+  std::unordered_map<DeviceId, uint64_t> getFreeMemory() const;
+
+  std::unordered_map<DeviceId, uint32_t> getWaitingCommands() const;
+
+  std::unordered_map<DeviceId, uint32_t> getAliveEvents() const;
+
 private:
   friend ExecutionContextCache;
 

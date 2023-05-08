@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.0]
 ### Added
 - [SW-15675] Added easyprofiler support.
+- [SW-16963] implements new requests for the server-client protocol; also improves the protocol versioning system.
 ## Fixed
  - [SW-16519] Fixed an issue freeing events in the multiprocess flow which made each subsequent waitForStream (for any stream) take longer and longer.
 

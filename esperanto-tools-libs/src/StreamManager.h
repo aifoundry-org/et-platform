@@ -69,6 +69,8 @@ public:
   StreamId createStream(DeviceId device);
   void destroyStream(StreamId stream);
   bool hasEventsOnFly(DeviceId device) const;
+  std::unordered_map<DeviceId, uint32_t> getEventCount() const;
+
   void addDevice(DeviceId, int queueCount);
   std::vector<EventId> getLiveEvents(StreamId stream) const;
 

@@ -297,8 +297,15 @@ EventId Client::doAbortStream(StreamId st) {
 void Client::handShake() {
   EASY_FUNCTION()
   auto payload = sendRequestAndWait(req::Type::VERSION, std::monostate{});
-  if (std::get<resp::Version>(payload).version_ != 2) {
-    throw Exception("Unsupported version. Current client version only supports version: 2. Please update the runtime "
+  auto major = std::get<resp::Version>(payload).major_;
+  auto minor = std::get<resp::Version>(payload).minor_;
+  RT_LOG_IF(FATAL, major == resp::Version::INVALID_VERSION || minor == resp::Version::INVALID_VERSION)
+    << "Invalid version received from server. Major: " << major << " Minor: " << minor;
+
+  RT_LOG(INFO) << "Server protocol version: " << major << "." << minor;
+
+  if (std::get<resp::Version>(payload).major_ != 3) {
+    throw Exception("Unsupported version. Current client version only supports version: 2.X. Please update the runtime "
                     "client library or runtime daemon server.");
   }
   // get deviceLayerProperties now
