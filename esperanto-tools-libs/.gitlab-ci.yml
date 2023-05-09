@@ -246,7 +246,7 @@ nightly_torture_tests:conan:sysemu:
     matrix:
       - BUILD_TYPE: [ Release ]
   variables:
-    TIMEOUT: 2h
+    TIMEOUT: 3h
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
