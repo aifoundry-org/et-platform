@@ -39,18 +39,18 @@ public:
     size_t bytesDram_ = 1UL << (10 + 10 + 10 + 5);
     size_t dramBaseAddress_ = 0x8000;
     dev::DeviceConfig dc_ = {
-      DeviceConfig::FormFactor::PCIE,    // Form factor
-      25,                                // TDP
-      32768,                             // Total L3 size in KBytes
-      16384,                             // Total L2 size in KBytes
-      81920,                             // Total L2scp size in KBytes
-      64,                                // CacheLine alignment in Bytes
-      4,                                 // number of L2 cache banks
-      128000,                            // ddr bandwidth
-      1000,                              // Base frequency in Mhz
-      0xFFFFFFFF,                        // Compute minion mask
-      32,                                // spare minion shire id
-      DeviceConfig::ArchRevision::ETSOC1 // arch revision (ETSOC)
+      DeviceConfig::FormFactor::PCIE,     // Form factor
+      25,                                 // TDP
+      32768,                              // Total L3 size in KBytes
+      16384,                              // Total L2 size in KBytes
+      81920,                              // Total L2scp size in KBytes
+      64,                                 // CacheLine alignment in Bytes
+      4,                                  // number of L2 cache banks
+      128000,                             // ddr bandwidth
+      1000,                               // Base frequency in Mhz
+      0xFFFFFFFF,                         // Compute minion mask
+      32,                                 // spare minion shire id
+      DeviceConfig::ArchRevision::ETSOC1, // arch revision (ETSOC)
     };
 
     static Parameters getDefault() {
