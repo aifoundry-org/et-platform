@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
+- [SW-17092] added compatibility with devicelayer 2.1 and device api 1.4
 ### Changed
 ### Deprecated
 ### Removed

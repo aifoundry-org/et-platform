@@ -51,6 +51,7 @@ public:
       0xFFFFFFFF,                         // Compute minion mask
       32,                                 // spare minion shire id
       DeviceConfig::ArchRevision::ETSOC1, // arch revision (ETSOC)
+      0                                   // physical id
     };
 
     static Parameters getDefault() {
@@ -241,8 +242,10 @@ public:
   bool getTraceBufferServiceProcessor(int, TraceBufferType, std::vector<std::byte>&) override {
     return false;
   }
-  DeviceConfig getDeviceConfig(int) override {
-    return params_.dc_;
+  DeviceConfig getDeviceConfig(int device) override {
+    auto res = params_.dc_;
+    res.physDeviceId_ = static_cast<uint8_t>(device);
+    return res;
   }
 
   int getActiveShiresNum(int device) override {
