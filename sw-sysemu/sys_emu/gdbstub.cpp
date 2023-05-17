@@ -49,6 +49,7 @@ static const unsigned target_csr_list[]{
 #define XREGS_START     0
 #define XREGS_END       (XREGS_START + NUM_XREGS - 1)
 #define PC_REG          (XREGS_END + 1)
+#define TP_REG          (XREGS_START + 4)
 #define FREGS_START     (PC_REG + 1)
 #define FREGS_END       (FREGS_START + NUM_FREGS - 1)
 #define CSR_FREGS_START (FREGS_END + 1)
@@ -143,6 +144,11 @@ static inline void u32_to_hexstr(char* str, uint32_t value)
 static inline void u64_to_hexstr(char* str, uint64_t value)
 {
     sprintf(str, "%016" PRIx64, bswap64(value));
+}
+
+static inline void u64_to_hexstr_raw(char* str, uint64_t value)
+{
+    sprintf(str, "%016" PRIx64, value);
 }
 
 static inline void freg_to_hexstr(char* str, bemu::freg_t freg)
@@ -672,6 +678,36 @@ static void gdbstub_handle_qsthreadinfo(void)
     rsp_send_packet("l");
 }
 
+static void gdbstub_handle_qgettlsaddr(char* packet)
+{
+    LOG_GDBSTUB(DEBUG, "%s", "handle qGetTLSAddr");
+
+    char* tokens[2];
+    char* tokens2[3];
+    char tmp[16+1];
+
+    tmp[0] = '\0';
+    int ntokens = strsplit(packet, ":", tokens, ARRAY_SIZE(tokens));
+    int ntokens2 = strsplit(tokens[1], ",", tokens2, ARRAY_SIZE(tokens2));
+
+    if ((ntokens < 2) || (ntokens2 < 3)) {
+        rsp_send_packet("");
+        return;
+    }
+
+    //lm parameter is not taken in consideration
+
+    int thread_id = strtol(tokens2[0], NULL, 16);
+    uint64_t tp = target_read_register(thread_id, TP_REG);
+
+    //point to local thread variable under consideration
+    int offset_thread_var = strtol(tokens2[1], NULL, 16);
+    u64_to_hexstr_raw(tmp, (tp + offset_thread_var));
+
+    rsp_send_packet(tmp);
+}
+
+
 static void gdbstub_handle_read_general_registers(void)
 {
     char reply[((NUM_XREGS + 1) * 8 + NUM_FREGS * 32 + NUM_CSR_FREGS * 4) * 2 + 1];
@@ -1066,6 +1102,8 @@ static int gdbstub_handle_packet(char* packet)
             gdbstub_handle_qsthreadinfo();
         else if (strcmp(packet, "qAttached") == 0)
             rsp_send_packet("1");
+        else if (rsp_is_query_packet(packet, "GetTLSAddr", ':'))
+            gdbstub_handle_qgettlsaddr(packet);
         else if (strcmp(packet, "qC") == 0)
             gdbstub_handle_query_thread();
         else
