@@ -2,7 +2,7 @@ from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain
 from conan.tools.build import can_run
-from conan.tools.files import copy
+from conan.tools.files import copy, rmdir
 from conan.tools.layout import cmake_layout
 import os
 import re
