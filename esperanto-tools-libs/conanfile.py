@@ -42,7 +42,7 @@ class RuntimeConan(ConanFile):
     
     @property
     def _conanfile_device_artifacts(self):
-        rename f"conanfile_device_artifacts_current.txt"
+        return f"conanfile_device_artifacts_current.txt"
     
     def export(self):
         # This conanfile_device_artifacts_current.txt file is intended to be used by this conanfile.py recipe
