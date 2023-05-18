@@ -39,7 +39,16 @@ class RuntimeConan(ConanFile):
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
-
+    
+    @property
+    def _conanfile_device_artifacts(self):
+        rename f"conanfile_device_artifacts_current.txt"
+    
+    def export(self):
+        # This conanfile_device_artifacts_current.txt file is intended to be used by this conanfile.py recipe
+        # to download device FW artifacts needed to build with tests.
+        copy(self, self._conanfile_device_artifacts, self.recipe_folder, self.export_folder)
+    
     def configure_options(self):
         if self.options.with_tests and not self.dependencies["esperanto-flash-tool"].options.get_safe("header_only"):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
@@ -60,21 +69,21 @@ class RuntimeConan(ConanFile):
         self.requires("libcap/2.62")
         self.requires("gflags/2.2.2")
 
+        self.requires("easy_profiler/2.1.0")            #need this nevertheless for the include files
+
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
         if self.options.with_tests:
             self.requires("gtest/1.10.0")
             self.requires("sw-sysemu/[>=0.5.0 <1.0.0]")
 
-            sysemu_artifacts_conanfile = f"conanfile_device_artifacts_current.txt"
+            sysemu_artifacts_conanfile = os.path.join(self.recipe_folder, self._conanfile_device_artifacts)
             host_ctx_profile = "baremetal-rv64-gcc8.2-debug" if self.settings.build_type == "Debug" else "baremetal-rv64-gcc8.2-release"
             extra_settings = ""
             if self.settings.build_type == "Debug":
                 extra_settings = "-s:h *:build_type=Release"
             self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing -g deploy")
         
-        self.requires("easy_profiler/2.1.0")            #need this nevertheless for the include files
-
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
