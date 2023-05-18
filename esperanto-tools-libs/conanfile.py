@@ -1,8 +1,9 @@
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain
+from conan.tools.build import can_run
+from conan.tools.files import copy
 from conan.tools.layout import cmake_layout
-from conans import tools
-from conans.errors import ConanInvalidConfiguration
 import os
 import re
 
@@ -109,14 +110,14 @@ class RuntimeConan(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-        if self.options.with_tests and not tools.cross_building(self.settings) and self.options.run_tests:
+        if self.options.with_tests and can_run(self) and self.options.run_tests:
             self.run("sudo ctest -L 'Generic' --no-compress-output")
 
     def package(self):
         cmake = CMake(self)
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
-        self.copy(os.path.join(self.source_folder, "esperanto-test-kernels"), os.path.join(self.package_folder, "res", "esperanto-test-kernels"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
+        copy(self, "*", src=os.path.join(self.source_folder, "esperanto-test-kernels"), dst=os.path.join(self.package_folder, "res", "esperanto-test-kernels"))
 
     def package_info(self):
         # library components
