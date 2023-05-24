@@ -18,13 +18,13 @@ class RuntimeConan(ConanFile):
     options = {
         "with_tools": [True, False],
         "with_tests": [True, False],
-        "with_easy_profiler": [True, False],
+        "disable_easy_profiler": [True, False],
         "run_tests": [True, False],
     }
     default_options = {
         "with_tools": False,
         "with_tests": True,
-        "with_easy_profiler": False,
+        "disable_easy_profiler": False,
         "run_tests": False,
     }
 
@@ -100,7 +100,7 @@ class RuntimeConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["BUILD_TOOLS"] = self.options.get_safe("with_tools")
-        tc.variables["DISABLE_EASY_PROFILER"] = not self.options.get_safe("with_easy_profiler")
+        tc.variables["DISABLE_EASY_PROFILER"] = not self.options.get_safe("disable_easy_profiler")
         tc.variables["BUILD_DOCS"] = False
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
