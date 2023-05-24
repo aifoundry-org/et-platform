@@ -23,7 +23,7 @@ class RuntimeConan(ConanFile):
     }
     default_options = {
         "with_tools": False,
-        "with_tests": True,
+        "with_tests": False,
         "disable_easy_profiler": False,
         "run_tests": False,
     }
