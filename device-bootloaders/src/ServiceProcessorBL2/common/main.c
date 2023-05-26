@@ -383,7 +383,7 @@ static void taskMain(void *pvParameters)
 
     while (1)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "SP Alive..\r\n");
+        Log_Write(LOG_LEVEL_INFO, "SP Alive..\r\n");
         // Print SP Hearbeat
         vTaskDelay(MAIN_DEFAULT_TIMEOUT_MSEC);
     }
