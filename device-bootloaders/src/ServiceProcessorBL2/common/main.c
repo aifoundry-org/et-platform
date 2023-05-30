@@ -281,6 +281,10 @@ static void taskMain(void *pvParameters)
     /* Initialize the Cache Size DIRs */
     DIR_Cache_Size_Init();
 
+    /* Set System Boot Voltages - this should be done before bringing up Minions */
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
+    set_system_voltages();
+
     // Launch Master Minion Runtime
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Enable_Master_Shire_Threads\n");
     status = Minion_Enable_Master_Shire_Threads();
@@ -347,10 +351,6 @@ static void taskMain(void *pvParameters)
     status = dm_event_control_init();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to create dm event handler task!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_EVENT_HANDLER_READY);
-
-    /* Set System Boot Voltages */
-    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
-    set_system_voltages();
 
     /* Print system operating point */
     print_system_operating_point();
