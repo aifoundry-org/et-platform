@@ -94,9 +94,7 @@
 
 /* PMIC firmware update defines (timeouts wait up to 3x the expected time) */
 #define FW_UPDATE_WAIT_FACTOR      3
-#define FW_UPDATE_START_TIMEOUT_MS (6 * FW_UPDATE_WAIT_FACTOR)
-#define FW_UPDATE_PAGE_TIMEOUT_MS  (3 * FW_UPDATE_WAIT_FACTOR)
-#define FW_UPDATE_ROW_TIMEOUT_MS   (9 * FW_UPDATE_WAIT_FACTOR)
+#define FW_UPDATE_TIMEOUT_MS       (9 * FW_UPDATE_WAIT_FACTOR)
 #define FW_UPDATE_CKSUM_TIMEOUT_MS (21 * FW_UPDATE_WAIT_FACTOR)
 #define FW_UPDATE_FLASH_ROW_SIZE   256
 #define FW_UPDATE_FLASH_PAGE_SIZE  64
@@ -2217,48 +2215,26 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32_t fw_block_size)
 {
     int status = STATUS_SUCCESS;
-    uint32_t write_count;
-    uint64_t flash_wait_ms = flash_addr == 0 ? FW_UPDATE_START_TIMEOUT_MS : 0;
+    uint32_t reg_size_bytes = 1; //how many bytes are sent in a I2C transfer
 
-    for (write_count = 0; write_count < fw_block_size / 4; write_count++)
+    for (uint32_t write_count = 0; write_count < fw_block_size / reg_size_bytes; write_count++)
     {
-        if (flash_wait_ms > 0)
+        status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
+        
+        if (status == STATUS_SUCCESS)
         {
-            status = pmic_wait_for_flash_ready(flash_wait_ms);
+            status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, fw_ptr, reg_size_bytes);
         }
 
-        if (status != STATUS_SUCCESS)
+        if(status != STATUS_SUCCESS)
         {
+            Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programming failed (write_count %u)\n",
+                      flash_addr / reg_size_bytes);
             break;
         }
 
-        status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, fw_ptr, 4);
-        if (status != STATUS_SUCCESS)
-        {
-            break;
-        }
-
-        if ((flash_addr & (FW_UPDATE_FLASH_ROW_SIZE - 1)) == 0)
-        {
-            flash_wait_ms = FW_UPDATE_ROW_TIMEOUT_MS;
-        }
-        else if ((flash_addr & (FW_UPDATE_FLASH_PAGE_SIZE - 1)) == 0)
-        {
-            flash_wait_ms = FW_UPDATE_PAGE_TIMEOUT_MS;
-        }
-        else
-        {
-            flash_wait_ms = 0;
-        }
-
-        fw_ptr += 4;
-        flash_addr += 4;
-    }
-
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programming failed (write_count %u)\n",
-                  flash_addr / 4);
+        fw_ptr += reg_size_bytes;
+        flash_addr += reg_size_bytes;
     }
 
     return status;
