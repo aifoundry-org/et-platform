@@ -6,10 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
+
 ## [Unreleased]
 ### Added
-- Add qGetTLSAddr GDB support
-- Started development for 0.11.0
+- Started development for 0.12.0
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+
+## [0.11.0] - 2023-05-30
+### Added
+- [SW-17025] Add qGetTLSAddr GDB support
 ### Changed
 ### Deprecated
 ### Removed

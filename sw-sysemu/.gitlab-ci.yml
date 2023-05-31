@@ -68,7 +68,6 @@ verify_project_changes:
   extends:
     - .template_job
     - .pod_nano
-    - .verify_merge_request
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
   stage: .pre
   rules:
