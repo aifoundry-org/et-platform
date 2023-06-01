@@ -972,7 +972,7 @@ static inline int32_t kernel_launch_cmd_handler(
 ***********************************************************************/
 static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw_idx)
 {
-    struct device_ops_kernel_abort_cmd_t *cmd =
+    const struct device_ops_kernel_abort_cmd_t *cmd =
         (struct device_ops_kernel_abort_cmd_t *)command_buffer;
     struct device_ops_kernel_abort_rsp_t rsp;
     int32_t status = STATUS_SUCCESS;
@@ -1062,6 +1062,55 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
 *
 *   FUNCTION
 *
+*       dma_readlist_cmd_trace_evict_buffer_cm
+*
+*   DESCRIPTION
+*
+*       Process host command CM flag for DMA read requests.
+*
+*   INPUTS
+*
+*       cmd_info          Buffer containing command to process
+*
+*   OUTPUTS
+*
+*       int32_t           Successful status or error code.
+*
+***********************************************************************/
+static inline int32_t dma_readlist_cmd_trace_evict_buffer_cm(const struct cmd_header_t *cmd_info)
+{
+    int32_t status = STATUS_SUCCESS;
+    uint64_t cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
+    mm_to_cm_message_trace_buffer_evict_t cm_msg = { .header.id =
+                                                         MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
+        .header.tag_id = cmd_info->cmd_hdr.tag_id,
+        .header.flags = CM_IFACE_FLAG_SYNC_CMD,
+        .thread_mask = Trace_Get_CM_Thread_Mask() };
+
+    /* Send command to CM RT to evict Trace buffer. */
+    status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
+
+    if ((status == CM_IFACE_CM_IN_BAD_STATE) || (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED))
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:HostCmdHdlr:CM Trace Read:CM Multicast:Bad State:Fail:%d\r\n",
+            cmd_info->cmd_hdr.tag_id, status);
+
+        /* TODO:10810: When CM is in bad state allow CM trace to be pulled in any case. */
+        status = STATUS_SUCCESS;
+    }
+    else if (status != STATUS_SUCCESS)
+    {
+        status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       dma_readlist_cmd_process_trace_flags
 *
 *   DESCRIPTION
@@ -1080,41 +1129,15 @@ static inline int32_t kernel_abort_cmd_handler(void *command_buffer, uint8_t sqw
 static inline int32_t dma_readlist_cmd_process_trace_flags(struct cmd_header_t *cmd_info)
 {
     int32_t status = STATUS_SUCCESS;
-    uint64_t cm_shire_mask;
     struct device_ops_dma_readlist_cmd_t *cmd = (struct device_ops_dma_readlist_cmd_t *)cmd_info;
 
     /* If flags are set to extract both MM and CM Trace buffers. */
     if ((cmd->command_info.cmd_hdr.flags & CMD_FLAGS_MMFW_TRACEBUF) &&
         (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF))
     {
-        cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
-
         if (cmd->list[TRACE_NODE_INDEX].size <= (MM_TRACE_BUFFER_SIZE + CM_SMODE_TRACE_BUFFER_SIZE))
         {
-            mm_to_cm_message_trace_buffer_evict_t cm_msg = {
-                .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
-                .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
-                .header.flags = CM_IFACE_FLAG_SYNC_CMD,
-                .thread_mask = Trace_Get_CM_Thread_Mask()
-            };
-
-            /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
-
-            if ((status == CM_IFACE_CM_IN_BAD_STATE) ||
-                (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED))
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "TID[%u]:HostCmdHdlr:CM Trace Read:CM Multicast:Bad State:Fail:%d\r\n",
-                    cmd->command_info.cmd_hdr.tag_id, status);
-
-                /* TODO:10810: When CM is in bad state allow CM trace to be pulled in any case. */
-                status = STATUS_SUCCESS;
-            }
-            else if (status != STATUS_SUCCESS)
-            {
-                status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
-            }
+            status = dma_readlist_cmd_trace_evict_buffer_cm(cmd_info);
 
             /* Evict MM Trace.*/
             Trace_Evict_Buffer_MM();
@@ -1144,34 +1167,9 @@ static inline int32_t dma_readlist_cmd_process_trace_flags(struct cmd_header_t *
     /* Check if flag is set to extract CM Trace buffer. */
     else if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_CMFW_TRACEBUF)
     {
-        cm_shire_mask = Trace_Get_CM_Shire_Mask() & CW_Get_Booted_Shires();
-
         if (cmd->list[TRACE_NODE_INDEX].size <= CM_SMODE_TRACE_BUFFER_SIZE)
         {
-            mm_to_cm_message_trace_buffer_evict_t cm_msg = {
-                .header.id = MM_TO_CM_MESSAGE_ID_TRACE_BUFFER_EVICT,
-                .header.tag_id = cmd->command_info.cmd_hdr.tag_id,
-                .header.flags = CM_IFACE_FLAG_SYNC_CMD,
-                .thread_mask = Trace_Get_CM_Thread_Mask()
-            };
-
-            /* Send command to CM RT to evict Trace buffer. */
-            status = CM_Iface_Multicast_Send(cm_shire_mask, (cm_iface_message_t *)&cm_msg);
-
-            if ((status == CM_IFACE_CM_IN_BAD_STATE) ||
-                (status == CM_IFACE_MULTICAST_TIMEOUT_EXPIRED))
-            {
-                Log_Write(LOG_LEVEL_ERROR,
-                    "TID[%u]:HostCmdHdlr:CM Trace Read:CM Multicast:Bad State:Fail:%d\r\n",
-                    cmd->command_info.cmd_hdr.tag_id, status);
-
-                /* TODO:10810: When CM is in bad state allow CM trace to be pulled in any case. */
-                status = STATUS_SUCCESS;
-            }
-            else if (status != STATUS_SUCCESS)
-            {
-                status = DMAW_ERROR_CM_IFACE_MULTICAST_FAILED;
-            }
+            status = dma_readlist_cmd_trace_evict_buffer_cm(cmd_info);
 
             cmd->list[TRACE_NODE_INDEX].src_device_phy_addr = CM_SMODE_TRACE_BUFFER_BASE;
         }
@@ -1574,7 +1572,7 @@ static inline int32_t dma_writelist_cmd_verify_limits(
 *
 ***********************************************************************/
 static inline int32_t dma_writelist_cmd_handler(
-    void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
+    const void *command_buffer, uint8_t sqw_idx, uint64_t start_cycles)
 {
     const struct cmd_header_t *cmd_info = (const struct cmd_header_t *)command_buffer;
     struct device_ops_dma_writelist_rsp_t rsp;

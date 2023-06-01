@@ -316,7 +316,7 @@ static inline void sqw_process_waiting_commands(uint32_t sqw_idx, vq_cb_t *vq_ca
 *       None
 *
 ***********************************************************************/
-void SQW_Launch(uint32_t sqw_idx)
+__attribute__((noreturn)) void SQW_Launch(uint32_t sqw_idx)
 {
     uint64_t tail_prev;
     void *shared_mem_ptr;
@@ -481,6 +481,8 @@ void SQW_Increment_Command_Count(uint8_t sqw_idx)
 {
     /* Increment commands count being processed by current SQW */
     int32_t original_val = atomic_add_signed_local_32(&SQW_CB.sqw_status[sqw_idx].cmds_count, 1);
+
+    (void)original_val; /* To avoid compiler/Sonaqube warning */
 
     Log_Write(
         LOG_LEVEL_DEBUG, "SQW[%d] Increment:Command Count: %d\r\n", sqw_idx, original_val + 1);

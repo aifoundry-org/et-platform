@@ -6,9 +6,11 @@
 #include "services/sp_iface.h"
 #include "services/trace.h"
 
-uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const regs);
+uint64_t exception_handler(
+    uint64_t scause, uint64_t sepc, uint64_t stval, const uint64_t *const regs);
 
-uint64_t exception_handler(uint64_t scause, uint64_t sepc, uint64_t stval, uint64_t *const regs)
+uint64_t exception_handler(
+    uint64_t scause, uint64_t sepc, uint64_t stval, const uint64_t *const regs)
 {
     uint64_t sstatus;
     asm volatile("csrr %0, sstatus" : "=r"(sstatus));

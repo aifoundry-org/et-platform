@@ -158,7 +158,7 @@ static int32_t wait_for_response_from_service_processor(void)
         asm volatile("wfi");
 
         /* Read pending interrupts */
-        SUPERVISOR_PENDING_INTERRUPTS(sip);
+        SUPERVISOR_PENDING_INTERRUPTS(sip)
 
         Log_Write(LOG_LEVEL_DEBUG, "Waiting on SP: received an interrupt 0x%" PRIx64 "\r\n", sip);
 
@@ -574,7 +574,7 @@ int32_t SP_Iface_Processing(
 int32_t SP_Iface_Get_Shire_Mask_And_Strap(uint64_t *shire_mask, uint8_t *lvdpll_strap)
 {
     static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
-    struct dev_cmd_hdr_t *hdr;
+    const struct dev_cmd_hdr_t *hdr;
     uint64_t rsp_length = 0;
     struct mm2sp_get_active_shire_mask_cmd_t cmd;
     int32_t status = STATUS_SUCCESS;
@@ -761,7 +761,7 @@ int32_t SP_Iface_Reset_Minion(uint64_t shire_mask)
 int32_t SP_Iface_Get_Boot_Freq(uint32_t *boot_freq)
 {
     static uint8_t rsp_buff[64] __attribute__((aligned(64))) = { 0 };
-    struct dev_cmd_hdr_t *hdr;
+    const struct dev_cmd_hdr_t *hdr;
     uint64_t rsp_length = 0;
     struct mm2sp_get_cm_boot_freq_cmd_t cmd;
     int32_t status = STATUS_SUCCESS;

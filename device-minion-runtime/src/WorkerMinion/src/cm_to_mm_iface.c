@@ -51,7 +51,7 @@ int8_t CM_To_MM_Iface_Unicast_Send(
     if (status == STATUS_SUCCESS)
     {
         /* Send IPI to the required hart in Master Shire */
-        syscall(SYSCALL_IPI_TRIGGER_INT, 1ull << ms_thread_id, MASTER_SHIRE, 0);
+        syscall(SYSCALL_IPI_TRIGGER_INT, 1ULL << ms_thread_id, MASTER_SHIRE, 0);
     }
 
     /* Release the unicast buffer lock */

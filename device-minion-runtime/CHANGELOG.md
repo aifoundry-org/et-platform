@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-17162] Fixed SonarQube MAJOR and MINOR code smells.
 ### Security
 
 ## [0.17.0] - 2023-04-19

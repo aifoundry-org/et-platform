@@ -615,7 +615,8 @@ static inline int32_t process_kernel_launch_cmd_payload(
     {
         Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:KW: Trace Optional Payload present!\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx);
-        struct trace_init_info_t *trace_config = (struct trace_init_info_t *)(uintptr_t)payload;
+        const struct trace_init_info_t *trace_config =
+            (struct trace_init_info_t *)(uintptr_t)payload;
 
         /* TODO: Add a new deviceApi code for KW_ERROR_KERNEL_TRACE_INVALID_CONFIG */
         /* Perform sanity checks on trace config */
@@ -1380,7 +1381,7 @@ static inline uint32_t kw_get_kernel_launch_completion_status(
 *       None
 *
 ***********************************************************************/
-void KW_Launch(uint32_t kw_idx)
+__attribute__((noreturn)) void KW_Launch(uint32_t kw_idx)
 {
     bool wait_for_ipi = true;
     bool kw_abort_serviced;

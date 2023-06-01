@@ -127,12 +127,12 @@ int32_t Host_Iface_CQs_Deinit(void);
 /* Special Optimized routines */
 /******************************/
 
-/*! \fn void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
+/*! \fn void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, const vq_cb_t *sq_cached)
     \brief This function is used to update the value of tail
     from cached VQ CB to shared VQ CB
     \param sq_shared Pointer to shared VQ CB
     \param sq_cached Pointer to cached VQ CB
 */
-void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached);
+void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, const vq_cb_t *sq_cached);
 
 #endif /* HOST_IFACE_DEFS_H */

@@ -552,7 +552,7 @@ static inline void l1_shared_to_split(
     if (scp_en)
     {
         // Wait for the L1 cache to change its configuration
-        FENCE;
+        FENCE
 
         // Change L1 Dcache to split mode and SCP enabled
         mcache_control(1, 1, cacheop_reprate, cacheop_max);
@@ -585,7 +585,10 @@ static inline void l1_split_to_shared(
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en)
 {
     uint64_t mcache_control_reg;
-    uint64_t cur_split, cur_scp_en, cur_cacheop_reprate, cur_cacheop_max;
+    uint64_t cur_split;
+    uint64_t cur_scp_en;
+    uint64_t cur_cacheop_reprate;
+    uint64_t cur_cacheop_max;
 
     // Can't enable the SCP without splitting
     if (scp_en && !d1_split)

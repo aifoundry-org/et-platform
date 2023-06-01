@@ -46,7 +46,7 @@
 *       None
 *
 ***********************************************************************/
-void SPW_Launch(uint32_t hart_id)
+__attribute__((noreturn)) void SPW_Launch(uint32_t hart_id)
 {
     uint64_t sip;
     uint64_t tail_prev;
@@ -98,7 +98,7 @@ void SPW_Launch(uint32_t hart_id)
         asm volatile("wfi");
 
         /* Read pending interrupts */
-        SUPERVISOR_PENDING_INTERRUPTS(sip);
+        SUPERVISOR_PENDING_INTERRUPTS(sip)
 
         /* We are only interested in IPIs */
         if (!(sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT)))

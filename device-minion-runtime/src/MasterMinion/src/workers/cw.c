@@ -184,7 +184,7 @@ int32_t CW_Init(void)
     while (!exit_loop)
     {
         /* Read pending interrupts (if any) */
-        SUPERVISOR_PENDING_INTERRUPTS(sip);
+        SUPERVISOR_PENDING_INTERRUPTS(sip)
 
         /* The pending external interrupts need to be processed here so that SW timer
         expires based on tick interval. This function is meant to be called from dispatcher

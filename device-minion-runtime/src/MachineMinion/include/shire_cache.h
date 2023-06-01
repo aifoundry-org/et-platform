@@ -48,14 +48,15 @@ static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t *const ad
 {
     uint64_t state;
 
-    do {
+    do
+    {
         state = (*addr >> 24) & 0xFF;
     } while (state != SC_CACHEOP_STATE_IDLE);
 }
 
 static inline void sc_idx_cop_sm_ctl_go(volatile uint64_t *const addr, uint64_t opcode)
 {
-    *addr = (1ULL << 0) | // Go bit = 1
+    *addr = (1ULL << 0) |          // Go bit = 1
             ((opcode & 0xF) << 8); // Opcode
 }
 
@@ -68,8 +69,10 @@ static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t shire, uint64_t opcod
 
 static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(uint64_t shire)
 {
-    for (uint64_t i = 0; i < SC_NUM_BANKS; i++) {
-        volatile uint64_t *const addr = (volatile uint64_t *)ESR_CACHE(shire, i, SC_IDX_COP_SM_CTL);
+    for (uint64_t i = 0; i < SC_NUM_BANKS; i++)
+    {
+        const volatile uint64_t *const addr =
+            (volatile uint64_t *)ESR_CACHE(shire, i, SC_IDX_COP_SM_CTL);
         sc_idx_cop_sm_ctl_wait_idle(addr);
     }
 }

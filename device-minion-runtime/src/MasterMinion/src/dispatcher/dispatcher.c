@@ -77,7 +77,7 @@ static inline void dispatcher_assert(
         SP_Iface_Report_Error(SP_RECOVERABLE_FW_MM_ERROR, error);
 
         /* Assert with failure */
-        ASSERT(false, error_log);
+        ASSERT(false, error_log)
     }
 }
 
@@ -100,7 +100,7 @@ static inline void dispatcher_assert(
 *       None
 *
 ***********************************************************************/
-void Dispatcher_Launch(uint32_t hart_id)
+__attribute__((noreturn)) void Dispatcher_Launch(uint32_t hart_id)
 {
     int32_t status;
     uint64_t sip;
@@ -239,7 +239,7 @@ void Dispatcher_Launch(uint32_t hart_id)
         asm volatile("wfi");
 
         /* Read pending interrupts */
-        SUPERVISOR_PENDING_INTERRUPTS(sip);
+        SUPERVISOR_PENDING_INTERRUPTS(sip)
 
         Log_Write(LOG_LEVEL_DEBUG, "Dispatcher:Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
 

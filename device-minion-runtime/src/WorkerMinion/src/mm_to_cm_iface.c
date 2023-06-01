@@ -93,9 +93,9 @@ void __attribute__((noreturn)) MM_To_CM_Iface_Main_Loop(void)
         WFI
 
             /* Read pending interrupts */
-            SUPERVISOR_PENDING_INTERRUPTS(sip);
+            SUPERVISOR_PENDING_INTERRUPTS(sip)
 
-        Log_Write(LOG_LEVEL_DEBUG, "Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
+                Log_Write(LOG_LEVEL_DEBUG, "Exiting WFI! SIP: 0x%" PRIx64 "\r\n", sip);
 
         if (sip & (1 << SUPERVISOR_SOFTWARE_INTERRUPT))
         {
@@ -247,7 +247,7 @@ static void mm_to_cm_iface_handle_message(
             Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM:Trace update control msg received\r\n",
                 msg_header.tag_id);
 
-            mm_to_cm_message_trace_rt_control_t *cmd =
+            const mm_to_cm_message_trace_rt_control_t *cmd =
                 (mm_to_cm_message_trace_rt_control_t *)message_ptr;
             uint64_t thread_mask = cmd->thread_mask;
             uint32_t cm_control = cmd->cm_control;

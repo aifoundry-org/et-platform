@@ -504,7 +504,7 @@ int32_t Host_Iface_SQ_Pop_Cmd(uint8_t sq_id, void *rx_buff)
 *       None
 *
 ***********************************************************************/
-void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, vq_cb_t *sq_cached)
+void Host_Iface_Optimized_SQ_Update_Tail(vq_cb_t *sq_shared, const vq_cb_t *sq_cached)
 {
     /* Update tail value in VQ memory */
     VQ_Set_Tail_Offset(sq_shared, VQ_Get_Tail_Offset(sq_cached));
