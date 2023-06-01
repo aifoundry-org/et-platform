@@ -152,6 +152,96 @@ TEST_F(TestMemcpy, dmaListSimple) {
   }
 }
 
+TEST_F(TestMemcpy, memcpyD2DCheckExceptions) {
+  if (sDlType != RuntimeFixture::DeviceLayerImp::PCIE) { // force multidevice if its not PCIE
+    numDevices_ = 2;
+    TearDown();
+    SetUp();
+  }
+  ASSERT_GT(devices_.size(), 1);
+  auto dev1 = devices_[0];
+  auto dev2 = devices_[1];
+  if (sDlType != RuntimeFixture::DeviceLayerImp::PCIE) {
+    RT_LOG(INFO) << "MemcpyDeviceToDevice only supported in PCIE";
+    ASSERT_FALSE(runtime_->isP2PEnabled(dev1, dev2));
+    return;
+  }
+  ASSERT_TRUE(runtime_->isP2PEnabled(dev1, dev2));
+  auto dmaInfoMaxSize = runtime_->getDmaInfo(dev1).maxElementSize_;
+  auto b1 = runtime_->mallocDevice(dev1, dmaInfoMaxSize + 1);
+  auto b2 = runtime_->mallocDevice(dev2, dmaInfoMaxSize * 2 + 1) +
+            dmaInfoMaxSize; // this is done to check the buffer address between both is different
+  ASSERT_NE(b1, b2);
+
+  // bigger size than supported
+  EXPECT_THROW(runtime_->memcpyDeviceToDevice(dev1, defaultStreams_[1], b1, b2, dmaInfoMaxSize + 1), rt::Exception);
+  EXPECT_THROW(runtime_->memcpyDeviceToDevice(defaultStreams_[0], dev2, b1, b2, dmaInfoMaxSize + 1), rt::Exception);
+
+  // invalid buffers
+  EXPECT_THROW(runtime_->memcpyDeviceToDevice(dev1, defaultStreams_[1], b2, b1, dmaInfoMaxSize), rt::Exception);
+  EXPECT_THROW(runtime_->memcpyDeviceToDevice(defaultStreams_[0], dev2, b2, b1, dmaInfoMaxSize), rt::Exception);
+
+  // should work
+  EXPECT_NO_THROW(runtime_->memcpyDeviceToDevice(dev1, defaultStreams_[1], b1, b2, dmaInfoMaxSize));
+  EXPECT_NO_THROW(runtime_->memcpyDeviceToDevice(defaultStreams_[0], dev2, b1, b2, dmaInfoMaxSize));
+
+  runtime_->waitForStream(defaultStreams_[0]);
+  runtime_->waitForStream(defaultStreams_[1]);
+}
+
+TEST_F(TestMemcpy, simpleMemcpyD2D) {
+
+  if (sDlType != RuntimeFixture::DeviceLayerImp::PCIE) { // force multidevice if its not PCIE
+    numDevices_ = 2;
+    TearDown();
+    SetUp();
+  }
+
+  auto devices = runtime_->getDevices();
+  ASSERT_GT(devices.size(), 1);
+  auto dev1 = devices_[0];
+  auto dev2 = devices_[1];
+  if (sDlType != RuntimeFixture::DeviceLayerImp::PCIE) {
+    RT_LOG(INFO) << "MemcpyDeviceToDevice only supported in PCIE";
+    ASSERT_FALSE(runtime_->isP2PEnabled(dev1, dev2));
+    return;
+  }
+  ASSERT_TRUE(runtime_->isP2PEnabled(dev1, dev2));
+  std::mt19937 gen(std::random_device{}());
+  std::uniform_int_distribution dis;
+
+  auto numElems = 1024 * 1024 * 10U;
+  auto random_trash = std::vector<int>(numElems);
+
+  for (auto i = 0U; i < numElems; i += static_cast<uint32_t>(rand() % 128)) {
+    random_trash[i] = dis(gen);
+  }
+
+  // alloc memory in device
+  auto sizeBytes = random_trash.size() * sizeof(int);
+  auto d_buffer1 = runtime_->mallocDevice(dev1, sizeBytes);
+  auto d_buffer2 = runtime_->mallocDevice(dev2, sizeBytes);
+
+  auto streamSrc = defaultStreams_[0];
+  auto streamDst = defaultStreams_[1];
+
+  // copy from host to device, then from device to device and finally from device to result buffer host; check they are
+  // equal
+  runtime_->memcpyHostToDevice(streamSrc, reinterpret_cast<std::byte*>(random_trash.data()), d_buffer1, sizeBytes);
+  runtime_->memcpyDeviceToDevice(streamSrc, dev2, d_buffer1, d_buffer2, sizeBytes);
+
+  auto result = std::vector<int>(numElems);
+  ASSERT_NE(random_trash, result);
+
+  // need to sync before sending the next memcpyDeviceToHost
+  runtime_->waitForStream(streamSrc);
+  runtime_->memcpyDeviceToHost(streamDst, d_buffer2, reinterpret_cast<std::byte*>(result.data()), sizeBytes);
+
+  // final sync and check results
+  runtime_->waitForStream(streamDst);
+  ASSERT_EQ(random_trash, result);
+}
+
 int main(int argc, char** argv) {
   RuntimeFixture::ParseArguments(argc, argv);
   testing::InitGoogleTest(&argc, argv);

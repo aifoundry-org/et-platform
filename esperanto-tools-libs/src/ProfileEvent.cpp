@@ -85,6 +85,8 @@ std::string getString(ResponseType rspType) {
     return "DMA Write";
   case ResponseType::Kernel:
     return "Kernel";
+  case ResponseType::DMAP2P:
+    return "DMA P2P";
   default:
     RT_LOG(WARNING) << "No stringized unknown ResponseType. Consider adding it to " __FILE__;
     return "Unknown response type: " + std::to_string(static_cast<int>(rspType));
@@ -143,6 +145,7 @@ ResponseType response_type_from_string(const std::string& str) {
     s_map[getString(ResponseType::DMARead)] = ResponseType::DMARead;
     s_map[getString(ResponseType::DMAWrite)] = ResponseType::DMAWrite;
     s_map[getString(ResponseType::Kernel)] = ResponseType::Kernel;
+    s_map[getString(ResponseType::DMAP2P)] = ResponseType::DMAP2P;
 
     assert(s_map.size() == static_cast<int>(ResponseType::COUNT));
   });

@@ -160,7 +160,7 @@ void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
 
   case req::Type::VERSION: {
-    sendResponse({resp::Type::VERSION, request.id_, resp::Version{3, 0}}); // current version is "2"
+    sendResponse({resp::Type::VERSION, request.id_, resp::Version{3, 1}}); // current version is "3.1"
     break;
   }
 
@@ -346,6 +346,43 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::GET_ALIVE_EVENTS: {
     sendResponse({resp::Type::GET_ALIVE_EVENTS, request.id_, resp::AliveEvents{runtime_.getAliveEvents()}});
+    break;
+  }
+
+  case req::Type::GET_P2P_COMPATIBILITY: {
+    resp::P2PCompatibility result;
+
+    auto devices = runtime_.doGetDevices();
+    result.compatibilityArray_.resize(devices.size());
+    // build the matrix here ..
+    for (auto i = 0UL, count = devices.size(); i < count; ++i) {
+      for (auto j = i + 1; j < count; ++j) {
+        if (runtime_.doIsP2PEnabled(DeviceId(i), DeviceId(j))) {
+          result.compatibilityArray_[i] |= (1ULL << j);
+        }
+      }
+    }
+    sendResponse({resp::Type::GET_P2P_COMPATIBILITY, request.id_, result});
+    break;
+  }
+
+  case req::Type::MEMCPY_P2P_WRITE: {
+    auto& req = std::get<req::MemcpyP2P>(request.payload_);
+    auto src = reinterpret_cast<std::byte*>(req.src_);
+    auto dst = reinterpret_cast<std::byte*>(req.dst_);
+    auto evt = runtime_.memcpyDeviceToDevice(req.stream_, req.device_, src, dst, req.size_, req.barrier_);
+    events_.emplace(evt);
+    sendResponse({resp::Type::MEMCPY_P2P_WRITE, request.id_, resp::Event{evt}});
+    break;
+  }
+
+  case req::Type::MEMCPY_P2P_READ: {
+    auto& req = std::get<req::MemcpyP2P>(request.payload_);
+    auto src = reinterpret_cast<std::byte*>(req.src_);
+    auto dst = reinterpret_cast<std::byte*>(req.dst_);
+    auto evt = runtime_.memcpyDeviceToDevice(req.device_, req.stream_, src, dst, req.size_, req.barrier_);
+    events_.emplace(evt);
+    sendResponse({resp::Type::MEMCPY_P2P_READ, request.id_, resp::Event{evt}});
     break;
   }
 

@@ -37,10 +37,12 @@ struct MemStream : public std::streambuf {
   }
 };
 } // namespace
+
 void Client::doSetOnStreamErrorsCallback(std::function<void(EventId, StreamError const&)> callback) {
   SpinLock lock(mutex_);
   streamErrorCallback_ = std::move(callback);
 }
+
 Client::~Client() {
   RT_LOG(INFO) << "Destroying client.";
   running_ = false;
@@ -190,6 +192,7 @@ void Client::sendRequest(const req::Request& request) {
     throw NetworkException("Write socket error: " + errorMsg);
   }
 }
+
 resp::Response::Payload_t Client::waitForResponse(req::Id req) {
   EASY_FUNCTION()
   SpinLock lock(mutex_);
@@ -304,12 +307,14 @@ void Client::handShake() {
 
   RT_LOG(INFO) << "Server protocol version: " << major << "." << minor;
 
-  if (std::get<resp::Version>(payload).major_ != 3) {
-    throw Exception("Unsupported version. Current client version only supports version: 2.X. Please update the runtime "
-                    "client library or runtime daemon server.");
+  if (major != 3 || minor < 1) {
+    throw Exception(
+      "Unsupported version. Current client version only supports version: 3.>=1 Please update the runtime "
+      "client library or runtime daemon server.");
   }
   // get deviceLayerProperties now
   auto devices = getDevices();
+  RT_LOG(INFO) << "Num devices: " << devices.size();
   for (auto d : devices) {
     DeviceLayerProperties dlp;
     auto pl = sendRequestAndWait(req::Type::DEVICE_PROPERTIES, d);
@@ -317,6 +322,12 @@ void Client::handShake() {
     pl = sendRequestAndWait(req::Type::DMA_INFO, d);
     dlp.dmaInfo_ = std::get<DmaInfo>(pl);
     deviceLayerProperties_.emplace_back(dlp);
+  }
+  payload = sendRequestAndWait(req::Type::GET_P2P_COMPATIBILITY, std::monostate{});
+  p2pCompatibility_ = std::move(std::get<resp::P2PCompatibility>(payload));
+  for (auto i = 0U; i < p2pCompatibility_.compatibilityArray_.size(); ++i) {
+    RT_VLOG(LOW) << "Device " << i << " p2p compatibility mask: " << std::hex
+                 << p2pCompatibility_.compatibilityArray_[i];
   }
 }
 
@@ -326,6 +337,7 @@ EventId Client::doMemcpyDeviceToHost(StreamId st, std::byte const* src, std::byt
                                                                        reinterpret_cast<AddressT>(dst), size, barrier});
   return registerEvent(payload, st);
 }
+
 StreamId Client::doCreateStream(DeviceId deviceId) {
   auto payload = sendRequestAndWait(req::Type::CREATE_STREAM, req::CreateStream{deviceId});
   auto st = std::get<resp::CreateStream>(payload).stream_;
@@ -333,23 +345,28 @@ StreamId Client::doCreateStream(DeviceId deviceId) {
   streamToEvents_[st] = {};
   return st;
 }
+
 std::byte* Client::doMallocDevice(DeviceId device, unsigned long size, unsigned int alignment) {
   auto payload = sendRequestAndWait(req::Type::MALLOC, req::Malloc{size, device, alignment});
   return reinterpret_cast<std::byte*>(std::get<resp::Malloc>(payload).address_);
 }
+
 EventId Client::doMemcpyDeviceToHost(StreamId st, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_LIST_D2H, req::MemcpyList{memcpyList, st, barrier});
   return registerEvent(payload, st);
 }
+
 EventId Client::doMemcpyHostToDevice(StreamId st, std::byte const* src, std::byte* dst, unsigned long size,
                                      bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_H2D, req::Memcpy{st, reinterpret_cast<AddressT>(src),
                                                                        reinterpret_cast<AddressT>(dst), size, barrier});
   return registerEvent(payload, st);
 }
+
 void Client::doFreeDevice(DeviceId device, std::byte* ptr) {
   sendRequestAndWait(req::Type::FREE, req::Free{device, reinterpret_cast<AddressT>(ptr)});
 }
+
 EventId Client::doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                                uint64_t shire_mask, bool barrier, bool flushL3,
                                std::optional<UserTrace> userTraceConfig) {
@@ -388,13 +405,16 @@ std::vector<DeviceId> Client::doGetDevices() {
   auto payload = sendRequestAndWait(req::Type::GET_DEVICES, std::monostate{});
   return std::get<resp::GetDevices>(payload).devices_;
 }
+
 void Client::doUnloadCode(KernelId kid) {
   sendRequestAndWait(req::Type::UNLOAD_CODE, req::UnloadCode{kid});
 }
+
 EventId Client::doMemcpyHostToDevice(StreamId st, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) {
   auto payload = sendRequestAndWait(req::Type::MEMCPY_LIST_H2D, req::MemcpyList{memcpyList, st, barrier});
   return registerEvent(payload, st);
 }
+
 void Client::doDestroyStream(StreamId stream) {
   SpinLock lock(mutex_);
   find(streamToEvents_, stream, "Stream does not exist");
@@ -414,6 +434,10 @@ DmaInfo Client::doGetDmaInfo(DeviceId deviceId) const {
     throw Exception("Invalid device");
   }
   return deviceLayerProperties_[idx].dmaInfo_;
+}
+
+bool Client::doIsP2PEnabled(DeviceId one, DeviceId other) const {
+  return p2pCompatibility_.isCompatible(one, other);
 }
 
 DeviceProperties Client::doGetDeviceProperties(DeviceId device) const {
@@ -442,4 +466,20 @@ std::unordered_map<DeviceId, uint32_t> Client::getWaitingCommands() {
 std::unordered_map<DeviceId, uint32_t> Client::getAliveEvents() {
   auto payload = sendRequestAndWait(req::Type::GET_ALIVE_EVENTS, std::monostate{});
   return std::get<resp::AliveEvents>(payload).aliveEvents_;
+}
+
+EventId Client::doMemcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src, std::byte* d_dst,
+                                       size_t size, bool barrier) {
+  auto payload = sendRequestAndWait(req::Type::MEMCPY_P2P_WRITE,
+                                    req::MemcpyP2P{streamSrc, deviceDst, reinterpret_cast<AddressT>(d_src),
+                                                   reinterpret_cast<AddressT>(d_dst), size, barrier});
+  return registerEvent(payload, streamSrc);
+}
+
+EventId Client::doMemcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src, std::byte* d_dst,
+                                       size_t size, bool barrier) {
+  auto payload = sendRequestAndWait(req::Type::MEMCPY_P2P_READ,
+                                    req::MemcpyP2P{streamDst, deviceSrc, reinterpret_cast<AddressT>(d_src),
+                                                   reinterpret_cast<AddressT>(d_dst), size, barrier});
+  return registerEvent(payload, streamDst);
 }

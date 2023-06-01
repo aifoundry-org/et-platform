@@ -139,6 +139,9 @@ void CommandSender::runnerFunc() {
         dev::CmdFlagMM flags;
         flags.isDma_ = cmd.isDma_;
         flags.isHpSq_ = false;
+        flags.isP2pDma_ = cmd.isP2P_;
+        RT_VLOG(MID) << ">>> Sending command: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
+                     << " SQ: " << sqIdx_ << " EventId: " << static_cast<int>(cmd.eventId_);
         if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                  flags)) {
           RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
@@ -175,7 +178,7 @@ void CommandSender::runnerFunc() {
         condVar_.wait(lock, [this] { return !running_ || (!commands_.empty() && commands_.front().isEnabled_); });
       }
     } catch (const std::exception& e) {
-      RT_LOG(WARNING)
+      RT_LOG(FATAL)
         << "Exception in command sender runner thread. DeviceLayer could be in a BAD STATE. Exception message: "
         << e.what();
     }

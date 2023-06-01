@@ -18,6 +18,7 @@
 #include <cereal/types/vector.hpp>
 #include <chrono>
 #include <cstddef>
+#include <g3log/loglevels.hpp>
 #include <limits>
 #include <stdint.h>
 #include <type_traits>
@@ -68,7 +69,10 @@ enum class Type : uint32_t {
   GET_CURRENT_CLIENTS,
   GET_FREE_MEMORY,
   GET_WAITING_COMMANDS,
-  GET_ALIVE_EVENTS
+  GET_ALIVE_EVENTS,
+  GET_P2P_COMPATIBILITY,
+  MEMCPY_P2P_READ,
+  MEMCPY_P2P_WRITE,
 };
 
 using Id = uint32_t;
@@ -86,6 +90,18 @@ struct UnloadCode {
   KernelId kernel_;
   template <class Archive> void serialize(Archive& archive) {
     archive(kernel_);
+  }
+};
+
+struct MemcpyP2P {
+  StreamId stream_;
+  DeviceId device_;
+  AddressT src_;
+  AddressT dst_;
+  size_t size_;
+  bool barrier_;
+  template <class Archive> void serialize(Archive& archive) {
+    archive(stream_, device_, src_, dst_, size_, barrier_);
   }
 };
 
@@ -174,6 +190,7 @@ struct LoadCode {
     archive(stream_, elfData_, elfSize_);
   }
 };
+
 struct Malloc {
   size_t size_;
   DeviceId device_;
@@ -217,7 +234,7 @@ struct Request {
   Type type_;
   Id id_ = INVALID_REQUEST_ID;
   std::variant<std::monostate, UnloadCode, KernelLaunch, Memcpy, MemcpyList, CreateStream, DestroyStream, LoadCode,
-               Malloc, Free, AbortStream, AbortCommand, DeviceId, EventId>
+               Malloc, Free, AbortStream, AbortCommand, DeviceId, EventId, MemcpyP2P>
     payload_;
   template <class Archive> void serialize(Archive& archive) {
     archive(type_, id_, payload_);
@@ -252,7 +269,10 @@ enum class Type : uint32_t {
   GET_CURRENT_CLIENTS,
   GET_FREE_MEMORY,
   GET_WAITING_COMMANDS,
-  GET_ALIVE_EVENTS
+  GET_ALIVE_EVENTS,
+  GET_P2P_COMPATIBILITY,
+  MEMCPY_P2P_READ,
+  MEMCPY_P2P_WRITE,
 };
 
 constexpr auto getStr(Type t) {
@@ -286,6 +306,10 @@ constexpr auto getStr(Type t) {
     STR_TYPE(GET_FREE_MEMORY)
     STR_TYPE(GET_WAITING_COMMANDS)
     STR_TYPE(GET_ALIVE_EVENTS)
+    STR_TYPE(GET_P2P_COMPATIBILITY)
+    STR_TYPE(MEMCPY_P2P_READ)
+    STR_TYPE(MEMCPY_P2P_WRITE)
+
   default:
     return "Unknown type";
   }
@@ -331,6 +355,24 @@ struct Version {
 
   template <class Archive> void serialize(Archive& archive) {
     archive(major_, minor_);
+  }
+};
+
+struct P2PCompatibility {
+  std::vector<uint64_t> compatibilityArray_;
+  bool isCompatible(DeviceId one, DeviceId other) const {
+    auto d0 = static_cast<uint32_t>(one);
+    auto d1 = static_cast<uint32_t>(other);
+    if (d0 > d1) {
+      std::swap(d0, d1);
+    }
+    if (d0 == d1 || d1 >= compatibilityArray_.size() || d1 >= 64) {
+      return false;
+    }
+    return compatibilityArray_[d0] & (1ULL << d1);
+  }
+  template <class Archive> void serialize(Archive& archive) {
+    archive(compatibilityArray_);
   }
 };
 
@@ -407,7 +449,7 @@ struct Response {
 
   using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
                                  StreamError, RuntimeException, DmaInfo, DeviceProperties, KernelAborted, NumClients,
-                                 FreeMemory, WaitingCommands, AliveEvents>;
+                                 FreeMemory, WaitingCommands, AliveEvents, P2PCompatibility>;
   Type type_;
   Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;

@@ -20,58 +20,64 @@ class Client : public IRuntime, public IMonitor {
 public:
   explicit Client(const std::string& socketPath);
 
-  ~Client() override;
+  ~Client() final;
 
-  std::vector<DeviceId> doGetDevices() override;
-  std::byte* doMallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) override;
-  void doFreeDevice(DeviceId device, std::byte* buffer) override;
-  StreamId doCreateStream(DeviceId device) override;
-  void doDestroyStream(StreamId stream) override;
-  LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) override;
-  void doUnloadCode(KernelId kernel) override;
+  std::vector<DeviceId> doGetDevices() final;
+  std::byte* doMallocDevice(DeviceId device, size_t size, uint32_t alignment = kCacheLineSize) final;
+  void doFreeDevice(DeviceId device, std::byte* buffer) final;
+  StreamId doCreateStream(DeviceId device) final;
+  void doDestroyStream(StreamId stream) final;
+  LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
+  void doUnloadCode(KernelId kernel) final;
   EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                          uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-                         std::optional<UserTrace> userTraceConfig = std::nullopt) override;
+                         std::optional<UserTrace> userTraceConfig = std::nullopt) final;
   EventId doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size, bool barrier,
-                               const CmaCopyFunction&) override;
+                               const CmaCopyFunction&) final;
 
   EventId doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size, bool barrier,
-                               const CmaCopyFunction&) override;
+                               const CmaCopyFunction&) final;
 
-  EventId doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) override;
+  EventId doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) final;
 
-  EventId doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) override;
+  EventId doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier, const CmaCopyFunction&) final;
 
-  bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) override;
+  EventId doMemcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src, std::byte* d_dst,
+                                 size_t size, bool barrier) final;
+  EventId doMemcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src, std::byte* d_dst,
+                                 size_t size, bool barrier) final;
 
-  bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) override;
+  bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) final;
 
-  std::vector<StreamError> doRetrieveStreamErrors(StreamId stream) override;
+  bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) final;
 
-  void doSetOnStreamErrorsCallback(StreamErrorCallback callback) override;
+  std::vector<StreamError> doRetrieveStreamErrors(StreamId stream) final;
 
-  DeviceProperties doGetDeviceProperties(DeviceId device) const override;
+  void doSetOnStreamErrorsCallback(StreamErrorCallback callback) final;
 
-  void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) override {
+  DeviceProperties doGetDeviceProperties(DeviceId device) const final;
+
+  void doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& callback) final {
     SpinLock lock(mutex_);
     kernelAbortCallback_ = callback;
   }
 
-  EventId doAbortCommand(EventId commandId,
-                         std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) override;
+  EventId doAbortCommand(EventId commandId, std::chrono::milliseconds timeout = std::chrono::milliseconds(5000)) final;
 
-  EventId doAbortStream(StreamId streamId) override;
+  EventId doAbortStream(StreamId streamId) final;
 
   DmaInfo doGetDmaInfo(DeviceId deviceId) const final;
 
+  bool doIsP2PEnabled(DeviceId one, DeviceId other) const final;
+
   // IMonitor implementation
-  size_t getCurrentClients() override;
+  size_t getCurrentClients() final;
 
-  std::unordered_map<DeviceId, uint64_t> getFreeMemory() override;
+  std::unordered_map<DeviceId, uint64_t> getFreeMemory() final;
 
-  std::unordered_map<DeviceId, uint32_t> getWaitingCommands() override;
+  std::unordered_map<DeviceId, uint32_t> getWaitingCommands() final;
 
-  std::unordered_map<DeviceId, uint32_t> getAliveEvents() override;
+  std::unordered_map<DeviceId, uint32_t> getAliveEvents() final;
 
 private:
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
@@ -125,6 +131,7 @@ private:
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<StreamId, std::vector<EventId>> streamToEvents_;
   std::unordered_map<StreamId, std::vector<StreamError>> streamErrors_;
+  resp::P2PCompatibility p2pCompatibility_;
 
   std::condition_variable eventSync_;
   std::thread listener_;

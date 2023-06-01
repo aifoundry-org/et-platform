@@ -23,16 +23,16 @@ public:
 
   void SetUp() override {
     auto options = rt::getDefaultOptions();
-    auto dlCreator = [] {
+    auto dlCreator = [this] {
       switch (sDlType) {
       case DeviceLayerImp::PCIE:
         RT_LOG(INFO) << "Running tests with PCIE deviceLayer";
         return dev::IDeviceLayer::createPcieDeviceLayer();
       case DeviceLayerImp::SYSEMU: {
-        RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer";
+        RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer. Num devices: " << numDevices_;
         auto opts = getSysemuDefaultOptions();
         std::vector<decltype(opts)> vopts;
-        for (auto i = 0; i < sNumDevices; ++i) {
+        for (auto i = 0; i < numDevices_; ++i) {
           vopts.emplace_back(opts);
           vopts.back().logFile += std::to_string(i);
         }
@@ -40,7 +40,7 @@ public:
       }
       case DeviceLayerImp::FAKE:
         RT_LOG(INFO) << "Running tests with FAKE deviceLayer";
-        return std::unique_ptr<dev::IDeviceLayer>{std::make_unique<dev::DeviceLayerFake>(sNumDevices)};
+        return std::unique_ptr<dev::IDeviceLayer>{std::make_unique<dev::DeviceLayerFake>(numDevices_)};
       default:
         throw dev::Exception("Invalid devicelayer type");
       }
@@ -158,7 +158,6 @@ public:
 
   inline static DeviceLayerImp sDlType = DeviceLayerImp::SYSEMU;
   inline static RtType sRtType = RtType::SP;
-  inline static uint8_t sNumDevices = 1;
   inline static bool sTraceEnabled = false;
   inline static bool sInitLogger = true;
 
@@ -175,6 +174,7 @@ private:
   }
 
 protected:
+  uint8_t numDevices_ = 1;
   std::ofstream traceOut_;
   std::unique_ptr<logging::LoggerDefault> loggerDefault_;
   std::unique_ptr<dev::IDeviceLayer> deviceLayer_; // only set for SP mode

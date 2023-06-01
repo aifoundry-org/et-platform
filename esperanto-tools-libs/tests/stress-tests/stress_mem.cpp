@@ -126,10 +126,9 @@ TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
     RT_LOG(INFO) << "This multi device test is designed to be run on SYSEMU, skipping it.";
     return;
   }
-  decltype(sNumDevices) oldNumDevices = sNumDevices;
   try {
     TearDown();
-    sNumDevices = 8;
+    numDevices_ = 8;
     SetUp();
     std::vector<std::future<void>> futs;
     for (auto i = 0U; i < 8; ++i) {
@@ -139,9 +138,7 @@ TEST_F(StressMem, 1KB_50_memcpys_10stream_2thread_8dev) {
     for (auto& f : futs) {
       f.get();
     }
-    sNumDevices = oldNumDevices;
   } catch (const std::exception& e) {
-    sNumDevices = oldNumDevices;
     FAIL() << e.what();
   }
 }

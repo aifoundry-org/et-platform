@@ -70,7 +70,7 @@ std::unordered_map<DeviceId, uint32_t> StreamManager::getEventCount() const {
   std::unordered_map<DeviceId, uint32_t> res;
   for (auto& [id, stream] : streams_) {
     unused(id);
-    res[static_cast<DeviceId>(stream.info_.device_)] += stream.submittedEvents_.size();
+    res[static_cast<DeviceId>(stream.info_.device_)] += static_cast<uint32_t>(stream.submittedEvents_.size());
   }
   return res;
 }

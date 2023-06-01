@@ -198,4 +198,22 @@ std::unique_ptr<IMonitor> IMonitor::create(const std::string& socketPath) {
   EASY_FUNCTION()
   return std::make_unique<Client>(socketPath);
 }
+
+bool IRuntime::isP2PEnabled(DeviceId one, DeviceId other) const {
+  EASY_FUNCTION()
+  return doIsP2PEnabled(one, other);
+}
+
+EventId IRuntime::memcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src, std::byte* d_dst,
+                                       size_t size, bool barrier) {
+  EASY_FUNCTION()
+  return doMemcpyDeviceToDevice(streamSrc, deviceDst, d_src, d_dst, size, barrier);
+}
+
+EventId IRuntime::memcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src, std::byte* d_dst,
+                                       size_t size, bool barrier) {
+  EASY_FUNCTION()
+  return doMemcpyDeviceToDevice(deviceSrc, streamDst, d_src, d_dst, size, barrier);
+}
+
 } // namespace rt

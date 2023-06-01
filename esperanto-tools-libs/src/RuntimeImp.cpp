@@ -555,6 +555,18 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
                     << r->buffer_type;
     break;
   }
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_RSP:
+  case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_WRITELIST_RSP: {
+    auto r = reinterpret_cast<const device_ops_api::device_ops_p2pdma_writelist_rsp_t*>(response.data());
+    recordEvent(*getProfiler(), *r, eventId, ResponseType::DMAP2P);
+    if (r->status != device_ops_api::DEV_OPS_API_DMA_RESPONSE_COMPLETE) {
+      responseWasOk = false;
+      RT_LOG(WARNING) << "Error on memcpyDeviceToDevice (P2P) op: " << r->status
+                      << ". Tag id: " << static_cast<int>(eventId);
+      processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
+    }
+    break;
+  }
   default:
     RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;
@@ -606,8 +618,8 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   }
   RT_LOG(INFO) << "Device API version: " << deviceApiVersion_.major << "." << deviceApiVersion_.minor << "."
                << deviceApiVersion_.patch;
-  if (deviceApiVersion_.major != 1) {
-    throw Exception("Incompatible device-api version. This runtime version supports device-api 1.X.Y.");
+  if (deviceApiVersion_.major != 1 || deviceApiVersion_.minor < 4) {
+    throw Exception("Incompatible device-api version. This runtime version supports device-api 1.>=4.Y.");
   }
 }
 
@@ -753,7 +765,7 @@ std::unordered_map<DeviceId, uint32_t> RuntimeImp::getWaitingCommands() const {
     auto sqCount = deviceLayer_->getSubmissionQueuesCount(static_cast<int>(d));
     auto totalCommands = 0U;
     for (int sq = 0; sq < sqCount; ++sq) {
-      totalCommands += commandSenders_.at(getCommandSenderIdx(dev, sq)).getCurrentSize();
+      totalCommands += static_cast<uint32_t>(commandSenders_.at(getCommandSenderIdx(dev, sq)).getCurrentSize());
     }
     res.emplace(d, totalCommands);
   }
@@ -762,4 +774,8 @@ std::unordered_map<DeviceId, uint32_t> RuntimeImp::getWaitingCommands() const {
 
 std::unordered_map<DeviceId, uint32_t> RuntimeImp::getAliveEvents() const {
   return streamManager_.getEventCount();
+}
+
+bool RuntimeImp::doIsP2PEnabled(DeviceId one, DeviceId other) const {
+  return deviceLayer_->checkP2pDmaCompatibility(static_cast<int>(one), static_cast<int>(other));
 }

@@ -32,6 +32,7 @@ struct Command {
   EventId parentEventId_;
   bool isDma_ = false;
   bool isEnabled_ = false;
+  bool isP2P_ = false;
 };
 
 class CommandSender {

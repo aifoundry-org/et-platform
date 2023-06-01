@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unrealeased]
 ### Added
 - [SW-17092] added compatibility with devicelayer 2.1 and device api 1.4
+- [SW-17093][SW-17094] add new runtime interface to support DeviceToDevice memory transfers
+- [SW-17095] create deviceToDevice integration tests
 ### Changed
 ### Deprecated
 ### Removed

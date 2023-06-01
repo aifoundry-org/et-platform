@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "MemcpyOps.h"
+#include "CommandSender.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
 #include "Utils.h"
@@ -197,6 +198,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
   Sync(evt);
   return evt;
 }
+
 EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier,
                                          const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
@@ -228,6 +230,105 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                    stream,          evt};
   auto action = std::make_unique<MemcpyListD2HAction>(memcpyList, barrier, std::move(mc));
   cmaManager->addMemcpyAction(std::move(action));
+
+  Sync(evt);
+  return evt;
+}
+
+EventId RuntimeImp::doMemcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src,
+                                           std::byte* d_dst, size_t size, bool barrier) {
+  auto streamInfo = streamManager_.getStreamInfo(streamSrc);
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+  if (!doIsP2PEnabled(DeviceId{streamInfo.device_}, deviceDst)) {
+    RT_LOG(WARNING) << "Devices " << streamInfo.device_ << " and " << static_cast<int>(deviceDst)
+                    << " do not support p2p memcpy operation.";
+    throw Exception("P2P unsupported for these devices");
+  }
+  if (auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_); size > dmaInfo.maxElementSize_) {
+    std::stringstream ss;
+    ss << "Max supported memcpyDeviceToDevice size is: " << dmaInfo.maxElementSize_;
+    throw Exception(ss.str());
+  }
+  auto dc = deviceLayer_->getDeviceConfig(static_cast<int>(deviceDst));
+  SpinLock lock(mutex_);
+  if (checkMemcpyDeviceAddress_) {
+    const auto& mmSrc = memoryManagers_.at(DeviceId{streamInfo.device_});
+    mmSrc.checkOperation(d_src, size);
+
+    const auto& mmDst = memoryManagers_.at(deviceDst);
+    mmDst.checkOperation(d_dst, size);
+  }
+  auto evt = eventManager_.getNextId();
+  RT_VLOG(LOW) << "MemcpyDeviceToDevice streamSrc: " << static_cast<int>(streamSrc)
+               << " Device destination: " << static_cast<int>(deviceDst) << " EventId: " << static_cast<int>(evt)
+               << std::hex << " DeviceSrc address: " << d_src << " DeviceDst address: " << d_dst << " Size: " << size;
+  streamManager_.addEvent(streamSrc, evt);
+
+  auto data = std::vector<std::byte>(sizeof(device_ops_p2pdma_readlist_cmd_t) + sizeof(p2pdma_read_node));
+  auto dataPtr = reinterpret_cast<device_ops_p2pdma_readlist_cmd_t*>(data.data());
+
+  dataPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(data.size());
+  dataPtr->command_info.cmd_hdr.tag_id = static_cast<tag_id_t>(evt);
+  dataPtr->command_info.cmd_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_CMD;
+  if (barrier) {
+    dataPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+  }
+  dataPtr->list[0].src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
+  dataPtr->list[0].dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
+  dataPtr->list[0].peer_devnum = dc.physDeviceId_;
+  dataPtr->list[0].size = static_cast<uint32_t>(size);
+
+  commandSender.send(Command{std::move(data), commandSender, evt, evt, true, true, true});
+
+  Sync(evt);
+  return evt;
+}
+
+EventId RuntimeImp::doMemcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src,
+                                           std::byte* d_dst, size_t size, bool barrier) {
+  auto streamInfo = streamManager_.getStreamInfo(streamDst);
+  auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
+  if (!doIsP2PEnabled(DeviceId{streamInfo.device_}, deviceSrc)) {
+    RT_LOG(WARNING) << "Devices " << streamInfo.device_ << " and " << static_cast<int>(deviceSrc)
+                    << " do not support p2p memcpy operation.";
+    throw Exception("P2P unsupported for these devices");
+  }
+
+  if (auto dmaInfo = deviceLayer_->getDmaInfo(streamInfo.device_); size > dmaInfo.maxElementSize_) {
+    std::stringstream ss;
+    ss << "Max supported memcpyDeviceToDevice size is: " << dmaInfo.maxElementSize_;
+    throw Exception(ss.str());
+  }
+  auto dc = deviceLayer_->getDeviceConfig(static_cast<int>(deviceSrc));
+  SpinLock lock(mutex_);
+  if (checkMemcpyDeviceAddress_) {
+    const auto& mmSrc = memoryManagers_.at(deviceSrc);
+    mmSrc.checkOperation(d_src, size);
+
+    const auto& mmDst = memoryManagers_.at(DeviceId{streamInfo.device_});
+    mmDst.checkOperation(d_dst, size);
+  }
+  auto evt = eventManager_.getNextId();
+  RT_VLOG(LOW) << "MemcpyDeviceToDevice streamDst: " << static_cast<int>(streamDst)
+               << " Device source: " << static_cast<int>(deviceSrc) << " EventId: " << static_cast<int>(evt) << std::hex
+               << " DeviceSrc address: " << d_src << " DeviceDst address: " << d_dst << " Size: " << size;
+  streamManager_.addEvent(streamDst, evt);
+
+  auto data = std::vector<std::byte>(sizeof(device_ops_p2pdma_writelist_cmd_t) + sizeof(p2pdma_write_node));
+  auto dataPtr = reinterpret_cast<device_ops_p2pdma_writelist_cmd_t*>(data.data());
+
+  dataPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(data.size());
+  dataPtr->command_info.cmd_hdr.tag_id = static_cast<tag_id_t>(evt);
+  dataPtr->command_info.cmd_hdr.msg_id = DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_WRITELIST_CMD;
+  if (barrier) {
+    dataPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
+  }
+  dataPtr->list[0].src_device_phy_addr = reinterpret_cast<uint64_t>(d_src);
+  dataPtr->list[0].dst_device_phy_addr = reinterpret_cast<uint64_t>(d_dst);
+  dataPtr->list[0].peer_devnum = dc.physDeviceId_;
+  dataPtr->list[0].size = static_cast<uint32_t>(size);
+
+  commandSender.send(Command{std::move(data), commandSender, evt, evt, true, true, true});
 
   Sync(evt);
   return evt;

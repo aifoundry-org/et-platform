@@ -217,6 +217,46 @@ public:
   EventId memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier = true,
                              const CmaCopyFunction& cmaCopyFunction = defaultCmaCopyFunction);
 
+  /// \brief Queues a device to device memcpy operation. The source device will be the corresponding to streamSrc, the
+  /// destination device is provided in deviceDst. The device memory must be a valid region previously allocated by a
+  /// mallocDevice, in both devices. The operation will be queued into the source device, hence it can be synced using
+  /// streamSrc (or resulting eventId). Take into account that if synchronization is required on the destination device
+  /// it needs to be done on higher level; or use instead the other memcpyDeviceToDevice operation.
+  ///
+  /// @param[in] streamSrc handler indicating in which stream to queue the memcpy operation. This op will be queued in
+  /// the source device, hence the stream must correspond to a source device.
+  /// @param[in] deviceDst handler indicating the destination device of the memcpy operation.
+  /// @param[in] d_src device memory buffer on source device to copy from.
+  /// @param[in] d_dst device memory buffer on destination device to copy to.
+  /// @param[in] size indicates the size of the memcpy.
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). All memcpy operations are always asynchronous.
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
+  ///
+  EventId memcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src, std::byte* d_dst,
+                               size_t size, bool barrier = true);
+
+  /// \brief Queues a device to device memcpy operation. The source device is provided in deviceSrc, the
+  /// destination device will be the corresponding to streamDst. The device memory must be a valid region previously
+  /// allocated by a mallocDevice, in both devices. The operation will be queued into the destination device, hence it
+  /// can be synced using streamDst (or resulting eventId). Take into account that if synchronization is required on the
+  /// source device it needs to be done on higher level; or use instead the other memcpyDeviceToDevice operation.
+  ///
+  /// @param[in] deviceSrc handler indicating the source device of the memcpy operation.
+  /// @param[in] streamDst handler indicating in which stream to queue the memcpy operation. This op will be queued in
+  /// the destination device, hence the stream must correspond to a destination device.
+  /// @param[in] d_src device memory buffer on source device to copy from.
+  /// @param[in] d_dst device memory buffer on destination device to copy to.
+  /// @param[in] size indicates the size of the memcpy.
+  /// @param[in] barrier this parameter indicates if the memcpy operation should be postponed till all previous works
+  /// issued into this stream finish (a barrier). All memcpy operations are always asynchronous.
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the memcpy
+  /// ends.
+  ///
+  EventId memcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src, std::byte* d_dst,
+                               size_t size, bool barrier = true);
+
   /// \brief This will block the caller thread until the given event is dispatched or the timeout is reached. This
   /// primitive allows to synchronize with the device execution.
   ///
@@ -318,6 +358,15 @@ public:
   /// operation.
   DmaInfo getDmaInfo(DeviceId deviceId) const;
 
+  /// \brief Returns if memcpy P2P is enabled between both devices.
+  ///
+  /// @param[in] one the first device to check for p2p capabilities.
+  /// @param[in] other the other device to check for p2p capabilities.
+  ///
+  /// @returns true if both devices can communicate directly through p2p, false otherwise.
+  ///
+  bool isP2PEnabled(DeviceId one, DeviceId other) const;
+
   /// \brief Virtual Destructor to enable polymorphic release of the runtime instances
   virtual ~IRuntime();
   ///
@@ -375,6 +424,11 @@ private:
   virtual EventId doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier,
                                        const CmaCopyFunction& cmaCopyFunction) = 0;
 
+  virtual EventId doMemcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src,
+                                         std::byte* d_dst, size_t size, bool barrier) = 0;
+  virtual EventId doMemcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src,
+                                         std::byte* d_dst, size_t size, bool barrier) = 0;
+
   virtual bool doWaitForEvent(EventId event, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
   virtual bool doWaitForStream(StreamId stream, std::chrono::seconds timeout = std::chrono::hours(24)) = 0;
 
@@ -392,6 +446,10 @@ private:
   virtual DmaInfo doGetDmaInfo(DeviceId deviceId) const = 0;
 
   virtual void onProfilerChanged(){/* defaults do nothing */};
+
+  virtual bool doIsP2PEnabled(DeviceId, DeviceId) const {
+    return false;
+  }
 };
 
 } // namespace rt

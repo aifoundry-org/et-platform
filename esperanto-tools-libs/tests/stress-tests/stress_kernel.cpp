@@ -163,10 +163,9 @@ TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8dev) {
     RT_LOG(INFO) << "This multi device test is not design to be run on PCIE, skipping it.";
     return;
   }
-  decltype(sNumDevices) oldNumDevices = sNumDevices;
   try {
     TearDown();
-    sNumDevices = 8;
+    numDevices_ = 8;
     SetUp();
     std::vector<std::future<void>> futs;
     for (auto i = 0U; i < 8; ++i) {
@@ -175,15 +174,12 @@ TEST_F(StressKernel, 256_ele_10_exe_10_st_2_th_8dev) {
     for (auto& f : futs) {
       f.get();
     }
-    sNumDevices = oldNumDevices;
   } catch (const std::exception& e) {
-    sNumDevices = oldNumDevices;
     FAIL() << e.what();
   }
 }
 
 TEST_F(StressKernel, 256_ele_10_exe_2_st_4_th_n_devices) {
-  decltype(sNumDevices) oldNumDevices = sNumDevices;
   std::vector<std::future<void>> futs;
   auto ndevs = devices_.size();
   RT_LOG(INFO) << "Running test on " << ndevs << " devices.";
@@ -193,7 +189,6 @@ TEST_F(StressKernel, 256_ele_10_exe_2_st_4_th_n_devices) {
   for (auto& f : futs) {
     f.get();
   }
-  sNumDevices = oldNumDevices;
 }
 
 TEST_F(StressKernel, 128_ele_1K_exe_1st_10_th_nocheck_NOSYSEMU) {

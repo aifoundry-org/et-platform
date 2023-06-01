@@ -74,7 +74,7 @@ enum class Class {
   CmaWait,
   COUNT
 };
-enum class ResponseType { DMARead, DMAWrite, Kernel, COUNT };
+enum class ResponseType { DMARead, DMAWrite, Kernel, DMAP2P, COUNT };
 Class class_from_string(const std::string& str);
 Type type_from_string(const std::string& str);
 ResponseType response_type_from_string(const std::string& str);
