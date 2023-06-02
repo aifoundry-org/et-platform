@@ -76,11 +76,12 @@ extern "C" {
     \param start: wether we are beginning (true) or ending (false) the region
     \param func: calling function name 
     \param line: calling line.
+    \param regioName: arbitrary quote string region to be profiled.
 */
-#define et_trace_user_profile_event(regionId, start, func, line)                              \
-    {                                                                                         \
-        Trace_User_Profile_Event(                                                             \
-            &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, regionId, start, func, line); \
+#define et_trace_user_profile_event(regionId, start, func, line, regionName)                            \
+    {                                                                                                   \
+        Trace_User_Profile_Event(                                                                       \
+          &CM_UMODE_TRACE_CB[GET_CB_INDEX(get_hart_id())].cb, regionId, start, func, line, regionName); \
     }
 
 /*! \def et_trace_register()
