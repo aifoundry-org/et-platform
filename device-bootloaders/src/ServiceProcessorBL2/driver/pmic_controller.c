@@ -2220,13 +2220,13 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
     for (uint32_t write_count = 0; write_count < fw_block_size / reg_size_bytes; write_count++)
     {
         status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
-        
+
         if (status == STATUS_SUCCESS)
         {
-            status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, fw_ptr, reg_size_bytes);
+            status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, fw_ptr, (uint8_t)reg_size_bytes);
         }
 
-        if(status != STATUS_SUCCESS)
+        if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programming failed (write_count %u)\n",
                       flash_addr / reg_size_bytes);
