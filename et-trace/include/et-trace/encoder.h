@@ -269,7 +269,7 @@ void *Trace_Custom_Event(struct trace_control_block_t *cb, uint32_t custom_type,
 int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_header_t *src_entry,
                          void *dst_entry, const uint32_t dst_size);
 void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionId, bool start,
-                              const char *func, uint32_t line);
+                              const char *func, uint32_t line, const char *regionName);
 #ifdef ET_TRACE_ENCODER_IMPL
 
 #include <stdio.h>
@@ -1505,7 +1505,7 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
 *
 ***********************************************************************/
 void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionId, bool start,
-                              const char *func, uint32_t line)
+                              const char *func, uint32_t line, const char *regionName)
 {
     if (trace_is_enabled(cb)) {
         enum pmc_counter hartRetInst = ((ET_TRACE_GET_HART_ID() & 0x1) == 0) ?
@@ -1526,6 +1526,7 @@ void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionI
                           ((uint16_t)start));
 
         ET_TRACE_WRITE_U64(entry->line_region_status, value);
+        ET_TRACE_WRITE_U64(entry->regionName, (uint64_t)regionName);
     }
 }
 
