@@ -40,7 +40,7 @@
 #define POWER_MW_TO_W(pwrMw) (pwrMw / 1000.0)
 
 static const uint32_t kDmServiceRequestTimeout = 100000;
-static const uint32_t kUpdateDelayMS = 100;
+static const uint32_t kUpdateDelayMS = 1000;
 static const int32_t kMaxDeviceNum = 63;
 static const uint16_t kOtherPower = 3750;
 static const int32_t kOpsCqNum = 1;
@@ -1036,11 +1036,12 @@ int main(int argc, char** argv) {
   device_management::DeviceManagement& dm = device_management::DeviceManagement::getInstance(dl.get());
   EtTop etTop(devNum, dl, dm, batchMode, updateLimit);
 
+  auto checkPoint = std::chrono::steady_clock::now();
   if (resetStats) {
     etTop.resetStats();
+    checkPoint += delay;
   }
 
-  auto checkPoint = std::chrono::steady_clock::now();
   while (!etTop.stopStats()) {
     if (!batchMode) {
       etTop.processInput();
