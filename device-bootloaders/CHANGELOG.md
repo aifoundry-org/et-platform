@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [0.12.0] - 2023-06-02
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - [SW-17161] Change system boot voltages before bringing up Minions.
 - [SW-17139] Change timeouts for PMIC firmware update process.
 ### Security
