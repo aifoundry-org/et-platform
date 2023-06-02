@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [0.11.0] - 2023-06-02
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - Increase resetSOC tests timeout for multi-card (8) machines
 ### Security
 
