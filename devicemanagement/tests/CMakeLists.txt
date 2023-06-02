@@ -142,7 +142,7 @@ create_test(
     TARGET      FunctionalTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     functional/FunctionalTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;120"
 )
 
 #####################
@@ -235,7 +235,7 @@ create_test(
     TARGET      OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
+    PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;120"
 )
 
 create_test(
