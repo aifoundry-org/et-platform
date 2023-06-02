@@ -50,6 +50,8 @@ Client::~Client() {
   listener_.join();
   RT_VLOG(LOW) << "Listener joined.";
   eventSync_.notify_all();
+  RT_LOG_IF(FATAL, !delayedEvents_.empty()) << "Exiting client with delayed events not cleaned. Perhaps an abort "
+                                               "callback was not calling the freeresources callback?";
 }
 
 Client::Client(const std::string& socketPath) {
@@ -233,8 +235,14 @@ void Client::processResponse(const resp::Response& response) {
     auto evt = payload.event_;
     auto buffer = reinterpret_cast<std::byte*>(payload.buffer_);
     if (kernelAbortCallback_) {
+      delayedEvents_.insert(evt);
       tp_.pushTask([this, cb = kernelAbortCallback_, evt, buffer, size = payload.size_] {
-        cb(evt, buffer, size, [this, evt] { sendRequestAndWait(req::Type::KERNEL_ABORT_RELEASE_RESOURCES, evt); });
+        cb(evt, buffer, size, [this, evt] {
+          sendRequestAndWait(req::Type::KERNEL_ABORT_RELEASE_RESOURCES, evt);
+          SpinLock lock(mutex_);
+          dispatch(evt);
+          delayedEvents_.erase(evt);
+        });
       });
     } else {
       lock.unlock();
@@ -244,17 +252,25 @@ void Client::processResponse(const resp::Response& response) {
   }
   case resp::Type::EVENT_DISPATCHED: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Event dispatched should have request type ASYNC_RUNTIME_EVENT";
-    auto evt = std::get<resp::Event>(response.payload_).event_;
-    dispatch(evt);
+    // only dispatch the event if its a delayed event (a callback is being executed), otherwise it will be dispatched
+    // later after the callback is done
+    if (auto evt = std::get<resp::Event>(response.payload_).event_; delayedEvents_.find(evt) == end(delayedEvents_)) {
+      dispatch(evt);
+    }
     break;
   }
   case resp::Type::STREAM_ERROR: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request type ASYNC_RUNTIME_EVENT";
     auto& payload = std::get<resp::StreamError>(response.payload_);
     auto evt = payload.event_;
-    auto& error = payload.error_;
     if (streamErrorCallback_) {
-      tp_.pushTask([cb = streamErrorCallback_, evt, error = std::move(error)] { cb(evt, error); });
+      delayedEvents_.insert(evt);
+      tp_.pushTask([this, cb = streamErrorCallback_, evt, error = std::move(payload.error_)] {
+        cb(evt, error);
+        SpinLock lock(mutex_);
+        dispatch(evt);
+        delayedEvents_.erase(evt);
+      });
     } else {
       auto it = eventToStream_.find(evt);
       if (it == end(eventToStream_)) {

@@ -141,6 +141,9 @@ private:
   KernelAbortedCallback kernelAbortCallback_;
   threadPool::ThreadPool tp_{2};
 
+  // these events won't be dispatched instantly because there are callbacks being executed
+  std::set<EventId> delayedEvents_;
+
   int socket_;
   std::atomic<req::Id> nextId_ = 0;
   bool running_ = true;

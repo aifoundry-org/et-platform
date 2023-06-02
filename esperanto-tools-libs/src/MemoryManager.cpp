@@ -41,8 +41,8 @@ MemoryManager::MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uin
   }
   if (totalMemoryBytes_ % (1U << blockSizeLog2_)) {
     auto excessBytes = totalMemoryBytes_ % (1U << blockSizeLog2_);
-    RT_LOG(WARNING) << "Total memory bytes is 0x" << std::hex << totalMemoryBytes_ << " reducing it by 0x" << excessBytes
-                    << " to make it multiple of block size 0x" << blockSize;
+    RT_LOG(WARNING) << "Total memory bytes is 0x" << std::hex << totalMemoryBytes_ << " reducing it by 0x"
+                    << excessBytes << " to make it multiple of block size 0x" << blockSize;
     totalMemoryBytes_ -= excessBytes;
   }
   if ((totalMemoryBytes_ >> blockSizeLog2_) > std::numeric_limits<uint32_t>::max()) {

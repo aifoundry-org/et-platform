@@ -411,11 +411,12 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
     if (kernelExtra) {
       streamError.cmShireMask_ = kernelExtra->cm_shire_mask;
     }
-    if (!streamManager_.executeCallback(event, streamError, [this, evt = event, dispatchNow] {
-          if (dispatchNow) {
-            dispatch(evt);
-          }
-        })) {
+    auto afterCb = [this, evt = event, dispatchNow] {
+      if (dispatchNow) {
+        dispatch(evt);
+      }
+    };
+    if (!streamManager_.executeCallback(event, streamError, afterCb)) {
       // the callback was not set, so add the error to the error list
       streamManager_.addError(event, std::move(streamError));
       if (dispatchNow) {

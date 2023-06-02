@@ -207,12 +207,16 @@ bool IRuntime::isP2PEnabled(DeviceId one, DeviceId other) const {
 EventId IRuntime::memcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src, std::byte* d_dst,
                                        size_t size, bool barrier) {
   EASY_FUNCTION()
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToDevice, *profiler_, deviceDst);
+  profileEvent.setStream(streamSrc);
   return doMemcpyDeviceToDevice(streamSrc, deviceDst, d_src, d_dst, size, barrier);
 }
 
 EventId IRuntime::memcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src, std::byte* d_dst,
                                        size_t size, bool barrier) {
   EASY_FUNCTION()
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToDevice, *profiler_, deviceSrc);
+  profileEvent.setStream(streamDst);
   return doMemcpyDeviceToDevice(deviceSrc, streamDst, d_src, d_dst, size, barrier);
 }
 

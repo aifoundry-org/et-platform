@@ -54,6 +54,7 @@ std::string getString(Class cls) {
     STR_PROFILING_CLASS(EndProfiling)
     STR_PROFILING_CLASS(CmaCopy)
     STR_PROFILING_CLASS(CmaWait)
+    STR_PROFILING_CLASS(MemcpyDeviceToDevice)
 
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
@@ -107,6 +108,7 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::KernelLaunch)] = Class::KernelLaunch;
     s_map[getString(Class::MemcpyHostToDevice)] = Class::MemcpyHostToDevice;
     s_map[getString(Class::MemcpyDeviceToHost)] = Class::MemcpyDeviceToHost;
+    s_map[getString(Class::MemcpyDeviceToDevice)] = Class::MemcpyDeviceToDevice;
     s_map[getString(Class::WaitForEvent)] = Class::WaitForEvent;
     s_map[getString(Class::WaitForStream)] = Class::WaitForStream;
     s_map[getString(Class::DeviceCommand)] = Class::DeviceCommand;

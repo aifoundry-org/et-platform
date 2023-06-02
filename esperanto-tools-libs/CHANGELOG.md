@@ -7,14 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unrealeased]
 ### Added
-- [SW-17092] added compatibility with devicelayer 2.1 and device api 1.4
-- [SW-17093][SW-17094] add new runtime interface to support DeviceToDevice memory transfers
-- [SW-17095] create deviceToDevice integration tests
 ### Changed
 ### Deprecated
 ### Removed
 ## Fixed
 ### Security
+
+## [0.11.0]
+### Added
+- [SW-17092] added compatibility with devicelayer 2.1 and device api 1.4
+- [SW-17093][SW-17094] add new runtime interface to support DeviceToDevice memory transfers
+- [SW-17095] create deviceToDevice integration tests
+- [SW-17079] now any waitForStream will block until callbacks associated to that stream (if any) have been fully executed.
+- [SW-17351] Added tracing for D2D operations.
+## Fixed
+- [SW-17344] fixed kernelAbort callback not being called when aborting a kernel in MP flow
+
 ## [0.10.0]
 ### Added
 - [SW-15675] Added easyprofiler support.

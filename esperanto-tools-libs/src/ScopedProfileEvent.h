@@ -11,9 +11,9 @@
 #include "ProfilerImp.h"
 #include "runtime/IProfileEvent.h"
 
+#include <atomic>
 #include <optional>
 #include <tuple>
-#include <atomic>
 
 namespace rt::profiling {
 

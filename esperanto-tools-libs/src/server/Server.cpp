@@ -91,6 +91,13 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
       w->onStreamError(evt, error);
     }
   });
+  runtime_->setOnKernelAbortedErrorCallback(
+    [this](EventId event, std::byte* context, size_t size, std::function<void()> freeResources) {
+      SpinLock lock(mutex_);
+      for (const auto& w : workers_) {
+        w->onKernelAborted(event, context, size, freeResources);
+      }
+    });
 }
 
 void Server::listen() {

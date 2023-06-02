@@ -84,7 +84,7 @@ bool EventManager::blockUntilDispatched(EventId event, std::chrono::milliseconds
   std::unique_lock lock(mutex_);
   if (isDispatched(event)) {
     RT_VLOG(HIGH) << "Event " << static_cast<int>(event) << " already dispatched.";
-    return true; // no block if the event is already dispatched
+    return true;                                        // no block if the event is already dispatched
   } else if (timeout == std::chrono::milliseconds(0)) { // don't block either, return false because 0 means no blocking
     return false;
   }

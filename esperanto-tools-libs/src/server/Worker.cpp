@@ -422,6 +422,8 @@ void Worker::onStreamError(EventId event, const StreamError& error) {
   SpinLock lock(mutex_);
   if (events_.find(event) != end(events_)) {
     lock.unlock();
+    // this response is sent before the server sends the distpatch event; so the client can avoid dispatching until the
+    // callback has been executed
     sendResponse({resp::Type::STREAM_ERROR, req::ASYNC_RUNTIME_EVENT, resp::StreamError{event, error}});
   } else {
     RT_LOG(WARNING) << "Got streamError for event " << static_cast<int>(event)
@@ -440,6 +442,8 @@ void Worker::onKernelAborted(EventId event, std::byte* context, size_t size, std
       kernelAbortedFreeResources_[event] = std::move(freeResources);
     }
     lock.unlock();
+    // this response is sent before the server sends the distpatch event; so the client can avoid dispatching until the
+    // callback has been executed
     sendResponse({resp::Type::KERNEL_ABORTED, req::ASYNC_RUNTIME_EVENT,
                   resp::KernelAborted{size, reinterpret_cast<AddressT>(context), event}});
   }

@@ -72,6 +72,7 @@ enum class Class {
   EndProfiling,
   CmaCopy,
   CmaWait,
+  MemcpyDeviceToDevice,
   COUNT
 };
 enum class ResponseType { DMARead, DMAWrite, Kernel, DMAP2P, COUNT };
