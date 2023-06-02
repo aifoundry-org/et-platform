@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [1.11.0] - 2023-06-02
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - [SW-17348] et-powertop: Fix statistics display after statistics reset (-r)
 ### Security
 
