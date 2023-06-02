@@ -1,6 +1,6 @@
 include:
   - project: software/gitlab-ci-common
-    ref: 62dd746e59efef47d61463c22bc84254e1437ebe
+    ref: 598eab92c6151682f5b7ac28a5fda2a116ab15d0
     file:
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
@@ -127,9 +127,9 @@ test:conan:
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-${BUILD_TYPE_LOWER} -o esperantoTrace:with_tests=True
-      cmake --preset ${BUILD_TYPE_LOWER} -G Ninja
-      cmake --build --preset ${BUILD_TYPE_LOWER}
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o esperantoTrace:with_tests=True
+      cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset $${BUILD_TYPE_LOWER}
       ctest --test-dir build/${BUILD_TYPE} --output-on-failure
 
 

@@ -551,6 +551,7 @@ struct trace_user_profile_event_t {
     uint64_t func;                      /**< ptr to func literal emitting the event */
     uint64_t retiredInsts;              /**< retiredInsts when the event is emitted */
     uint64_t line_region_status;        /**< line(4 bytes) region (2 bytes) status (2 bytes)*/
+    uint64_t regionName;                /**< ptr to user region name */
 } __attribute__((packed));
 
 #ifdef __cplusplus
