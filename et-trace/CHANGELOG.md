@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.4.0] - 2023-06-05
+### Added
 [SW-17172] Quote arbitrary strings instead of func-name:code in profiling.
 ### Changed
 ### Deprecated
