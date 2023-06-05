@@ -33,7 +33,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: rafa_SW-17172
+  SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: et-common-libs
 
 # Only run job in these cases:
