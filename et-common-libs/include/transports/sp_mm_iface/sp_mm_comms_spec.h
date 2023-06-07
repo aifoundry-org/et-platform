@@ -187,6 +187,14 @@ enum sp2mm_stats_control {
     MM_STATS_CONTROL_RESET_TRACEBUF = 4
 };
 
+/*! \enum sp2mm_master_state
+    \brief enum for MM states.
+*/
+enum sp2mm_master_state {
+    MM_STATE_IDLE = 0,
+    MM_STATE_BUSY = 1,
+};
+
 /*********************************
     MM to SP Command Structures
 **********************************/
@@ -280,6 +288,7 @@ struct mm2sp_reset_minion_rsp_t {
 */
 struct mm2sp_heartbeat_event_t {
     struct dev_cmd_hdr_t msg_hdr;
+    uint64_t state;
 } __attribute__((aligned(8), packed));
 
 /*! \struct mm2sp_get_fw_version_t
