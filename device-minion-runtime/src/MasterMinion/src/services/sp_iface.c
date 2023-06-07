@@ -88,6 +88,8 @@ static void sp_iface_mm_heartbeat_cb(uint8_t param)
     SP_MM_IFACE_INIT_MSG_HDR(&event.msg_hdr, MM2SP_EVENT_HEARTBEAT,
         sizeof(struct mm2sp_heartbeat_event_t), (int32_t)get_hart_id())
 
+    event.state = KW_Get_Kernel_State();
+
     /* Acquire the lock. Multiple threads can call this function. */
     acquire_local_spinlock(&SP_SQ_CB.vq_lock);
 

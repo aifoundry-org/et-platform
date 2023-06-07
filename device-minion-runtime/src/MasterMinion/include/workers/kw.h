@@ -120,4 +120,11 @@ void KW_Abort_All_Dispatched_Kernels(uint8_t sqw_idx);
 */
 uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_end);
 
+/*! \fn uint64_t KW_Get_Kernel_State(void)
+    \brief This function returns kernel state.
+    \param None
+    \return kernel state IDLE or BUSY
+*/
+uint64_t KW_Get_Kernel_State(void);
+
 #endif /* KW_DEFS_H */

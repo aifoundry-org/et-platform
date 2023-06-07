@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-13951] Reporting MM state with heartbeat
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 ### Deprecated

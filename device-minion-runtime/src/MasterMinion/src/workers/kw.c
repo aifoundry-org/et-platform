@@ -1767,3 +1767,39 @@ uint64_t KW_Get_Average_Exec_Cycles(uint64_t interval_start, uint64_t interval_e
 
     return (active_kw > 0 ? (accum_cycles / (uint64_t)active_kw) : accum_cycles);
 }
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       KW_Get_Kernel_State
+*
+*   DESCRIPTION
+*
+*       This function checks kernel state either IDLE or BUSY
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       uint64_t    kernel state - IDLE or BUSY
+*
+***********************************************************************/
+uint64_t KW_Get_Kernel_State(void)
+{
+    uint8_t kernel_state = MM_STATE_IDLE;
+
+    for (uint8_t i = 0; i < MM_MAX_PARALLEL_KERNELS; i++)
+    {
+        /* loop through all kernels to check state */
+        if (atomic_load_local_32(&KW_CB.kernels[i].kernel_state) == KERNEL_STATE_IN_USE)
+        {
+            kernel_state = MM_STATE_BUSY;
+            break;
+        }
+    }
+
+    return kernel_state;
+}
