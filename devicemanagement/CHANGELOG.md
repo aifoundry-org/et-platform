@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Adapt CI to gitlab-ci v15
 ### Deprecated
 ### Removed
 ### Fixed
