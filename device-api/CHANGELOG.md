@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- (CI) Updated gitlab-ci-common pointer for Gitlab-CI 15 compatibility
 ### Deprecated
 ### Removed
 ### Fixed
