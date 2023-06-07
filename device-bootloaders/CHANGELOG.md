@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-16695] Change BAR0 size to 32G and map the DDR till end on BAR0.
 - Change the verbosity of the SP hearbeat message
+- [SW-13951] Enable power throtting based on power requirement
 ### Deprecated
 ### Removed
 ### Fixed

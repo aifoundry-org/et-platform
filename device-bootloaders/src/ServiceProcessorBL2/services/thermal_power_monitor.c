@@ -777,7 +777,7 @@ static void pwr_svc_set_module_active_pwr_mgmt(tag_id_t tag_id, uint64_t req_sta
 *       hpdpll_mode       HPDPLL mode
 *
 ***********************************************************************/
-static int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
+int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
 {
     uint8_t strap_pins;
     uint32_t input_freqs[] = { 100, 24, 40 };

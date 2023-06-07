@@ -43,9 +43,84 @@
 #define DDR_BOOT_VOLTAGE   0x6EU // 800 mV
 #define MXN_BOOT_VOLTAGE   0x46U // 600 mV
 
+/*!
+    \def MNN_BOOT_FREQUENCY
+    \brief Defines the boot frequency. This constant represents the boot frequency in Mhz.
+*/
+#define MNN_BOOT_FREQUENCY 600.0
+
+/* minion frequency limits */
+#define MINION_FREQUENCY_MAX_LIMIT  700
+#define MINION_FREQUENCY_MIN_LIMIT  300
+#define MINION_FREQUENCY_STEP_VALUE 50
+
 // Defines for converting power values
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw)  (pwr_10mw / 100)
+
+/*! \def PMIC_TEMP_LOWER_SET_LIMIT
+    \brief A macro that provides pmic minimum temperature threshold value
+*/
+#define PMIC_TEMP_LOWER_SET_LIMIT 55
+
+/*! \def PMIC_TEMP_UPPER_SET_LIMIT
+    \brief A macro that provides pmic maximum temperature threshold value
+*/
+#define PMIC_TEMP_UPPER_SET_LIMIT 75
+
+/*! \def TEMP_THRESHOLD_HW_CATASTROPHIC
+    \brief A macro that provides pmic temperature threshold value
+*/
+#define TEMP_THRESHOLD_HW_CATASTROPHIC 75
+
+/*! \def TEMP_THRESHOLD_SW_MANAGED
+    \brief A macro that provides early indication temperature threshold value
+*/
+#define TEMP_THRESHOLD_SW_MANAGED 65
+
+/*! \def POWER_THRESHOLD_HW_CATASTROPHIC
+    \brief A macro that provides power threshold value.
+*          This power threshold will be written to PMIC and PMIC will be expected
+*          to raise the interrupt if power goes beyond this threshold.
+*          Following M.2 spec.
+*/
+#define POWER_THRESHOLD_HW_CATASTROPHIC 75
+
+/*! \def POWER_THRESHOLD_SW_MANAGED
+    \brief A macro that provides early indication power threshold value.
+*          This power threshold will be set as initial value for SW power managing.
+*          Following M.2 spec.
+*/
+#define POWER_THRESHOLD_SW_MANAGED 55
+
+/*! \def SAFE_POWER_THRESHOLD
+    \brief A macro that provides safe power threshold value.
+*          When catastrophic overpower or overtemperature occures ETSOC will go bellow
+*          this power threshold.
+*          Following M.2 spec.
+*/
+#define SAFE_POWER_THRESHOLD 30
+
+/*! \def SAFE_STATE_FREQUENCY
+    \brief A macro that provides safe state frequency
+*/
+#define SAFE_STATE_FREQUENCY 300
+
+/*! \def MINION_PLL_USE_STEP_CLOCK
+    \brief A macro to enable/disable step clock
+*/
+#define MINION_PLL_USE_STEP_CLOCK true
+
+/*! \def POWER_GUARDBAND_SCALE_FACTOR
+    \brief A macro that provides power scale factor in percentages.
+*/
+#define POWER_GUARDBAND_SCALE_FACTOR 10
+
+/*! \def DELTA_TEMP_UPDATE_PERIOD
+    \brief A macro that provides dTj/dt - time(uS) for Junction temperature to be updated
+           This value needs to be characterized in Silicon
+*/
+#define DELTA_TEMP_UPDATE_PERIOD 1000
 
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
@@ -341,4 +416,19 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void);
     \returns Status indicating success or negative error
 */
 int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage);
+
+/*! \fn int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode)
+    \brief This function finds the hdpll mode for a given frequency
+    \param freq - frequency value for which hdpll mode is required
+    \param hpdpll_mode - hdpll mode for given frequency
+    \returns Status indicating success or negative error
+*/
+int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode);
+
+/*! \fn void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state)
+    \brief This function updates the MM kernel state variable
+    \param None
+    \returns None
+*/
+void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state);
 #endif

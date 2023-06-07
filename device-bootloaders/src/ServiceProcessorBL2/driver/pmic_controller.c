@@ -79,6 +79,7 @@
 #include "bl_error_code.h"
 #include "log.h"
 #include "delays.h"
+#include "thermal_pwr_mgmt.h"
 
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
@@ -1906,9 +1907,9 @@ int pmic_get_tdp_threshold(uint8_t *power_alarm)
 *
 ***********************************************************************/
 
-int pmic_set_tdp_threshold(uint8_t power_alarm)
+int pmic_set_tdp_threshold(uint16_t power_alarm)
 {
-    return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, &power_alarm, 1));
+    return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, (uint8_t *)&power_alarm, 2));
 }
 
 /************************************************************************

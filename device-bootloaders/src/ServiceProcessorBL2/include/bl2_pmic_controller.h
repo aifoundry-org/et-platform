@@ -385,7 +385,7 @@ int pmic_get_tdp_threshold(uint8_t *power_limit);
     \param power_alarm - power alarm point to be set (binary encoded)
     \return The function call status, pass/fail.
 */
-int pmic_set_tdp_threshold(uint8_t power_alarm);
+int pmic_set_tdp_threshold(uint16_t power_alarm);
 
 /*! \fn int pmic_force_shutdown(void)
     \brief This function forces a shutdown, only a power cycle will allow the system to turn on.

@@ -472,7 +472,9 @@ static void mm2sp_report_error_event_handler(const void *cmd_buffer)
 
 static void mm2sp_heartbeat_event_handler(const void *cmd_buffer)
 {
-    (void)cmd_buffer;
+    const struct mm2sp_heartbeat_event_t *cmd = cmd_buffer;
+
+    Thermal_Pwr_Mgmt_Update_MM_State(cmd->state);
 
     /* TODO: SW-8081: Register watchdog timer for MM->SP heartbeat. Whenever a heatbeat is
     received from MM, SP will reset WD timer. If the heartbeat is no received within specified

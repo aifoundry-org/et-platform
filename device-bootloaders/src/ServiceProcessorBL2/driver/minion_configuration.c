@@ -258,6 +258,21 @@ static StaticTimer_t MM_Timer_Buffer;
 */
 #define MM_COMPUTE_THREADS 0xFFFFFFFFU
 
+/*! \def MINION_BASE_VOLTAGE
+    \brief The base minion voltage in millivolts.
+*/
+#define MINION_BASE_VOLTAGE 500.0
+
+/*! \def FREQUENCY_STEP
+    \brief The change in frequency per step in megahertz.
+*/
+#define FREQUENCY_STEP 50.0
+
+/*! \def VOLTAGE_STEP
+    \brief The change in voltage per step in millivolts.
+*/
+#define VOLTAGE_STEP 10.0
+
 static uint64_t gs_active_shire_mask = 0;
 static uint64_t gs_dlls_initialized = 0;
 static uint64_t gs_pll4_ldo_kick_performed = 0;
@@ -667,7 +682,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-static int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
+int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
 {
     uint32_t freq;
     int status;
@@ -1015,9 +1030,9 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 ***********************************************************************/
 int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
 {
-    int target_voltage = THRESHOLD_VOLTAGE + (target_frequency * DeltaVolt_per_DeltaFreq);
-
-    return target_voltage;
+    /* Lookup table of frequency-voltage pairs */
+    return (int)(MINION_BASE_VOLTAGE +
+                 ((target_frequency - MNN_BOOT_FREQUENCY) / FREQUENCY_STEP) * VOLTAGE_STEP);
 }
 
 /************************************************************************

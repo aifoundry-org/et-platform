@@ -356,4 +356,13 @@ int8_t disable_sram_and_icache_interrupts(void);
 */
 int Minion_VPU_RF_Init(uint8_t shireid);
 
+/*! \fn int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
+ *  \brief This function configures the Minion Shire with HPDPLL mode
+ *  \param hpdpll_mode HDPLL mode to configure
+ *  \param shire_mask active minion shire mask
+ *  \return Status indicating success or negative error
+*/
+
+int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask);
+
 #endif

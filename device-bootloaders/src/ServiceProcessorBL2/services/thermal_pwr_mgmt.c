@@ -89,6 +89,8 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage);
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
+static uint8_t mm_state = MM_STATE_IDLE;
+
 struct soc_power_reg_t
 {
     struct residency_t power_up_throttled_states_residency;
@@ -209,19 +211,25 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
     Log_Write(LOG_LEVEL_CRITICAL, "\t maximum = %lu\n", g_soc_power_reg.RESIDENCY_TYPE.maximum); \
     Log_Write(LOG_LEVEL_CRITICAL, "\t minimum = %lu\n", g_soc_power_reg.RESIDENCY_TYPE.minimum);
 
-/*! \def MAX_POWER_THRESHOLD_GUARDBAND(tdp)
-    \brief TDP guard band, (power_scale_factor)% above TDP level,
+/*! \def UPPER_POWER_THRESHOLD_GUARDBAND(tdp)
+    \brief TDP guard band, (POWER_GUARDBAND_SCALE_FACTOR)% above TDP level,
 *          It is the margin above TDP level to allow Power management to
 *          move up and down.
 */
-#define MAX_POWER_THRESHOLD_GUARDBAND(tdp) ((tdp * (100 + POWER_SCALE_FACTOR)) / 100)
+#define UPPER_POWER_THRESHOLD_GUARDBAND(tdp) ((tdp * (100 + POWER_GUARDBAND_SCALE_FACTOR)) / 100)
+
+/*! \def LOWER_POWER_THRESHOLD_GUARDBAND(tdp)
+    \brief TDP guard band, (POWER_GUARDBAND_SCALE_FACTOR)% below TDP level,
+*          It is the margin below TDP level to allow Power management to move down.
+*/
+#define LOWER_POWER_THRESHOLD_GUARDBAND(tdp) ((tdp * (100 - POWER_GUARDBAND_SCALE_FACTOR)) / 100)
 
 /*! \def GET_POWER_STATE(power_mW)
     \brief Depending on given power returns current power state.
 */
-#define GET_POWER_STATE(power_mW, tdp)                \
-    (power_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp)) ? \
-        POWER_STATE_MAX_POWER :                       \
+#define GET_POWER_STATE(power_mW, tdp)                  \
+    (power_mW > UPPER_POWER_THRESHOLD_GUARDBAND(tdp)) ? \
+        POWER_STATE_MAX_POWER :                         \
         (power_mW > SAFE_POWER_THRESHOLD) ? POWER_STATE_MANAGED_POWER : POWER_STATE_SAFE_POWER
 
 /*! \def MAX(x,y)
@@ -288,6 +296,14 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
                   "VALIDATE_VOLTAGE_CHANGE: Cycles consumed in stabilization: %ld\n",           \
                   (timer_get_ticks_count() - (time_out - pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT)))); \
     }
+
+/* define to convert Hex value to millivolt*/
+#define MINION_HEX_TO_MILLIVOLT(hex_val)                                                     \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+/* define to convert power to milliwats*/
+#define POWER_IN_MW(pwr) (pwr * 1000)
 
 /************************************************************************
 *
@@ -686,16 +702,23 @@ int update_module_soc_power(void)
     g_soc_power_reg.op_stats.sram.power.min = g_pmic_power_reg.pmb_stats.sram.w_out.min;
     g_soc_power_reg.op_stats.sram.power.max = g_pmic_power_reg.pmb_stats.sram.w_out.max;
 
-#if 0 /* TODO: SW-13951: Power throttling causes a hang on silicon under stress */
     /* module_tdp_level is in Watts, converting to miliWatts */
-    int32_t tdp_level_mW = g_pmic_power_reg.module_tdp_level * 1000;
+    int32_t tdp_level_mW = POWER_IN_MW(g_pmic_power_reg.module_tdp_level);
 
     /* Update the power state */
-    update_module_power_state(GET_POWER_STATE(soc_pwr_mW, tdp_level_mW));
+    update_module_power_state(GET_POWER_STATE(POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW));
 
-    if ((soc_pwr_mW > MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
-        (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN) &&
-        (g_soc_power_reg.active_power_management))
+    /* Switch to idle power state*/
+    if (mm_state == MM_STATE_IDLE)
+    {
+        /* go to idle state */
+        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
+        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+    }
+    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) >
+              UPPER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+             (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN) &&
+             (g_soc_power_reg.active_power_management))
     {
         /* Do the power throttling down */
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
@@ -704,15 +727,16 @@ int update_module_soc_power(void)
 
     /* Switch power throttle state only if we are currently in lower priority throttle
         state and Active Power Management is enabled*/
-    if ((soc_pwr_mW < tdp_level_mW) &&
-        (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP) &&
-        (g_soc_power_reg.active_power_management))
+    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) <
+              LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+             (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP) &&
+             (g_soc_power_reg.active_power_management))
     {
         /* Do the power throttling up */
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
-#endif
+
     return 0;
 }
 
@@ -1253,8 +1277,11 @@ int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t 
             UPDATE_RESIDENCY(thermal_safe_throttled_states_residency)
             break;
         }
+        case POWER_THROTTLE_STATE_POWER_IDLE:
+            break;
+
         default: {
-            Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+            Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n", throttle_state);
             return THERMAL_PWR_MGMT_UNKNOWN_THROTTLE_STATE;
         }
     }
@@ -1356,7 +1383,7 @@ int get_throttle_residency(power_throttle_state_e throttle_state, struct residen
             break;
         }
         default: {
-            Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+            Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n", throttle_state);
             return THERMAL_PWR_MGMT_UNKNOWN_THROTTLE_STATE;
         }
     }
@@ -1462,8 +1489,7 @@ int init_thermal_pwr_mgmt_service(void)
     int status = 0;
 
     g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
-
-    g_soc_power_reg.active_power_management = ACTIVE_POWER_MANAGEMENT_TURN_OFF;
+    g_soc_power_reg.active_power_management = ACTIVE_POWER_MANAGEMENT_TURN_ON;
 
     /* Create the power management task - use for throttling and DVFS */
     g_pm_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
@@ -1519,30 +1545,48 @@ int init_thermal_pwr_mgmt_service(void)
 *       int                       Return status
 *
 ***********************************************************************/
-static int reduce_minion_operating_point(int32_t delta_power,
-                                         struct trace_event_power_status_t *power_status)
+static int reduce_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
-    /* Compute delta freq to compensate for delta Power */
-    int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
-    int32_t new_freq = Get_Minion_Frequency() - delta_freq;
+    uint8_t hpdpll_mode = 0;
+    uint8_t new_voltage = 0;
+    int status = SUCCESS;
 
+    /* Compute delta freq to compensate for delta Power */
+    int32_t new_freq =
+        ((Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE) < MINION_FREQUENCY_MIN_LIMIT) ?
+            MINION_FREQUENCY_MIN_LIMIT :
+            (Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE);
+
+    if (new_freq == Get_Minion_Frequency())
+    {
+        return STATUS_SUCCESS;
+    }
     /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
 #if USE_FCW_FOR_LVDPLL == 0
     new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) *
                MODE_FREQUENCY_STEP_SIZE;
 #endif
 
-    /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
-    if (0 != MM_Iface_Send_Update_Freq_Cmd((uint16_t)new_freq))
+    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(new_freq),
+                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
+                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
+    if (new_voltage != g_soc_power_reg.asic_voltage.minion)
     {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
+        Minion_Shire_Update_Voltage(new_voltage);
+    }
+
+    status = pwr_svc_find_hpdpll_mode((uint16_t)new_freq, &hpdpll_mode);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
     }
 
-    int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
-    if (new_voltage != g_soc_power_reg.asic_voltage.minion)
+    status = minion_configure_hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
+    if (status != STATUS_SUCCESS)
     {
-        //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
+        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
+        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
     }
 
     Update_Minion_Frequency_Global_Reg(new_freq);
@@ -1575,12 +1619,22 @@ static int reduce_minion_operating_point(int32_t delta_power,
 *       int                       Return status
 *
 ***********************************************************************/
-static int increase_minion_operating_point(int32_t delta_power,
-                                           struct trace_event_power_status_t *power_status)
+static int increase_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
+    uint8_t hpdpll_mode = 0;
+    uint8_t new_voltage = 0;
+    int status = SUCCESS;
+
     /* Compute delta freq to compensate for delta Power */
-    int32_t delta_freq = (delta_power * DP_per_Mhz) / 1000;
-    int32_t new_freq = Get_Minion_Frequency() + delta_freq;
+    int32_t new_freq =
+        ((Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE) > MINION_FREQUENCY_MAX_LIMIT) ?
+            MINION_FREQUENCY_MAX_LIMIT :
+            (Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE);
+
+    if (new_freq == Get_Minion_Frequency())
+    {
+        return STATUS_SUCCESS;
+    }
 
     /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
 #if USE_FCW_FOR_LVDPLL == 0
@@ -1588,14 +1642,23 @@ static int increase_minion_operating_point(int32_t delta_power,
                MODE_FREQUENCY_STEP_SIZE;
 #endif
 
-    int32_t new_voltage = Minion_Get_Voltage_Given_Freq(new_freq);
+    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(new_freq),
+                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
+                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
     if (new_voltage != g_soc_power_reg.asic_voltage.minion)
     {
-        //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
+        Minion_Shire_Update_Voltage(new_voltage);
     }
 
-    /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
-    if (0 != MM_Iface_Send_Update_Freq_Cmd((uint16_t)new_freq))
+    status = pwr_svc_find_hpdpll_mode((uint16_t)new_freq, &hpdpll_mode);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
+        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
+    }
+
+    status = minion_configure_hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
+    if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
         return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
@@ -1604,6 +1667,62 @@ static int increase_minion_operating_point(int32_t delta_power,
     Update_Minion_Frequency_Global_Reg(new_freq);
 
     power_status->tgt_freq = (uint16_t)new_freq;
+    power_status->tgt_voltage = (uint16_t)new_voltage;
+
+    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       go_to_idle_state
+*
+*   DESCRIPTION
+*
+*       This function will set the system to idle frequency
+*
+*   INPUTS
+*
+*       power_status              power status to log to trace
+*
+*   OUTPUTS
+*
+*       int                       Return status
+*
+***********************************************************************/
+static int go_to_idle_state(struct trace_event_power_status_t *power_status)
+{
+    uint8_t hpdpll_mode = 0;
+    uint8_t new_voltage = 0;
+    int status = SUCCESS;
+
+    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(MNN_BOOT_FREQUENCY),
+                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
+                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
+    if (new_voltage != g_soc_power_reg.asic_voltage.minion)
+    {
+        Minion_Shire_Update_Voltage(new_voltage);
+    }
+
+    status = pwr_svc_find_hpdpll_mode((uint16_t)MNN_BOOT_FREQUENCY, &hpdpll_mode);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
+        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
+    }
+
+    status = minion_configure_hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
+        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
+    }
+
+    Update_Minion_Frequency_Global_Reg(MNN_BOOT_FREQUENCY);
+
+    power_status->tgt_freq = (uint16_t)MNN_BOOT_FREQUENCY;
     power_status->tgt_voltage = (uint16_t)new_voltage;
 
     Trace_Power_Status(Trace_Get_SP_CB(), power_status);
@@ -1764,7 +1883,6 @@ void power_throttling(power_throttle_state_e throttle_state)
     uint8_t current_temperature = 0;
     uint16_t avg_pwr_10mW;
     int32_t tdp_level_mW;
-    int32_t delta_power_mW;
     uint8_t throttle_condition_met = 0;
     struct trace_event_power_status_t power_status = { 0 };
 
@@ -1787,32 +1905,39 @@ void power_throttling(power_throttle_state_e throttle_state)
     }
 
     /* module_tdp_level is in Watts, converting to miliWatts */
-    tdp_level_mW = g_pmic_power_reg.module_tdp_level * 1000;
+    tdp_level_mW = POWER_IN_MW(g_pmic_power_reg.module_tdp_level);
 
-    while (!throttle_condition_met && (g_soc_power_reg.power_throttle_state <= throttle_state))
+    while (!throttle_condition_met)
     {
         /* Program the new operating point */
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
-                delta_power_mW = ((POWER_10MW_TO_MW(avg_pwr_10mW) * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
-                increase_minion_operating_point(delta_power_mW, &power_status);
+                increase_minion_operating_point(&power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN: {
-                delta_power_mW = ((POWER_10MW_TO_MW(avg_pwr_10mW) * (POWER_SCALE_FACTOR)) / 100);
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
-                reduce_minion_operating_point(delta_power_mW, &power_status);
+                reduce_minion_operating_point(&power_status);
                 break;
             }
+            case POWER_THROTTLE_STATE_POWER_IDLE: {
+                FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
+                                  POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
+                go_to_idle_state(&power_status);
+                throttle_condition_met = 1;
+                break;
+            }
+
             case POWER_THROTTLE_STATE_POWER_SAFE: {
                 break;
             }
             default: {
-                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n",
+                          throttle_state);
             }
         }
 
@@ -1829,32 +1954,33 @@ void power_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
-                if (POWER_10MW_TO_MW(avg_pwr_10mW) > tdp_level_mW)
+                if ((POWER_10MW_TO_MW(avg_pwr_10mW) > tdp_level_mW) ||
+                    (Get_Minion_Frequency() == MINION_FREQUENCY_MAX_LIMIT))
                 {
                     throttle_condition_met = 1;
                 }
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN:
-            case POWER_THROTTLE_STATE_POWER_SAFE: {
-                if (POWER_10MW_TO_MW(avg_pwr_10mW) < MAX_POWER_THRESHOLD_GUARDBAND(tdp_level_mW))
+            case POWER_THROTTLE_STATE_POWER_SAFE:
+                if ((POWER_10MW_TO_MW(avg_pwr_10mW) <
+                     UPPER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) ||
+                    (Get_Minion_Frequency() == MINION_FREQUENCY_MIN_LIMIT))
                 {
                     throttle_condition_met = 1;
                 }
                 break;
-            }
+            case POWER_THROTTLE_STATE_POWER_IDLE:
+                throttle_condition_met = 1;
+                break;
             default: {
-                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n",
+                          throttle_state);
             }
         }
     }
 
     end_time = timer_get_ticks_count();
-
-    if (g_soc_power_reg.power_throttle_state <= throttle_state)
-    {
-        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
-    }
 
     /* Update the power state */
     if (g_soc_power_reg.module_power_state != POWER_STATE_MANAGED_POWER)
@@ -1892,7 +2018,6 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
     uint16_t avg_pwr_10mW;
-    int32_t delta_power_mW;
     struct trace_event_power_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
@@ -1921,19 +2046,18 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                               "thermal pwr mgmt svc error: failed to get soc power\r\n");
                 }
 
-                delta_power_mW = ((POWER_10MW_TO_MW(avg_pwr_10mW) * (POWER_SCALE_FACTOR)) / 100);
-
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
                 /* Program the new operating point  */
-                reduce_minion_operating_point(delta_power_mW, &power_status);
+                reduce_minion_operating_point(&power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_THERMAL_SAFE: {
                 break;
             }
             default: {
-                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n",
+                          throttle_state);
             }
         }
 
@@ -1988,12 +2112,16 @@ void thermal_power_task_entry(void *pvParameter)
 
     (void)pvParameter;
 
+    uint32_t throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
+
     while (1)
     {
-        while (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP)
+        while (throttle_state == g_soc_power_reg.power_throttle_state)
         {
             xTaskNotifyWait(0, 0xFFFFFFFFU, &notificationValue, portMAX_DELAY);
         }
+
+        throttle_state = g_soc_power_reg.power_throttle_state;
 
         Log_Write(LOG_LEVEL_INFO, "POWER THROTTLING:%d\n", g_soc_power_reg.power_throttle_state);
 
@@ -2019,8 +2147,13 @@ void thermal_power_task_entry(void *pvParameter)
                 power_throttling(POWER_THROTTLE_STATE_POWER_UP);
                 break;
             }
+            case POWER_THROTTLE_STATE_POWER_IDLE: {
+                power_throttling(POWER_THROTTLE_STATE_POWER_IDLE);
+                break;
+            }
             default: {
-                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state!\n");
+                Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n",
+                          g_soc_power_reg.power_throttle_state);
                 break;
             }
         }
@@ -2678,4 +2811,29 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
 #else
     return pmic_set_voltage(voltage_type, voltage);
 #endif
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Thermal_Pwr_Mgmt_Update_MM_State
+*
+*   DESCRIPTION
+*
+*       This function sets master minion state either IDLE or BUSY.
+*
+*   INPUTS
+*
+*       state    State of the MM to be set to 
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state)
+{
+    /* update Master Minion(MM) state*/
+     mm_state = (uint8_t)state;
 }
