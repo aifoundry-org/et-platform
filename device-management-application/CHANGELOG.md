@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-13951] Fixed argument parsing for active power management cmd
 ### Security
 
 ## [1.11.0] - 2023-06-02

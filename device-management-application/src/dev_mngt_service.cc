@@ -126,7 +126,6 @@ static bool node_flag = true;
 static uint32_t timeout = 70000;
 static bool timeout_flag = true;
 
-static power_state_e power_state;
 static bool active_power_management_flag = false;
 
 static uint8_t tdp_level;
@@ -579,11 +578,8 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT: {
-    if (!active_power_management_flag) {
-      DM_VLOG(LOW) << "Aborting, --active_pwr_mgmt was not defined" << std::endl;
-      return -EINVAL;
-    }
-    const uint32_t input_size = sizeof(power_state_e);
+
+    const uint32_t input_size = sizeof(active_power_management_flag);
     const char input_buff[input_size] = {
       (char)active_power_management_flag}; // bounds check prevents issues with narrowing
 
@@ -1429,7 +1425,7 @@ bool validActivePowerManagement() {
     return false;
   }
 
-  power_state = (power_state_e)state;
+  active_power_management_flag = state;
 
   return true;
 }
@@ -2262,7 +2258,7 @@ int main(int argc, char** argv) {
       break;
 
     case 'p':
-      if (!(active_power_management_flag = validActivePowerManagement())) {
+      if (!validActivePowerManagement()) {
         return -EINVAL;
       }
       break;
