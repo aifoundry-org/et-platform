@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Optimizing Trace Power stats struct fields
 ### Deprecated
 ### Removed
 ### Fixed
