@@ -780,7 +780,7 @@ static int32_t dm_svc_firmware_update(void)
         }
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "Programming config region\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming SP config region\n");
     if (0 !=
         flash_fs_write_config_region(1 - sp_bl2_data->flash_fs_bl2_info.active_partition, false))
     {
@@ -801,7 +801,9 @@ static int32_t dm_svc_firmware_update(void)
         return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
     }
 
-    // Call dm_svc_pmic_firmware_update() here to test pmic update, which is under development.
+    /* TODO: Enable PMIC FW update once check for PMIC FW image match is enabled
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
+    dm_svc_pmic_firmware_update(); */
 
     end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");

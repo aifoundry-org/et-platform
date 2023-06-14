@@ -240,6 +240,7 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
                 break;
             default:
                 continue;
@@ -317,6 +318,9 @@ static int flash_fs_scan_regions(uint32_t partition_size,
                 break;
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
                 partition_info->dram_training_2d_payload_1067mhz_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
+                partition_info->pmic_fw_region_index = n;
                 break;
             default:
                 MESSAGE_ERROR("flash_fs_scan_regions: invalid region id: %u!\n",
@@ -641,6 +645,12 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
                 sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
                     .dram_training_2d_payload_1067mhz_region_index;
             break;
+        case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
+            file_info = &(sg_flash_fs_bl2_info.pmic_fw_file_info);
+            region_index =
+                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+                    .pmic_fw_region_index;
+            break;
         default:
             return ERROR_SPI_FLASH_INVALID_REGION_ID;
     }
@@ -792,11 +802,6 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
     }
 
     end_offset = offset + buffer_size;
-    if (end_offset < buffer_size)
-    {
-        MESSAGE_ERROR("flash_fs_read_file: end_offset integer overflow!\n");
-        return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
-    }
     if (end_offset > file_size)
     {
         MESSAGE_ERROR("flash_fs_read_file: end_offset too large!\n");

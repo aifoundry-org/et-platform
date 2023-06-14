@@ -42,6 +42,7 @@ typedef struct ESPERANTO_PARTITION_BL2_INFO_s
     uint32_t dram_training_2d_payload_800mhz_region_index;
     uint32_t dram_training_2d_payload_933mhz_region_index;
     uint32_t dram_training_2d_payload_1067mhz_region_index;
+    uint32_t pmic_fw_region_index;
 
     // priority and boot counters data
     PAGE_DATA_t priority_designator_region_data;
@@ -131,6 +132,7 @@ typedef struct FLASH_FS_BL2_INFO_s
     ESPERANATO_FILE_INFO_t dram_training_2d_payload_800mhz_file_info;
     ESPERANATO_FILE_INFO_t dram_training_2d_payload_933mhz_file_info;
     ESPERANATO_FILE_INFO_t dram_training_2d_payload_1067mhz_file_info;
+    ESPERANATO_FILE_INFO_t pmic_fw_file_info;
 } FLASH_FS_BL2_INFO_t;
 
 typedef struct SERVICE_PROCESSOR_BL2_DATA_s

@@ -507,10 +507,10 @@ static int load_image_code_and_data(ESPERANTO_FLASH_REGION_ID_t region_id,
                 region_no, image_info, encrypted_hash_context_initialized, &encrypted_hash_context,
                 hash_context_initialized, &hash_context);
         }
-        /*Log_Write(LOG_LEVEL_ERROR, "Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, 
-               load_offset, load_address.u64, 
-               image_info->secret_info.load_regions[region_no].load_size,
-               image_info->secret_info.load_regions[region_no].memory_size);*/
+        Log_Write(LOG_LEVEL_DEBUG, "Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n",
+                  region_no, load_offset, load_address.u64,
+                  image_info->secret_info.load_regions[region_no].load_size,
+                  image_info->secret_info.load_regions[region_no].memory_size);
 
         if (image_info->secret_info.load_regions[region_no].load_size > 0)
         {

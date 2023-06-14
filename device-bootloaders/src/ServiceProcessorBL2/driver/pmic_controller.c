@@ -70,6 +70,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "etsoc/isa/io.h"
+#include "bl2_flashfs_driver.h"
 #include "bl2_i2c_driver.h"
 #include "bl2_gpio_controller.h"
 #include "bl2_pmic_controller.h"
@@ -2232,6 +2233,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
                       flash_addr / reg_size_bytes);
             break;
         }
+        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC byte count: %u\n", flash_addr / reg_size_bytes);
 
         fw_ptr += reg_size_bytes;
         flash_addr += reg_size_bytes;
@@ -2264,11 +2266,8 @@ int pmic_firmware_update(bool *match)
     int status;
     uint8_t cmd;
     uint8_t slot;
-    uint32_t i;
-    uint32_t sum;
     uint32_t cksum_result;
     uint32_t flash_addr = 0;
-    uint32_t scratch_buffer_size = 0;
     uint64_t start;
     uint64_t end;
     uint64_t prog_start;
@@ -2276,14 +2275,15 @@ int pmic_firmware_update(bool *match)
     uint64_t verify_start;
     uint64_t verify_end;
     uint32_t *fw;
-    const uint32_t fw_data_size = 1024; // 1K block of firmware to send
-    const uint32_t fw_send_count = 100; // send 1K firmware block this many times (must be <= 122)
-    const uint32_t fw_size = fw_data_size * fw_send_count;
-    const uint32_t fw_image_location = 0x2000;
+    uint32_t buffer_size = 0;
+    uint32_t pmic_fw_size = 0;
+    uint32_t pmic_fw_region_size = 0;
+    uint32_t fw_send_size = 0;
+    ESPERANTO_RAW_IMAGE_FILE_HEADER_t pmic_fw_config_header;
 
     /* Get the pointer to BL2 scratch region */
-    fw = get_scratch_buffer(&scratch_buffer_size);
-    if (scratch_buffer_size < fw_data_size)
+    fw = get_scratch_buffer(&buffer_size);
+    if (buffer_size == 0)
     {
         return ERROR_INSUFFICIENT_MEMORY;
     }
@@ -2292,17 +2292,47 @@ int pmic_firmware_update(bool *match)
 
     if (!match)
     {
-        MESSAGE_ERROR("Error match pointer is null\n");
+        Log_Write(LOG_LEVEL_ERROR, "Error match pointer is null\n");
         return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
     }
 
+    /* Read the passive slot number */
     status = pmic_get_inactive_boot_slot(&slot);
     if (status != STATUS_SUCCESS)
     {
         return status;
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming PMIC slot %u (%u bytes)...\n", slot, fw_size);
+    /* Read the PMIC FW region size from the flash image */
+    flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_PMIC_FW, &pmic_fw_region_size);
+    Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW region size from flash image: %d\n",
+              pmic_fw_region_size);
+
+    if (pmic_fw_region_size < sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW file too small!");
+        return ERROR_PMIC_FW_UPDATE_INVALID_IMG;
+    }
+
+    /* Read the PMIC FW flash image header */
+    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_PMIC_FW, 0, &pmic_fw_config_header,
+                                   sizeof(pmic_fw_config_header)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file header read failed!\n");
+        return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
+    }
+
+    /* Extract the PMIC FW image size */
+    pmic_fw_size = pmic_fw_config_header.info.image_info_and_signaure.info.raw_image_size;
+    Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW image size(bytes): %d\n", pmic_fw_size);
+    if (pmic_fw_size == 0)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW size is NULL!\n");
+        return ERROR_PMIC_FW_UPDATE_INVALID_IMG;
+    }
+
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming PMIC slot %u (%u bytes)...\n", slot,
+              pmic_fw_size);
 
     prog_start = timer_get_ticks_count();
     cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_UPDATE | (slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
@@ -2312,41 +2342,36 @@ int pmic_firmware_update(bool *match)
         return status;
     }
 
-    // Create a test pattern to send
-    sum = 0;
-    for (i = 0; i < fw_data_size / sizeof(fw[0]); i++)
+    /* Transmit the image to the PMIC */
+    while (pmic_fw_size > 0)
     {
-        fw[i] = 0x1u << (i % 32);
-        sum += fw[i];
-    }
-    sum *= fw_send_count;
+        fw_send_size = pmic_fw_size;
 
-    // The first sent firmare block has special info, so adjust it accordingly
-    // TODO: Old FW convention, fix it for new layout
-    sum += (fw_image_location - fw[0]) + (fw_size - fw[2]) - fw[3];
-    fw[0] = fw_image_location; // loadable image location
-    fw[2] = fw_size;           // loadable image length
-    fw[3] = 0 - sum;           // cksum adjustment so all words in the fw image sum to zero
+        /* Limit the block size count */
+        if (fw_send_size > buffer_size)
+        {
+            fw_send_size = buffer_size;
+        }
 
-    flash_addr = 0;
-    status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_data_size);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
+        /* Read the FW data block from flash */
+        if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_PMIC_FW,
+                                       ((uint32_t)sizeof(pmic_fw_config_header) + flash_addr),
+                                       (void *)fw, fw_send_size))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file data read failed!\n");
+            return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
+        }
 
-    // Restore the original test pattern for the remaining sends
-    fw[0] = 1 << 0;
-    fw[2] = 1 << 2;
-    fw[3] = 1 << 3;
-    for (i = 1; i < fw_send_count; i++)
-    {
-        flash_addr += fw_data_size;
-        status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_data_size);
+        /* Send the data block to PMIC */
+        status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_send_size);
         if (status != STATUS_SUCCESS)
         {
             return status;
         }
+
+        /* Increment the offsets */
+        flash_addr += fw_send_size;
+        pmic_fw_size -= fw_send_size;
     }
 
     prog_end = timer_get_ticks_count();
@@ -2363,17 +2388,19 @@ int pmic_firmware_update(bool *match)
     status = pmic_wait_for_flash_ready(FW_UPDATE_CKSUM_TIMEOUT_MS);
     if (status != STATUS_SUCCESS)
     {
-        MESSAGE_ERROR("pmic flash cksum wait error\n");
+        Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum wait error\n");
         return status;
     }
 
-    /* TODO: SW-16740: Check why checksum fails */
+    (void)cksum_result;
+    /* TODO: SW-17377: Checksum calculation needs to be updated
     status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
     if (status == STATUS_SUCCESS && cksum_result != 1)
     {
-        MESSAGE_ERROR("pmic flash cksum failure %u\n", cksum_result);
+        Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum failure %u\n", cksum_result);
         return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
     }
+    */
 
     verify_end = timer_get_ticks_count();
     end = timer_get_ticks_count();
