@@ -258,20 +258,15 @@ static StaticTimer_t MM_Timer_Buffer;
 */
 #define MM_COMPUTE_THREADS 0xFFFFFFFFU
 
-/*! \def MINION_BASE_VOLTAGE
-    \brief The base minion voltage in millivolts.
-*/
-#define MINION_BASE_VOLTAGE 500.0
-
-/*! \def FREQUENCY_STEP
+/*! \def THROTTLE_FREQUENCY_STEP
     \brief The change in frequency per step in megahertz.
 */
-#define FREQUENCY_STEP 50.0
+#define THROTTLE_FREQUENCY_STEP 50.0
 
-/*! \def VOLTAGE_STEP
+/*! \def THROTTLE_VOLTAGE_STEP_MV
     \brief The change in voltage per step in millivolts.
 */
-#define VOLTAGE_STEP 10.0
+#define THROTTLE_VOLTAGE_STEP_MV 10.0
 
 static uint64_t gs_active_shire_mask = 0;
 static uint64_t gs_dlls_initialized = 0;
@@ -667,7 +662,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 *
 *   FUNCTION
 *
-*       minion_configure_hpdpll
+*       Minion_Configure_Hpdpll
 *
 *   DESCRIPTION
 *
@@ -682,7 +677,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 *       The function call status, pass/fail
 *
 ***********************************************************************/
-int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
+int Minion_Configure_Hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
 {
     uint32_t freq;
     int status;
@@ -1028,11 +1023,39 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 *       voltage          Target Minion Voltage
 *
 ***********************************************************************/
-int Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
+int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 {
     /* Lookup table of frequency-voltage pairs */
-    return (int)(MINION_BASE_VOLTAGE +
-                 ((target_frequency - MNN_BOOT_FREQUENCY) / FREQUENCY_STEP) * VOLTAGE_STEP);
+    return (int)(MINION_HEX_TO_MILLIVOLT(MINION_BOOT_VOLTAGE) +
+                 ((target_frequency - MNN_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
+                     THROTTLE_VOLTAGE_STEP_MV);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Get_L2Cache_Voltage_Given_Freq
+*
+*   DESCRIPTION
+*
+*       This function returns a voltage operating value given a freq value.
+*
+*   INPUTS
+*
+*       freq            Target L2Cache Frequency
+*
+*   OUTPUTS
+*
+*       voltage          Target L2cache Voltage
+*
+***********************************************************************/
+int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
+{
+    /* Lookup table of frequency-voltage pairs */
+    return (int)(SRAM_HEX_TO_MILLIVOLT(SRAM_BOOT_VOLTAGE) +
+                 ((target_frequency - SRAM_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
+                     THROTTLE_VOLTAGE_STEP_MV);
 }
 
 /************************************************************************
@@ -1139,7 +1162,7 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
     if (use_step_clock)
     {
         Log_Write(LOG_LEVEL_CRITICAL, "Minion Shire PLL using Step Clock\n");
-        status = minion_configure_hpdpll(hpdpll_mode, minion_shires_mask);
+        status = Minion_Configure_Hpdpll(hpdpll_mode, minion_shires_mask);
     }
     else
     {

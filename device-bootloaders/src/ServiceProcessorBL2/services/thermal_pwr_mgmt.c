@@ -89,7 +89,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage);
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
-static uint8_t mm_state = MM_STATE_IDLE;
+static uint64_t mm_state = MM_STATE_IDLE;
 
 struct soc_power_reg_t
 {
@@ -296,14 +296,6 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
                   "VALIDATE_VOLTAGE_CHANGE: Cycles consumed in stabilization: %ld\n",           \
                   (timer_get_ticks_count() - (time_out - pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT)))); \
     }
-
-/* define to convert Hex value to millivolt*/
-#define MINION_HEX_TO_MILLIVOLT(hex_val)                                                     \
-    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, \
-                          PMIC_GENERIC_VOLTAGE_DIVIDER)
-
-/* define to convert power to milliwats*/
-#define POWER_IN_MW(pwr) (pwr * 1000)
 
 /************************************************************************
 *
@@ -715,8 +707,7 @@ int update_module_soc_power(void)
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
-    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) >
-              UPPER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) > UPPER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
              (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN) &&
              (g_soc_power_reg.active_power_management))
     {
@@ -727,8 +718,7 @@ int update_module_soc_power(void)
 
     /* Switch power throttle state only if we are currently in lower priority throttle
         state and Active Power Management is enabled*/
-    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) <
-              LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) < LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
              (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP) &&
              (g_soc_power_reg.active_power_management))
     {
@@ -1278,6 +1268,7 @@ int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t 
             break;
         }
         case POWER_THROTTLE_STATE_POWER_IDLE:
+            /*TODO: add IDLE state residency */
             break;
 
         default: {
@@ -1528,6 +1519,112 @@ int init_thermal_pwr_mgmt_service(void)
 *
 *   FUNCTION
 *
+*       set_minion_operating_point
+*
+*   DESCRIPTION
+*
+*       This function will set minion operating point according to new
+*       frequency. It will calculate voltage according to frequency and
+*       apply that voltage to change operating point.
+*
+*   INPUTS
+*
+*       new_freq                  new frequency to switch op
+*       power_status              power status trace log entry
+*
+*   OUTPUTS
+*
+*       int                       Return status
+*
+***********************************************************************/
+static int set_minion_operating_point(uint16_t new_freq,
+                                      struct trace_event_power_status_t *power_status)
+{
+    uint8_t hpdpll_mode = 0;
+    uint8_t new_voltage = 0;
+    int status = SUCCESS;
+
+    if (new_freq == (uint16_t)Get_Minion_Frequency())
+    {
+        return STATUS_SUCCESS;
+    }
+
+    /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
+#if USE_FCW_FOR_LVDPLL == 0
+    new_freq = (uint16_t)(((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) *
+                          MODE_FREQUENCY_STEP_SIZE);
+#endif
+
+    /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
+
+    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(new_freq),
+                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
+                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
+
+    if (new_voltage != g_pmic_power_reg.module_voltage.minion)
+    {
+        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage);
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Failed to update shire voltage\n");
+            return status;
+        }
+    }
+
+    /* Set L2cache voltage, it is using same clock as minion */
+    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_L2Cache_Voltage_Given_Freq(new_freq),
+                                        PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER,
+                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
+
+    if (new_voltage != g_pmic_power_reg.module_voltage.l2_cache)
+    {
+        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_L2CACHE, new_voltage);
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Failed to update L2Cache voltage\n");
+            return status;
+        }
+    }
+
+    status = pwr_svc_find_hpdpll_mode(new_freq, &hpdpll_mode);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
+        return status;
+    }
+
+    status = Minion_Configure_Hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
+        new_voltage = PMIC_MILLIVOLT_TO_HEX(
+            Minion_Get_Voltage_Given_Freq((uint16_t)Get_Minion_Frequency()),
+            PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
+        if (STATUS_SUCCESS != Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage))
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Failed to update shire voltage\n");
+        }
+        return status;
+    }
+
+    Update_Minion_Frequency_Global_Reg(new_freq);
+
+    /* Update voltage in global register*/
+    g_pmic_power_reg.module_voltage.minion = new_voltage;
+
+    /* Update voltage in global register*/
+    g_pmic_power_reg.module_voltage.l2_cache = new_voltage;
+
+    power_status->tgt_freq = new_freq;
+    power_status->tgt_voltage = new_voltage;
+
+    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
+    return 0;
+}
+/************************************************************************
+*
+*   FUNCTION
+*
 *       reduce_minion_operating_point
 *
 *   DESCRIPTION
@@ -1538,7 +1635,7 @@ int init_thermal_pwr_mgmt_service(void)
 *
 *   INPUTS
 *
-*       uint32_t                  Amount of Power to be reduced by (in mW)
+*       power_status              power status trace log entry
 *
 *   OUTPUTS
 *
@@ -1547,56 +1644,14 @@ int init_thermal_pwr_mgmt_service(void)
 ***********************************************************************/
 static int reduce_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
-    uint8_t hpdpll_mode = 0;
-    uint8_t new_voltage = 0;
-    int status = SUCCESS;
-
     /* Compute delta freq to compensate for delta Power */
-    int32_t new_freq =
+    uint16_t new_freq = (uint16_t)(
         ((Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE) < MINION_FREQUENCY_MIN_LIMIT) ?
             MINION_FREQUENCY_MIN_LIMIT :
-            (Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE);
+            (Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE));
 
-    if (new_freq == Get_Minion_Frequency())
-    {
-        return STATUS_SUCCESS;
-    }
-    /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
-#if USE_FCW_FOR_LVDPLL == 0
-    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) *
-               MODE_FREQUENCY_STEP_SIZE;
-#endif
-
-    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(new_freq),
-                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
-                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
-    if (new_voltage != g_soc_power_reg.asic_voltage.minion)
-    {
-        Minion_Shire_Update_Voltage(new_voltage);
-    }
-
-    status = pwr_svc_find_hpdpll_mode((uint16_t)new_freq, &hpdpll_mode);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
-        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
-    }
-
-    status = minion_configure_hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
-        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
-    }
-
-    Update_Minion_Frequency_Global_Reg(new_freq);
-
-    power_status->tgt_freq = (uint16_t)new_freq;
-    power_status->tgt_voltage = (uint16_t)new_voltage;
-
-    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
-
-    return 0;
+    /* Set the operating point*/
+    return set_minion_operating_point(new_freq, power_status);
 }
 
 /************************************************************************
@@ -1612,7 +1667,7 @@ static int reduce_minion_operating_point(struct trace_event_power_status_t *powe
 *
 *   INPUTS
 *
-*       uint32_t                  Amount of Power to be increased by (in mW)
+*       power_status              power status trace log entry
 *
 *   OUTPUTS
 *
@@ -1621,56 +1676,14 @@ static int reduce_minion_operating_point(struct trace_event_power_status_t *powe
 ***********************************************************************/
 static int increase_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
-    uint8_t hpdpll_mode = 0;
-    uint8_t new_voltage = 0;
-    int status = SUCCESS;
-
     /* Compute delta freq to compensate for delta Power */
-    int32_t new_freq =
+    uint16_t new_freq = (uint16_t)(
         ((Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE) > MINION_FREQUENCY_MAX_LIMIT) ?
             MINION_FREQUENCY_MAX_LIMIT :
-            (Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE);
+            (Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE));
 
-    if (new_freq == Get_Minion_Frequency())
-    {
-        return STATUS_SUCCESS;
-    }
-
-    /* If we are using modes round frequency to be multiple of MODE_FREQUENCY_STEP_SIZE */
-#if USE_FCW_FOR_LVDPLL == 0
-    new_freq = ((new_freq + (MODE_FREQUENCY_STEP_SIZE / 2)) / MODE_FREQUENCY_STEP_SIZE) *
-               MODE_FREQUENCY_STEP_SIZE;
-#endif
-
-    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(new_freq),
-                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
-                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
-    if (new_voltage != g_soc_power_reg.asic_voltage.minion)
-    {
-        Minion_Shire_Update_Voltage(new_voltage);
-    }
-
-    status = pwr_svc_find_hpdpll_mode((uint16_t)new_freq, &hpdpll_mode);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
-        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
-    }
-
-    status = minion_configure_hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
-        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
-    }
-
-    Update_Minion_Frequency_Global_Reg(new_freq);
-
-    power_status->tgt_freq = (uint16_t)new_freq;
-    power_status->tgt_voltage = (uint16_t)new_voltage;
-
-    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
-    return 0;
+    /* Set the operating point*/
+    return set_minion_operating_point(new_freq, power_status);
 }
 
 /************************************************************************
@@ -1694,40 +1707,8 @@ static int increase_minion_operating_point(struct trace_event_power_status_t *po
 ***********************************************************************/
 static int go_to_idle_state(struct trace_event_power_status_t *power_status)
 {
-    uint8_t hpdpll_mode = 0;
-    uint8_t new_voltage = 0;
-    int status = SUCCESS;
-
-    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(MNN_BOOT_FREQUENCY),
-                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
-                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
-    if (new_voltage != g_soc_power_reg.asic_voltage.minion)
-    {
-        Minion_Shire_Update_Voltage(new_voltage);
-    }
-
-    status = pwr_svc_find_hpdpll_mode((uint16_t)MNN_BOOT_FREQUENCY, &hpdpll_mode);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
-        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
-    }
-
-    status = minion_configure_hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
-        return THERMAL_PWR_MGMT_MINION_FREQ_UPDATE_FAILED;
-    }
-
-    Update_Minion_Frequency_Global_Reg(MNN_BOOT_FREQUENCY);
-
-    power_status->tgt_freq = (uint16_t)MNN_BOOT_FREQUENCY;
-    power_status->tgt_voltage = (uint16_t)new_voltage;
-
-    Trace_Power_Status(Trace_Get_SP_CB(), power_status);
-
-    return 0;
+    /* Set the operating point*/
+    return set_minion_operating_point(MNN_BOOT_FREQUENCY, power_status);
 }
 
 /************************************************************************
@@ -1928,11 +1909,13 @@ void power_throttling(power_throttle_state_e throttle_state)
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
                 go_to_idle_state(&power_status);
-                throttle_condition_met = 1;
                 break;
             }
 
             case POWER_THROTTLE_STATE_POWER_SAFE: {
+                FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
+                                  POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
+                go_to_safe_state(g_soc_power_reg.module_power_state, throttle_state);
                 break;
             }
             default: {
@@ -2287,7 +2270,7 @@ void set_system_voltages(void)
 {
     uint8_t voltage = 0;
     /* Setting the Neigh voltages */
-    pmic_set_voltage(MODULE_MINION, NEIGH_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_MINION, MINION_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_MINION, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 500mV(0x%X)\n", voltage);
@@ -2835,5 +2818,5 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
 void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state)
 {
     /* update Master Minion(MM) state*/
-     mm_state = (uint8_t)state;
+    mm_state = state;
 }

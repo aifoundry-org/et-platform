@@ -81,6 +81,11 @@
 */
 #define CM_HART_ID_2111 2111
 
+/*! \def MINION_PLL_USE_STEP_CLOCK
+    \brief A macro to enable/disable step clock
+*/
+#define MINION_PLL_USE_STEP_CLOCK true
+
 /*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
     \brief This function provide support to update the Minion
            Shire Power Rails
@@ -89,13 +94,21 @@
 */
 int Minion_Shire_Update_Voltage(uint8_t voltage);
 
-/*! \fn Minion_Get_Voltage_Given_Freq(int32_t target_frequency)
+/*! \fn Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
     \brief This function returns a voltage operating value given
             a freq value
     \param Target Minion Frequency
     \return Target Minion Voltage
 */
-int Minion_Get_Voltage_Given_Freq(int32_t target_frequency);
+int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency);
+
+/*! \fn int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
+    \brief This function returns a voltage operating value given
+            a freq value
+    \param Target Minion Frequency
+    \return Target L2cache Voltage
+*/
+int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency);
 
 /*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
     \brief This function provide support to program the
@@ -356,13 +369,13 @@ int8_t disable_sram_and_icache_interrupts(void);
 */
 int Minion_VPU_RF_Init(uint8_t shireid);
 
-/*! \fn int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
+/*! \fn int Minion_Configure_Hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
  *  \brief This function configures the Minion Shire with HPDPLL mode
  *  \param hpdpll_mode HDPLL mode to configure
  *  \param shire_mask active minion shire mask
  *  \return Status indicating success or negative error
 */
 
-int minion_configure_hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask);
+int Minion_Configure_Hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask);
 
 #endif

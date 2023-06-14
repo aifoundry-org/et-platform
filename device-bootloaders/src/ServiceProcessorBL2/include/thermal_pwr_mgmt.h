@@ -37,17 +37,33 @@
 #define SECONDS_IN_MINUTE 60
 
 // Defines the Boot voltages for the respective Voltage Domains
-#define NEIGH_BOOT_VOLTAGE 0x32U // 500 mV
-#define SRAM_BOOT_VOLTAGE  0x64U // 750 mV
-#define NOC_BOOT_VOLTAGE   0x28U // 450 mV
-#define DDR_BOOT_VOLTAGE   0x6EU // 800 mV
-#define MXN_BOOT_VOLTAGE   0x46U // 600 mV
+#define MINION_BOOT_VOLTAGE 0x32U // 500 mV
+#define SRAM_BOOT_VOLTAGE   0x64U // 750 mV
+#define NOC_BOOT_VOLTAGE    0x2DU // 475 mV
+#define DDR_BOOT_VOLTAGE    0x6EU // 800 mV
+#define MXN_BOOT_VOLTAGE    0x46U // 600 mV
+
+/* define to convert Hex value to millivolt*/
+#define MINION_HEX_TO_MILLIVOLT(hex_val)                                                     \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define SRAM_HEX_TO_MILLIVOLT(hex_val)                                                   \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
 
 /*!
     \def MNN_BOOT_FREQUENCY
     \brief Defines the boot frequency. This constant represents the boot frequency in Mhz.
 */
 #define MNN_BOOT_FREQUENCY 600.0
+
+/*!
+    \def SRAM_BOOT_FREQUENCY
+    \brief Defines the SRAM boot frequency. Minion and SRAM uses same clock so the frequncy is
+           same for both modules.
+*/
+#define SRAM_BOOT_FREQUENCY MNN_BOOT_FREQUENCY
 
 /* minion frequency limits */
 #define MINION_FREQUENCY_MAX_LIMIT  700
@@ -58,33 +74,10 @@
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw)  (pwr_10mw / 100)
 
-/*! \def PMIC_TEMP_LOWER_SET_LIMIT
-    \brief A macro that provides pmic minimum temperature threshold value
-*/
-#define PMIC_TEMP_LOWER_SET_LIMIT 55
-
-/*! \def PMIC_TEMP_UPPER_SET_LIMIT
-    \brief A macro that provides pmic maximum temperature threshold value
-*/
-#define PMIC_TEMP_UPPER_SET_LIMIT 75
-
-/*! \def TEMP_THRESHOLD_HW_CATASTROPHIC
-    \brief A macro that provides pmic temperature threshold value
-*/
-#define TEMP_THRESHOLD_HW_CATASTROPHIC 75
-
 /*! \def TEMP_THRESHOLD_SW_MANAGED
     \brief A macro that provides early indication temperature threshold value
 */
 #define TEMP_THRESHOLD_SW_MANAGED 65
-
-/*! \def POWER_THRESHOLD_HW_CATASTROPHIC
-    \brief A macro that provides power threshold value.
-*          This power threshold will be written to PMIC and PMIC will be expected
-*          to raise the interrupt if power goes beyond this threshold.
-*          Following M.2 spec.
-*/
-#define POWER_THRESHOLD_HW_CATASTROPHIC 75
 
 /*! \def POWER_THRESHOLD_SW_MANAGED
     \brief A macro that provides early indication power threshold value.
@@ -106,11 +99,6 @@
 */
 #define SAFE_STATE_FREQUENCY 300
 
-/*! \def MINION_PLL_USE_STEP_CLOCK
-    \brief A macro to enable/disable step clock
-*/
-#define MINION_PLL_USE_STEP_CLOCK true
-
 /*! \def POWER_GUARDBAND_SCALE_FACTOR
     \brief A macro that provides power scale factor in percentages.
 */
@@ -121,6 +109,9 @@
            This value needs to be characterized in Silicon
 */
 #define DELTA_TEMP_UPDATE_PERIOD 1000
+
+/* define to convert power to milliwats*/
+#define POWER_IN_MW(pwr) (pwr * 1000)
 
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register

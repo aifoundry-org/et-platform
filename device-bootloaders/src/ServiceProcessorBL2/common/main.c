@@ -81,8 +81,8 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
 
 static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
 
-/* NOC frequency modes (300MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
-static uint8_t noc_pll_mode[3] = { 66, 11, 17 };
+/* NOC frequency modes (400MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t noc_pll_mode[3] = { 37, 11, 17 };
 
 /* MIN STEP CLOCK frequency modes (600MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
 static uint8_t min_step_pll_mode[3] = { 34, 45, 46 };

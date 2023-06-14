@@ -149,6 +149,29 @@ struct pmic_event_control_block
 */
 #define PMIC_BUSY_WAIT_TIMEOUT_MS 100
 
+/*! \def POWER_THRESHOLD_HW_CATASTROPHIC
+    \brief A macro that provides power threshold value.
+*          This power threshold will be written to PMIC and PMIC will be expected
+*          to raise the interrupt if power goes beyond this threshold.
+*          Following M.2 spec.
+*/
+#define POWER_THRESHOLD_HW_CATASTROPHIC 75
+
+/*! \def TEMP_THRESHOLD_HW_CATASTROPHIC
+    \brief A macro that provides pmic temperature threshold value
+*/
+#define TEMP_THRESHOLD_HW_CATASTROPHIC 75
+
+/*! \def PMIC_TEMP_LOWER_SET_LIMIT
+    \brief A macro that provides pmic minimum temperature threshold value
+*/
+#define PMIC_TEMP_LOWER_SET_LIMIT 55
+
+/*! \def PMIC_TEMP_UPPER_SET_LIMIT
+    \brief A macro that provides pmic maximum temperature threshold value
+*/
+#define PMIC_TEMP_UPPER_SET_LIMIT 75
+
 /*! \fn void setup_pmic(void)
     \brief This function initialize I2C connection.
 */
@@ -380,7 +403,7 @@ int pmic_set_wdog_timeout_time(uint32_t timeout_time);
 */
 int pmic_get_tdp_threshold(uint8_t *power_limit);
 
-/*! \fn int pmic_set_tdp_threshold(uint8_t power_alarm)
+/*! \fn int pmic_set_tdp_threshold(uint16_t power_alarm)
     \brief This function sets power alarm point.
     \param power_alarm - power alarm point to be set (binary encoded)
     \return The function call status, pass/fail.

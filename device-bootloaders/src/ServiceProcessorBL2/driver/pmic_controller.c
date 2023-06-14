@@ -79,7 +79,6 @@
 #include "bl_error_code.h"
 #include "log.h"
 #include "delays.h"
-#include "thermal_pwr_mgmt.h"
 
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
