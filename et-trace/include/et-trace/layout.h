@@ -478,8 +478,8 @@ struct op_module
 {
     struct op_value temperature;
     struct op_value power;
-    uint32_t curr_freq;
-    uint32_t curr_voltage;
+    struct op_value voltage;
+    struct op_value freq;
 } __attribute__((packed, aligned(8)));
 
 /*!
@@ -489,9 +489,9 @@ struct op_module
 struct op_stats_t
 {
     struct op_module minion;
-    struct op_value sram_power;
-    struct op_value noc_power;
-    struct op_value system_power;
+    struct op_module sram;
+    struct op_module noc;
+    struct op_module system;
 } __attribute__((packed, aligned(8)));
 
 /*! \struct resource_value

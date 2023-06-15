@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-17430] Adding frequency and voltage stats in op stats
 ### Changed
 - Optimizing Trace Power stats struct fields
 ### Deprecated
