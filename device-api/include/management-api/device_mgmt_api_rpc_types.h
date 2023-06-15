@@ -376,31 +376,49 @@ struct mdi_mem_write_t {
     \brief 
 */
 struct get_sp_stats_t {
-  uint16_t  system_power_avg; /**< System power average */
-  uint16_t  system_power_min; /**< System power minimum */
-  uint16_t  system_power_max; /**< System power maximum */
-  uint16_t  system_temperature_avg; /**< System temperature average */
-  uint16_t  system_temperature_min; /**< System temperature minimum */
-  uint16_t  system_temperature_max; /**< System temperature maximum */
-  uint16_t  minion_power_avg; /**< Minion power average */
-  uint16_t  minion_power_min; /**< Minion power minimum */
-  uint16_t  minion_power_max; /**< Minion power maximum */
-  uint16_t  minion_temperature_avg; /**< Minion temperature average */
-  uint16_t  minion_temperature_min; /**< Minion temperature minimum */
-  uint16_t  minion_temperature_max; /**< Minion temperature maximum */
-  uint16_t  sram_power_avg; /**< SRAM power average */
-  uint16_t  sram_power_min; /**< SRAM power minimum */
-  uint16_t  sram_power_max; /**< SRAM power maximum */
-  uint16_t  sram_temperature_avg; /**< SRAM temperature average */
-  uint16_t  sram_temperature_min; /**< SRAM temperature minimum */
-  uint16_t  sram_temperature_max; /**< SRAM temperature maximum */
-  uint16_t  noc_power_avg; /**< NOC power average */
-  uint16_t  noc_power_min; /**< NOC power minimum */
-  uint16_t  noc_power_max; /**< NOC power maximum */
-  uint16_t  noc_temperature_avg; /**< NOC temperature average */
-  uint16_t  noc_temperature_min; /**< NOC temperature minimum */
-  uint16_t  noc_temperature_max; /**< NOC temperature maximum */
-  
+  uint16_t system_power_avg;       /**< System power average */
+  uint16_t system_power_min;       /**< System power minimum */
+  uint16_t system_power_max;       /**< System power maximum */
+  uint16_t system_temperature_avg; /**< System temperature average */
+  uint16_t system_temperature_min; /**< System temperature minimum */
+  uint16_t system_temperature_max; /**< System temperature maximum */
+  uint16_t minion_power_avg;       /**< Minion power average */
+  uint16_t minion_power_min;       /**< Minion power minimum */
+  uint16_t minion_power_max;       /**< Minion power maximum */
+  uint16_t minion_temperature_avg; /**< Minion temperature average */
+  uint16_t minion_temperature_min; /**< Minion temperature minimum */
+  uint16_t minion_temperature_max; /**< Minion temperature maximum */
+  uint16_t minion_voltage_avg;     /**< Minion voltage average */
+  uint16_t minion_voltage_min;     /**< Minion voltage minimum */
+  uint16_t minion_voltage_max;     /**< Minion voltage maximum */
+  uint16_t minion_freq_avg;        /**< Minion frequency average */
+  uint16_t minion_freq_min;        /**< Minion frequency minimum */
+  uint16_t minion_freq_max;        /**< Minion frequency maximum */
+  uint16_t sram_power_avg;         /**< SRAM power average */
+  uint16_t sram_power_min;         /**< SRAM power minimum */
+  uint16_t sram_power_max;         /**< SRAM power maximum */
+  uint16_t sram_temperature_avg;   /**< SRAM temperature average */
+  uint16_t sram_temperature_min;   /**< SRAM temperature minimum */
+  uint16_t sram_temperature_max;   /**< SRAM temperature maximum */
+  uint16_t sram_voltage_avg;       /**< SRAM voltage average */
+  uint16_t sram_voltage_min;       /**< SRAM voltage minimum */
+  uint16_t sram_voltage_max;       /**< SRAM voltage maximum */
+  uint16_t sram_freq_avg;          /**< SRAM frequency average */
+  uint16_t sram_freq_min;          /**< SRAM frequency minimum */
+  uint16_t sram_freq_max;          /**< SRAM frequency maximum */
+  uint16_t noc_power_avg;          /**< NOC power average */
+  uint16_t noc_power_min;          /**< NOC power minimum */
+  uint16_t noc_power_max;          /**< NOC power maximum */
+  uint16_t noc_temperature_avg;    /**< NOC temperature average */
+  uint16_t noc_temperature_min;    /**< NOC temperature minimum */
+  uint16_t noc_temperature_max;    /**< NOC temperature maximum */
+  uint16_t noc_voltage_avg;        /**< NOC voltage average */
+  uint16_t noc_voltage_min;        /**< NOC voltage minimum */
+  uint16_t noc_voltage_max;        /**< NOC voltage maximum */
+  uint16_t noc_freq_avg;           /**< NOC frequency average */
+  uint16_t noc_freq_min;           /**< NOC frequency minimum */
+  uint16_t noc_freq_max;           /**< NOC frequency maximum */
+
 } __attribute__((packed));
 
 /*! \struct get_mm_stats_t
