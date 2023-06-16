@@ -25,6 +25,7 @@
 #include "log.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 #include "config/mgmt_build_config.h"
 #include "bl2_pmic_controller.h"
 #include "mem_controller.h"
@@ -41,6 +42,9 @@ static TaskHandle_t g_dm_task_handle;
 static StackType_t g_dm_stack[DM_TASK_STACK];
 static StaticTask_t g_staticTask_ptr;
 
+SemaphoreHandle_t dm_sampling_semaphore_handle = NULL;
+StaticSemaphore_t dm_sampling_semaphore_buffer;
+
 /* Task entry functions */
 static void dm_task_entry(void *pvParameters);
 
@@ -55,7 +59,7 @@ static void dm_log_operating_point_stats(void);
 *
 *   DESCRIPTION
 *
-*       This function creates te DM sampling task.
+*       This function creates the DM sampling task.
 *
 *   INPUTS
 *
@@ -79,6 +83,64 @@ void init_dm_sampling_task(void)
     if (!g_dm_task_handle)
     {
         Log_Write(LOG_LEVEL_ERROR, "Task creation error: Failed to create DM sampling task.\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_sampling_task_semaphore_take
+*
+*   DESCRIPTION
+*
+*       This function blocks on taking the DM sampling semaphore.
+*       Semaphore is used to pause dm sampling during
+*       pmic fw update process.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void dm_sampling_task_semaphore_take(void)
+{
+    if((dm_sampling_semaphore_handle == NULL) || (xSemaphoreTake(dm_sampling_semaphore_handle, portMAX_DELAY)) != pdTRUE)
+    {
+      Log_Write(LOG_LEVEL_CRITICAL, "Taking DM sampling semaphore failed.\n");
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       dm_sampling_task_semaphore_give
+*
+*   DESCRIPTION
+*
+*       This function gives the DM sampling semaphore.
+*       Semaphore is used to pause dm sampling during
+*       pmic fw update process.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void dm_sampling_task_semaphore_give(void)
+{
+    if((dm_sampling_semaphore_handle == NULL) || (xSemaphoreGive(dm_sampling_semaphore_handle) != pdTRUE))
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "Giving DM sampling semaphore failed.\n");
     }
 }
 
@@ -115,8 +177,20 @@ static void dm_task_entry(void *pvParameters)
     {
         Log_Write(LOG_LEVEL_ERROR, "Error initializing OP stats: %s\n", __func__);
     }
+
+    //semaphore is used to syncronize dm sampling and pmic fw update process.
+    //dm sampling is blocked during pmic fw update.
+    dm_sampling_semaphore_handle = xSemaphoreCreateBinaryStatic(&dm_sampling_semaphore_buffer);
+    if(dm_sampling_semaphore_handle == NULL)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "Create DM sampling semaphore failed.\n");
+    }
+    dm_sampling_task_semaphore_give();
+
     while (1)
     {
+        dm_sampling_task_semaphore_take();
+
         Log_Write(LOG_LEVEL_DEBUG, "Updating the periodically sampled parameters: %s\n", __func__);
 
         ret = update_module_current_temperature();
@@ -185,6 +259,8 @@ static void dm_task_entry(void *pvParameters)
 
         /* Log op stats to trace */
         dm_log_operating_point_stats();
+
+        dm_sampling_task_semaphore_give();
 
         /* Wait for the sampling period */
         vTaskDelay(pdMS_TO_TICKS(DM_TASK_DELAY_MS));

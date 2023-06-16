@@ -22,6 +22,7 @@
 #include "bl_error_code.h"
 #include "crc32.h"
 #include "esperanto_flash_image.h"
+#include "dm_task.h"
 
 /* timout value for SP to complete boot */
 #define SP_BOOT_TIMEOUT 60000000
@@ -803,7 +804,10 @@ static int32_t dm_svc_firmware_update(void)
 
     /* TODO: Enable PMIC FW update once check for PMIC FW image match is enabled
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
-    dm_svc_pmic_firmware_update(); */
+    // Periodic sampling is suspended during pmic fw update process
+    dm_sampling_task_semaphore_take();
+    dm_svc_pmic_firmware_update();
+    dm_sampling_task_semaphore_give(); */
 
     end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");

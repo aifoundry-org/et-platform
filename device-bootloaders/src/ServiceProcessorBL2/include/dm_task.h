@@ -16,5 +16,7 @@
 #include "dm_event_def.h"
 
 void init_dm_sampling_task(void);
+void dm_sampling_task_semaphore_take(void);
+void dm_sampling_task_semaphore_give(void);
 
 #endif

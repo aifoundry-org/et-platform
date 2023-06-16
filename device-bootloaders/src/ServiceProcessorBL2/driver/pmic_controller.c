@@ -2284,7 +2284,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
             break;
         }
         Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC byte count: %u\n", flash_addr / reg_size_bytes);
-
+        
         fw_ptr += reg_size_bytes;
         flash_addr += reg_size_bytes;
     }
