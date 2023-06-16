@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-16663] Adding support to read and transfer PMIC FW image in FW update process.
+- [SW-17430]: Adding frequency and voltage stats in op stats
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 ### Deprecated

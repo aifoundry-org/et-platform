@@ -434,6 +434,12 @@ static void dm_svc_perf_get_sp_stats(tag_id_t tag_id, uint64_t req_start_time)
         dm_rsp.sp_stats.minion_temperature_avg = op_stats.minion.temperature.avg;
         dm_rsp.sp_stats.minion_temperature_min = op_stats.minion.temperature.min;
         dm_rsp.sp_stats.minion_temperature_max = op_stats.minion.temperature.max;
+        dm_rsp.sp_stats.minion_voltage_avg = op_stats.minion.voltage.avg;
+        dm_rsp.sp_stats.minion_voltage_min = op_stats.minion.voltage.min;
+        dm_rsp.sp_stats.minion_voltage_max = op_stats.minion.voltage.max;
+        dm_rsp.sp_stats.minion_freq_avg = op_stats.minion.freq.avg;
+        dm_rsp.sp_stats.minion_freq_min = op_stats.minion.freq.min;
+        dm_rsp.sp_stats.minion_freq_max = op_stats.minion.freq.max;
 
         dm_rsp.sp_stats.sram_power_avg = op_stats.sram.power.avg;
         dm_rsp.sp_stats.sram_power_min = op_stats.sram.power.min;
@@ -441,6 +447,12 @@ static void dm_svc_perf_get_sp_stats(tag_id_t tag_id, uint64_t req_start_time)
         dm_rsp.sp_stats.sram_temperature_avg = op_stats.sram.temperature.avg;
         dm_rsp.sp_stats.sram_temperature_min = op_stats.sram.temperature.min;
         dm_rsp.sp_stats.sram_temperature_max = op_stats.sram.temperature.max;
+        dm_rsp.sp_stats.sram_voltage_avg = op_stats.sram.voltage.avg;
+        dm_rsp.sp_stats.sram_voltage_min = op_stats.sram.voltage.min;
+        dm_rsp.sp_stats.sram_voltage_max = op_stats.sram.voltage.max;
+        dm_rsp.sp_stats.sram_freq_avg = op_stats.sram.freq.avg;
+        dm_rsp.sp_stats.sram_freq_min = op_stats.sram.freq.min;
+        dm_rsp.sp_stats.sram_freq_max = op_stats.sram.freq.max;
 
         dm_rsp.sp_stats.noc_power_avg = op_stats.noc.power.avg;
         dm_rsp.sp_stats.noc_power_min = op_stats.noc.power.min;
@@ -448,6 +460,12 @@ static void dm_svc_perf_get_sp_stats(tag_id_t tag_id, uint64_t req_start_time)
         dm_rsp.sp_stats.noc_temperature_avg = op_stats.noc.temperature.avg;
         dm_rsp.sp_stats.noc_temperature_min = op_stats.noc.temperature.min;
         dm_rsp.sp_stats.noc_temperature_max = op_stats.noc.temperature.max;
+        dm_rsp.sp_stats.noc_voltage_avg = op_stats.noc.voltage.avg;
+        dm_rsp.sp_stats.noc_voltage_min = op_stats.noc.voltage.min;
+        dm_rsp.sp_stats.noc_voltage_max = op_stats.noc.voltage.max;
+        dm_rsp.sp_stats.noc_freq_avg = op_stats.noc.freq.avg;
+        dm_rsp.sp_stats.noc_freq_min = op_stats.noc.freq.min;
+        dm_rsp.sp_stats.noc_freq_max = op_stats.noc.freq.max;
     }
 
     FILL_RSP_HEADER(dm_rsp, tag_id, DM_CMD_GET_SP_STATS, timer_get_ticks_count() - req_start_time,

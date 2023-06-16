@@ -247,15 +247,23 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
 */
 #define CMA_TEMP_SAMPLE_COUNT 5
 
+/*! \def CMA_FREQ_SAMPLE_COUNT
+    \brief Device statistics moving average sample count for frequency.
+*/
+#define CMA_FREQ_SAMPLE_COUNT 5
+
 /* Macro to calculate cumulative moving average */
-#define CMA(module, current_value, sample_count)                                         \
-    double cma_temp =                                                                    \
-        (current_value > module.avg) ?                                                   \
-            ceil((((double)current_value + (double)(module.avg * (sample_count - 1))) /  \
-                  sample_count)) :                                                       \
-            floor((((double)current_value + (double)(module.avg * (sample_count - 1))) / \
-                   sample_count));                                                       \
-    module.avg = (uint16_t)cma_temp;
+#define CMA(module, current_value, sample_count)                                             \
+    do                                                                                       \
+    {                                                                                        \
+        double cma_temp =                                                                    \
+            (current_value > module.avg) ?                                                   \
+                ceil((((double)current_value + (double)(module.avg * (sample_count - 1))) /  \
+                      sample_count)) :                                                       \
+                floor((((double)current_value + (double)(module.avg * (sample_count - 1))) / \
+                       sample_count));                                                       \
+        module.avg = (uint16_t)cma_temp;                                                     \
+    } while (0);
 
 /* Macro to calculate Min, Max values and add to the sum for average value later to be calculated by dividing num of samples */
 #define CALC_MIN_MAX(module, current_value)      \
@@ -686,13 +694,25 @@ int update_module_soc_power(void)
     g_soc_power_reg.op_stats.minion.power.min = g_pmic_power_reg.pmb_stats.minion.w_out.min;
     g_soc_power_reg.op_stats.minion.power.max = g_pmic_power_reg.pmb_stats.minion.w_out.max;
 
+    g_soc_power_reg.op_stats.minion.voltage.avg = g_pmic_power_reg.pmb_stats.minion.v_out.average;
+    g_soc_power_reg.op_stats.minion.voltage.min = g_pmic_power_reg.pmb_stats.minion.v_out.min;
+    g_soc_power_reg.op_stats.minion.voltage.max = g_pmic_power_reg.pmb_stats.minion.v_out.max;
+
     g_soc_power_reg.op_stats.noc.power.avg = g_pmic_power_reg.pmb_stats.noc.w_out.average;
     g_soc_power_reg.op_stats.noc.power.min = g_pmic_power_reg.pmb_stats.noc.w_out.min;
     g_soc_power_reg.op_stats.noc.power.max = g_pmic_power_reg.pmb_stats.noc.w_out.max;
 
+    g_soc_power_reg.op_stats.noc.voltage.avg = g_pmic_power_reg.pmb_stats.noc.v_out.average;
+    g_soc_power_reg.op_stats.noc.voltage.min = g_pmic_power_reg.pmb_stats.noc.v_out.min;
+    g_soc_power_reg.op_stats.noc.voltage.max = g_pmic_power_reg.pmb_stats.noc.v_out.max;
+
     g_soc_power_reg.op_stats.sram.power.avg = g_pmic_power_reg.pmb_stats.sram.w_out.average;
     g_soc_power_reg.op_stats.sram.power.min = g_pmic_power_reg.pmb_stats.sram.w_out.min;
     g_soc_power_reg.op_stats.sram.power.max = g_pmic_power_reg.pmb_stats.sram.w_out.max;
+
+    g_soc_power_reg.op_stats.sram.voltage.avg = g_pmic_power_reg.pmb_stats.sram.v_out.average;
+    g_soc_power_reg.op_stats.sram.voltage.min = g_pmic_power_reg.pmb_stats.sram.v_out.min;
+    g_soc_power_reg.op_stats.sram.voltage.max = g_pmic_power_reg.pmb_stats.sram.v_out.max;
 
     /* module_tdp_level is in Watts, converting to miliWatts */
     int32_t tdp_level_mW = POWER_IN_MW(g_pmic_power_reg.module_tdp_level);
@@ -730,6 +750,58 @@ int update_module_soc_power(void)
     return 0;
 }
 
+/************************************************************************
+*
+*   FUNCTION
+*
+*       update_module_frequencies
+*
+*   DESCRIPTION
+*
+*       This function updates the module frequencies in op stats.
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       int                      Return status
+*
+***********************************************************************/
+int update_module_frequencies(void)
+{
+    int32_t status = SUCCESS;
+    struct asic_frequencies_t asic_frequencies;
+
+    status = get_module_asic_frequencies(&asic_frequencies);
+    if (status == SUCCESS)
+    {
+        CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.freq,
+                     (uint16_t)asic_frequencies.minion_shire_mhz)
+        CMA(g_soc_power_reg.op_stats.minion.freq, (uint16_t)asic_frequencies.minion_shire_mhz,
+            CMA_FREQ_SAMPLE_COUNT)
+
+        /* SRAM has the same frequency as minion shire */
+        /* TODO Update the sram frequency to use sram frequency value from asic_frequency structure
+            when it is added*/
+        CALC_MIN_MAX(g_soc_power_reg.op_stats.sram.freq,
+                     (uint16_t)asic_frequencies.minion_shire_mhz)
+        CMA(g_soc_power_reg.op_stats.sram.freq, (uint16_t)asic_frequencies.minion_shire_mhz,
+            CMA_FREQ_SAMPLE_COUNT)
+
+        CALC_MIN_MAX(g_soc_power_reg.op_stats.noc.freq, (uint16_t)asic_frequencies.noc_mhz)
+        CMA(g_soc_power_reg.op_stats.noc.freq, (uint16_t)asic_frequencies.noc_mhz,
+            CMA_FREQ_SAMPLE_COUNT)
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "thermal pwr mgmt svc error : get_module_asic_frequencies()\r\n");
+    }
+
+    return status;
+}
 /************************************************************************
 *
 *   FUNCTION

@@ -56,7 +56,7 @@
     \def MNN_BOOT_FREQUENCY
     \brief Defines the boot frequency. This constant represents the boot frequency in Mhz.
 */
-#define MNN_BOOT_FREQUENCY 600.0
+#define MNN_BOOT_FREQUENCY 600U
 
 /*!
     \def SRAM_BOOT_FREQUENCY
@@ -196,6 +196,13 @@ int get_module_current_temperature(struct current_temperature_t *temperature);
     \returns Status indicating success or negative error
 */
 int update_module_soc_power(void);
+
+/*! \fn int update_module_frequencies(void)
+    \brief Interface to update the module's frequency values in op stats.
+    \param none
+    \returns Status indicating success or negative error
+*/
+int update_module_frequencies(void);
 
 /*! \fn int get_module_soc_power(uint16_t *soc_pwr_10mw)
     \brief Interface to get the module's SOC Power in 10 mW steps.

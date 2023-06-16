@@ -144,6 +144,15 @@ static void dm_task_entry(void *pvParameters)
                       "thermal pwr mgmt svc error : update_module_soc_power()\r\n");
         }
 
+        // Module frequencies
+        ret = update_module_frequencies();
+
+        if (0 != ret)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "thermal pwr mgmt svc error : update_module_frequencies()\r\n");
+        }
+
         /*  Update the module uptime */
         ret = update_module_uptime();
 
