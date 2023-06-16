@@ -2268,7 +2268,7 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32_t fw_block_size)
 {
     int status = STATUS_SUCCESS;
-    uint32_t reg_size_bytes = 1; //how many bytes are sent in a I2C transfer
+    uint32_t reg_size_bytes = 4; //how many bytes are sent in a I2C transaction
 
     for (uint32_t write_count = 0; write_count < fw_block_size / reg_size_bytes; write_count++)
     {
@@ -2450,14 +2450,15 @@ int pmic_firmware_update(bool *match)
 
     if (status != STATUS_SUCCESS)
     {
-        Log_Write(LOG_LEVEL_CRITICAL,
+        Log_Write(LOG_LEVEL_ERROR,
                   "[ETFP] Transmitting PMIC image failed at block address offset 0x%x\n",
                   flash_addr - fw_send_size);
         /* Terminate PMIC firmware update by sending any command */
-        cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_RW_ADDRESS | (slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
+        cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_RW_ADDRESS |
+                        (inactive_slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
         if (set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1) != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Terminating the PMIC programming failed.\n");
+            Log_Write(LOG_LEVEL_ERROR, "[ETFP] Terminating the PMIC programming failed.\n");
         }
         return status;
     }

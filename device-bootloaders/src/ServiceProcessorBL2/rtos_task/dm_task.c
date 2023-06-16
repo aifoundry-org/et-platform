@@ -109,9 +109,10 @@ void init_dm_sampling_task(void)
 ***********************************************************************/
 void dm_sampling_task_semaphore_take(void)
 {
-    if((dm_sampling_semaphore_handle == NULL) || (xSemaphoreTake(dm_sampling_semaphore_handle, portMAX_DELAY)) != pdTRUE)
+    if ((dm_sampling_semaphore_handle == NULL) ||
+        (xSemaphoreTake(dm_sampling_semaphore_handle, portMAX_DELAY)) != pdTRUE)
     {
-      Log_Write(LOG_LEVEL_CRITICAL, "Taking DM sampling semaphore failed.\n");
+        Log_Write(LOG_LEVEL_ERROR, "Taking DM sampling semaphore failed.\n");
     }
 }
 
@@ -138,9 +139,10 @@ void dm_sampling_task_semaphore_take(void)
 ***********************************************************************/
 void dm_sampling_task_semaphore_give(void)
 {
-    if((dm_sampling_semaphore_handle == NULL) || (xSemaphoreGive(dm_sampling_semaphore_handle) != pdTRUE))
+    if ((dm_sampling_semaphore_handle == NULL) ||
+        (xSemaphoreGive(dm_sampling_semaphore_handle) != pdTRUE))
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "Giving DM sampling semaphore failed.\n");
+        Log_Write(LOG_LEVEL_ERROR, "Giving DM sampling semaphore failed.\n");
     }
 }
 
@@ -181,9 +183,9 @@ static void dm_task_entry(void *pvParameters)
     //semaphore is used to syncronize dm sampling and pmic fw update process.
     //dm sampling is blocked during pmic fw update.
     dm_sampling_semaphore_handle = xSemaphoreCreateBinaryStatic(&dm_sampling_semaphore_buffer);
-    if(dm_sampling_semaphore_handle == NULL)
+    if (dm_sampling_semaphore_handle == NULL)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "Create DM sampling semaphore failed.\n");
+        Log_Write(LOG_LEVEL_ERROR, "Create DM sampling semaphore failed.\n");
     }
     dm_sampling_task_semaphore_give();
 

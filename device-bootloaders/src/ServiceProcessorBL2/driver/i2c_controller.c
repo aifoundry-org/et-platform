@@ -46,7 +46,7 @@ static void i2c_clock_init(ET_I2C_DEV_t *dev)
 #define ET_CLOCK_SPEED_DIVIDER 1000
 #define ET_IC_CLK_MHZ          25
 
-#define I2C_MAX_TIMEOUT_MS     200
+#define I2C_MAX_TIMEOUT_MS 200
 
     uint16_t val_ss_scl_hcnt, val_ss_scl_lcnt;
     uint16_t val_fs_scl_hcnt, val_fs_scl_lcnt;
@@ -148,7 +148,8 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
     if (dev->isInitialized == false)
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    if (!INT_Is_Trap_Context() && (xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE))
+    if (!INT_Is_Trap_Context() &&
+        (xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE))
     {
         int32_t status = wait_pmic_ready();
         if (status != SUCCESS)
@@ -191,7 +192,7 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
                            I2C_IC_DATA_CMD_DAT_SET(txDataBuff[n]));
             /*value for above register */
         }
-        
+
         status = wait_pmic_ready();
         if (status != SUCCESS)
         {
@@ -209,7 +210,8 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
         while (I2C_IC_STATUS_MST_ACTIVITY_GET(dev->regs->IC_STATUS) ==
                I2C_IC_STATUS_MST_ACTIVITY_MST_ACTIVITY_ACTIVE)
         {
-            if(timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks) > I2C_MAX_TIMEOUT_MS)
+            if (timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks) >
+                I2C_MAX_TIMEOUT_MS)
             {
                 xSemaphoreGive(dev->bus_lock_handle);
                 return ET_I2C_ERROR_TIMEOUT;
@@ -234,7 +236,8 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
     if (dev->isInitialized == false)
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
+    if (!INT_Is_Trap_Context() &&
+        xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
     {
         int32_t status = wait_pmic_ready();
         if (status != SUCCESS)
@@ -283,7 +286,8 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
         uint64_t start_ticks = timer_get_ticks_count();
         while (I2C_IC_RXFLR_RXFLR_GET(dev->regs->IC_RXFLR) < rxDataCount)
         {
-            if(timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks) > I2C_MAX_TIMEOUT_MS)
+            if (timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks) >
+                I2C_MAX_TIMEOUT_MS)
             {
                 xSemaphoreGive(dev->bus_lock_handle);
                 return ET_I2C_ERROR_TIMEOUT;
@@ -313,7 +317,8 @@ int i2c_disable(ET_I2C_DEV_t *dev)
     if (dev->isInitialized == false)
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
+    if (!INT_Is_Trap_Context() &&
+        xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
     {
         dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
                                I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
