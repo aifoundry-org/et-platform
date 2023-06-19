@@ -29,8 +29,8 @@
 /**********************/
 /* BAR Configuration  */
 /**********************/
-/* Note BAR 0 must be aligned to 2^N 1 MB (16MB) */
-#define SP_DEV_INTF_BAR0_SIZE 0x1000000ULL
+/* Note BAR 0 must be aligned to 2^N 1 MB (32GB) */
+#define SP_DEV_INTF_BAR0_SIZE 0x800000000ULL
 
 /* Note BAR 2 must be aligned to 2^N 1 KB  (16KB)*/
 #define SP_DEV_INTF_BAR2_SIZE 0x4000ULL
