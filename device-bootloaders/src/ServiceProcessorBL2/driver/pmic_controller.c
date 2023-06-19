@@ -2418,7 +2418,7 @@ int pmic_firmware_update(bool *match)
     }
 
     /* Transmit the image to the PMIC */
-    while (pmic_fw_size > 0)
+    while ((pmic_fw_size > 0) && (status == STATUS_SUCCESS))
     {
         fw_send_size = pmic_fw_size;
 
@@ -2434,19 +2434,31 @@ int pmic_firmware_update(bool *match)
                                        (void *)fw, fw_send_size))
         {
             Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file data read failed!\n");
-            return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
+            status = ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
         }
-
-        /* Send the data block to PMIC */
-        status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_send_size);
-        if (status != STATUS_SUCCESS)
+        else
         {
-            return status;
+            /* Send the data block to PMIC */
+            status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_send_size);
         }
 
         /* Increment the offsets */
         flash_addr += fw_send_size;
         pmic_fw_size -= fw_send_size;
+    }
+
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "[ETFP] Transmitting PMIC image failed at block address offset 0x%x\n",
+                  flash_addr - fw_send_size);
+        /* Terminate PMIC firmware update by sending any command */
+        cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_RW_ADDRESS | (slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
+        if (set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1) != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Terminating the PMIC programming failed.\n");
+        }
+        return status;
     }
 
     prog_end = timer_get_ticks_count();
