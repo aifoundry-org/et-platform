@@ -1744,7 +1744,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc =
 			"BAR0 size doesn't match BAR0 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR0 size detected by host: 0x%llx\nBAR0 size exposed by DIRs: 0x%x\n",
+			"BAR0 size detected by host: 0x%llx\nBAR0 size exposed by DIRs: 0x%llx\n",
 			pci_resource_len(et_dev->pdev, 0),
 			dir_mgmt->bar0_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
@@ -1763,7 +1763,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc =
 			"BAR2 size doesn't match BAR2 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR2 size detected by host: 0x%llx\nBAR2 size exposed by DIRs: 0x%x\n",
+			"BAR2 size detected by host: 0x%llx\nBAR2 size exposed by DIRs: 0x%llx\n",
 			pci_resource_len(et_dev->pdev, 2),
 			dir_mgmt->bar2_size);
 		et_print_event(et_dev->pdev, &dbg_msg);

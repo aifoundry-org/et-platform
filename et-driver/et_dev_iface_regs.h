@@ -58,7 +58,7 @@
  */
 
 /* Mgmt and Ops DIR Versions */
-#define MGMT_DIR_VERSION (0x1)
+#define MGMT_DIR_VERSION (0x2)
 #define OPS_DIR_VERSION	 (0x1)
 
 /* MEM_REGION_IOACCESS */
@@ -252,8 +252,7 @@ struct et_mgmt_dir_header {
 	u16 version;
 	u16 total_size;
 	u16 num_regions;
-	u32 bar0_size;
-	u32 bar2_size;
+	u8 reserved0[8];
 	u32 crc32;
 	u32 ddr_bandwidth;
 	u32 cm_shires_mask;
@@ -268,7 +267,9 @@ struct et_mgmt_dir_header {
 	u8 form_factor;
 	u8 device_tdp;
 	u8 cache_line_size;
-	u8 reserved[4];
+	u64 bar0_size;
+	u64 bar2_size;
+	u8 reserved1[4];
 } __packed;
 
 struct et_mgmt_dir {
@@ -330,10 +331,10 @@ static inline void et_print_mgmt_dir(struct device *dev,
 		"Number of Regions       : 0x%x\n",
 		mgmt_dir->header.num_regions);
 	dev_dbg(dev,
-		"BAR0 Size               : 0x%x\n",
+		"BAR0 Size               : 0x%llx\n",
 		mgmt_dir->header.bar0_size);
 	dev_dbg(dev,
-		"BAR2 Size               : 0x%x\n",
+		"BAR2 Size               : 0x%llx\n",
 		mgmt_dir->header.bar2_size);
 	dev_dbg(dev,
 		"CRC32                   : 0x%x\n",
