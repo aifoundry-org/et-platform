@@ -40,7 +40,7 @@ class DeviceLayerConan(ConanFile):
     def requirements(self):
         self.requires("sw-sysemu/0.10.0")
         self.requires("hostUtils/0.3.0")
-        self.requires("linuxDriver/0.14.0")
+        self.requires("linuxDriver/0.15.0")
         self.requires("boost/1.72.0")
 
         # IDeviceLayerMock.h

@@ -106,8 +106,7 @@ using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INT
     uint16_t version;
     uint16_t total_size;
     uint16_t num_mem_regions;
-    uint32_t bar0_size;
-    uint32_t bar2_size;
+    uint8_t reserved0[8];
     uint32_t crc32;
     uint32_t ddr_bandwidth;
     uint32_t cm_shires_mask;
@@ -122,7 +121,9 @@ using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INT
     uint8_t form_factor;
     uint8_t device_tdp;
     uint8_t cache_line_size;
-    uint8_t reserved[4];
+    uint64_t bar0_size;
+    uint64_t bar2_size;
+    uint8_t reserved1[4];
 };
 
 /*! \struct SP_DEV_INTF_REG

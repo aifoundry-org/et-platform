@@ -30,7 +30,7 @@ namespace fs = std::experimental::filesystem;
 
 namespace {
 
-constexpr auto kMinReqDriverVersion = "0.14.0";
+constexpr auto kMinReqDriverVersion = "0.15.0";
 
 int countDeviceNodes(bool isMgmt) {
   auto it = fs::directory_iterator("/dev");
