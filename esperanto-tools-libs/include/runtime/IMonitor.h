@@ -10,7 +10,7 @@
 
 #pragma once
 #include "Types.h"
-/// \defgroup runtime_api Runtime API
+/// \defgroup runtime_monitor_api Runtime Monitoring API
 ///
 /// The Monitor API provides an interface to query about the multiprocess server status.
 ///

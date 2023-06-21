@@ -28,7 +28,7 @@
 #include <unordered_map>
 #include <variant>
 
-/// \defgroup runtime_profile_event_api Runtime Profile Event API
+/// \defgroup runtime_profiler_api Runtime Profiler API
 ///
 /// The runtime profiler API allows to gather profiling data from runtime execution.
 /// This API expects to receive an output stream where all profiling events will be dumped, the user can explicitely
