@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-17528] Fix the alignment of DIRs and use GCC primitives.
 ### Security
 
 ## [0.14.0] - 2023-04-19

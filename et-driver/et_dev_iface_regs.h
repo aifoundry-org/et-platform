@@ -176,7 +176,7 @@ struct et_dir_mem_region {
 	u64 bar_offset;
 	u64 bar_size;
 	u64 dev_address;
-} __packed;
+} __packed  __aligned(8);
 
 /*
  * Values representing Mgmt Device Boot status.
@@ -242,7 +242,7 @@ struct et_mgmt_dir_vqueue {
 	u32 cq_offset;
 	u16 cq_count;
 	u16 cq_size;
-} __packed;
+} __packed __aligned(8);
 
 /*
  * Holds the general information of Mgmt Device Interface Registers.
@@ -267,16 +267,16 @@ struct et_mgmt_dir_header {
 	u8 form_factor;
 	u8 device_tdp;
 	u8 cache_line_size;
+	u8 reserved1[4];
 	u64 bar0_size;
 	u64 bar2_size;
-	u8 reserved1[4];
-} __packed;
+} __packed __aligned(8);
 
 struct et_mgmt_dir {
 	struct et_mgmt_dir_header header;
 	struct et_mgmt_dir_vqueue vqueue;
 	struct et_dir_mem_region mem_region[];
-} __packed;
+} __packed __aligned(8);
 
 struct et_mapped_region {
 	bool is_valid; /*
@@ -553,7 +553,7 @@ struct et_ops_dir_vqueue {
 	u32 hp_sq_offset;
 	u16 hp_sq_count;
 	u16 hp_sq_size;
-} __packed;
+} __packed __aligned(8);
 
 /*
  * Holds the general information of Ops Device Interface Registers.
@@ -566,13 +566,13 @@ struct et_ops_dir_header {
 	s16 status;
 	u32 crc32;
 	u8 reserved[2];
-} __packed;
+} __packed __aligned(8);
 
 struct et_ops_dir {
 	struct et_ops_dir_header header;
 	struct et_ops_dir_vqueue vqueue;
 	struct et_dir_mem_region mem_region[];
-} __packed;
+} __packed __aligned(8);
 
 static inline void et_print_ops_dir(struct device *dev,
 				    u8 *dir_data,
