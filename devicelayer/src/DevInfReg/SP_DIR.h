@@ -70,7 +70,7 @@ enum SP_INTRPT_BIT_e {
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
 */
-using SP_DEV_INTF_MEM_REGION_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR {
+using SP_DEV_INTF_MEM_REGION_ATTR_s = struct __attribute__((packed, aligned(8))) SP_DEV_INTF_MEM_REGION_ATTR {
     uint16_t attributes_size;
     uint8_t type;
     uint8_t bar;
@@ -84,7 +84,7 @@ using SP_DEV_INTF_MEM_REGION_ATTR_s = struct __attribute__((__packed__)) SP_DEV_
     \brief Holds the information of Service Processor Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-using SP_DEV_INTF_VQ_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR {
+using SP_DEV_INTF_VQ_ATTR_s = struct __attribute__((packed, aligned(8))) SP_DEV_INTF_VQ_ATTR {
     uint16_t attributes_size;
     uint8_t int_trg_size;
     uint8_t int_id;
@@ -101,7 +101,7 @@ using SP_DEV_INTF_VQ_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_VQ_
     \brief Holds the general information of Service Processor.
     \warning Must be 64-bit aligned.
 */
-using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR {
+using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((packed, aligned(8))) SP_DEV_INTF_GENERIC_ATTR {
     uint16_t attributes_size;
     uint16_t version;
     uint16_t total_size;
@@ -121,16 +121,16 @@ using SP_DEV_INTF_GENERIC_ATTR_s = struct __attribute__((__packed__)) SP_DEV_INT
     uint8_t form_factor;
     uint8_t device_tdp;
     uint8_t cache_line_size;
+    uint8_t reserved1[4];
     uint64_t bar0_size;
     uint64_t bar2_size;
-    uint8_t reserved1[4];
 };
 
 /*! \struct SP_DEV_INTF_REG
     \brief Service Processor DIRs which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-using SP_DEV_INTF_REG = struct __attribute__((__packed__)) SP_DEV_INTF_REG {
+using SP_DEV_INTF_REG = struct __attribute__((packed, aligned(8))) SP_DEV_INTF_REG {
     SP_DEV_INTF_GENERIC_ATTR_s generic_attr;
     SP_DEV_INTF_VQ_ATTR_s vq_attr;
     /* Memory regions can be extended by the FW. The host will read it as

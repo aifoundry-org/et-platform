@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-- [CI] Adapt pipeline to Gitlab v15 
+- [CI] Adapt pipeline to Gitlab v15
 - [SW-16846] Updated DIRs to match the latest specification. DIR updates are done in 0.15.0 driver hence updating kMinReqDriverVersion=0.15.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-17528] Fix the alignment of DIRs and use GCC primitives.
 ### Security
 
 ## [2.1.0] - 2023-04-19
