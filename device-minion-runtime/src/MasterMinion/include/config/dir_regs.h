@@ -176,7 +176,7 @@ enum MM_DEV_INTF_MEM_REGION_TYPE_e {
     \brief Holds the information of Master Minion interface memory region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_MEM_REGION_ATTR {
+typedef struct __attribute__((packed, aligned(8))) MM_DEV_INTF_MEM_REGION_ATTR {
     uint16_t attributes_size;
     uint8_t type;
     uint8_t bar;
@@ -190,7 +190,7 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_MEM_REGION_ATTR {
     \brief Holds the information of Master Minion Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
+typedef struct __attribute__((packed, aligned(8))) MM_DEV_INTF_VQ_ATTR {
     uint16_t attributes_size;
     uint8_t int_trg_size;
     uint8_t int_id;
@@ -210,21 +210,20 @@ typedef struct __attribute__((__packed__)) MM_DEV_INTF_VQ_ATTR {
     \brief Holds the general information of Master Minion.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_GENERIC_ATTR {
+typedef struct __attribute__((packed, aligned(8))) MM_DEV_INTF_GENERIC_ATTR {
     uint16_t attributes_size;
     uint16_t version;
     uint16_t total_size;
     uint16_t num_mem_regions;
     int16_t status;
     uint32_t crc32;
-    uint8_t reserved[2];
 } MM_DEV_INTF_GENERIC_ATTR_s;
 
 /*! \struct MM_DEV_INTF_REG
     \brief Master Minion DIR which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) MM_DEV_INTF_REG {
+typedef struct __attribute__((packed, aligned(8))) MM_DEV_INTF_REG {
     MM_DEV_INTF_GENERIC_ATTR_s generic_attr;
     MM_DEV_INTF_VQ_ATTR_s vq_attr;
     /* Memory regions can be extended by the FW. The host will read it as
