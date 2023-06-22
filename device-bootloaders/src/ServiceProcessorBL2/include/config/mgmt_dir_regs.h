@@ -172,7 +172,7 @@ enum SP_DEV_INTF_FORM_FACTOR_e
     \brief Holds the information of Service Processor interface memory region.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR
+typedef struct __attribute__((packed, aligned(8))) SP_DEV_INTF_MEM_REGION_ATTR
 {
     uint16_t attributes_size;
     uint8_t type;
@@ -187,7 +187,7 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_MEM_REGION_ATTR
     \brief Holds the information of Service Processor Virtual Queues.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR
+typedef struct __attribute__((packed, aligned(8))) SP_DEV_INTF_VQ_ATTR
 {
     uint16_t attributes_size;
     uint8_t int_trg_size;
@@ -205,7 +205,7 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_VQ_ATTR
     \brief Holds the general information of Service Processor.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR
+typedef struct __attribute__((packed, aligned(8))) SP_DEV_INTF_GENERIC_ATTR
 {
     uint16_t attributes_size;
     uint16_t version;
@@ -226,16 +226,16 @@ typedef struct __attribute__((__packed__)) SP_DEV_INTF_GENERIC_ATTR
     uint8_t form_factor;
     uint8_t device_tdp;
     uint8_t cache_line_size;
+    uint8_t reserved1[4];
     uint64_t bar0_size;
     uint64_t bar2_size;
-    uint8_t reserved1[4];
 } SP_DEV_INTF_GENERIC_ATTR_s;
 
 /*! \struct SP_DEV_INTF_REG
     \brief Service Processor DIRs which will be used to public device capability to Host.
     \warning Must be 64-bit aligned.
 */
-typedef struct __attribute__((__packed__)) SP_DEV_INTF_REG
+typedef struct __attribute__((packed, aligned(8))) SP_DEV_INTF_REG
 {
     SP_DEV_INTF_GENERIC_ATTR_s generic_attr;
     SP_DEV_INTF_VQ_ATTR_s vq_attr;
