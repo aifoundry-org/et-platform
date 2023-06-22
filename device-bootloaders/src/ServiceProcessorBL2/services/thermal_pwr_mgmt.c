@@ -252,6 +252,11 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
 */
 #define CMA_FREQ_SAMPLE_COUNT 5
 
+/*! \def CMA_VOLTAGE_SAMPLE_COUNT
+    \brief Device statistics moving average sample count for minion voltage.
+*/
+#define CMA_VOLTAGE_SAMPLE_COUNT 5
+
 /* Macro to calculate cumulative moving average */
 #define CMA(module, current_value, sample_count)                                             \
     do                                                                                       \
@@ -694,9 +699,9 @@ int update_module_soc_power(void)
     g_soc_power_reg.op_stats.minion.power.min = g_pmic_power_reg.pmb_stats.minion.w_out.min;
     g_soc_power_reg.op_stats.minion.power.max = g_pmic_power_reg.pmb_stats.minion.w_out.max;
 
-    g_soc_power_reg.op_stats.minion.voltage.avg = g_pmic_power_reg.pmb_stats.minion.v_out.average;
-    g_soc_power_reg.op_stats.minion.voltage.min = g_pmic_power_reg.pmb_stats.minion.v_out.min;
-    g_soc_power_reg.op_stats.minion.voltage.max = g_pmic_power_reg.pmb_stats.minion.v_out.max;
+    CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.voltage, g_soc_power_reg.asic_voltage.minion)
+    CMA(g_soc_power_reg.op_stats.minion.voltage, g_soc_power_reg.asic_voltage.minion,
+        CMA_VOLTAGE_SAMPLE_COUNT)
 
     g_soc_power_reg.op_stats.noc.power.avg = g_pmic_power_reg.pmb_stats.noc.w_out.average;
     g_soc_power_reg.op_stats.noc.power.min = g_pmic_power_reg.pmb_stats.noc.w_out.min;
@@ -713,6 +718,10 @@ int update_module_soc_power(void)
     g_soc_power_reg.op_stats.sram.voltage.avg = g_pmic_power_reg.pmb_stats.sram.v_out.average;
     g_soc_power_reg.op_stats.sram.voltage.min = g_pmic_power_reg.pmb_stats.sram.v_out.min;
     g_soc_power_reg.op_stats.sram.voltage.max = g_pmic_power_reg.pmb_stats.sram.v_out.max;
+
+    CALC_MIN_MAX(g_soc_power_reg.op_stats.sram.voltage, g_soc_power_reg.asic_voltage.l2_cache)
+    CMA(g_soc_power_reg.op_stats.sram.voltage, g_soc_power_reg.asic_voltage.l2_cache,
+        CMA_VOLTAGE_SAMPLE_COUNT)
 
     /* module_tdp_level is in Watts, converting to miliWatts */
     int32_t tdp_level_mW = POWER_IN_MW(g_pmic_power_reg.module_tdp_level);

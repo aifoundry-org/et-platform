@@ -1026,9 +1026,27 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 {
     /* Lookup table of frequency-voltage pairs */
-    return (int)(MINION_HEX_TO_MILLIVOLT(MINION_BOOT_VOLTAGE) +
-                 ((target_frequency - MNN_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
-                     THROTTLE_VOLTAGE_STEP_MV);
+    int minion_mv = MINION_BOOT_VOLTAGE;
+
+    /* Check if it's a throttle down operation*/
+    if (target_frequency < MNN_BOOT_FREQUENCY)
+    {
+        /* Calculate minion voltage based on reduced frequency*/
+        minion_mv = (int)(MINION_HEX_TO_MILLIVOLT(MINION_BOOT_VOLTAGE) -
+                          (((MNN_BOOT_FREQUENCY - target_frequency) / THROTTLE_FREQUENCY_STEP) *
+                           THROTTLE_VOLTAGE_STEP_MV));
+        minion_mv = (minion_mv < MINION_VOLTAGE_MIN_LIMIT) ? MINION_VOLTAGE_MIN_LIMIT : minion_mv;
+    }
+    else
+    {
+        /* Throttle up operation, calculate minion voltage based on increased frequency*/
+        minion_mv = (int)(MINION_HEX_TO_MILLIVOLT(MINION_BOOT_VOLTAGE) +
+                          (((target_frequency - MNN_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
+                           THROTTLE_VOLTAGE_STEP_MV));
+        minion_mv = (minion_mv > MINION_VOLTAGE_MAX_LIMIT) ? MINION_VOLTAGE_MAX_LIMIT : minion_mv;
+    }
+
+    return minion_mv;
 }
 
 /************************************************************************
@@ -1053,9 +1071,29 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
 {
     /* Lookup table of frequency-voltage pairs */
-    return (int)(SRAM_HEX_TO_MILLIVOLT(SRAM_BOOT_VOLTAGE) +
-                 ((target_frequency - SRAM_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
-                     THROTTLE_VOLTAGE_STEP_MV);
+    int l2cache_mv = SRAM_BOOT_VOLTAGE;
+
+    /* Check if it's a throttle down operation*/
+    if (target_frequency < SRAM_BOOT_FREQUENCY)
+    {
+        /* Calculate L2Cache voltage based on reduced frequency*/
+        l2cache_mv = (int)(SRAM_HEX_TO_MILLIVOLT(SRAM_BOOT_VOLTAGE) -
+                           (((SRAM_BOOT_FREQUENCY - target_frequency) / THROTTLE_FREQUENCY_STEP) *
+                            THROTTLE_VOLTAGE_STEP_MV));
+        l2cache_mv = (l2cache_mv < L2CACHE_VOLTAGE_MIN_LIMIT) ? L2CACHE_VOLTAGE_MIN_LIMIT :
+                                                                l2cache_mv;
+    }
+    else
+    {
+        /* Throttle up operation, calculate minion voltage based on increased frequency*/
+        l2cache_mv = (int)(SRAM_HEX_TO_MILLIVOLT(SRAM_BOOT_VOLTAGE) +
+                           (((target_frequency - SRAM_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
+                            THROTTLE_VOLTAGE_STEP_MV));
+        l2cache_mv = (l2cache_mv > L2CACHE_VOLTAGE_MAX_LIMIT) ? L2CACHE_VOLTAGE_MAX_LIMIT :
+                                                                l2cache_mv;
+    }
+
+    return l2cache_mv;
 }
 
 /************************************************************************

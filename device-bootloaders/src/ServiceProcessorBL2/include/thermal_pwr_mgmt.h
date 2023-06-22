@@ -70,6 +70,14 @@
 #define MINION_FREQUENCY_MIN_LIMIT  300
 #define MINION_FREQUENCY_STEP_VALUE 50
 
+/* minion voltage limits*/
+#define MINION_VOLTAGE_MIN_LIMIT 350
+#define MINION_VOLTAGE_MAX_LIMIT 850
+
+/* L2CACHE voltage limits*/
+#define L2CACHE_VOLTAGE_MIN_LIMIT 500
+#define L2CACHE_VOLTAGE_MAX_LIMIT 1000
+
 // Defines for converting power values
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw)  (pwr_10mw / 100)
