@@ -46,6 +46,8 @@ static void i2c_clock_init(ET_I2C_DEV_t *dev)
 #define ET_CLOCK_SPEED_DIVIDER 1000
 #define ET_IC_CLK_MHZ          25
 
+#define I2C_MAX_TIMEOUT_MS     200
+
     uint16_t val_ss_scl_hcnt, val_ss_scl_lcnt;
     uint16_t val_fs_scl_hcnt, val_fs_scl_lcnt;
 
@@ -146,7 +148,7 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
     if (dev->isInitialized == false)
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    if (!INT_Is_Trap_Context() && (xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE))
+    if (!INT_Is_Trap_Context() && (xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE))
     {
         int32_t status = wait_pmic_ready();
         if (status != SUCCESS)
@@ -171,11 +173,30 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
         /* write all but last byte, since it contains the stop condition generation request */
         for (uint8_t n = 0; n < txDataCount - 1; n++)
         {
+            status = wait_pmic_ready();
+            if (status != SUCCESS)
+            {
+                // An unexpected time out has occurred, which was logged by wait_pmic_ready().
+                // return error, but this can be revisited
+                // after the new pmic ready feature has been fully tested.  Note pmic_ready
+                // is a hack for back pressuring of commands that deviates from the i2c spec.
+                // The mechanism for this purpose within the i2c spec should be investigated
+                // and used instead if possible.
+                xSemaphoreGive(dev->bus_lock_handle);
+                return status;
+            }
             dev->regs->IC_DATA_CMD =
                 (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
                            I2C_IC_DATA_CMD_DAT_SET(txDataBuff[n]));
             /*value for above register */
+        }
+        
+        status = wait_pmic_ready();
+        if (status != SUCCESS)
+        {
+            xSemaphoreGive(dev->bus_lock_handle);
+            return status;
         }
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
@@ -184,9 +205,16 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
         /* value for above register */
 
         /* wait for transfer to finish */
+        uint64_t start_ticks = timer_get_ticks_count();
         while (I2C_IC_STATUS_MST_ACTIVITY_GET(dev->regs->IC_STATUS) ==
                I2C_IC_STATUS_MST_ACTIVITY_MST_ACTIVITY_ACTIVE)
-            ;
+        {
+            if(timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks) > I2C_MAX_TIMEOUT_MS)
+            {
+                xSemaphoreGive(dev->bus_lock_handle);
+                return ET_I2C_ERROR_TIMEOUT;
+            }
+        }
 
         /* TODO: Fix I2C driver to use ack instead of adding delays after each operation 
         delays are added to prevent SP from hanging with back to back I2C read/writes. */
@@ -206,17 +234,11 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
     if (dev->isInitialized == false)
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE)
+    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
     {
         int32_t status = wait_pmic_ready();
         if (status != SUCCESS)
         {
-            // An unexpected time out has occurred, which was logged by wait_pmic_ready().
-            // return error, but this can be revisited
-            // after the new pmic ready feature has been fully tested.  Note pmic_ready
-            // is a hack for back pressuring of commands that deviates from the i2c spec.
-            // The mechanism for this purpose within the i2c spec should be investigated
-            // and used instead if possible.
             xSemaphoreGive(dev->bus_lock_handle);
             return status;
         }
@@ -231,10 +253,24 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
         /* this is where the actual read request(s) happens */
         for (uint8_t n = 0; n < rxDataCount - 1; n++)
         {
+            status = wait_pmic_ready();
+            if (status != SUCCESS)
+            {
+                xSemaphoreGive(dev->bus_lock_handle);
+                return status;
+            }
+
             dev->regs->IC_DATA_CMD =
                 (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ));
             /* this is what will init an actual read */
+        }
+
+        status = wait_pmic_ready();
+        if (status != SUCCESS)
+        {
+            xSemaphoreGive(dev->bus_lock_handle);
+            return status;
         }
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ) |
@@ -244,8 +280,15 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
 
         /* check RX fifo for received bytes */
         /* wait until we get the bytes we want in the RX fifo. */
+        uint64_t start_ticks = timer_get_ticks_count();
         while (I2C_IC_RXFLR_RXFLR_GET(dev->regs->IC_RXFLR) < rxDataCount)
-            ;
+        {
+            if(timer_convert_ticks_to_ms(timer_get_ticks_count() - start_ticks) > I2C_MAX_TIMEOUT_MS)
+            {
+                xSemaphoreGive(dev->bus_lock_handle);
+                return ET_I2C_ERROR_TIMEOUT;
+            }
+        }
 
         for (uint8_t n = 0; n < rxDataCount; n++)
         {
@@ -270,7 +313,7 @@ int i2c_disable(ET_I2C_DEV_t *dev)
     if (dev->isInitialized == false)
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
 
-    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, portMAX_DELAY) == pdTRUE)
+    if (!INT_Is_Trap_Context() && xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
     {
         dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
                                I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);

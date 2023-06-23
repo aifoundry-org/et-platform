@@ -227,9 +227,10 @@ int wait_pmic_ready(void)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
 {
-    if (0 != i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size))
+    int status = i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size);
+    if (0 != status)
     {
-        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed!", reg);
+        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed, status: %d!", reg, status);
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -260,9 +261,10 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 
 inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
 {
-    if (0 != i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size))
+    int status = i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size);
+    if (0 != status)
     {
-        MESSAGE_ERROR("set_pmic_reg: PMIC write failed!");
+        MESSAGE_ERROR("set_pmic_reg: PMIC write reg: %d failed, status: %d!", reg, status);
         return ERROR_PMIC_I2C_WRITE_FAILED;
     }
 
@@ -2284,7 +2286,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
             break;
         }
         Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC byte count: %u\n", flash_addr / reg_size_bytes);
-        
+
         fw_ptr += reg_size_bytes;
         flash_addr += reg_size_bytes;
     }
@@ -2399,7 +2401,6 @@ int pmic_firmware_update(bool *match)
 
     /* Extract the PMIC FW image size */
     pmic_fw_size = pmic_fw_config_header.info.image_info_and_signaure.info.raw_image_size;
-    Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW image size(bytes): %d\n", pmic_fw_size);
     if (pmic_fw_size == 0)
     {
         Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW size is NULL!\n");
