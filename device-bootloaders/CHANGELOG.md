@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-17430]: Adding frequency and voltage stats in op stats
 - [SW-16846] Added new 64-bit BAR size fields in DIRs and fixed BAR0 size.
 - [SW-17455] Reading PMIC FW version hash before PMIC FW update.
+- [SW-17455] Adding support to read and match PMIC FW metadata before update.
+    Read and match PMIC FW metadata with current image.
+    Do FW update only if the new image does not match.
+    Increased the BL2 code size to 444K.
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 ### Deprecated

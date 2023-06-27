@@ -111,6 +111,23 @@ struct pmic_event_control_block
     dm_pmic_isr_callback thermal_pwr_event_cb; /**< Thermal power event callback handler. */
 };
 
+/*! \struct imageMetadata_
+    \brief Struct use to image metadata
+    \warning Keep it synced with PMIC FW.
+*/
+typedef struct imageMetadata_
+{
+    uint32_t start_addr;
+    uint32_t version;
+    uint32_t board_type;
+    char hash[16];
+} imageMetadata_t;
+
+/*! \struct imageMetadata_
+    \brief Macro for PMIC FW image
+*/
+#define PMIC_FW_IMAGE_METADATA_OFFSET 0x100
+
 /* Base for each voltage rail */
 #define PMIC_DDR_VOLTAGE_BASE        250
 #define PMIC_SRAM_VOLTAGE_BASE       250
@@ -496,11 +513,10 @@ int pmic_set_gpio_as_output(uint8_t index);
 */
 int pmic_set_gpio_as_input(uint8_t index);
 
-/*! \fn int pmic_firmware_update(bool *match)
+/*! \fn int pmic_firmware_update(void)
     \brief This function updates the inactive pmic boot slot with the firmware
-    \param match - fw version of update and currently running version match
     \return The function call status, pass/fail
 */
-int pmic_firmware_update(bool *match);
+int pmic_firmware_update(void);
 
 #endif

@@ -230,7 +230,7 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
     int status = i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size);
     if (0 != status)
     {
-        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed, status: %d!", reg, status);
+        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed, status: %d!\n", reg, status);
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -2298,11 +2298,132 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *
 *   FUNCTION
 *
+*       pmic_check_fw_update_required
+*
+*   DESCRIPTION
+*
+*       This function reads the current and new image metadata and
+*       compares to see if both match or not.
+*
+*   INPUTS
+*
+*       active_slot   Current active pmic slot
+*
+*   OUTPUTS
+*
+*       status        Success or error code.
+*                     Success - images matched
+*                     Any other code - check for specific status
+*
+***********************************************************************/
+
+static int pmic_check_fw_update_required(uint8_t active_slot)
+{
+    bool version_matched = false;
+    bool hash_matched = false;
+    uint32_t current_hash = 0;
+    uint32_t current_version = 0;
+    int32_t status;
+    imageMetadata_t image_meta;
+
+    /* Get the git hash of image in active slot */
+    status = pmic_fw_update_get_subcommand_data(active_slot, PMIC_I2C_FW_MGMTCMD_HASHREAD,
+                                                &current_hash);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) git hash: %c%c%c%c\n",
+              active_slot, EXTRACT_BYTE(0, current_hash), EXTRACT_BYTE(1, current_hash),
+              EXTRACT_BYTE(2, current_hash), EXTRACT_BYTE(3, current_hash));
+
+    /* Get the version of image in active slot */
+    status = pmic_fw_update_get_subcommand_data(active_slot, PMIC_I2C_FW_MGMTCMD_VERSION,
+                                                &current_version);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) version: %u.%u.%u\n",
+              active_slot, EXTRACT_BYTE(2, current_version), EXTRACT_BYTE(1, current_version),
+              EXTRACT_BYTE(0, current_version));
+
+    /* Read the FW metadata block from flash */
+    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_PMIC_FW,
+                                   ((uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                    PMIC_FW_IMAGE_METADATA_OFFSET),
+                                   (void *)&image_meta, sizeof(imageMetadata_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file data read failed!\n");
+        return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
+    }
+
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image start_addr: 0x%x\n",
+              image_meta.start_addr);
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image version: %u.%u.%u\n",
+              EXTRACT_BYTE(2, image_meta.version), EXTRACT_BYTE(1, image_meta.version),
+              EXTRACT_BYTE(0, image_meta.version));
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image board_type: Type: 0x%x: Rev:0x%x\n",
+              EXTRACT_BYTE(0, image_meta.board_type), EXTRACT_BYTE(1, image_meta.board_type));
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image hash: %s\n", image_meta.hash);
+
+    /* Compare the current and new PMIC FW image metadata and see if update is required */
+    if (image_meta.version == current_version)
+    {
+        version_matched = true;
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW current and new image version matched!\n");
+    }
+    else
+    {
+        version_matched = false;
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "[ETFP] PMIC FW current and new image version not matched!\n");
+    }
+
+    /* Check the hash */
+    if ((image_meta.hash[0] == (char)EXTRACT_BYTE(0, current_hash)) &&
+        (image_meta.hash[1] == (char)EXTRACT_BYTE(1, current_hash)) &&
+        (image_meta.hash[2] == (char)EXTRACT_BYTE(2, current_hash)) &&
+        (image_meta.hash[3] == (char)EXTRACT_BYTE(3, current_hash)))
+    {
+        hash_matched = true;
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW current and new image hash matched!\n");
+    }
+    else
+    {
+        hash_matched = false;
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW current and new hash version not matched!\n");
+    }
+
+    /* Check if image matches */
+    if (version_matched && hash_matched)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "[ETFP] PMIC FW current and new image same, no need to update\n");
+        return ERROR_PMIC_FW_UPDATE_NOT_REQUIRED;
+    }
+    else
+    {
+        Log_Write(
+            LOG_LEVEL_CRITICAL,
+            "[ETFP] PMIC FW current and new image do not match, proceeding to update to new image\n");
+        return STATUS_SUCCESS;
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_firmware_update
 *
 *   DESCRIPTION
 *
-*       This function updates the pmic firmware
+*       This is a function for updating PMIC firmware in the inactive slot
+*       of PMIC flash memory. The active slot from which the PMIC booted
+*       is not modified. If the PMIC is already running an exact match
+*       of firmware provided, then success is returned without updating the
+*       PMIC flash memory.
 *
 *   INPUTS
 *
@@ -2310,16 +2431,15 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *
 *   OUTPUTS
 *
-*       match   pmic update version and currently running version match
+*       status
 *
 ***********************************************************************/
-int pmic_firmware_update(bool *match)
+int pmic_firmware_update(void)
 {
     int status;
     uint8_t cmd;
     uint8_t active_slot;
     uint8_t inactive_slot;
-    uint32_t temp = 0;
     uint32_t cksum_result;
     uint32_t flash_addr = 0;
     uint64_t start;
@@ -2344,12 +2464,6 @@ int pmic_firmware_update(bool *match)
 
     start = timer_get_ticks_count();
 
-    if (!match)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Error match pointer is null\n");
-        return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
-    }
-
     /* Read the passive slot number */
     status = pmic_get_inactive_boot_slot(&inactive_slot);
     if (status != STATUS_SUCCESS)
@@ -2357,28 +2471,6 @@ int pmic_firmware_update(bool *match)
         return status;
     }
     active_slot = !inactive_slot;
-
-    /* Get the git hash of image in active slot */
-    status = pmic_fw_update_get_subcommand_data(active_slot, PMIC_I2C_FW_MGMTCMD_HASHREAD, &temp);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) git hash: %c%c%c%c\n",
-              active_slot, EXTRACT_BYTE(0, temp), EXTRACT_BYTE(1, temp), EXTRACT_BYTE(2, temp),
-              EXTRACT_BYTE(3, temp));
-
-    /* Get the version of image in active slot */
-    status = pmic_fw_update_get_subcommand_data(active_slot, PMIC_I2C_FW_MGMTCMD_VERSION, &temp);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) version: %u.%u.%u\n",
-              active_slot, EXTRACT_BYTE(0, temp), EXTRACT_BYTE(1, temp), EXTRACT_BYTE(2, temp));
-
-    /* TODO: match the git hash and version. If the version or hash do not match,
-    proceed with the PMIC FW update, otherwise return */
 
     /* Read the PMIC FW region size from the flash image */
     flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_PMIC_FW, &pmic_fw_region_size);
@@ -2404,6 +2496,22 @@ int pmic_firmware_update(bool *match)
     if (pmic_fw_size == 0)
     {
         Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW size is NULL!\n");
+        return ERROR_PMIC_FW_UPDATE_INVALID_IMG;
+    }
+
+    /* Extract and match with PMIC image metadata */
+    if (pmic_fw_size >= (PMIC_FW_IMAGE_METADATA_OFFSET + sizeof(imageMetadata_t)))
+    {
+        /* Proceed only if FW update is required */
+        status = pmic_check_fw_update_required(active_slot);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW size is invalid!\n");
         return ERROR_PMIC_FW_UPDATE_INVALID_IMG;
     }
 

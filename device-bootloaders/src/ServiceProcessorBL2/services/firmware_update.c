@@ -615,56 +615,6 @@ static int32_t verify_image_header(void *fw_addr)
 *
 *   FUNCTION
 *
-*       dm_svc_pmic_firmware_update
-*
-*   DESCRIPTION
-*
-*       This is a function for updating PMIC firmware in the inactive slot
-*       of PMIC flash memory. The active slot from which the PMIC booted
-*       is not modified.  If the PMIC is already running an exact match
-*       of firmware provided, then success is returned without updating the
-*       PMIC flash memory.
-*
-*   INPUTS
-*
-*       None
-*
-*   OUTPUTS
-*
-*       Status
-*
-***********************************************************************/
-// The following line is to avoid a compiler error.  It should be removed and
-// static added to the declaration when this feature, which is under development,
-// is ready.
-int32_t dm_svc_pmic_firmware_update(void);
-int32_t dm_svc_pmic_firmware_update(void)
-{
-    int32_t ret;
-    bool match;
-
-    ret = pmic_firmware_update(&match);
-    if (ret != 0)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "dm_svc_pmic_firmware_update: update failed %d\n", ret);
-        return ret;
-    }
-
-    if (match)
-    {
-        // pmic is already running with this exact fw version
-        return SUCCESS;
-    }
-
-    // Add code here to set the pmic boot slot to the new pmic firmware
-
-    return SUCCESS;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       dm_svc_firmware_update
 *
 *   DESCRIPTION
@@ -802,12 +752,11 @@ static int32_t dm_svc_firmware_update(void)
         return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
     }
 
-    /* TODO: Enable PMIC FW update once check for PMIC FW image match is enabled
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
     // Periodic sampling is suspended during pmic fw update process
     dm_sampling_task_semaphore_take();
-    dm_svc_pmic_firmware_update();
-    dm_sampling_task_semaphore_give(); */
+    pmic_firmware_update();
+    dm_sampling_task_semaphore_give();
 
     end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");
