@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
+- [SW-17593] et-powertop: updated to include min/max/avg of new op_stats
 ### Deprecated
 ### Removed
 ### Fixed

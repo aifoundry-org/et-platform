@@ -49,10 +49,12 @@ static const int32_t kOpsSqNum = 2;
 static struct termios orig_termios;
 
 enum op_value_unit {
-  OP_VALUE_UNIT_WATTS,
-  OP_VALUE_UNIT_MILLIWATTS,
-  OP_VALUE_UNIT_10MILLIWATTS,
-  OP_VALUE_UNIT_TEMPERATURE_CELCIUS
+  OP_VALUE_UNIT_POWER_WATTS,
+  OP_VALUE_UNIT_POWER_MILLIWATTS,
+  OP_VALUE_UNIT_POWER_10MILLIWATTS,
+  OP_VALUE_UNIT_TEMPERATURE_CELCIUS,
+  OP_VALUE_UNIT_VOLTAGE_MILLIVOLTS,
+  OP_VALUE_UNIT_FREQ_MEGAHERTZ,
 };
 
 static void restoreTTY(void) {
@@ -77,14 +79,18 @@ static inline std::string getNewFileName(int devNum, bool isSp) {
 
 const char* opUnitToString(op_value_unit unit) {
   switch (unit) {
-  case OP_VALUE_UNIT_WATTS:
+  case OP_VALUE_UNIT_POWER_WATTS:
     return "W";
-  case OP_VALUE_UNIT_MILLIWATTS:
+  case OP_VALUE_UNIT_POWER_MILLIWATTS:
     return "mW";
-  case OP_VALUE_UNIT_10MILLIWATTS:
+  case OP_VALUE_UNIT_POWER_10MILLIWATTS:
     return "10mW";
   case OP_VALUE_UNIT_TEMPERATURE_CELCIUS:
     return "C";
+  case OP_VALUE_UNIT_VOLTAGE_MILLIVOLTS:
+    return "mV";
+  case OP_VALUE_UNIT_FREQ_MEGAHERTZ:
+    return "MHz";
   default:
     return "[Unknown Unit]";
   }
@@ -212,7 +218,9 @@ private:
   void displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
                      const bool isPower = false, const float cardMax = 0.0, const bool addBarLabels = false);
   void displayFreqStat(const std::string stat, bool endLine, uint64_t frequency);
+  void displayFreqStat(const std::string stat, const struct op_value& frequency);
   void displayVoltStat(const std::string stat, bool endLine, uint64_t moduleVoltage, uint64_t asicVoltage);
+  void displayVoltStat(const std::string stat, uint64_t moduleVoltage, const struct op_value& asicVoltage);
   void displayComputeStat(const std::string stat, const struct resource_value& rv);
   void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
   void collectMemStats(void);
@@ -432,6 +440,12 @@ void EtTop::collectSpStats(void) {
     spStats_.op.minion.temperature.avg = sp_stats->minion_temperature_avg;
     spStats_.op.minion.temperature.min = sp_stats->minion_temperature_min;
     spStats_.op.minion.temperature.max = sp_stats->minion_temperature_max;
+    spStats_.op.minion.voltage.avg = sp_stats->minion_voltage_avg;
+    spStats_.op.minion.voltage.min = sp_stats->minion_voltage_min;
+    spStats_.op.minion.voltage.max = sp_stats->minion_voltage_max;
+    spStats_.op.minion.freq.avg = sp_stats->minion_freq_avg;
+    spStats_.op.minion.freq.min = sp_stats->minion_freq_min;
+    spStats_.op.minion.freq.max = sp_stats->minion_freq_max;
 
     spStats_.op.sram.power.avg = sp_stats->sram_power_avg;
     spStats_.op.sram.power.min = sp_stats->sram_power_min;
@@ -439,6 +453,12 @@ void EtTop::collectSpStats(void) {
     spStats_.op.sram.temperature.avg = sp_stats->sram_temperature_avg;
     spStats_.op.sram.temperature.min = sp_stats->sram_temperature_min;
     spStats_.op.sram.temperature.max = sp_stats->sram_temperature_max;
+    spStats_.op.sram.voltage.avg = sp_stats->sram_voltage_avg;
+    spStats_.op.sram.voltage.min = sp_stats->sram_voltage_min;
+    spStats_.op.sram.voltage.max = sp_stats->sram_voltage_max;
+    spStats_.op.sram.freq.avg = sp_stats->sram_freq_avg;
+    spStats_.op.sram.freq.min = sp_stats->sram_freq_min;
+    spStats_.op.sram.freq.max = sp_stats->sram_freq_max;
 
     spStats_.op.noc.power.avg = sp_stats->noc_power_avg;
     spStats_.op.noc.power.min = sp_stats->noc_power_min;
@@ -446,6 +466,12 @@ void EtTop::collectSpStats(void) {
     spStats_.op.noc.temperature.avg = sp_stats->noc_temperature_avg;
     spStats_.op.noc.temperature.min = sp_stats->noc_temperature_min;
     spStats_.op.noc.temperature.max = sp_stats->noc_temperature_max;
+    spStats_.op.noc.voltage.avg = sp_stats->noc_voltage_avg;
+    spStats_.op.noc.voltage.min = sp_stats->noc_voltage_min;
+    spStats_.op.noc.voltage.max = sp_stats->noc_voltage_max;
+    spStats_.op.noc.freq.avg = sp_stats->noc_freq_avg;
+    spStats_.op.noc.freq.min = sp_stats->noc_freq_min;
+    spStats_.op.noc.freq.max = sp_stats->noc_freq_max;
   }
 
   if (dumpNextSpStatsBuffer_) {
@@ -706,12 +732,12 @@ void EtTop::displayOpStat(const std::string stat, const struct op_value& ov, con
     float avg, min, max;
     // convert to watts
     switch (unit) {
-    case OP_VALUE_UNIT_MILLIWATTS:
+    case OP_VALUE_UNIT_POWER_MILLIWATTS:
       avg = POWER_MW_TO_W(ov.avg);
       min = POWER_MW_TO_W(ov.min);
       max = POWER_MW_TO_W(ov.max);
       break;
-    case OP_VALUE_UNIT_10MILLIWATTS:
+    case OP_VALUE_UNIT_POWER_10MILLIWATTS:
       avg = POWER_10MW_TO_W(ov.avg);
       min = POWER_10MW_TO_W(ov.min);
       max = POWER_10MW_TO_W(ov.max);
@@ -781,8 +807,21 @@ void EtTop::displayVoltStat(const std::string stat, bool endLine, uint64_t modul
             << asicVoltFormat.str() << std::left << (endLine ? "\n" : " ");
 }
 
+void EtTop::displayVoltStat(const std::string stat, uint64_t moduleVoltage, const struct op_value& asicVoltage) {
+  std::stringstream asicVoltFormat;
+  asicVoltFormat << "(avg: " << std::setw(5) << std::left << asicVoltage.avg << " min: " << std::setw(5) << std::left
+                 << asicVoltage.min << " max: " << std::left << asicVoltage.max << ")";
+  std::cout << "\t" + stat + ": " << std::setw(5) << std::left << moduleVoltage << std::setw(7) << std::right
+            << asicVoltFormat.str() << std::left << std::endl;
+}
+
 void EtTop::displayFreqStat(const std::string stat, bool endLine, uint64_t frequency) {
   std::cout << "\t" + stat + ": " << std::setw(6) << std::left << frequency << (endLine ? "\n" : "");
+}
+
+void EtTop::displayFreqStat(const std::string stat, const struct op_value& frequency) {
+  std::cout << "\t" + stat + "   avg: " << std::setw(5) << std::left << frequency.avg << "  min: " << std::setw(5)
+            << std::left << frequency.min << "  max: " << std::setw(5) << std::left << frequency.max << std::endl;
 }
 
 void EtTop::displayComputeStat(const std::string stat, const struct resource_value& rv) {
@@ -841,12 +880,12 @@ void EtTop::displayStats(void) {
   etsocPower.max = op.minion.power.max + op.sram.power.max + op.noc.power.max + otherPower.max;
 
   std::cout << "Watts:";
-  displayOpStat("CARD       ", op.system.power, OP_VALUE_UNIT_10MILLIWATTS, true, cardMax, true);
-  displayOpStat("- ETSOC    ", etsocPower, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
-  displayOpStat("  - MINION ", op.minion.power, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
-  displayOpStat("  - SRAM   ", op.sram.power, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
-  displayOpStat("  - NOC    ", op.noc.power, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
-  displayOpStat("  - OTHER  ", otherPower, OP_VALUE_UNIT_MILLIWATTS, true, cardMax);
+  displayOpStat("CARD       ", op.system.power, OP_VALUE_UNIT_POWER_10MILLIWATTS, true, cardMax, true);
+  displayOpStat("- ETSOC    ", etsocPower, OP_VALUE_UNIT_POWER_MILLIWATTS, true, cardMax);
+  displayOpStat("  - MINION ", op.minion.power, OP_VALUE_UNIT_POWER_MILLIWATTS, true, cardMax);
+  displayOpStat("  - SRAM   ", op.sram.power, OP_VALUE_UNIT_POWER_MILLIWATTS, true, cardMax);
+  displayOpStat("  - NOC    ", op.noc.power, OP_VALUE_UNIT_POWER_MILLIWATTS, true, cardMax);
+  displayOpStat("  - OTHER  ", otherPower, OP_VALUE_UNIT_POWER_MILLIWATTS, true, cardMax);
 
   std::cout << "Temp(C):\n";
   displayOpStat("ETSOC    ", op.system.temperature, OP_VALUE_UNIT_TEMPERATURE_CELCIUS);
@@ -873,8 +912,9 @@ void EtTop::displayStats(void) {
 
   if (displayFreqDetails_) {
     std::cout << "Frequencies(MHz):\n";
-    displayFreqStat("MINION    ", false, freqStats_.minion_shire_mhz);
-    displayFreqStat("NOC       ", true, freqStats_.noc_mhz);
+    displayOpStat("MINION     ", op.minion.freq, OP_VALUE_UNIT_FREQ_MEGAHERTZ);
+    displayOpStat("SRAM       ", op.sram.freq, OP_VALUE_UNIT_FREQ_MEGAHERTZ);
+    displayOpStat("NOC        ", op.noc.freq, OP_VALUE_UNIT_FREQ_MEGAHERTZ);
     displayFreqStat("DDR       ", false, freqStats_.ddr_mhz);
     displayFreqStat("IO SHIRE  ", true, freqStats_.io_shire_mhz);
     displayFreqStat("MEM SHIRE ", false, freqStats_.mem_shire_mhz);
@@ -883,10 +923,11 @@ void EtTop::displayStats(void) {
 
   if (displayVoltDetails_) {
     std::cout << "Voltages(mV):\n";
+    displayVoltStat("MINION       ", BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1), op.minion.voltage);
+    displayVoltStat("SRAM         ", BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1), op.sram.voltage);
+    displayVoltStat("NOC          ", BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1), op.noc.voltage);
     displayVoltStat("MAXION       ", false, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1), asicVoltStats_.maxion);
-    displayVoltStat("MINION       ", true, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1), asicVoltStats_.minion);
-    displayVoltStat("NOC          ", false, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1), asicVoltStats_.noc);
-    displayVoltStat("L2 CACHE     ", true, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1), asicVoltStats_.l2_cache);
+    displayVoltStat("DDR          ", true, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1), asicVoltStats_.ddr);
     displayVoltStat("PShire(0p75) ", false, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
                     asicVoltStats_.pshire_0p75);
     displayVoltStat("IOShire(0p75)", true, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100),
@@ -895,7 +936,6 @@ void EtTop::displayStats(void) {
                     BIN2VOLTAGE(asicVoltStats_.vddq, 250, 10, 1));
     displayVoltStat("VDDQLP       ", true, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 10, 1),
                     BIN2VOLTAGE(asicVoltStats_.vddqlp, 250, 10, 1));
-    displayVoltStat("DDR          ", true, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1), asicVoltStats_.ddr);
   }
 
   bool errors = errStats_.uceCount > 0 || errStats_.ceCount > 0 || aerStats_.aerCount > 0;
