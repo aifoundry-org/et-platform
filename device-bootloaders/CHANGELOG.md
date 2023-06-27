@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-17528] Fix the alignment of DIRs and use GCC primitives.
 - [SW-17394] Fixed voltage calculation for throttle up and down operations
+- [SW_17536] Fix reading minion frequrency from PLLs
+- [SW-17538] Update op stats to use frequencies from performance globals
 ### Security
 
 ## [0.12.0] - 2023-06-02

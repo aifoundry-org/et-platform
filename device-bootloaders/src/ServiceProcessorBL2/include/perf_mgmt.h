@@ -49,6 +49,20 @@ int get_module_dram_bw(struct dram_bw_t *dram_bw);
 */
 int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw);
 
+/*! \fn int32_t Get_NOC_Frequency(void)
+    \brief Interface to get NOC frequency from global variable
+    \param N/A
+    \returns 
+*/
+int32_t Get_NOC_Frequency(void);
+
+/*! \fn int32_t Get_L2cache_Frequency(void)
+    \brief Interface to get L2Cache frequency from global variable
+    \param N/A
+    \returns 
+*/
+int32_t Get_L2cache_Frequency(void);
+
 /*! \fn int32_t Get_Minion_Frequency(void)
     \brief Interface to get Minion frequency from global variable
     \param N/A

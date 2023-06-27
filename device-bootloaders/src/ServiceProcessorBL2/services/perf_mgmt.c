@@ -165,6 +165,56 @@ int get_module_max_dram_bw(struct max_dram_bw_t *max_dram_bw)
 *
 *   FUNCTION
 *
+*       Get_NOC_Frequency
+*
+*   DESCRIPTION
+*
+*       This function return the global NOC frequency variable
+*
+*   INPUTS
+*       void
+*
+*   OUTPUTS
+*
+*      NOC Frequency
+*
+***********************************************************************/
+int32_t Get_NOC_Frequency(void)
+{
+    /* return NOC frequency */
+    return (int32_t)get_soc_perf_reg()->asic_frequency.noc_mhz;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Get_L2cache_Frequency
+*
+*   DESCRIPTION
+*
+*       This function return the global L2Cache frequency variable
+*
+*   INPUTS
+*       void
+*
+*   OUTPUTS
+*
+*      L2Cache Frequency
+*
+***********************************************************************/
+int32_t Get_L2cache_Frequency(void)
+{
+    /* L2Cache and minion have same frequency s they use same clock*/
+    /* TODO Update the sram frequency to use sram frequency value from asic_frequency structure
+            when it is added*/
+    return (int32_t)get_soc_perf_reg()->asic_frequency.minion_shire_mhz;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       Get_Minion_Frequency
 *
 *   DESCRIPTION
@@ -232,7 +282,14 @@ int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
 {
     uint32_t freq;
 
-    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = (uint32_t)Get_Minion_Frequency();
+    if (0 != get_pll_frequency(PLL_ID_SP_PLL_4, &freq))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get Minion frequency!");
+        return ERROR_PERF_MGMT_FAILED_TO_GET_FREQ;
+    }
+
+    /* Set Minion frequency */
+    get_soc_perf_reg()->asic_frequency.minion_shire_mhz = freq;
 
     if (0 != get_pll_frequency(PLL_ID_SP_PLL_2, &freq))
     {

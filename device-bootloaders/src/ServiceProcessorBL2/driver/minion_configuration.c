@@ -1028,7 +1028,7 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
     /* Lookup table of frequency-voltage pairs */
     int minion_mv = MINION_BOOT_VOLTAGE;
 
-    /* Check if it's a throttle down operation*/
+    /* Check if target frequency is below boot frequency*/
     if (target_frequency < MNN_BOOT_FREQUENCY)
     {
         /* Calculate minion voltage based on reduced frequency*/
@@ -1073,7 +1073,7 @@ int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
     /* Lookup table of frequency-voltage pairs */
     int l2cache_mv = SRAM_BOOT_VOLTAGE;
 
-    /* Check if it's a throttle down operation*/
+    /* Check if target frequency is below boot frequency*/
     if (target_frequency < SRAM_BOOT_FREQUENCY)
     {
         /* Calculate L2Cache voltage based on reduced frequency*/

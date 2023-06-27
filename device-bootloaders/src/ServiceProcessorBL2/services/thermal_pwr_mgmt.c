@@ -780,36 +780,20 @@ int update_module_soc_power(void)
 ***********************************************************************/
 int update_module_frequencies(void)
 {
-    int32_t status = SUCCESS;
-    struct asic_frequencies_t asic_frequencies;
+    int32_t temp_freq = Get_Minion_Frequency();
 
-    status = get_module_asic_frequencies(&asic_frequencies);
-    if (status == SUCCESS)
-    {
-        CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.freq,
-                     (uint16_t)asic_frequencies.minion_shire_mhz)
-        CMA(g_soc_power_reg.op_stats.minion.freq, (uint16_t)asic_frequencies.minion_shire_mhz,
-            CMA_FREQ_SAMPLE_COUNT)
+    CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.freq, (uint16_t)temp_freq)
+    CMA(g_soc_power_reg.op_stats.minion.freq, (uint16_t)temp_freq, CMA_FREQ_SAMPLE_COUNT)
 
-        /* SRAM has the same frequency as minion shire */
-        /* TODO Update the sram frequency to use sram frequency value from asic_frequency structure
-            when it is added*/
-        CALC_MIN_MAX(g_soc_power_reg.op_stats.sram.freq,
-                     (uint16_t)asic_frequencies.minion_shire_mhz)
-        CMA(g_soc_power_reg.op_stats.sram.freq, (uint16_t)asic_frequencies.minion_shire_mhz,
-            CMA_FREQ_SAMPLE_COUNT)
+    temp_freq = Get_L2cache_Frequency();
+    CALC_MIN_MAX(g_soc_power_reg.op_stats.sram.freq, (uint16_t)temp_freq)
+    CMA(g_soc_power_reg.op_stats.sram.freq, (uint16_t)temp_freq, CMA_FREQ_SAMPLE_COUNT)
 
-        CALC_MIN_MAX(g_soc_power_reg.op_stats.noc.freq, (uint16_t)asic_frequencies.noc_mhz)
-        CMA(g_soc_power_reg.op_stats.noc.freq, (uint16_t)asic_frequencies.noc_mhz,
-            CMA_FREQ_SAMPLE_COUNT)
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "thermal pwr mgmt svc error : get_module_asic_frequencies()\r\n");
-    }
+    temp_freq = Get_NOC_Frequency();
+    CALC_MIN_MAX(g_soc_power_reg.op_stats.noc.freq, (uint16_t)temp_freq)
+    CMA(g_soc_power_reg.op_stats.noc.freq, (uint16_t)temp_freq, CMA_FREQ_SAMPLE_COUNT)
 
-    return status;
+    return SUCCESS;
 }
 /************************************************************************
 *
