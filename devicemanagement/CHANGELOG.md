@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Adapt CI to gitlab-ci v15
+- [SW-17593] update conan dependency for deviceApi
 ### Deprecated
 ### Removed
 ### Fixed
