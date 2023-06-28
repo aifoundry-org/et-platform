@@ -660,8 +660,9 @@ int get_module_current_temperature(struct current_temperature_t *temperature)
 int update_module_soc_power(void)
 {
     uint16_t soc_pwr_10mW = 0;
+    MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
 
-    if (SUCCESS != get_asic_voltage(NULL))
+    if (SUCCESS != pvt_get_minion_avg_low_high_voltage(&minshire_voltage))
     {
         MESSAGE_ERROR("thermal pwr mgmt svc error: failed to update asic voltage\r\n");
         return THERMAL_PWR_MGMT_PVT_ACCESS_FAILED;
@@ -699,29 +700,26 @@ int update_module_soc_power(void)
     g_soc_power_reg.op_stats.minion.power.min = g_pmic_power_reg.pmb_stats.minion.w_out.min;
     g_soc_power_reg.op_stats.minion.power.max = g_pmic_power_reg.pmb_stats.minion.w_out.max;
 
-    CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.voltage, g_soc_power_reg.asic_voltage.minion)
-    CMA(g_soc_power_reg.op_stats.minion.voltage, g_soc_power_reg.asic_voltage.minion,
-        CMA_VOLTAGE_SAMPLE_COUNT)
-
     g_soc_power_reg.op_stats.noc.power.avg = g_pmic_power_reg.pmb_stats.noc.w_out.average;
     g_soc_power_reg.op_stats.noc.power.min = g_pmic_power_reg.pmb_stats.noc.w_out.min;
     g_soc_power_reg.op_stats.noc.power.max = g_pmic_power_reg.pmb_stats.noc.w_out.max;
-
-    g_soc_power_reg.op_stats.noc.voltage.avg = g_pmic_power_reg.pmb_stats.noc.v_out.average;
-    g_soc_power_reg.op_stats.noc.voltage.min = g_pmic_power_reg.pmb_stats.noc.v_out.min;
-    g_soc_power_reg.op_stats.noc.voltage.max = g_pmic_power_reg.pmb_stats.noc.v_out.max;
 
     g_soc_power_reg.op_stats.sram.power.avg = g_pmic_power_reg.pmb_stats.sram.w_out.average;
     g_soc_power_reg.op_stats.sram.power.min = g_pmic_power_reg.pmb_stats.sram.w_out.min;
     g_soc_power_reg.op_stats.sram.power.max = g_pmic_power_reg.pmb_stats.sram.w_out.max;
 
-    g_soc_power_reg.op_stats.sram.voltage.avg = g_pmic_power_reg.pmb_stats.sram.v_out.average;
-    g_soc_power_reg.op_stats.sram.voltage.min = g_pmic_power_reg.pmb_stats.sram.v_out.min;
-    g_soc_power_reg.op_stats.sram.voltage.max = g_pmic_power_reg.pmb_stats.sram.v_out.max;
+    /* Update average, min and max values of Minion, NOC and SRAM voltages from PVT */
+    g_soc_power_reg.op_stats.minion.voltage.avg = minshire_voltage.vdd_mnn.current;
+    g_soc_power_reg.op_stats.minion.voltage.min = minshire_voltage.vdd_mnn.low;
+    g_soc_power_reg.op_stats.minion.voltage.max = minshire_voltage.vdd_mnn.high;
 
-    CALC_MIN_MAX(g_soc_power_reg.op_stats.sram.voltage, g_soc_power_reg.asic_voltage.l2_cache)
-    CMA(g_soc_power_reg.op_stats.sram.voltage, g_soc_power_reg.asic_voltage.l2_cache,
-        CMA_VOLTAGE_SAMPLE_COUNT)
+    g_soc_power_reg.op_stats.noc.voltage.avg = minshire_voltage.vdd_noc.current;
+    g_soc_power_reg.op_stats.noc.voltage.min = minshire_voltage.vdd_noc.low;
+    g_soc_power_reg.op_stats.noc.voltage.max = minshire_voltage.vdd_noc.high;
+
+    g_soc_power_reg.op_stats.sram.voltage.avg = minshire_voltage.vdd_sram.current;
+    g_soc_power_reg.op_stats.sram.voltage.min = minshire_voltage.vdd_sram.low;
+    g_soc_power_reg.op_stats.sram.voltage.max = minshire_voltage.vdd_sram.high;
 
     /* module_tdp_level is in Watts, converting to miliWatts */
     int32_t tdp_level_mW = POWER_IN_MW(g_pmic_power_reg.module_tdp_level);
@@ -2679,6 +2677,10 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
     int status = STATUS_SUCCESS;
     uint8_t tmp_val;
     uint16_t soc_pwr_10mW;
+    MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
+
+    /* Reset all PVT sensors */
+    pvt_hilo_reset();
 
     /* read temperature values from pvt */
     status = pvt_get_minion_avg_temperature(&tmp_val);
@@ -2701,7 +2703,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 
         if (status == STATUS_SUCCESS)
         {
-            /* Initialize stats min, max andd avg values */
+            /* Initialize power min, max andd avg values */
             INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.power,
                             g_pmic_power_reg.pmb_stats.minion.w_out.average)
             INIT_STAT_VALUE(g_soc_power_reg.op_stats.sram.power,
@@ -2709,11 +2711,23 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
             INIT_STAT_VALUE(g_soc_power_reg.op_stats.noc.power,
                             g_pmic_power_reg.pmb_stats.noc.w_out.average)
 
+            /* Update PVT stats */
+            status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
+        }
+
+        if (status == STATUS_SUCCESS)
+        {
+            /* Initialize voltage min, max andd avg values */
+            INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.voltage,
+                            minshire_voltage.vdd_mnn.current)
+            INIT_STAT_VALUE(g_soc_power_reg.op_stats.sram.voltage,
+                            minshire_voltage.vdd_sram.current)
+            INIT_STAT_VALUE(g_soc_power_reg.op_stats.noc.voltage, minshire_voltage.vdd_noc.current)
+
             /* Read card average power */
             status = pmic_read_average_soc_power(&soc_pwr_10mW);
         }
 
-        /* Updater card average power */
         if (status == STATUS_SUCCESS)
         {
             /* initialize op stats with average power in mW */

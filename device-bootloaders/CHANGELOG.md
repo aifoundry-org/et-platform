@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-17394] Fixed voltage calculation for throttle up and down operations
 - [SW_17536] Fix reading minion frequrency from PLLs
 - [SW-17538] Update op stats to use frequencies from performance globals
+- [SW-17618] Fixed sampling of op_stat to use PVT
 ### Security
 
 ## [0.12.0] - 2023-06-02
