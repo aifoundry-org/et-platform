@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-17430] Adding frequency and voltage stats in op stats
 ### Changed
+- Updated conan recipe to be Conan 2.0 ready
 ### Deprecated
 ### Removed
 ### Fixed
