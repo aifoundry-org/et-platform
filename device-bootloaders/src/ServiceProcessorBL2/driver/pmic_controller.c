@@ -1248,7 +1248,7 @@ int pmic_disable_etsoc_reset_after_perst(void)
 
 int pmic_get_reset_cause(uint32_t *reset_cause)
 {
-    return (get_pmic_reg(PMIC_I2C_RESET_RESET_CAUSE_ADDRESS, (uint8_t *)reset_cause, 4));
+    return (get_pmic_reg(PMIC_I2C_RESET_RESET_CAUSE_ADDRESS, (uint8_t *)reset_cause, 1));
 }
 
 /************************************************************************
@@ -2268,10 +2268,14 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32_t fw_block_size)
 {
     int status = STATUS_SUCCESS;
-    uint32_t reg_size_bytes = 4; //how many bytes are sent in a I2C transaction
+    uint32_t reg_size_bytes = 8; //how many bytes are sent in a I2C transaction
 
-    for (uint32_t write_count = 0; write_count < fw_block_size / reg_size_bytes; write_count++)
+    for (uint32_t write_count = 0; write_count < fw_block_size; write_count += reg_size_bytes)
     {
+        reg_size_bytes = (fw_block_size - write_count) < reg_size_bytes ?
+                             (fw_block_size - write_count) :
+                             reg_size_bytes;
+
         status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
 
         if (status == STATUS_SUCCESS)
@@ -2440,7 +2444,7 @@ int pmic_firmware_update(void)
     uint8_t cmd;
     uint8_t active_slot;
     uint8_t inactive_slot;
-    uint32_t cksum_result;
+    uint32_t cksum_result = 0;
     uint32_t flash_addr = 0;
     uint64_t start;
     uint64_t end;
@@ -2590,15 +2594,13 @@ int pmic_firmware_update(void)
         return status;
     }
 
-    (void)cksum_result;
-    /* TODO: SW-17377: Checksum calculation needs to be updated
+    /* TODO: SW-17377: Checksum calculation needs to be updated */
     status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
-    if (status == STATUS_SUCCESS && cksum_result != 1)
+    if (status != STATUS_SUCCESS || cksum_result != 1)
     {
         Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum failure %u\n", cksum_result);
         return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
     }
-    */
 
     verify_end = timer_get_ticks_count();
     end = timer_get_ticks_count();
