@@ -44,6 +44,18 @@ int flash_fs_get_config_data(void *buffer);
 */
 int flash_fs_get_config_data(void *buffer);
 
+/*! \fn int flash_fs_load_file_info(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t region_id,
+                                    uint32_t *file_data_address, uint32_t *file_size)
+    \brief This function loads file info for a particular region in the given partition.
+    \param partition Partition ID
+    \param region_id region id
+    \param file_data_address address of the file
+    \param file_size size of file data
+    \return The function call status, pass/fail.
+*/
+int flash_fs_load_file_info(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t region_id,
+                            uint32_t *file_data_address, uint32_t *file_size);
+
 /*! \fn int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size)
     \brief This function returns file size for a particular region.
     \param region_id - region id
@@ -63,6 +75,19 @@ int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size
 */
 int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, void *buffer,
                        uint32_t buffer_size);
+
+/*! \fn int flash_fs_partition_read_file(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t region_id,
+                                         uint32_t offset, void *buffer, uint32_t buffer_size)
+    \brief This function reads the data from the file of the particular region in the given partition.
+    \param partition Partition ID
+    \param region_id region id
+    \param offset offset inside file to start read from
+    \param buffer data read from file
+    \param buffer_size size in bytes to be read
+    \return The function call status, pass/fail.
+*/
+int flash_fs_partition_read_file(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t region_id,
+                                 uint32_t offset, void *buffer, uint32_t buffer_size);
 
 /*! \fn int flash_fs_write_partition(uint32_t partition_address, void *buffer,
 *                                    uint32_t buffer_size, uint32_t chunk_size)
@@ -214,4 +239,5 @@ int flash_fs_update_shire_cache_config(uint16_t scp_size, uint16_t l2_size, uint
     \return The function call status, pass/fail.
 */
 int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg);
+
 #endif

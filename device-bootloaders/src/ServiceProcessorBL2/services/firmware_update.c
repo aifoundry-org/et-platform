@@ -753,9 +753,11 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
-    // Periodic sampling is suspended during pmic fw update process
+    /* Suspend the Periodic sampling during pmic fw update process */
     dm_sampling_task_semaphore_take();
+    /* Update the PMIC firmware image */
     pmic_firmware_update();
+    /* Resume the periodic sampling */
     dm_sampling_task_semaphore_give();
 
     end = timer_get_ticks_count();

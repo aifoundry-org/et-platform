@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Increased the BL2 code size to 444K.
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
+- [SW-17717] Reading the PMIC Firmware image from the flash passive slot.
 ### Deprecated
 ### Removed
 - [SW-16846] Removed 32-bit BAR size fields in DIRs.
@@ -27,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW_17536] Fix reading minion frequrency from PLLs
 - [SW-17538] Update op stats to use frequencies from performance globals
 - [SW-17618] Fixed sampling of op_stat to use PVT
-- [SW-17565] Fixed sending block of pmic fw update data and increased number of bytes per transaction 
+- [SW-17565] Fixed sending block of pmic fw update data and increased number of bytes per transaction
 ### Security
 
 ## [0.12.0] - 2023-06-02

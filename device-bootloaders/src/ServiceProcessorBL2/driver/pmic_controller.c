@@ -70,7 +70,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "etsoc/isa/io.h"
-#include "bl2_flashfs_driver.h"
+#include "bl2_flash_fs.h"
 #include "bl2_i2c_driver.h"
 #include "bl2_gpio_controller.h"
 #include "bl2_pmic_controller.h"
@@ -2311,6 +2311,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *
 *   INPUTS
 *
+*       sp_partition  partition ID of the SP flash
 *       active_slot   Current active pmic slot
 *
 *   OUTPUTS
@@ -2321,7 +2322,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *
 ***********************************************************************/
 
-static int pmic_check_fw_update_required(uint8_t active_slot)
+static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_slot)
 {
     bool version_matched = false;
     bool hash_matched = false;
@@ -2353,12 +2354,13 @@ static int pmic_check_fw_update_required(uint8_t active_slot)
               EXTRACT_BYTE(0, current_version));
 
     /* Read the FW metadata block from flash */
-    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_PMIC_FW,
-                                   ((uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
-                                    PMIC_FW_IMAGE_METADATA_OFFSET),
-                                   (void *)&image_meta, sizeof(imageMetadata_t)))
+    if (0 != flash_fs_partition_read_file(sp_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW,
+                                          ((uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           PMIC_FW_IMAGE_METADATA_OFFSET),
+                                          (void *)&image_meta, sizeof(imageMetadata_t)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file data read failed!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "[ETFP] PMIC FW flash_fs_partition_read_file data read failed!\n");
         return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
     }
 
@@ -2457,6 +2459,8 @@ int pmic_firmware_update(void)
     uint32_t pmic_fw_size = 0;
     uint32_t pmic_fw_region_size = 0;
     uint32_t fw_send_size = 0;
+    uint32_t dummy = 0;
+    uint32_t passive_partition;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pmic_fw_config_header;
 
     /* Get the pointer to BL2 scratch region */
@@ -2476,8 +2480,15 @@ int pmic_firmware_update(void)
     }
     active_slot = !inactive_slot;
 
+    passive_partition = 1 - get_service_processor_bl2_data()->flash_fs_bl2_info.active_partition;
+
     /* Read the PMIC FW region size from the flash image */
-    flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_PMIC_FW, &pmic_fw_region_size);
+    status = flash_fs_load_file_info(passive_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW, &dummy,
+                                     &pmic_fw_region_size);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
     Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW region size from flash image: %d\n",
               pmic_fw_region_size);
 
@@ -2488,10 +2499,11 @@ int pmic_firmware_update(void)
     }
 
     /* Read the PMIC FW flash image header */
-    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_PMIC_FW, 0, &pmic_fw_config_header,
-                                   sizeof(pmic_fw_config_header)))
+    if (0 != flash_fs_partition_read_file(passive_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW, 0,
+                                          &pmic_fw_config_header, sizeof(pmic_fw_config_header)))
     {
-        Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file header read failed!\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "[ETFP] PMIC FW flash_fs_partition_read_file header read failed!\n");
         return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
     }
 
@@ -2507,7 +2519,7 @@ int pmic_firmware_update(void)
     if (pmic_fw_size >= (PMIC_FW_IMAGE_METADATA_OFFSET + sizeof(imageMetadata_t)))
     {
         /* Proceed only if FW update is required */
-        status = pmic_check_fw_update_required(active_slot);
+        status = pmic_check_fw_update_required(passive_partition, active_slot);
         if (status != STATUS_SUCCESS)
         {
             return status;
@@ -2542,11 +2554,13 @@ int pmic_firmware_update(void)
         }
 
         /* Read the FW data block from flash */
-        if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_PMIC_FW,
-                                       ((uint32_t)sizeof(pmic_fw_config_header) + flash_addr),
-                                       (void *)fw, fw_send_size))
+        if (0 !=
+            flash_fs_partition_read_file(passive_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW,
+                                         ((uint32_t)sizeof(pmic_fw_config_header) + flash_addr),
+                                         (void *)fw, fw_send_size))
         {
-            Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC FW flashfs_drv_read_file data read failed!\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "[ETFP] PMIC FW flash_fs_partition_read_file data read failed!\n");
             status = ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
         }
         else

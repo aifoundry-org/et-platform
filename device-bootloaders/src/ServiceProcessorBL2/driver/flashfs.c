@@ -19,6 +19,7 @@
         flash_fs_get_config_data
         flash_fs_get_file_size
         flash_fs_read_file
+        flash_fs_partition_read_file
         flash_fs_write_partition
         flash_fs_erase_partition
         flash_fs_update_partition
@@ -535,10 +536,12 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
 *
 *   DESCRIPTION
 *
-*       This function loads file info for a particular region
+*       This function loads file info for a particular region in the
+*       given partition.
 *
 *   INPUTS
 *
+*       partition            partition ID
 *       region_id            region id
 *
 *   OUTPUTS
@@ -548,8 +551,8 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
 *
 ***********************************************************************/
 
-static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
-                                   uint32_t *file_data_address, uint32_t *file_size)
+int flash_fs_load_file_info(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t region_id,
+                            uint32_t *file_data_address, uint32_t *file_size)
 {
     uint32_t crc;
     uint32_t partition_address;
@@ -558,11 +561,11 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
     uint32_t region_address;
     uint32_t region_size;
 
-    if (0 == sg_flash_fs_bl2_info.active_partition)
+    if (0 == partition)
     {
         partition_address = 0;
     }
-    else if (1 == sg_flash_fs_bl2_info.active_partition)
+    else if (1 == partition)
     {
         partition_address = sg_flash_fs_bl2_info.flash_size / 2;
     }
@@ -576,80 +579,65 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING:
             file_info = &(sg_flash_fs_bl2_info.dram_training_file_info);
             region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_region_index;
+                sg_flash_fs_bl2_info.partition_info[partition].dram_training_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_MACHINE_MINION:
             file_info = &(sg_flash_fs_bl2_info.machine_minion_file_info);
             region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .machine_minion_region_index;
+                sg_flash_fs_bl2_info.partition_info[partition].machine_minion_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_MASTER_MINION:
             file_info = &(sg_flash_fs_bl2_info.master_minion_file_info);
             region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .master_minion_region_index;
+                sg_flash_fs_bl2_info.partition_info[partition].master_minion_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_WORKER_MINION:
             file_info = &(sg_flash_fs_bl2_info.worker_minion_file_info);
             region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .worker_minion_region_index;
+                sg_flash_fs_bl2_info.partition_info[partition].worker_minion_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
             file_info = &(sg_flash_fs_bl2_info.maxion_bl1_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .maxion_bl1_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition].maxion_bl1_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
             file_info = &(sg_flash_fs_bl2_info.dram_training_payload_800mhz_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_payload_800mhz_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition]
+                               .dram_training_payload_800mhz_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
             file_info = &(sg_flash_fs_bl2_info.dram_training_payload_933mhz_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_payload_933mhz_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition]
+                               .dram_training_payload_933mhz_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
             file_info = &(sg_flash_fs_bl2_info.dram_training_payload_1067mhz_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_payload_1067mhz_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition]
+                               .dram_training_payload_1067mhz_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D:
             file_info = &(sg_flash_fs_bl2_info.dram_training_2d_file_info);
             region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_2d_region_index;
+                sg_flash_fs_bl2_info.partition_info[partition].dram_training_2d_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
             file_info = &(sg_flash_fs_bl2_info.dram_training_2d_payload_800mhz_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_2d_payload_800mhz_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition]
+                               .dram_training_2d_payload_800mhz_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
             file_info = &(sg_flash_fs_bl2_info.dram_training_2d_payload_933mhz_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_2d_payload_933mhz_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition]
+                               .dram_training_2d_payload_933mhz_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
             file_info = &(sg_flash_fs_bl2_info.dram_training_2d_payload_1067mhz_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .dram_training_2d_payload_1067mhz_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition]
+                               .dram_training_2d_payload_1067mhz_region_index;
             break;
         case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
             file_info = &(sg_flash_fs_bl2_info.pmic_fw_file_info);
-            region_index =
-                sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                    .pmic_fw_region_index;
+            region_index = sg_flash_fs_bl2_info.partition_info[partition].pmic_fw_region_index;
             break;
         default:
             return ERROR_SPI_FLASH_INVALID_REGION_ID;
@@ -660,11 +648,10 @@ static int flash_fs_load_file_info(ESPERANTO_FLASH_REGION_ID_t region_id,
         return ERROR_SPI_FLASH_INVALID_REGION_ID;
     }
 
-    region_address = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
-                         .regions_table[region_index]
-                         .region_offset *
-                     FLASH_PAGE_SIZE;
-    region_size = sg_flash_fs_bl2_info.partition_info[sg_flash_fs_bl2_info.active_partition]
+    region_address =
+        sg_flash_fs_bl2_info.partition_info[partition].regions_table[region_index].region_offset *
+        FLASH_PAGE_SIZE;
+    region_size = sg_flash_fs_bl2_info.partition_info[partition]
                       .regions_table[region_index]
                       .region_reserved_size *
                   FLASH_PAGE_SIZE;
@@ -744,7 +731,8 @@ int flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t *size
     uint32_t file_data_address;
     uint32_t file_size;
 
-    if (0 != flash_fs_load_file_info(region_id, &file_data_address, &file_size))
+    if (0 != flash_fs_load_file_info(sg_flash_fs_bl2_info.active_partition, region_id,
+                                     &file_data_address, &file_size))
     {
         MESSAGE_ERROR("flash_fs_get_file_size: flash_fs_load_file_info(0x%x) failed!\n", region_id);
         return ERROR_SPI_FLASH_LOAD_FILE_INFO_FAILED;
@@ -789,7 +777,8 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
         return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
     }
 
-    if (0 != flash_fs_load_file_info(region_id, &file_data_address, &file_size))
+    if (0 != flash_fs_load_file_info(sg_flash_fs_bl2_info.active_partition, region_id,
+                                     &file_data_address, &file_size))
     {
         MESSAGE_ERROR("flash_fs_read_file: flash_fs_load_file_info(0x%x) failed!\n", region_id);
         return ERROR_SPI_FLASH_LOAD_FILE_INFO_FAILED;
@@ -812,6 +801,74 @@ int flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_t region_id, uint32_t offset, v
                                    (uint8_t *)buffer, buffer_size))
     {
         MESSAGE_ERROR("flash_fs_read_file: failed to read file data!\n");
+        memset(buffer, 0, buffer_size);
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_partition_read_file
+*
+*   DESCRIPTION
+*
+*       This function reads the data from the file of the particular region
+*       in the given partition.
+*
+*   INPUTS
+*
+*       partition            partition ID
+*       region_id            region id
+*       offset               offset inside file to start read from
+*       buffer_size          size in bytes to be read
+*
+*   OUTPUTS
+*
+*       buffer               data read from file
+*
+***********************************************************************/
+
+int flash_fs_partition_read_file(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t region_id,
+                                 uint32_t offset, void *buffer, uint32_t buffer_size)
+{
+    uint32_t file_data_address;
+    uint32_t file_size;
+    uint32_t end_offset;
+
+    if (NULL == buffer || 0 == buffer_size)
+    {
+        MESSAGE_ERROR("flash_fs_partition_read_file: invalid arguments!\n");
+        return ERROR_SPI_FLASH_INVALID_ARGUMENTS;
+    }
+
+    if (0 != flash_fs_load_file_info(partition, region_id, &file_data_address, &file_size))
+    {
+        MESSAGE_ERROR("flash_fs_partition_read_file: flash_fs_load_file_info(0x%x) failed!\n",
+                      region_id);
+        return ERROR_SPI_FLASH_LOAD_FILE_INFO_FAILED;
+    }
+
+    if (offset >= file_size)
+    {
+        MESSAGE_ERROR("flash_fs_partition_read_file: offset too large!\n");
+        return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
+    }
+
+    end_offset = offset + buffer_size;
+    if (end_offset > file_size)
+    {
+        MESSAGE_ERROR("flash_fs_partition_read_file: end_offset too large!\n");
+        return ERROR_SPI_FLASH_INVALID_FILE_SIZE_OFFSET;
+    }
+
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, file_data_address + offset,
+                                   (uint8_t *)buffer, buffer_size))
+    {
+        MESSAGE_ERROR("flash_fs_partition_read_file: failed to read file data!\n");
         memset(buffer, 0, buffer_size);
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
@@ -1832,4 +1889,5 @@ int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg)
 
     return 0;
 }
+
 #pragma GCC pop_options
