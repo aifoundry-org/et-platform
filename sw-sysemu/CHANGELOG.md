@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Started development for 0.12.0
+- (Conan) Generate packages for linux-ubuntu22.04-x86_64-gcc11-release
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 - Updated system-sw embedded components
