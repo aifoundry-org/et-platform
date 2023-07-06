@@ -559,8 +559,8 @@ int update_module_current_temperature(void)
     {
         /* Switch power throttle state only if we are currently in lower priority throttle
             state and Active Power Management is enabled*/
-        if (temperature > (temperature_threshold.sw_temperature_c) &&
-            (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
+        if ((temperature > temperature_threshold.sw_temperature_c) &&
+            (g_soc_power_reg.power_throttle_state <= POWER_THROTTLE_STATE_THERMAL_DOWN) &&
             (g_soc_power_reg.active_power_management))
         {
             // Do the thermal throttling
@@ -734,8 +734,8 @@ int update_module_soc_power(void)
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
-    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) > UPPER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
-             (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN) &&
+    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) >= tdp_level_mW) &&
+             (g_soc_power_reg.power_throttle_state <= POWER_THROTTLE_STATE_POWER_DOWN) &&
              (g_soc_power_reg.active_power_management))
     {
         /* Do the power throttling down */

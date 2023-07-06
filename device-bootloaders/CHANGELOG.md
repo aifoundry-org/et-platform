@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-17538] Update op stats to use frequencies from performance globals
 - [SW-17618] Fixed sampling of op_stat to use PVT
 - [SW-17565] Fixed sending block of pmic fw update data and increased number of bytes per transaction
+- [SW-17727] Fixed issue with Throttle down  status not being updated correcltly
 ### Security
 
 ## [0.12.0] - 2023-06-02

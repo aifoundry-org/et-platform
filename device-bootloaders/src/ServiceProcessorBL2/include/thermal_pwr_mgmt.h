@@ -85,7 +85,7 @@
 /*! \def TEMP_THRESHOLD_SW_MANAGED
     \brief A macro that provides early indication temperature threshold value
 */
-#define TEMP_THRESHOLD_SW_MANAGED 65
+#define TEMP_THRESHOLD_SW_MANAGED 70
 
 /*! \def POWER_THRESHOLD_SW_MANAGED
     \brief A macro that provides early indication power threshold value.
