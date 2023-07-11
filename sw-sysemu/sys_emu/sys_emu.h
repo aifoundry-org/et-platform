@@ -111,6 +111,7 @@ struct sys_emu_cmd_options {
     bool        display_trap_info            = false;
     bool        gdb                          = false;
     uint64_t    gdb_at_pc                    = ~0ull;
+    bool        gdb_on_umode                 = false;
 #ifndef SDK_RELEASE
     bool        vpurf_check                  = false;
     bool        vpurf_warn                   = false;

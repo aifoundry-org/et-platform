@@ -459,7 +459,9 @@ int sys_emu::main_internal() {
 
     int rv = EXIT_SUCCESS;
 
-    bool gdb_enabled = cmd_options.gdb && (cmd_options.gdb_at_pc == ~0ull);
+    bool gdb_enabled = cmd_options.gdb && (cmd_options.gdb_at_pc == ~0ull) &&
+      !cmd_options.gdb_on_umode;
+
     if (cmd_options.gdb) {
         gdbstub_init(this, &chip);
     }
@@ -528,7 +530,10 @@ int sys_emu::main_internal() {
             // This should happen even if the hart is sleeping or blocked
             hart->async_execute();
 
-            if (cmd_options.gdb && !gdb_enabled && (hart->pc == cmd_options.gdb_at_pc)) {
+            //GDB server can be enabled by PC or by the first transition to user mode.
+            if (!gdb_enabled && cmd_options.gdb &&
+                ((hart->pc == cmd_options.gdb_at_pc) ||
+                 (cmd_options.gdb_on_umode && (hart->prv == bemu::Privilege::U)))) {
                 // Break and connect the debugger in the next iteration!
                 gdb_enabled = true;
                 break;
