@@ -121,6 +121,8 @@ typedef struct imageMetadata_
     uint32_t version;
     uint32_t board_type;
     char hash[16];
+    uint32_t checksum;
+    uint32_t image_size;
 } imageMetadata_t;
 
 /*! \struct imageMetadata_

@@ -2608,7 +2608,7 @@ int pmic_firmware_update(void)
         return status;
     }
 
-    /* TODO: SW-17377: Checksum calculation needs to be updated */
+    /* Checksum is validated on PMIC side and "1" (true) is set for the correct value */
     status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
     if (status != STATUS_SUCCESS || cksum_result != 1)
     {

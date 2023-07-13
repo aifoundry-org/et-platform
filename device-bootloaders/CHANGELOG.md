@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 - [SW-17717] Reading the PMIC Firmware image from the flash passive slot.
 - Disabling PMIC firmware update temporarily.
+- [SW-17377] Update PMIC metadata image structure.
 ### Deprecated
 ### Removed
 - [SW-16846] Removed 32-bit BAR size fields in DIRs.
