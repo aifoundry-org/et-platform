@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-17456] Adding PMIC slot 0 and slot 1 image support.
 ### Changed
 - [SW-16531] Generate pre-release versions by default and full versions on tags pipelines
 - [SW-17903] Adapt conanfile url to gitlab.com and + conan 2.0 modernization
