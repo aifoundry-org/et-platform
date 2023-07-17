@@ -2268,7 +2268,8 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32_t fw_block_size)
 {
     int status = STATUS_SUCCESS;
-    uint32_t reg_size_bytes = 8; //how many bytes are sent in a I2C transaction
+    /* TODO: SW-17902: Change the size back to 8 once the issue is resolved. */
+    uint32_t reg_size_bytes = 4; //how many bytes are sent in a I2C transaction
 
     for (uint32_t write_count = 0; write_count < fw_block_size; write_count += reg_size_bytes)
     {
@@ -2354,7 +2355,9 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
               EXTRACT_BYTE(0, current_version));
 
     /* Read the FW metadata block from flash */
-    if (0 != flash_fs_partition_read_file(sp_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW,
+    if (0 != flash_fs_partition_read_file(sp_partition,
+                                          active_slot ? ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0 :
+                                                        ESPERANTO_FLASH_REGION_ID_PMIC_FW_S1,
                                           ((uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
                                            PMIC_FW_IMAGE_METADATA_OFFSET),
                                           (void *)&image_meta, sizeof(imageMetadata_t)))
@@ -2462,6 +2465,7 @@ int pmic_firmware_update(void)
     uint32_t dummy = 0;
     uint32_t passive_partition;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pmic_fw_config_header;
+    ESPERANTO_FLASH_REGION_ID_t slot_region_id;
 
     /* Get the pointer to BL2 scratch region */
     fw = get_scratch_buffer(&buffer_size);
@@ -2480,11 +2484,15 @@ int pmic_firmware_update(void)
     }
     active_slot = !inactive_slot;
 
+    /* Select the PMIC FW slot image to read */
+    slot_region_id = active_slot ? ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0 :
+                                   ESPERANTO_FLASH_REGION_ID_PMIC_FW_S1;
+
     passive_partition = 1 - get_service_processor_bl2_data()->flash_fs_bl2_info.active_partition;
 
     /* Read the PMIC FW region size from the flash image */
-    status = flash_fs_load_file_info(passive_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW, &dummy,
-                                     &pmic_fw_region_size);
+    status =
+        flash_fs_load_file_info(passive_partition, slot_region_id, &dummy, &pmic_fw_region_size);
     if (status != STATUS_SUCCESS)
     {
         return status;
@@ -2499,7 +2507,7 @@ int pmic_firmware_update(void)
     }
 
     /* Read the PMIC FW flash image header */
-    if (0 != flash_fs_partition_read_file(passive_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW, 0,
+    if (0 != flash_fs_partition_read_file(passive_partition, slot_region_id, 0,
                                           &pmic_fw_config_header, sizeof(pmic_fw_config_header)))
     {
         Log_Write(LOG_LEVEL_ERROR,
@@ -2555,7 +2563,7 @@ int pmic_firmware_update(void)
 
         /* Read the FW data block from flash */
         if (0 !=
-            flash_fs_partition_read_file(passive_partition, ESPERANTO_FLASH_REGION_ID_PMIC_FW,
+            flash_fs_partition_read_file(passive_partition, slot_region_id,
                                          ((uint32_t)sizeof(pmic_fw_config_header) + flash_addr),
                                          (void *)fw, fw_send_size))
         {

@@ -218,7 +218,7 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
             }
         }
 
-        /* TODO: Fix I2C driver to use ack instead of adding delays after each operation 
+        /* TODO: Fix I2C driver to use ack instead of adding delays after each operation
         delays are added to prevent SP from hanging with back to back I2C read/writes. */
         US_DELAY_GENERIC(1000)
         xSemaphoreGive(dev->bus_lock_handle);
@@ -299,7 +299,7 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
             rxDataBuff[n] = I2C_IC_DATA_CMD_DAT_GET(dev->regs->IC_DATA_CMD);
         }
 
-        /* TODO: Fix I2C driver to use ack instead of adding delays after each operation 
+        /* TODO: Fix I2C driver to use ack instead of adding delays after each operation
         delays are added to prevent SP from hanging with back to back I2C read/writes. */
         US_DELAY_GENERIC(1000)
         xSemaphoreGive(dev->bus_lock_handle);

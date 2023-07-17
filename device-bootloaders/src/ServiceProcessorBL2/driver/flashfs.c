@@ -241,7 +241,8 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_800MHZ:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_933MHZ:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
-            case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0:
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S1:
                 break;
             default:
                 continue;
@@ -320,8 +321,11 @@ static int flash_fs_scan_regions(uint32_t partition_size,
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_2D_PAYLOAD_1067MHZ:
                 partition_info->dram_training_2d_payload_1067mhz_region_index = n;
                 break;
-            case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
-                partition_info->pmic_fw_region_index = n;
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0:
+                partition_info->pmic_fw_s0_region_index = n;
+                break;
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S1:
+                partition_info->pmic_fw_s1_region_index = n;
                 break;
             default:
                 MESSAGE_ERROR("flash_fs_scan_regions: invalid region id: %u!\n",
@@ -635,9 +639,13 @@ int flash_fs_load_file_info(uint32_t partition, ESPERANTO_FLASH_REGION_ID_t regi
             region_index = sg_flash_fs_bl2_info.partition_info[partition]
                                .dram_training_2d_payload_1067mhz_region_index;
             break;
-        case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
-            file_info = &(sg_flash_fs_bl2_info.pmic_fw_file_info);
-            region_index = sg_flash_fs_bl2_info.partition_info[partition].pmic_fw_region_index;
+        case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0:
+            file_info = &(sg_flash_fs_bl2_info.pmic_fw_s0_file_info);
+            region_index = sg_flash_fs_bl2_info.partition_info[partition].pmic_fw_s0_region_index;
+            break;
+        case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S1:
+            file_info = &(sg_flash_fs_bl2_info.pmic_fw_s1_file_info);
+            region_index = sg_flash_fs_bl2_info.partition_info[partition].pmic_fw_s1_region_index;
             break;
         default:
             return ERROR_SPI_FLASH_INVALID_REGION_ID;

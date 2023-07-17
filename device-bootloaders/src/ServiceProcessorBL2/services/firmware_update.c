@@ -521,7 +521,8 @@ static int32_t verify_image_regions(void *fw_addr)
             case ESPERANTO_FLASH_REGION_ID_MASTER_MINION:
             case ESPERANTO_FLASH_REGION_ID_WORKER_MINION:
             case ESPERANTO_FLASH_REGION_ID_MAXION_BL1:
-            case ESPERANTO_FLASH_REGION_ID_PMIC_FW:
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0:
+            case ESPERANTO_FLASH_REGION_ID_PMIC_FW_S1:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_800MHZ:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_933MHZ:
             case ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING_PAYLOAD_1067MHZ:
@@ -753,13 +754,13 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     /* TODO: SW-17456: Enable the PMIC FW update once the ticket is resolved */
-    // Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
-    // /* Suspend the Periodic sampling during pmic fw update process */
-    // dm_sampling_task_semaphore_take();
-    // /* Update the PMIC firmware image */
-    // pmic_firmware_update();
-    // /* Resume the periodic sampling */
-    // dm_sampling_task_semaphore_give();
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
+    /* Suspend the Periodic sampling during pmic fw update process */
+    dm_sampling_task_semaphore_take();
+    /* Update the PMIC firmware image */
+    pmic_firmware_update();
+    /* Resume the periodic sampling */
+    dm_sampling_task_semaphore_give();
 
     end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");
