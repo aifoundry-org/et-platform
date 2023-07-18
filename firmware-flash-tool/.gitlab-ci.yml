@@ -1,21 +1,22 @@
 include:
-  - project: software/gitlab-ci-common
-    ref: 1e82845ec49b8294f606238749542e6053056da4
+  - project: esperantotech/software/gitlab-ci-common
+    ref: 504330d719780ee09fc5979f4abfa5695b9c0a1d 
     file:
       - pods/nano-pod.yaml
       - misc/retries.yaml
       - jobs/generic-k8s-job.yaml
       - rules/generic-workflow-conan.yaml
  
-  - project: software/gitlab-ci-common
+  - project: esperantotech/software/gitlab-ci-common
     ref: master
     file:
       - jobs/conan-jobs.yaml
 
-  - project: software/sw-platform
-    ref: develop/system-sw
-    file:
-      - gitlab-ci/system-sw/misc/verify-merge-request.yaml
+  # Fix once sw-platform is ported
+  #- project: esperantotech/software/sw-platform
+  #  ref: develop/system-sw
+  #  file:
+  #    - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
 stages:
   - generate_build
@@ -52,17 +53,17 @@ stages:
 ###############################################################################
 ###############################################################################
 
-verify_project_changes:
-  extends:
-    - .template_job
-    - .pod_nano
-    - .verify_merge_request
-  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
-  stage: .pre
-  rules:
-    - *development_job_rule
-  variables:
-    PROJ_VER_FILE_NAME: CMakeLists.txt
+#verify_project_changes:
+#  extends:
+#    - .template_job
+#    - .pod_nano
+#    - .verify_merge_request
+#  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.6.1
+#  stage: .pre
+#  rules:
+#    - *development_job_rule
+#  variables:
+#    PROJ_VER_FILE_NAME: CMakeLists.txt
 
 ###############################################################################
 ###############################################################################
@@ -74,9 +75,9 @@ generate_build:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
-  needs:
-    - job: verify_project_changes
-      optional: true
+  #needs:
+  #  - job: verify_project_changes
+  #    optional: true
   rules:
     - *release_or_development_job_rule
   variables:

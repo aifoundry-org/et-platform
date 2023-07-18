@@ -20,7 +20,7 @@ class EsperantoFlashToolConan(ConanFile):
 
     scm = {
         "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/firmware-flash-tool.git",
+        "url": "git@gitlab.com:esperantotech/software/firmware-flash-tool.git",
         "revision": "auto",
     }
 
