@@ -43,6 +43,8 @@
 #define ECID_LOT_ID_LENGTH 6
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw) (pwr_10mw / 100)
+#define FW_UPDATE_TIME_VAL 60000                       /* Time value of normal FW update command completion*/
+#define FW_UPDATE_CMD_TIMEOUT (FW_UPDATE_TIME_VAL * 3) /* Timeout value in seconds*/
 
 namespace fs = std::experimental::filesystem;
 
@@ -1250,7 +1252,7 @@ int verifyService() {
     DM_LOG(INFO) << "Service request succeeded" << std::endl;
 
     ret = dm.serviceRequest(node, code, imagePath.c_str(), imagePath.length(), nullptr, 0, hst_latency.get(),
-                            dev_latency.get(), timeout);
+                            dev_latency.get(), FW_UPDATE_CMD_TIMEOUT);
 
     if (ret != DM_STATUS_SUCCESS) {
       DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
@@ -1260,7 +1262,11 @@ int verifyService() {
     DM_LOG(INFO) << "Host Latency: " << *hst_latency << " ms" << std::endl;
     DM_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
     DM_LOG(INFO) << "Service request succeeded" << std::endl;
-    ret = 0;
+    if (*hst_latency > FW_UPDATE_TIME_VAL) {
+      DM_LOG(INFO) << "FW update service request exceeds time limit " << std::endl;
+      ret = -EAGAIN;
+    }
+    DM_LOG(INFO) << "timeout: " << timeout << " ms" << std::endl;
   } break;
 
   case DM_CMD::DM_CMD_MM_RESET: {
