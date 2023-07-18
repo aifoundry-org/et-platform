@@ -84,6 +84,7 @@ generate_build:conan:
     TIMEOUT: 15m
     CMD_BUILD: |
       cd conan
+      python3 -m pip install "ecpt>=2.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_build
   artifacts:
     expire_in: 1h 
