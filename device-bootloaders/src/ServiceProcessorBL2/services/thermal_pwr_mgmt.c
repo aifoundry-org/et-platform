@@ -534,7 +534,6 @@ int update_module_current_temperature(void)
 {
     int status = 0;
     uint8_t temperature;
-    struct temperature_threshold_t temperature_threshold;
 
     status = pvt_get_minion_avg_temperature(&temperature);
     if (status == STATUS_SUCCESS)
@@ -543,23 +542,11 @@ int update_module_current_temperature(void)
         CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.temperature, temperature)
         CMA(g_soc_power_reg.op_stats.minion.temperature, temperature, CMA_TEMP_SAMPLE_COUNT)
 
-        /*TODO: PMIC is currently reporting system temperature as 0. This is to be validated once fixed */
-        status = pmic_get_temperature(&temperature);
-    }
+        /*TODO: update system temperature stats when it is available */
 
-    /* Update system temperature */
-    if (status == STATUS_SUCCESS)
-    {
-        CALC_MIN_MAX(g_soc_power_reg.op_stats.system.temperature, temperature)
-        CMA(g_soc_power_reg.op_stats.system.temperature, temperature, CMA_TEMP_SAMPLE_COUNT)
-        status = get_module_temperature_threshold(&temperature_threshold);
-    }
-
-    if (status == STATUS_SUCCESS)
-    {
-        /* Switch power throttle state only if we are currently in lower priority throttle
-            state and Active Power Management is enabled*/
-        if ((temperature > temperature_threshold.sw_temperature_c) &&
+        /* Switch power throttle state only if temperature is above threshold value
+           and Active Power Management is enabled*/
+        if ((temperature > g_soc_power_reg.temperature_threshold.sw_temperature_c) &&
             (g_soc_power_reg.power_throttle_state <= POWER_THROTTLE_STATE_THERMAL_DOWN) &&
             (g_soc_power_reg.active_power_management))
         {
@@ -1928,6 +1915,7 @@ void power_throttling(power_throttle_state_e throttle_state)
     uint16_t avg_pwr_10mW;
     int32_t tdp_level_mW;
     uint8_t throttle_condition_met = 0;
+    int status = SUCCESS;
     struct trace_event_power_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
@@ -1938,14 +1926,22 @@ void power_throttling(power_throttle_state_e throttle_state)
         go_to_safe_state(g_soc_power_reg.module_power_state, throttle_state);
     }
 
-    if (0 != pvt_get_minion_avg_temperature(&current_temperature))
+    status = pvt_get_minion_avg_temperature(&current_temperature);
+    if (status == SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc temperature\r\n");
+        status = pmic_read_average_soc_power(&avg_pwr_10mW);
+        if (status != SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "thermal pwr mgmt svc error: %d failed to get soc power \r\n", status);
+            return;
+        }
     }
-
-    if (0 != pmic_read_average_soc_power(&avg_pwr_10mW))
+    else
     {
-        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "thermal pwr mgmt svc error: %d failed to get soc temperature\r\n", status);
+        return;
     }
 
     /* module_tdp_level is in Watts, converting to miliWatts */
@@ -1991,9 +1987,11 @@ void power_throttling(power_throttle_state_e throttle_state)
         vTaskDelay(pdMS_TO_TICKS(DELTA_POWER_UPDATE_PERIOD));
 
         /* Get the current power */
-        if (0 != pmic_read_average_soc_power(&avg_pwr_10mW))
+        status = pmic_read_average_soc_power(&avg_pwr_10mW);
+        if (status != SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get soc power\r\n");
+            return;
         }
 
         /* Check if throttle condition is met */
@@ -2064,6 +2062,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     struct event_message_t message;
     uint16_t avg_pwr_10mW;
+    int status = SUCCESS;
     struct trace_event_power_status_t power_status = { 0 };
 
     /* We need to throttle the voltage and frequency, lets keep track of throttling time */
@@ -2072,11 +2071,15 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     if (throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
     {
         go_to_safe_state(g_soc_power_reg.module_power_state, throttle_state);
+        return;
     }
 
-    if (0 != pvt_get_minion_avg_temperature(&current_temperature))
+    status = pvt_get_minion_avg_temperature(&current_temperature);
+    if (status != SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: failed to get temperature\r\n");
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: %d failed to get temperature\r\n",
+                  status);
+        return;
     }
 
     while ((current_temperature > g_soc_power_reg.temperature_threshold.sw_temperature_c) &&
@@ -2086,10 +2089,12 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         {
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
                 /* Get the current power */
-                if (0 != pmic_read_average_soc_power(&avg_pwr_10mW))
+                status = pmic_read_average_soc_power(&avg_pwr_10mW);
+                if (status != SUCCESS)
                 {
                     Log_Write(LOG_LEVEL_ERROR,
-                              "thermal pwr mgmt svc error: failed to get soc power\r\n");
+                              "thermal pwr mgmt svc error: %d failed to get soc power\r\n", status);
+                    return;
                 }
 
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
