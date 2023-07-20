@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Do FW update only if the new image does not match.
     Increased the BL2 code size to 444K.
 - [SW-17456] Adding PMIC slot 0 and slot 1 image support.
+- [SW-17457] Added basic error handling for the firmware update process.
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 - [SW-17717] Reading the PMIC Firmware image from the flash passive slot.

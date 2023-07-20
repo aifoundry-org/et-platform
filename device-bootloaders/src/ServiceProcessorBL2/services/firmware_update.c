@@ -660,6 +660,7 @@ static int32_t dm_svc_firmware_update(void)
     uint64_t verify_end;
     int32_t ret = 0;
     uint32_t version;
+    int status = STATUS_SUCCESS;
 
     start = timer_get_ticks_count();
 
@@ -721,13 +722,13 @@ static int32_t dm_svc_firmware_update(void)
         /* Read data from flash passive partition */
         if (0 != flash_fs_read(false, flash_data, SPI_FLASH_PAGE_SIZE, i))
         {
-            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: read back from flash failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read: read back from flash failed!\n");
             return ERROR_FW_UPDATE_READ_PARTITON;
         }
         /* Compare with the image data in the DDR */
         if (memcmp((const void *)(ddr_data + i), (const void *)flash_data, SPI_FLASH_PAGE_SIZE))
         {
-            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read_partition: data validation failed!\n");
+            Log_Write(LOG_LEVEL_ERROR, "flash_fs_read: data validation failed!\n");
             return ERROR_FW_UPDATE_MEMCOMPARE;
         }
     }
@@ -736,34 +737,15 @@ static int32_t dm_svc_firmware_update(void)
     if (0 !=
         flash_fs_write_config_region(1 - sp_bl2_data->flash_fs_bl2_info.active_partition, false))
     {
-        MESSAGE_ERROR("flash_fs_write_file: failed to write config data \n");
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_write_config_region: failed to write config data\n");
         return ERROR_FW_UPDATE_WRITE_CFG_REGION;
     }
 
     verify_end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] All loaded bytes verified OK!\n");
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Executing exit sequence...\n");
-
-    // Swap the priority counter of the partitions. so bootrom will choose
-    // the partition with an updated image
-    if (0 != flash_fs_swap_primary_boot_partition())
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
-        return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
-    }
-
-    /* TODO: SW-17456: Enable the PMIC FW update once the ticket is resolved */
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
-    /* Suspend the Periodic sampling during pmic fw update process */
-    dm_sampling_task_semaphore_take();
-    /* Update the PMIC firmware image */
-    pmic_firmware_update();
-    /* Resume the periodic sampling */
-    dm_sampling_task_semaphore_give();
-
     end = timer_get_ticks_count();
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Target erased, programmed and verified successfully\n");
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "[ETFP] SP Target erased, programmed and verified successfully\n");
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Completed after %ld seconds\n",
               timer_convert_ticks_to_secs(end - start));
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] OK (Total %lds, Erase and Prog %lds, Verify %lds)\n",
@@ -771,7 +753,39 @@ static int32_t dm_svc_firmware_update(void)
               timer_convert_ticks_to_secs(prog_end - prog_start),
               timer_convert_ticks_to_secs(verify_end - verify_start));
 
-    return SUCCESS;
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
+    /* Suspend the Periodic sampling during pmic fw update process */
+    dm_sampling_task_semaphore_take();
+    /* Update the PMIC firmware image */
+    status = pmic_firmware_update();
+    /* Resume the periodic sampling */
+    dm_sampling_task_semaphore_give();
+
+    /* Only switch to new partition if PMIC FW update was successful */
+    if (status == STATUS_SUCCESS)
+    {
+        /* Swap the priority counter of the partitions. so bootrom will choose
+        the partition with an updated image */
+        if (0 != flash_fs_swap_primary_boot_partition())
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "flash_fs_swap_primary_boot_partition: Update priority counter failed!\n");
+            return ERROR_FW_UPDATE_PRIORITY_COUNTER_SWAP;
+        }
+        end = timer_get_ticks_count();
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Executing exit sequence...\n");
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "[ETFP] Targets erased, programmed and verified successfully\n");
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Device firmware update completed after %ld seconds\n",
+                  timer_convert_ticks_to_secs(end - start));
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Executing exit sequence...\n");
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Firmware update failed!\n");
+    }
+
+    return status;
 }
 
 /************************************************************************

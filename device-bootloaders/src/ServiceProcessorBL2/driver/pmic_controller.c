@@ -2133,7 +2133,7 @@ static int pmic_get_inactive_boot_slot(uint8_t *slot)
 *
 *   FUNCTION
 *
-*       pmic_fw_update_get_subcommand_data
+*       pmic_fw_update_subcommand
 *
 *   DESCRIPTION
 *
@@ -2143,6 +2143,7 @@ static int pmic_get_inactive_boot_slot(uint8_t *slot)
 *
 *       slot       ID of the target slot
 *       subcommand PMIC FW update command sub ID
+*       data       Pointer to data if required
 *
 *   OUTPUTS
 *
@@ -2150,21 +2151,15 @@ static int pmic_get_inactive_boot_slot(uint8_t *slot)
 *
 ***********************************************************************/
 
-static int pmic_fw_update_get_subcommand_data(uint8_t slot, uint8_t subcommand, uint32_t *data)
+static int pmic_fw_update_subcommand(uint8_t slot, uint8_t subcommand, uint32_t *data)
 {
     int status;
     uint32_t val;
     uint8_t cmd = (uint8_t)(subcommand | (slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
 
-    if (!data)
-    {
-        MESSAGE_ERROR("Error data argument is null\n");
-        return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
-    }
-
     status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
 
-    if (status == STATUS_SUCCESS)
+    if ((status == STATUS_SUCCESS) && (data != NULL))
     {
         status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&val, 4);
 
@@ -2226,7 +2221,7 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 
         if ((value & PMIC_I2C_FW_MGMTCMD_STATUS_ERROR) != 0)
         {
-            Log_Write(LOG_LEVEL_CRITICAL, "pmic status error\n");
+            Log_Write(LOG_LEVEL_ERROR, "pmic status error\n");
             return ERROR_PMIC_I2C_FW_MGMTCMD_ILLEGAL;
         }
 
@@ -2269,7 +2264,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 {
     int status = STATUS_SUCCESS;
     /* TODO: SW-17902: Change the size back to 8 once the issue is resolved. */
-    uint32_t reg_size_bytes = 4; //how many bytes are sent in a I2C transaction
+    uint32_t reg_size_bytes = 2; //how many bytes are sent in a I2C transaction
 
     for (uint32_t write_count = 0; write_count < fw_block_size; write_count += reg_size_bytes)
     {
@@ -2286,7 +2281,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programming failed (write_count %u)\n",
+            Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC programming failed (write_count %u)\n",
                       flash_addr / reg_size_bytes);
             break;
         }
@@ -2333,8 +2328,7 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     imageMetadata_t image_meta;
 
     /* Get the git hash of image in active slot */
-    status = pmic_fw_update_get_subcommand_data(active_slot, PMIC_I2C_FW_MGMTCMD_HASHREAD,
-                                                &current_hash);
+    status = pmic_fw_update_subcommand(active_slot, PMIC_I2C_FW_MGMTCMD_HASHREAD, &current_hash);
     if (status != STATUS_SUCCESS)
     {
         return status;
@@ -2344,8 +2338,7 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
               EXTRACT_BYTE(2, current_hash), EXTRACT_BYTE(3, current_hash));
 
     /* Get the version of image in active slot */
-    status = pmic_fw_update_get_subcommand_data(active_slot, PMIC_I2C_FW_MGMTCMD_VERSION,
-                                                &current_version);
+    status = pmic_fw_update_subcommand(active_slot, PMIC_I2C_FW_MGMTCMD_VERSION, &current_version);
     if (status != STATUS_SUCCESS)
     {
         return status;
@@ -2353,6 +2346,8 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) version: %u.%u.%u\n",
               active_slot, EXTRACT_BYTE(2, current_version), EXTRACT_BYTE(1, current_version),
               EXTRACT_BYTE(0, current_version));
+
+    /* TODO: Match the board type as well. */
 
     /* Read the FW metadata block from flash */
     if (0 != flash_fs_partition_read_file(sp_partition,
@@ -2367,7 +2362,7 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
         return ERROR_PMIC_FW_UPDATE_IMG_READ_FAIL;
     }
 
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image start_addr: 0x%x\n",
+    Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW new image start_addr: 0x%x\n",
               image_meta.start_addr);
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image version: %u.%u.%u\n",
               EXTRACT_BYTE(2, image_meta.version), EXTRACT_BYTE(1, image_meta.version),
@@ -2396,12 +2391,12 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
         (image_meta.hash[3] == (char)EXTRACT_BYTE(3, current_hash)))
     {
         hash_matched = true;
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW current and new image hash matched!\n");
+        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image hash matched!\n");
     }
     else
     {
         hash_matched = false;
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW current and new hash version not matched!\n");
+        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new hash version not matched!\n");
     }
 
     /* Check if image matches */
@@ -2446,7 +2441,6 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
 int pmic_firmware_update(void)
 {
     int status;
-    uint8_t cmd;
     uint8_t active_slot;
     uint8_t inactive_slot;
     uint32_t cksum_result = 0;
@@ -2528,7 +2522,12 @@ int pmic_firmware_update(void)
     {
         /* Proceed only if FW update is required */
         status = pmic_check_fw_update_required(passive_partition, active_slot);
-        if (status != STATUS_SUCCESS)
+        if (status == ERROR_PMIC_FW_UPDATE_NOT_REQUIRED)
+        {
+            /* Since no PMIC FW update is required, just return success */
+            return STATUS_SUCCESS;
+        }
+        else if (status != STATUS_SUCCESS)
         {
             return status;
         }
@@ -2543,15 +2542,16 @@ int pmic_firmware_update(void)
               pmic_fw_size);
 
     prog_start = timer_get_ticks_count();
-    cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_UPDATE | (inactive_slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
-    status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
+
+    /* Trigger the FW update on PMIC */
+    status = pmic_fw_update_subcommand(inactive_slot, PMIC_I2C_FW_MGMTCMD_UPDATE, NULL);
     if (status != STATUS_SUCCESS)
     {
         return status;
     }
 
     /* Transmit the image to the PMIC */
-    while ((pmic_fw_size > 0) && (status == STATUS_SUCCESS))
+    while (pmic_fw_size > 0)
     {
         fw_send_size = pmic_fw_size;
 
@@ -2577,38 +2577,40 @@ int pmic_firmware_update(void)
             status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_send_size);
         }
 
+        /* Check for error in previous operations */
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "[ETFP] Transmitting PMIC image failed at block address offset 0x%x\n",
+                      flash_addr - fw_send_size);
+
+            /* Terminate PMIC firmware update by sending any command */
+            if (pmic_fw_update_subcommand(inactive_slot, PMIC_I2C_FW_MGMTCMD_RW_ADDRESS, NULL) !=
+                STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_ERROR, "[ETFP] Terminating the PMIC programming failed.\n");
+            }
+            return status;
+        }
+
         /* Increment the offsets */
         flash_addr += fw_send_size;
         pmic_fw_size -= fw_send_size;
-    }
-
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "[ETFP] Transmitting PMIC image failed at block address offset 0x%x\n",
-                  flash_addr - fw_send_size);
-        /* Terminate PMIC firmware update by sending any command */
-        cmd = (uint8_t)(PMIC_I2C_FW_MGMTCMD_RW_ADDRESS |
-                        (inactive_slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
-        if (set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1) != STATUS_SUCCESS)
-        {
-            Log_Write(LOG_LEVEL_ERROR, "[ETFP] Terminating the PMIC programming failed.\n");
-        }
-        return status;
     }
 
     prog_end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC programmed successfully\n");
 
     verify_start = timer_get_ticks_count();
-    cmd =
-        (uint8_t)(PMIC_I2C_FW_MGMTCMD_CKSUMREAD | (inactive_slot << PMIC_I2C_FW_MGMTCMD_SLOT_LSB));
-    status = set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &cmd, 1);
+
+    /* Issue checksum calculation command to PMIC */
+    status = pmic_fw_update_subcommand(inactive_slot, PMIC_I2C_FW_MGMTCMD_CKSUMREAD, NULL);
     if (status != STATUS_SUCCESS)
     {
         return status;
     }
 
+    /* Wait until the checksum is calculated by PMIC */
     status = pmic_wait_for_flash_ready(FW_UPDATE_CKSUM_TIMEOUT_MS);
     if (status != STATUS_SUCCESS)
     {
@@ -2630,7 +2632,7 @@ int pmic_firmware_update(void)
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC loaded bytes verified OK!\n");
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC slot %u programmed and verified successfully\n",
               inactive_slot);
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC completed after %ld seconds\n",
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC update completed after %ld seconds\n",
               timer_convert_ticks_to_secs(end - start));
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC OK (Total %lds, Prog %lds, Verify %lds)\n",
               timer_convert_ticks_to_secs(end - start),
