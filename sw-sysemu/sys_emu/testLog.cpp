@@ -7,10 +7,23 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
+#include <fstream>
+#include <iostream>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "testLog.h"
-
 #include "sys_emu.h"
+
+#if __has_include("filesystem")
+#include <filesystem>
+#elif __has_include("experimental/filesystem")
+#include <experimental/filesystem>
+namespace std {
+namespace filesystem = std::experimental::filesystem;
+}
+#endif
+namespace fs = std::filesystem;
 
 // static members of testLog
 logLevel testLog::globalLogLevel_ = LOG_DEBUG;
@@ -79,4 +92,48 @@ void testLog::endm() {
   }
   msgInLogLevel_ = true;
   msgStarted_ = false;
+}
+
+void testLog::dumpTraceBufferIfFatal(const bemu::Agent& agent) {
+
+
+  if (!fatal_) {
+    return;
+  }
+
+  /* high level application provides the cookie file to get device traces on FATAL errors.*/
+  std::string sysemuTraceDumpCookiePath = "/tmp/sysemuTraceDumpCookie." + std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin";  
+
+  if (std::filesystem::exists(sysemuTraceDumpCookiePath)) {
+  
+    uint32_t numDev = 0;
+    std::vector<uint64_t> traceAddress;
+    std::vector<size_t> bufsize;
+    
+    auto traceAddrPtrInfo = std::ifstream(sysemuTraceDumpCookiePath, std::ios::binary | std::ios::in);
+    
+    traceAddrPtrInfo.read((char *)&numDev, sizeof(uint32_t));
+
+    for (int i = 0; i < numDev; i++) {
+      uint64_t addr;
+      size_t buffersize;
+
+      traceAddrPtrInfo.read((char *)&addr, sizeof(uint64_t));
+      traceAddress.emplace_back(addr);
+      traceAddrPtrInfo.read((char *)&buffersize, sizeof(size_t));
+      bufsize.emplace_back(buffersize);
+    }
+
+    for (int i=0; i< traceAddress.size(); i++) {
+      std::vector<std::byte> dstbuf(bufsize.at(i));
+      agent.chip->memory.read(agent, traceAddress.at(i), dstbuf.size(), dstbuf.data());
+    
+      auto traceInfoStream = std::ofstream("traceKernels_OnFatal_dev_"+ std::to_string(i) + ".bin", std::ios::binary | std::ios::out);  
+      traceInfoStream.write((char*)dstbuf.data(), dstbuf.size());
+    }
+  }
+  else {
+    std::cout<< "Cookie file is not present" <<std::endl;
+  }
+  
 }

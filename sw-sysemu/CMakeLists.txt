@@ -440,6 +440,7 @@ target_link_libraries(sw-sysemu
         $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
         lz4::lz4
         glog::glog
+        $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
 )
 
 install(TARGETS sw-sysemu
