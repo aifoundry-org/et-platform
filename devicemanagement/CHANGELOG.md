@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Increase resetSOC tests timeout for multi-card (8) machines
+- [SW-17936] Fixed TDP test case to restore TDP value at the end
 ### Security
 
 ## [0.10.0] - 2023-04-19

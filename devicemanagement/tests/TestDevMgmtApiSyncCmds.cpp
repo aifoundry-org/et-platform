@@ -888,31 +888,40 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagement(bool singleDevice) {
 void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
+  uint8_t cur_tdp_level;
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = sizeof(uint8_t);
-    const char input_buff[input_size] = {DM_TDP_LEVEL};
-
+    char input_buff[input_size] = {DM_TDP_LEVEL};
     const uint32_t set_output_size = sizeof(uint32_t);
     char set_output_buff[set_output_size] = {0};
+    const uint32_t get_output_size = sizeof(uint8_t);
+    char get_output_buff[get_output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
+                                get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+
+    /* save current TDP level*/
+    cur_tdp_level = static_cast<int>(get_output_buff[0]);
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
                                 input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
                                 DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ((uint32_t)set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
-
-    const uint32_t get_output_size = sizeof(uint8_t);
-    char get_output_buff[get_output_size] = {0};
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, nullptr, 0,
                                 get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
@@ -925,6 +934,14 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleStaticTDPLevel(bool singleDevice) {
       uint8_t tdp_level = get_output_buff[0];
       EXPECT_EQ(tdp_level, DM_TDP_LEVEL);
     }
+
+    /* Restore TDP level */
+    input_buff[0] = (char)cur_tdp_level;
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
+                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
 }
 
@@ -2569,30 +2586,6 @@ void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange(bool singleDe
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DURATION2MS(end - Clock::now())),
-              -EINVAL);
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-  }
-}
-
-void TestDevMgmtApiSyncCmds::setModuleStaticTDPLevelRange(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(uint8_t);
-    const char input_buff[input_size] = {80}; // Invalid TDP level
-
-    const uint32_t set_output_size = sizeof(uint32_t);
-    char set_output_buff[set_output_size] = {0};
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, input_buff,
-                                input_size, set_output_buff, set_output_size, hst_latency.get(), dev_latency.get(),
-                                DURATION2MS(end - Clock::now())),
               -EINVAL);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }

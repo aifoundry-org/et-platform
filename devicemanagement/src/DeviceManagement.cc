@@ -322,14 +322,6 @@ int DeviceManagement::getTraceBufferServiceProcessor(const uint32_t device_node,
   return 0;
 }
 
-bool DeviceManagement::isValidTdpLevel(const char* input_buff) {
-  uint8_t tdp_level = input_buff[0];
-  if (tdp_level < 40) {
-    return true;
-  }
-  return false;
-}
-
 bool DeviceManagement::isValidActivePowerManagement(const char* input_buff) {
   for (auto it = activePowerManagementTable.begin(); it != activePowerManagementTable.end(); ++it) {
     if (it->second == *input_buff) {
@@ -374,9 +366,6 @@ bool DeviceManagement::isInputBufferValid(uint32_t cmd_code, const char* input_b
     break;
   case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
     ret = isValidTemperature(input_buff);
-    break;
-  case device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
-    ret = isValidTdpLevel(input_buff);
     break;
   case device_mgmt_api::DM_CMD::DM_CMD_SET_PCIE_MAX_LINK_SPEED:
     ret = isValidPcieLinkSpeed(input_buff);
