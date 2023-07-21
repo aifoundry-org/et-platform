@@ -1955,32 +1955,40 @@ void power_throttling(power_throttle_state_e throttle_state)
             case POWER_THROTTLE_STATE_POWER_UP: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
-                increase_minion_operating_point(&power_status);
+                status = increase_minion_operating_point(&power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_DOWN: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
-                reduce_minion_operating_point(&power_status);
+                status = reduce_minion_operating_point(&power_status);
                 break;
             }
             case POWER_THROTTLE_STATE_POWER_IDLE: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
-                go_to_idle_state(&power_status);
+                status = go_to_idle_state(&power_status);
                 break;
             }
 
             case POWER_THROTTLE_STATE_POWER_SAFE: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
-                go_to_safe_state(g_soc_power_reg.module_power_state, throttle_state);
+                status = go_to_safe_state(g_soc_power_reg.module_power_state, throttle_state);
                 break;
             }
             default: {
                 Log_Write(LOG_LEVEL_ERROR, "Unexpected power throtlling state: %d\n",
                           throttle_state);
             }
+        }
+
+        if (status != SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR,
+                      "thermal pwr mgmt svc error: %d failed to change operating point\r\n",
+                      status);
+            return;
         }
 
         /* TODO: What should be this delay? */
@@ -2100,7 +2108,14 @@ void thermal_throttling(power_throttle_state_e throttle_state)
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
                 /* Program the new operating point  */
-                reduce_minion_operating_point(&power_status);
+                status = reduce_minion_operating_point(&power_status);
+                if (status != SUCCESS)
+                {
+                    Log_Write(LOG_LEVEL_ERROR,
+                              "thermal pwr mgmt svc error: %d failed to set operating point\r\n",
+                              status);
+                    return;
+                }
                 break;
             }
             case POWER_THROTTLE_STATE_THERMAL_SAFE: {

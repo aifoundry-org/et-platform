@@ -376,7 +376,7 @@
 /*! \def DELTA_POWER_UPDATE_PERIOD
     \brief A macro that provides power update period
 */
-#define DELTA_POWER_UPDATE_PERIOD 100
+#define DELTA_POWER_UPDATE_PERIOD 5000
 
 /*! \def RT_ERROR_THRESHOLD
     \brief Predefined runtime error threshold.
