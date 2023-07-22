@@ -1,6 +1,6 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 504330d719780ee09fc5979f4abfa5695b9c0a1d 
+    ref: 98b1c375911297a65e227ce0c45e73140ea125f5 
     file:
       - pods/nano-pod.yaml
       - misc/retries.yaml
@@ -12,11 +12,10 @@ include:
     file:
       - jobs/conan-jobs.yaml
 
-  # Fix once sw-platform is ported
-  #- project: esperantotech/software/sw-platform
-  #  ref: develop/system-sw
-  #  file:
-  #    - gitlab-ci/system-sw/misc/verify-merge-request.yaml
+  - project: esperantotech/software/sw-platform
+    ref: develop/system-sw
+    file:
+      - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
 stages:
   - generate_build
@@ -53,17 +52,17 @@ stages:
 ###############################################################################
 ###############################################################################
 
-#verify_project_changes:
-#  extends:
-#    - .template_job
-#    - .pod_nano
-#    - .verify_merge_request
-#  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.6.1
-#  stage: .pre
-#  rules:
-#    - *development_job_rule
-#  variables:
-#    PROJ_VER_FILE_NAME: CMakeLists.txt
+verify_project_changes:
+  extends:
+    - .template_job
+    - .pod_nano
+    - .verify_merge_request
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.6.1
+  stage: .pre
+  rules:
+    - *development_job_rule
+  variables:
+    PROJ_VER_FILE_NAME: CMakeLists.txt
 
 ###############################################################################
 ###############################################################################
@@ -84,7 +83,7 @@ generate_build:conan:
     TIMEOUT: 15m
     CMD_BUILD: |
       cd conan
-      python3 -m pip install "ecpt>=2.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m pip install "ecpt>=2.0.3" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_build
   artifacts:
     expire_in: 1h 
