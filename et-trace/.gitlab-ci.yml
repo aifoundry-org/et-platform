@@ -1,18 +1,18 @@
 include:
-  - project: software/gitlab-ci-common
-    ref: 598eab92c6151682f5b7ac28a5fda2a116ab15d0
+  - project: esperantotech/software/gitlab-ci-common
+    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
     file:
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
       - jobs/generic-k8s-job.yaml
       - rules/generic-workflow-conan.yaml
 
-  - project: software/gitlab-ci-common
+  - project: esperantotech/software/gitlab-ci-common
     ref: master
     file:
       - jobs/conan-jobs.yaml
 
-  - project: software/sw-platform
+  - project: esperantotech/software/sw-platform
     ref: develop/system-sw
     file:
       - gitlab-ci/system-sw/misc/verify-merge-request.yaml
@@ -82,6 +82,7 @@ generate_build:conan:
     TIMEOUT: 15m
     CMD_BUILD: |
       cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_build
   artifacts:
     expire_in: 1h
@@ -154,4 +155,5 @@ on_success:promote:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
       cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_promote
