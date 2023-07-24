@@ -1,11 +1,16 @@
 from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
-from conans import tools
+from conan.tools.build import can_run
 import os
 
 class LoggingTestConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeToolchain", "CMakeDeps"
+    generators = "CMakeToolchain", "CMakeDeps", "VirtualRunEnv"
+
+    test_type = "explicit"
+
+    def requirements(self):
+        self.requires(self.tested_reference_str)
 
     def build(self):
         cmake = CMake(self)
@@ -13,7 +18,7 @@ class LoggingTestConan(ConanFile):
         cmake.build()
 
     def test(self):
-        if not tools.cross_building(self.settings):
+        if can_run(self):
             for test in ["test_package_c", "test_package_cpp"]:
                 bin_path = os.path.join("bin", test)
-                self.run(bin_path, run_environment=True)
+                self.run(bin_path, env="conanrun")
