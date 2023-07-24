@@ -8,8 +8,8 @@ required_conan_version = ">=1.59.0"
 
 class DeviceApiConan(ConanFile):
     name = "deviceApi"
-    url = "git@gitlab.esperanto.ai:software/device-api.git"
-    homepage = "https://gitlab.esperanto.ai/software/device-api.git"
+    url = "git@gitlab.com:esperantotech/software/device-api.git"
+    homepage = "https://gitlab.com/esperantotech/software/device-api"
     license = "Esperanto Technologies"
     
     settings = "os", "compiler", "arch", "build_type"
