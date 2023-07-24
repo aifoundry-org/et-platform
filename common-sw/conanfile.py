@@ -1,14 +1,15 @@
 from conan import ConanFile
-from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
-from conan.tools.layout import cmake_layout
-from conans import tools
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
+from conan.tools.build import can_run
+from conan.tools.env import VirtualRunEnv
+from conan.tools.files import rmdir
 import os
-import re
 
 
 class HostUtilsConan(ConanFile):
     name = "hostUtils"
-    url = "https://gitlab.esperanto.ai/software/common-sw"
+    url = "git@gitlab.com:esperantotech/software/common-sw.git"
+    homepage = "https://gitlab.com/esperantotech/software/common-sw"
     description = ""
     license = "Esperanto Technologies"
 
@@ -22,17 +23,19 @@ class HostUtilsConan(ConanFile):
         "with_tests": False
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/common-sw.git",
-        "revision": "auto",
-    }
-
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
+
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
 
     def layout(self):
         cmake_layout(self)
@@ -50,6 +53,10 @@ class HostUtilsConan(ConanFile):
     def build_requirements(self):
         self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
+
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.with_tests
@@ -57,20 +64,22 @@ class HostUtilsConan(ConanFile):
         tc.generate()
         deps = CMakeDeps(self)
         deps.generate()
+        vrenv = VirtualRunEnv(self)
+        vrenv.generate()
 
     def build(self):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-        if self.options.with_tests and not tools.cross_building(self):
-            self.run("ctest", cwd=os.path.join("threadPool", "tests"), run_environment=True)
-        if self.options.with_tests and not tools.cross_building(self):
-            self.run("ctest", cwd=os.path.join("actionList", "tests"), run_environment=True)            
+        if self.options.with_tests and can_run(self):
+            self.run("ctest", cwd=os.path.join("threadPool", "tests"), env="conanrun")
+        if self.options.with_tests and can_run(self):
+            self.run("ctest", cwd=os.path.join("actionList", "tests"), env="conanrun")            
     
     def package(self):
         cmake = CMake(self)
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
     
     def package_info(self):
         # library components
