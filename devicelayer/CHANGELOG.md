@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - (Conan) Added linux-ubuntu22.04-x86_64-gcc11-release build
 ### Changed
+- [CI] Adapt pipeline and conanfile.py to gitlab.com
 - [CI] Adapt pipeline to Gitlab v15
 - [SW-16846] Updated DIRs to match the latest specification. DIR updates are done in 0.15.0 driver hence updating kMinReqDriverVersion=0.15.0
 - (Conan) Consume latest sw-sysemu release (0.11.2)
