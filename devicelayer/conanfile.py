@@ -9,7 +9,8 @@ required_conan_version = ">=1.52.0"
 
 class DeviceLayerConan(ConanFile):
     name = "deviceLayer"
-    url = "https://gitlab.esperanto.ai/software/deviceLayer"
+    url = "git@gitlab.com:esperantotech/software/devicelayer.git"
+    homepage = "https://gitlab.com/esperantotech/software/devicelayer"
     description = ""
     license = "Esperanto Technologies"
 
@@ -25,17 +26,18 @@ class DeviceLayerConan(ConanFile):
         "with_tests": False,
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/devicelayer.git",
-        "revision": "auto",
-    }
-
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
         
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
+    
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+
+    def layout(self):
+        cmake_layout(self)
     
     def requirements(self):
         self.requires("sw-sysemu/0.11.2")
@@ -53,9 +55,13 @@ class DeviceLayerConan(ConanFile):
     def build_requirements(self):
         self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
-    def layout(self):
-        cmake_layout(self)
-        self.folders.source = "."
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
 
     def generate(self):
         tc = CMakeToolchain(self)
