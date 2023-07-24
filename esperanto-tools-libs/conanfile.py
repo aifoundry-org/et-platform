@@ -10,7 +10,8 @@ import re
 
 class RuntimeConan(ConanFile):
     name = "runtime"
-    url = "https://gitlab.esperanto.ai/software/esperanto-tools-libs"
+    url = "git@gitlab.com:esperantotech/software/esperanto-tools-libs.git"
+    homepage = "https://gitlab.com/esperantotech/software/esperanto-tools-libs"
     description = ""
     license = "Esperanto Technologies"
 
@@ -28,11 +29,6 @@ class RuntimeConan(ConanFile):
         "run_tests": False,
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/esperanto-tools-libs.git",
-        "revision": "auto",
-    }
     generators = "CMakeDeps"
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
@@ -46,13 +42,25 @@ class RuntimeConan(ConanFile):
         return f"conanfile_device_artifacts_current.txt"
     
     def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
         # This conanfile_device_artifacts_current.txt file is intended to be used by this conanfile.py recipe
         # to download device FW artifacts needed to build with tests.
         copy(self, self._conanfile_device_artifacts, self.recipe_folder, self.export_folder)
     
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+
     def configure_options(self):
         if self.options.with_tests and not self.dependencies["esperanto-flash-tool"].options.get_safe("header_only"):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
+
+    def layout(self):
+        cmake_layout(self)
+        self.folders.source = "."
+        et_runtime_test_kernels_dir = os.path.join("res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels")
+        self.layouts.source.buildenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', et_runtime_test_kernels_dir)
 
     @property
     def _min_device_api(self):
@@ -89,11 +97,9 @@ class RuntimeConan(ConanFile):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
 
-    def layout(self):
-        cmake_layout(self)
-        self.folders.source = "."
-        et_runtime_test_kernels_dir = os.path.join("res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels")
-        self.layouts.source.buildenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', et_runtime_test_kernels_dir)
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
 
     def generate(self):
         device_api = self.dependencies["deviceApi"]
