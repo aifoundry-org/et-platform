@@ -8,7 +8,8 @@ import os
 
 class EsperantoTraceConan(ConanFile):
     name = "esperantoTrace"
-    url = "https://gitlab.esperanto.ai/software/et-trace"
+    url = "git@gitlab.com:esperantotech/software/et-trace.git"
+    homepage = "https://gitlab.com/esperantotech/software/et-trace"
     license = "Esperanto Technologies"
 
     settings = "os", "compiler", "arch", "build_type"
@@ -19,11 +20,6 @@ class EsperantoTraceConan(ConanFile):
         "with_tests": False
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/et-trace.git",
-        "revision": "auto",
-    }
     generator = "CMakeDeps"
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
@@ -32,9 +28,21 @@ class EsperantoTraceConan(ConanFile):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
     
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+    
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+    
     def layout(self):
         cmake_layout(self)
     
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
+
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["ET_TRACE_TEST"] = self.options.with_tests
