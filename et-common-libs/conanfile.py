@@ -1,6 +1,6 @@
 from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
-from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.files import rmdir
 import os
 
@@ -9,8 +9,9 @@ required_conan_version = ">=1.53.0"
 
 class EtCommonLibsConan(ConanFile):
     name = "et-common-libs"
-    url = "https://gitlab.esperanto.ai/software/et-common-libs.git"
-    description = "Esperanto common libraries - used across SP, MM MMode, MM SMode, CM MMode, CM SMode, CM UMode."
+    url = "git@gitlab.com:esperantotech/software/et-common-libs.git"
+    homepage = "https://gitlab.com/esperantotech/software/et-common-libs"
+    description = "Esperanto (device) common libraries - used across SP, MM MMode, MM SMode, CM MMode, CM SMode, CM UMode."
     license = "Esperanto Technologies"
 
     settings = "os", "arch", "compiler", "build_type"
@@ -31,23 +32,28 @@ class EtCommonLibsConan(ConanFile):
         "with_cm_rt_svcs": True,
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/et-common-libs.git",
-        "revision": "auto",
-    }
-
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
 
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+
     def configure(self):
         # et-common-libs is a C library, doesn't depend on any C++ standard library
         self.settings.rm_safe("compiler.libcxx")
         self.settings.rm_safe("compiler.cppstd")
 
+    def layout(self):
+        cmake_layout(self)
+    
     def requirements(self):
         self.requires("esperantoTrace/[>=1.3.0 <2.0.0]")
         # cm-umode doens't require etsoc_hal
@@ -64,6 +70,10 @@ class EtCommonLibsConan(ConanFile):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
 
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
+    
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["ENABLE_WARNINGS_AS_ERRORS"] = self.options.warnings_as_errors

@@ -1,13 +1,17 @@
 from pickle import TRUE
 from conan import ConanFile
+from conan.tools.build import can_run
 from conan.tools.cmake import CMake, CMakeToolchain
-from conans import tools
 import os
 
 
 class EtCommonLibsTestConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeDeps"
+    generators = "CMakeDeps", "VirtualRunEnv"
+    test_type = "explicit"
+    
+    def requirements(self):
+        self.requires(self.tested_reference_str)
 
     def generate(self):
         tc = CMakeToolchain(self)
@@ -36,7 +40,7 @@ class EtCommonLibsTestConan(ConanFile):
         if self.options["et-common-libs"].with_cm_rt_svcs:
             tests.append("test_package_cm_rt_svcs")
 
-        if not tools.cross_building(self.settings):
+        if can_run(self):
             for test_package in tests:
                 bin_path = os.path.join("bin", test_package)
-                self.run(bin_path, run_environment=True)
+                self.run(bin_path, env="conanrun")
