@@ -1,20 +1,25 @@
-from conans import ConanFile
+from conan import ConanFile
+from conan.tools.files import copy
 import os
+
 
 class CMakeModulesConan(ConanFile):
     name = "cmake-modules"
     version = "0.6.0"
     license = "esperanto"
     author = "Pau Farre <pau.farre@esperantotech.com>"
-    url = "https://gitlab.esperanto.ai/software/cmake-modules"
+    url = "https://gitlab.com/esperantotech/software/cmake-modules"
     description = "A collection of cmake modules"
     topics = ("cmake", "modules")
 
     no_copy_source = True
     exports_sources = "*.cmake"
 
+    def package_id(self):
+        self.info.clear()
+    
     def package(self):
-        self.copy(pattern="*.cmake", dst="cmake")
+        copy(self, pattern="*.cmake", dst="cmake")
 
     def package_info(self):
         build_modules = [
@@ -28,6 +33,3 @@ class CMakeModulesConan(ConanFile):
         self.cpp_info.builddirs.append("cmake")
         self.cpp_info.build_modules = build_modules # DEPRECATED
         self.cpp_info.set_property("cmake_build_modules", build_modules)
-
-    def package_id(self):
-        self.info.header_only()
