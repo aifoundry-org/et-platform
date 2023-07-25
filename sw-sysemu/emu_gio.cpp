@@ -30,6 +30,8 @@ void lprintf(logLevel level, const Agent& agent, const char* fmt, ...)
 
     auto& logger = agent.chip->log;
     logger << level << "[" << agent.name() << "] " << lbuf << endm;
+
+    logger.dumpTraceBufferIfFatal(agent);
 }
 
 } // namespace bemu

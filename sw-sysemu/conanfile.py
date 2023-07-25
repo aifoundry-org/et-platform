@@ -10,7 +10,8 @@ required_conan_version = ">=1.52.0"
 
 class SwSysemuConan(ConanFile):
     name = "sw-sysemu"
-    url = "https://gitlab.esperanto.ai/software/sw-sysemu"
+    url = "git@gitlab.com:esperantotech/software/sw-sysemu.git"
+    homepage = "https://gitlab.com/esperantotech/software/sw-sysemu"
     description = "The functional ETSOC-1 emulator. Able to execute RISC-V instructions with Esperanto extensions"
     license = "Esperanto Technologies"
 
@@ -46,12 +47,6 @@ class SwSysemuConan(ConanFile):
         "with_sys_emu_exe": True,
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/sw-sysemu.git",
-        "revision": "auto",
-    }
-
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def configure(self):
@@ -71,6 +66,14 @@ class SwSysemuConan(ConanFile):
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
+
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
 
     def requirements(self):
         self.requires("glog/0.4.0")
@@ -120,6 +123,10 @@ class SwSysemuConan(ConanFile):
 
     def _install_embedded_elfs(self, emmedded_elfs_conanfile):
         self.run(f"conan install {emmedded_elfs_conanfile} -pr:b default -pr:h baremetal-rv64-gcc8.2-release --build missing -g deploy -if={self.build_folder}")
+
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
 
     def generate(self):
         tc = CMakeToolchain(self)

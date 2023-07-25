@@ -17,6 +17,8 @@ class sys_emu;
 #include <iostream>
 #include <sstream>
 
+#include "agent.h"
+
 enum logLevel {LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERR, LOG_FTL, NR_LOG_LEVELS};
 
 void endSimAt(uint32_t extraTime=0); // time in time units (ps)
@@ -94,6 +96,8 @@ public:
     if (msgStarted_) os_ << std::endl;
   }
   void endm();
+  
+  void dumpTraceBufferIfFatal(const bemu::Agent& agent);
 
 private:
   std::string name_;
