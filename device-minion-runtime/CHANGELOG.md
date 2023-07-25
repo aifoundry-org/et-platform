@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
+
 ## [Unreleased]
 ### Added
 - [SW-13951] Reporting MM state with heartbeat
@@ -15,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [CI] Adapt pipeline and conanfile.py to gitlab.com
 ### Security
 
 ## [0.18.0] - 2023-06-02
