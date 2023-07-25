@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-13951] reporting MM state with heartbeat
 ### Changed
 - (CI) Update gitlab-ci-common poointer for Gitlab-CI 15 compatibility
+- [SW-17876] Update conanfile.py & CI to gitlab.com
 ### Deprecated
 ### Removed
 ### Fixed
