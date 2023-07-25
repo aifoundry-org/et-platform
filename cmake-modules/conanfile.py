@@ -19,7 +19,7 @@ class CMakeModulesConan(ConanFile):
         self.info.clear()
     
     def package(self):
-        copy(self, pattern="*.cmake", dst="cmake")
+        copy(self, pattern="*.cmake", src=self.source_folder, dst=os.path.join(self.package_folder, "cmake"))
 
     def package_info(self):
         build_modules = [
