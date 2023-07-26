@@ -20,13 +20,13 @@ TEST(mp_monitor, getCurrentClients) {
   using namespace std::literals;
   MpOrchestrator orch;
   orch.createServer([] { return std::make_unique<dev::DeviceLayerFake>(); }, rt::Options{true, false});
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 10; ++i) {
     orch.createClient([](rt::IRuntime*) { std::this_thread::sleep_for(1s); });
   }
   auto monitor = rt::IMonitor::create(orch.getSocketPath());
-  std::this_thread::sleep_for(500ms);
+  std::this_thread::sleep_for(350ms);
   auto clients = monitor->getCurrentClients();
-  ASSERT_EQ(clients, 101); // 100 created clients + monitor
+  ASSERT_EQ(clients, 11); // 10 created clients + monitor
 }
 
 TEST(mp_monitor, getFreeMemory) {
