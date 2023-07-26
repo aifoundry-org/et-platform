@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-13951] Fixed argument parsing for active power management cmd
+- [CI] Adapt pipeline and conanfile.py to gitlab.com
 ### Security
 
 ## [1.11.0] - 2023-06-02
