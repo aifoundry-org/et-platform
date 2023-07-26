@@ -1,6 +1,6 @@
 from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
-from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.files import rmdir
 import os
 import textwrap
@@ -10,6 +10,8 @@ required_conan_version = ">=1.53.0"
 
 class EsperantoTestKenelsConan(ConanFile):
     name = "esperanto-test-kernels"
+    url = "git@gitlab.com:esperantotech/software/test-compute-kernels.git"
+    homepage = "https://gitlab.com/esperantotech/software/test-compute-kernels"
     description = "Suite of test kernels"
     license = "Esperanto Technologies"
 
@@ -17,17 +19,15 @@ class EsperantoTestKenelsConan(ConanFile):
     options = {}
     default_options = {}
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/test-compute-kernels.git",
-        "revision": "auto",
-    }
-
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, "EsperantoTestKernels")
+
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
 
     def configure(self):
         self.settings.rm_safe("compiler.libcxx")
@@ -52,6 +52,17 @@ class EsperantoTestKenelsConan(ConanFile):
         for flag in ["with_cm_umode"]:
             if not et_common_libs.options.get_safe(flag):
                 raise ConanInvalidConfiguration("{0} requires {1} package with '-o {1}:{2}'".format(self.name, "et-common-libs", flag))
+
+    def layout(self):
+        cmake_layout(self)
+
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
 
     def generate(self):
         tc = CMakeToolchain(self)
