@@ -96,44 +96,45 @@ void testLog::endm() {
 
 void testLog::dumpTraceBufferIfFatal(const bemu::Agent& agent) {
 
+  /* high level application provides the cookie file to get device traces on FATAL errors.*/
+  static const std::string sysemuTraceDumpCookiePath =
+    std::filesystem::path(std::filesystem::temp_directory_path().string() + "/" + "sysemuTraceDumpCookie." +
+                          std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin");
 
-  if (!fatal_) {
+
+  if (!fatal_ or !std::filesystem::exists(sysemuTraceDumpCookiePath)) {
     return;
   }
 
-  /* high level application provides the cookie file to get device traces on FATAL errors.*/
-  std::string sysemuTraceDumpCookiePath = "/tmp/sysemuTraceDumpCookie." + std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin";  
-
-  if (std::filesystem::exists(sysemuTraceDumpCookiePath)) {
-  
-    uint32_t numDev = 0;
-    std::vector<uint64_t> traceAddress;
-    std::vector<size_t> bufsize;
+  uint32_t numDev = 0;
+  std::vector<uint64_t> traceAddress;
+  std::vector<size_t> bufsize;
     
-    auto traceAddrPtrInfo = std::ifstream(sysemuTraceDumpCookiePath, std::ios::binary | std::ios::in);
+  auto traceAddrPtrInfo = std::ifstream(sysemuTraceDumpCookiePath, std::ios::binary | std::ios::in);
     
-    traceAddrPtrInfo.read((char *)&numDev, sizeof(uint32_t));
-
-    for (int i = 0; i < numDev; i++) {
-      uint64_t addr;
-      size_t buffersize;
-
-      traceAddrPtrInfo.read((char *)&addr, sizeof(uint64_t));
-      traceAddress.emplace_back(addr);
-      traceAddrPtrInfo.read((char *)&buffersize, sizeof(size_t));
-      bufsize.emplace_back(buffersize);
-    }
-
-    for (int i=0; i< traceAddress.size(); i++) {
-      std::vector<std::byte> dstbuf(bufsize.at(i));
-      agent.chip->memory.read(agent, traceAddress.at(i), dstbuf.size(), dstbuf.data());
-    
-      auto traceInfoStream = std::ofstream("traceKernels_OnFatal_dev_"+ std::to_string(i) + ".bin", std::ios::binary | std::ios::out);  
-      traceInfoStream.write((char*)dstbuf.data(), dstbuf.size());
-    }
+  if (!traceAddrPtrInfo.good()) {
+    std::cout << "WARNING, Could not open the " << sysemuTraceDumpCookiePath << "file." << std::endl;
+    return;
   }
-  else {
-    std::cout<< "Cookie file is not present" <<std::endl;
+    
+  traceAddrPtrInfo.read((char *)&numDev, sizeof(uint32_t));
+
+  for (int i = 0; i < numDev; i++) {
+    uint64_t addr;
+    size_t buffersize;
+
+    traceAddrPtrInfo.read((char *)&addr, sizeof(uint64_t));
+    traceAddress.emplace_back(addr);
+    traceAddrPtrInfo.read((char *)&buffersize, sizeof(size_t));
+    bufsize.emplace_back(buffersize);
+  }
+
+  for (int i=0; i< traceAddress.size(); i++) {
+    std::vector<std::byte> dstbuf(bufsize.at(i));
+    agent.chip->memory.read(agent, traceAddress.at(i), dstbuf.size(), dstbuf.data());
+    
+    auto traceInfoStream = std::ofstream("traceKernels_OnFatal_dev_"+ std::to_string(i) + ".bin", std::ios::binary | std::ios::out);  
+    traceInfoStream.write((char*)dstbuf.data(), dstbuf.size());
   }
   
 }

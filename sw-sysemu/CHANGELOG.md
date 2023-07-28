@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-17597b] Some refactoring for [SW-17597].
 - Started development for 0.12.0
 - (Conan) Generate packages for linux-ubuntu22.04-x86_64-gcc11-release
 - [SW-17595] Auto-attach gdbserver on user mode code.
