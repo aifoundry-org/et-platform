@@ -11,7 +11,8 @@ required_conan_version = ">=1.53.0"
 
 class EsperantoBootLoadersConan(ConanFile):
     name = "device-bootloaders"
-    url = "https://gitlab.esperanto.ai/software/device-bootloaders"
+    url = "git@gitlab.com:esperantotech/software/device-bootloaders.git"
+    homepage = "https://gitlab.com/esperantotech/software/device-bootloaders"
     description = "Device Bootloaders"
     license = "Esperanto Technologies"
 
@@ -23,17 +24,18 @@ class EsperantoBootLoadersConan(ConanFile):
         "warnings_as_errors" : False
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/device-bootloaders.git",
-        "revision": "auto",
-    }
-
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, "EsperantoBootLoader")
+
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+
+    def layout(self):
+        cmake_layout(self)
 
     def configure(self):
         self.settings.rm_safe("compiler.libcxx")
@@ -45,7 +47,7 @@ class EsperantoBootLoadersConan(ConanFile):
         self.requires("esperantoTrace/2.0.0-alpha")
         self.requires("signedImageFormat/1.3.0")
         self.requires("tf-protocol/[>=1.2.0 <2.0.0]")
-        self.requires("esperanto-flash-tool/[>=1.2.0 <2.0.0]") # we only consume a header
+        self.requires("esperanto-flash-tool/1.3.0-alpha") # we only consume a header
         # libs
         self.requires("etsoc_hal/[>=1.4.0 <2.0.0]")
         self.requires("et-common-libs/[>=0.17.0 <0.19.0, include_prerelease=True]")
@@ -55,6 +57,14 @@ class EsperantoBootLoadersConan(ConanFile):
 
     def build_requirements(self):
         self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
 
     def validate(self):
         if self.settings.arch != "rv64":

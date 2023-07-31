@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-17717] Reading the PMIC Firmware image from the flash passive slot.
 - Disabling PMIC firmware update temporarily.
 - [SW-17377] Update PMIC metadata image structure.
+- [CI] Adapt pipeline and conanfile.py to gitlab.com.
 ### Deprecated
 ### Removed
 - [SW-16846] Removed 32-bit BAR size fields in DIRs.
@@ -35,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-17565] Fixed sending block of pmic fw update data and increased number of bytes per transaction
 - [SW-17727] Fixed issue with Throttle down  status not being updated correcltly
 - [SW-17906] Fixed power throtting to properly handle errors retuned form function calls
-  - Fixed checking status of operating point change in power throttle 
+  - Fixed checking status of operating point change in power throttle
 ### Security
 
 ## [0.12.0] - 2023-06-02
