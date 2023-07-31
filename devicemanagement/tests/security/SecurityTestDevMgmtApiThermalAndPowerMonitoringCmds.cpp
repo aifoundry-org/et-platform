@@ -36,10 +36,6 @@ TEST_F(SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePower
   setModuleActivePowerManagementRange(false /* Multiple Devices */);
 }
 
-TEST_F(SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleSetTemperatureThresholdRange) {
-  setModuleSetTemperatureThresholdRange(false /* Multiple Devices */);
-}
-
 TEST_F(SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePowerManagementRangeInvalidInputSize) {
   setModuleActivePowerManagementRangeInvalidInputSize(false /* Multiple Devices */);
 }

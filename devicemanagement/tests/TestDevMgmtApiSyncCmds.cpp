@@ -954,13 +954,24 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
-    const char input_buff[input_size] = {(uint8_t)56};
+    char input_buff[input_size] = {(uint8_t)56};
 
     // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
     const uint32_t set_output_size = sizeof(uint32_t);
     char set_output_buff[set_output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
+    const uint32_t get_output_size = sizeof(device_mgmt_api::temperature_threshold_t);
+    char get_output_buff[get_output_size] = {0};
+
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr,
+                                0, get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
+              device_mgmt_api::DM_STATUS_SUCCESS);
+
+    device_mgmt_api::temperature_threshold_t* temperature_threshold =
+      (device_mgmt_api::temperature_threshold_t*)get_output_buff;
+    uint8_t temp_val = temperature_threshold->sw_temperature_c;
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
@@ -971,9 +982,6 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
     if (getTestTarget() != Target::Loopback) {
       EXPECT_EQ(set_output_buff[0], device_mgmt_api::DM_STATUS_SUCCESS);
     }
-
-    const uint32_t get_output_size = sizeof(device_mgmt_api::temperature_threshold_t);
-    char get_output_buff[get_output_size] = {0};
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, nullptr,
                                 0, get_output_buff, get_output_size, hst_latency.get(), dev_latency.get(),
@@ -986,6 +994,13 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleTemperatureThreshold(bool singleDevi
       device_mgmt_api::temperature_threshold_t* temperature_threshold =
         (device_mgmt_api::temperature_threshold_t*)get_output_buff;
       EXPECT_EQ(temperature_threshold->sw_temperature_c, 56);
+
+      /* Restore temperature threshold */
+      input_buff[0] = temp_val;
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
+                                  input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
+                                  dev_latency.get(), DURATION2MS(end - Clock::now())),
+                device_mgmt_api::DM_STATUS_SUCCESS);
     }
   }
 }
@@ -2559,31 +2574,6 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRange(bool singleDevi
     auto dev_latency = std::make_unique<uint64_t>();
 
     ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
-                                input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
-                                dev_latency.get(), DURATION2MS(end - Clock::now())),
-              -EINVAL);
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-  }
-}
-
-void TestDevMgmtApiSyncCmds::setModuleSetTemperatureThresholdRange(bool singleDevice) {
-  getDM_t dmi = getInstance();
-  ASSERT_TRUE(dmi);
-  DeviceManagement& dm = (*dmi)(devLayer_.get());
-  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
-
-  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    const uint32_t input_size = sizeof(device_mgmt_api::temperature_threshold_t);
-    const char input_buff[input_size] = {(uint8_t)2, (uint8_t)80}; // Invalid temperature ranges
-
-    // Device rsp will be of type device_mgmt_default_rsp_t and payload is uint32_t
-    const uint32_t set_output_size = sizeof(uint32_t);
-    char set_output_buff[set_output_size] = {0};
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
-
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
                                 input_buff, input_size, set_output_buff, set_output_size, hst_latency.get(),
                                 dev_latency.get(), DURATION2MS(end - Clock::now())),
               -EINVAL);

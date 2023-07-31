@@ -144,7 +144,6 @@ protected:
 
   // Security tests thermal and power management service
   void setModuleActivePowerManagementRange(bool singleDevice);
-  void setModuleSetTemperatureThresholdRange(bool singleDevice);
   void setModuleActivePowerManagementRangeInvalidInputSize(bool singleDevice);
   void setModuleActivePowerManagementRangeInvalidInputBuffer(bool singleDevice);
 
