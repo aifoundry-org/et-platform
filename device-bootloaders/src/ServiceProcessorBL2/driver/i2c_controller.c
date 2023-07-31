@@ -18,12 +18,6 @@
         i2c_disable
 */
 /***********************************************************************/
-/***
- *
- * @author nikola.rajovic@esperantotech.com
- *
- *
- */
 #include <stdint.h>
 #include "hwinc/hal_device.h"
 #include "bl2_i2c_driver.h"
@@ -166,10 +160,12 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
 
         /* "write" command byte  is sent throguh MasterFSM, we only need to hint it
             in the very first data byte we explicitly write to I2C */
+        /* Send register address */
         dev->regs->IC_DATA_CMD = (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                                             I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
                                             I2C_IC_DATA_CMD_DAT_SET(regAddr));
-        /* send register address */
+        /* SW-18055: Remove the delay once the issue is resolved */
+        US_DELAY_GENERIC(250)
 
         /* write all but last byte, since it contains the stop condition generation request */
         for (uint8_t n = 0; n < txDataCount - 1; n++)
@@ -186,11 +182,13 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
                 xSemaphoreGive(dev->bus_lock_handle);
                 return status;
             }
+            /* Set the data register */
             dev->regs->IC_DATA_CMD =
                 (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
                            I2C_IC_DATA_CMD_DAT_SET(txDataBuff[n]));
-            /*value for above register */
+            /* SW-18055: Remove the delay once the issue is resolved */
+            US_DELAY_GENERIC(250)
         }
 
         status = wait_pmic_ready();
@@ -199,11 +197,13 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
             xSemaphoreGive(dev->bus_lock_handle);
             return status;
         }
+        /* Set the data register with stop bit */
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
             I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE) |
             I2C_IC_DATA_CMD_DAT_SET(txDataBuff[txDataCount - 1]));
-        /* value for above register */
+        /* SW-18055: Remove the delay once the issue is resolved */
+        US_DELAY_GENERIC(250)
 
         /* wait for transfer to finish */
         uint64_t start_ticks = timer_get_ticks_count();
@@ -247,11 +247,13 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
         }
 
         /* Now read what we have written previously */
+        /* Send register address */
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
             I2C_IC_DATA_CMD_RESTART_SET(I2C_IC_DATA_CMD_RESTART_RESTART_ENABLE) |
             I2C_IC_DATA_CMD_DAT_SET(regAddr));
-        /* send register address */
+        /* SW-18055: Remove the delay once the issue is resolved */
+        US_DELAY_GENERIC(200)
 
         /* this is where the actual read request(s) happens */
         for (uint8_t n = 0; n < rxDataCount - 1; n++)
@@ -266,7 +268,8 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
             dev->regs->IC_DATA_CMD =
                 (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ));
-            /* this is what will init an actual read */
+            /* SW-18055: Remove the delay once the issue is resolved */
+            US_DELAY_GENERIC(200)
         }
 
         status = wait_pmic_ready();
@@ -275,11 +278,12 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
             xSemaphoreGive(dev->bus_lock_handle);
             return status;
         }
+        /* This is what will init an actual read */
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ) |
-
-            /* this is what will init an actual read */
             I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE));
+        /* SW-18055: Remove the delay once the issue is resolved */
+        US_DELAY_GENERIC(200)
 
         /* check RX fifo for received bytes */
         /* wait until we get the bytes we want in the RX fifo. */
@@ -293,6 +297,8 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
                 return ET_I2C_ERROR_TIMEOUT;
             }
         }
+
+        /* TODO: Check I2C status register for errors */
 
         for (uint8_t n = 0; n < rxDataCount; n++)
         {

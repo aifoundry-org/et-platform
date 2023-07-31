@@ -2263,8 +2263,7 @@ static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32_t fw_block_size)
 {
     int status = STATUS_SUCCESS;
-    /* TODO: SW-17902: Change the size back to 8 once the issue is resolved. */
-    uint32_t reg_size_bytes = 2; //how many bytes are sent in a I2C transaction
+    uint32_t reg_size_bytes = 8; //how many bytes are sent in a I2C transaction
 
     for (uint32_t write_count = 0; write_count < fw_block_size; write_count += reg_size_bytes)
     {
@@ -2272,6 +2271,7 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
                              (fw_block_size - write_count) :
                              reg_size_bytes;
 
+        /* TODO: SW-18057: Optimize the pmic flash ready call */
         status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
 
         if (status == STATUS_SUCCESS)
