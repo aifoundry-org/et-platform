@@ -725,6 +725,11 @@ int update_module_soc_power(void)
              (g_soc_power_reg.power_throttle_state <= POWER_THROTTLE_STATE_POWER_DOWN) &&
              (g_soc_power_reg.active_power_management))
     {
+        /* Log the event*/
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "Power throttle down event, current pwr %u  tdp: tdp level %u\n",
+                  POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
+
         /* Do the power throttling down */
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
@@ -736,6 +741,11 @@ int update_module_soc_power(void)
              (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP) &&
              (g_soc_power_reg.active_power_management))
     {
+        /* Log the event*/
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "Power throttle up event, current pwr %u  tdp: tdp level %u\n",
+                  POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
+
         /* Do the power throttling up */
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
@@ -2096,6 +2106,12 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
+                /* Add a log to indicate thermal */
+                Log_Write(LOG_LEVEL_CRITICAL,
+                          "Thermal throttle down event, current temprature: %u, threshold: %d",
+                          current_temperature,
+                          g_soc_power_reg.temperature_threshold.sw_temperature_c);
+
                 /* Get the current power */
                 status = pmic_read_average_soc_power(&avg_pwr_10mW);
                 if (status != SUCCESS)
