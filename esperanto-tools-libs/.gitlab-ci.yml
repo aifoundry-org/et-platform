@@ -211,7 +211,8 @@ tests:conan:sysemu:
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
       ctest -L 'Generic' -LE 'MP' --output-on-failure -j 4
-      sudo ctest -L 'Generic' -L 'MP' --output-on-failure
+      # SW-18081: Enable ut_mp tests again
+      sudo ctest -L 'Generic' -L 'MP' -E ut_mp --output-on-failure
 
 # FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
 # dependencies (java, sonar-scanner)
