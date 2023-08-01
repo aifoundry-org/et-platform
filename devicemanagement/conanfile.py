@@ -8,7 +8,8 @@ import os
 
 class DeviceManagementConan(ConanFile):
     name = "deviceManagement"
-    url = "https://gitlab.esperanto.ai/software/devicemanagement"
+    url = "git@gitlab.com:esperantotech/software/devicemanagement.git"
+    homepage = "https://gitlab.com/esperantotech/software/devicemanagement"
     description = ""
     license = "Esperanto Technologies"
 
@@ -22,11 +23,6 @@ class DeviceManagementConan(ConanFile):
         "with_tests": False,
     }
 
-    scm = {
-        "type": "git",
-        "url": "git@gitlab.esperanto.ai:software/devicemanagement.git",
-        "revision": "auto",
-    }
     generators = "CMakeDeps"
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
@@ -47,9 +43,21 @@ class DeviceManagementConan(ConanFile):
         if self.options.with_tests:
             raise ConanInvalidConfiguration("Support for building with tests not yet implemented.")
 
+    def export(self):
+        register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
+        register_scm_coordinates(self)
+
     def layout(self):
         cmake_layout(self)
         self.folders.source = "."
+
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
+
+    def source(self):
+        get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
+        get_sources_if_scm_pristine(self)
 
     def generate(self):
         tc = CMakeToolchain(self)
