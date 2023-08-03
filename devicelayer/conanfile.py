@@ -40,7 +40,7 @@ class DeviceLayerConan(ConanFile):
         cmake_layout(self)
     
     def requirements(self):
-        self.requires("sw-sysemu/0.11.2")
+        self.requires("sw-sysemu/0.12.0")
         self.requires("hostUtils/0.3.0")
         self.requires("linuxDriver/0.15.0")
         self.requires("boost/1.72.0")
