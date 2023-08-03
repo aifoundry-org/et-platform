@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.3.0] - 2023-08-03
+### Added
 - [SW-17456] Adding PMIC slot 0 and slot 1 image support.
 ### Changed
 - [SW-16531] Generate pre-release versions by default and full versions on tags pipelines
