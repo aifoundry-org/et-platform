@@ -9,7 +9,7 @@ def main():
     
     build = Packager(ci_build=True)
     build.add_package(conanfile_path)
-    build.add_consumer("ss/0.11.0@")
+    #build.add_consumer("ss/0.11.0@")
     build.add_configuration("default", "baremetal-rv64-gcc8.2-release")
     build.report()
 

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Updating the conan dependencies versions to released components
 ### Deprecated
 ### Removed
 ### Fixed
