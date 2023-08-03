@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.12.0] - 2023-08-03
+### Added
 [SW-SW-17724] Implemented a check to ensure that the firmware update is completed within the specified time limit.
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
