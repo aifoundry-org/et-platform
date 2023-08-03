@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 - [SW-17528] Use GCC primitives fir alignment in DIRs.
+- Updating the conan dependencies versions to released components
 ### Deprecated
 ### Removed
 ### Fixed
