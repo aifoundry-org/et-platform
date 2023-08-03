@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.13.0] - 2023-08-03
+### Added
 - [SW-16663] Adding support to read and transfer PMIC FW image in FW update process.
 - [SW-17430]: Adding frequency and voltage stats in op stats
 - [SW-16846] Added new 64-bit BAR size fields in DIRs and fixed BAR0 size.
