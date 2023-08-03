@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.15.0] - 2023-08-03
+### Added
+### Changed
 - [SW-16846] Update DIRs to match the latest specification
 - [CI] Adapt to gitlab.com
 ### Deprecated
