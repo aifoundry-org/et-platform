@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [1.3.0] - 2023-08-03
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 [CI] Adapt pipeline and conanfile.py to gitlab.com
 ### Security
 
