@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disabling PMIC firmware update temporarily.
 - [SW-17377] Update PMIC metadata image structure.
 - [CI] Adapt pipeline and conanfile.py to gitlab.com.
+- Updating the conan dependencies versions to released components
 ### Deprecated
 ### Removed
 - [SW-16846] Removed 32-bit BAR size fields in DIRs.
