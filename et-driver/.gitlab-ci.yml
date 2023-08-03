@@ -1,18 +1,18 @@
 include:
-  - project: 'software/gitlab-ci-common'
-    ref: e30678edaf6fee2245513234e8d325fcf5f92baf
+  - project: 'esperantotech/software/gitlab-ci-common'
+    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
     file:
       - 'pods/nano-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
       - 'jobs/sw-platform-trigger.yaml'
       - 'jobs/check-top-of-master.yaml'
   
-  - project: 'software/gitlab-ci-common'
+  - project: 'esperantotech/software/gitlab-ci-common'
     ref: master
     file:
       - 'jobs/conan-jobs.yaml'
 
-  - project: 'software/sw-platform'
+  - project: 'esperantotech/software/sw-platform'
     ref: develop/system-sw
     file:
       - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'

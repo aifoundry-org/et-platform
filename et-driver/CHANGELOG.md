@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-16846] Update DIRs to match the latest specification
+- [CI] Adapt to gitlab.com
 ### Deprecated
 ### Removed
 ### Fixed
