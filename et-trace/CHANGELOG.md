@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [2.0.0] - 2023-08-03
+### Added
 - [SW-17430] Adding frequency and voltage stats in op stats
 ### Changed
 - [SW-17874] Update conanfile.py for gitlab.com
