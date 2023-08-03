@@ -55,13 +55,13 @@ class EtCommonLibsConan(ConanFile):
         cmake_layout(self)
     
     def requirements(self):
-        self.requires("esperantoTrace/[>=1.3.0 <2.0.0]")
+        self.requires("esperantoTrace/2.0.0")
         # cm-umode doens't require etsoc_hal
         if self.options.with_sp_bl or \
            self.options.with_minion_bl or \
            self.options.with_mm_rt_svcs or \
            self.options.with_cm_rt_svcs:
-           self.requires("etsoc_hal/[>=1.4.0 <2.0.0]")
+           self.requires("etsoc_hal/1.5.0")
 
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)
