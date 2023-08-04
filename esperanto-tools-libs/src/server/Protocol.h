@@ -113,8 +113,9 @@ struct KernelLaunch {
   bool barrier_;
   bool flushL3_;
   std::optional<UserTrace> userTrace_;
+  std::string coreDumpFilePath_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(stream_, kernel_, kernelArgs_, shireMask_, barrier_, flushL3_, userTrace_);
+    archive(stream_, kernel_, kernelArgs_, shireMask_, barrier_, flushL3_, userTrace_, coreDumpFilePath_);
   }
 };
 

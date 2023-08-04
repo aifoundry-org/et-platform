@@ -365,6 +365,42 @@ TEST(MemoryManager, check_beyond_limits) {
   }
 }
 
+TEST(MemoryManager, get_allocations) {
+  auto totalRam = 1UL << 34;
+  auto mm = MemoryManager(1 << 12, totalRam);
+  std::vector<std::byte*> ptrs;
+  for (int i = 0; i < 100; ++i) {
+    auto newAlloc = mm.malloc(1024, 1024);
+    ASSERT_NE(newAlloc, nullptr);
+
+    // check newAlloc doesn't exist in ptrs buffer
+    auto it = std::find_if(begin(ptrs), end(ptrs), [newAlloc](const auto& p) { return p == newAlloc; });
+    ASSERT_EQ(it, end(ptrs));
+
+    ptrs.emplace_back(newAlloc);
+  }
+
+  auto allocs = mm.getAllocations();
+  ASSERT_EQ(allocs.size(), 100);
+  for (const auto& a : allocs) {
+    ASSERT_GE(a.size_, kBlockSize);
+    ASSERT_GE(a.size_, 1024);
+  }
+
+  // check all allocations addresses matches with mallocs
+  for (auto p : ptrs) {
+    auto it = std::find_if(begin(allocs), end(allocs), [p](const auto& a) { return a.address_ == p; });
+    ASSERT_NE(it, end(allocs));
+  }
+
+  for (auto p : ptrs) {
+    mm.free(p);
+  }
+
+  ASSERT_EQ(mm.free_.size(), 1);
+  ASSERT_EQ(mm.getAllocations().size(), 0);
+}
+
 int main(int argc, char** argv) {
   logging::LoggerDefault logger_;
   testing::InitGoogleTest(&argc, argv);

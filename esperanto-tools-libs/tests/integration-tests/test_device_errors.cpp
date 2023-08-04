@@ -14,11 +14,14 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
+#include <experimental/bits/fs_fwd.h>
+#include <experimental/bits/fs_ops.h>
 #include <hostUtils/logging/Logger.h>
 
 #include <experimental/filesystem>
 #include <fstream>
 #include <ios>
+#include <optional>
 #include <random>
 
 struct DeviceErrors : public RuntimeFixture {
@@ -63,6 +66,27 @@ TEST_F(DeviceErrors, KernelLaunchException) {
   defaultStreams_.clear();
   ASSERT_TRUE(callbackExecuted);
   RT_LOG(INFO) << "This is expected, part of the test. Stream error message: \n" << errors[0].getString();
+}
+
+TEST_F(DeviceErrors, coreDump) {
+  std::array<std::byte, 64> dummyArgs;
+  bool callbackExecuted = false;
+  runtime_->setOnStreamErrorsCallback([&callbackExecuted](auto, const rt::StreamError& error) {
+    callbackExecuted = true;
+    RT_LOG(INFO) << "Error cm mask: " << *error.cmShireMask_;
+  });
+  auto coreDumpPath = fs::current_path() / "core_dump";
+  fs::remove(coreDumpPath);
+  // Launch Kernel on all 32 Shires including Sync Minions
+  runtime_->kernelLaunch(defaultStreams_[0], exception_kernel, dummyArgs.data(), sizeof(dummyArgs), 0x1FFFFFFFFUL, true,
+                         false, std::nullopt, coreDumpPath);
+  runtime_->waitForStream(defaultStreams_[0]);
+  runtime_.reset();
+  defaultStreams_.clear();
+  ASSERT_TRUE(callbackExecuted);
+  ASSERT_TRUE(fs::exists(coreDumpPath));
+  ASSERT_GT(fs::file_size(coreDumpPath), 0UL);
+  RT_LOG(INFO) << "CoreDump at path: " << coreDumpPath;
 }
 
 int main(int argc, char** argv) {

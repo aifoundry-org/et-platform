@@ -77,6 +77,7 @@ add_library(etrt_obj OBJECT
     src/MemoryManager.cpp
     src/EventManager.cpp
     src/CommandSender.cpp
+    src/CoreDumper.cpp
     src/ExecutionContextCache.cpp
     src/ResponseReceiver.cpp
     src/KernelLaunch.cpp

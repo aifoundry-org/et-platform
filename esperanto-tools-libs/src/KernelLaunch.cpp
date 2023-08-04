@@ -29,7 +29,7 @@ using namespace rt::profiling;
 
 EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
                                    size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
-                                   std::optional<UserTrace> userTraceConfig) {
+                                   std::optional<UserTrace> userTraceConfig, const std::string& coreDumpFilePath) {
   SpinLock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
   auto cfg = deviceLayer_->getDeviceConfig(static_cast<int>(kernel->deviceId_));
@@ -89,6 +89,9 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);
   executionContextCache_->reserveBuffer(event, pBuffer);
+  if (!coreDumpFilePath.empty()) {
+    coreDumper_.addKernelExecution(coreDumpFilePath, kernelId, event);
+  }
 
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_CMD;

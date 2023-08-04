@@ -239,7 +239,7 @@ void Client::processResponse(const resp::Response& response) {
       tp_.pushTask([this, cb = kernelAbortCallback_, evt, buffer, size = payload.size_] {
         cb(evt, buffer, size, [this, evt] {
           sendRequestAndWait(req::Type::KERNEL_ABORT_RELEASE_RESOURCES, evt);
-          SpinLock lock(mutex_);
+          SpinLock inner_lock(mutex_);
           dispatch(evt);
           delayedEvents_.erase(evt);
         });
@@ -267,7 +267,7 @@ void Client::processResponse(const resp::Response& response) {
       delayedEvents_.insert(evt);
       tp_.pushTask([this, cb = streamErrorCallback_, evt, error = std::move(payload.error_)] {
         cb(evt, error);
-        SpinLock lock(mutex_);
+        SpinLock inner_lock(mutex_);
         dispatch(evt);
         delayedEvents_.erase(evt);
       });
@@ -323,9 +323,9 @@ void Client::handShake() {
 
   RT_LOG(INFO) << "Server protocol version: " << major << "." << minor;
 
-  if (major != 3 || minor < 1) {
+  if (major != 3 || minor < 2) {
     throw Exception(
-      "Unsupported version. Current client version only supports version: 3.>=1 Please update the runtime "
+      "Unsupported version. Current client version only supports version: 3.>=2 Please update the runtime "
       "client library or runtime daemon server.");
   }
   // get deviceLayerProperties now
@@ -385,11 +385,12 @@ void Client::doFreeDevice(DeviceId device, std::byte* ptr) {
 
 EventId Client::doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                                uint64_t shire_mask, bool barrier, bool flushL3,
-                               std::optional<UserTrace> userTraceConfig) {
+                               std::optional<UserTrace> userTraceConfig, const std::string& coreDumpFilePath) {
   std::vector<std::byte> kernelArgs;
   std::copy(kernel_args, kernel_args + kernel_args_size, std::back_inserter(kernelArgs));
-  auto payload = sendRequestAndWait(req::Type::KERNEL_LAUNCH, req::KernelLaunch{stream, kernel, shire_mask, kernelArgs,
-                                                                                barrier, flushL3, userTraceConfig});
+  auto payload =
+    sendRequestAndWait(req::Type::KERNEL_LAUNCH, req::KernelLaunch{stream, kernel, shire_mask, kernelArgs, barrier,
+                                                                   flushL3, userTraceConfig, coreDumpFilePath});
   return registerEvent(payload, stream);
 }
 

@@ -47,6 +47,13 @@ public:
   // checks if the operation is valid knowing current allocations
   void checkOperation(const std::byte* address, size_t size) const;
 
+  struct AllocationInfo {
+    std::byte* address_;
+    size_t size_;
+  };
+
+  std::vector<AllocationInfo> getAllocations() const;
+
 private:
   struct FreeChunk {
     uint32_t startAddress_;

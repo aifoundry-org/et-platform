@@ -128,13 +128,17 @@ public:
   /// \ref mallocDevice). If the pointer is not null, then the firmware will utilize this buffer to fill-up user trace
   /// data. This buffer must be of size 4KB * num_harts (4KB*2080). We will provide later on an API to allocate the
   /// buffer with the size required.
+  /// @param[in] coreDumpFilePath this string, if not empty, will contain a valid file path to store a coredump in case
+  /// the kernel execution produces an error. File must be accessible by the user running the application, file will be
+  /// created or overwritten if existing.
   ///
-  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to syncrhonize when the kernel
+  /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the kernel
   /// ends the execution.
   ///
   EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                        uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-                       std::optional<UserTrace> userTraceConfig = std::nullopt);
+                       std::optional<UserTrace> userTraceConfig = std::nullopt,
+                       const std::string& coreDumpFilePath = "");
 
   /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously
   /// allocated by a mallocDevice.
@@ -413,7 +417,7 @@ private:
 
   virtual EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args,
                                  size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
-                                 std::optional<UserTrace> userTraceConfig) = 0;
+                                 std::optional<UserTrace> userTraceConfig, const std::string& coreDumpFilePath) = 0;
 
   virtual EventId doMemcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
                                        const CmaCopyFunction& cmaCopyFunction) = 0;

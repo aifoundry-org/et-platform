@@ -301,3 +301,12 @@ std::byte* MemoryManager::malloc(size_t size, uint32_t alignment) {
 uint32_t MemoryManager::getBlockSize() const {
   return 1U << blockSizeLog2_;
 }
+
+std::vector<MemoryManager::AllocationInfo> MemoryManager::getAllocations() const {
+  std::vector<AllocationInfo> result;
+  result.reserve(allocated_.size());
+  for (auto& alloc : allocated_) {
+    result.emplace_back(AllocationInfo{uncompressPointer(alloc.first), alloc.second * getBlockSize()});
+  }
+  return result;
+}

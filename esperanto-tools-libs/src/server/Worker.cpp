@@ -160,7 +160,7 @@ void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
 
   case req::Type::VERSION: {
-    sendResponse({resp::Type::VERSION, request.id_, resp::Version{3, 1}}); // current version is "3.1"
+    sendResponse({resp::Type::VERSION, request.id_, resp::Version{3, 2}}); // current version is "3.1"
     break;
   }
 
@@ -273,7 +273,7 @@ void Worker::processRequest(const req::Request& request) {
   case req::Type::KERNEL_LAUNCH: {
     auto& req = std::get<req::KernelLaunch>(request.payload_);
     auto evt = runtime_.kernelLaunch(req.stream_, req.kernel_, req.kernelArgs_.data(), req.kernelArgs_.size(),
-                                     req.shireMask_, req.barrier_, req.flushL3_, req.userTrace_);
+                                     req.shireMask_, req.barrier_, req.flushL3_, req.userTrace_, req.coreDumpFilePath_);
     events_.emplace(evt);
     RT_DLOG(INFO) << "Registered at worker event " << static_cast<int>(evt);
     sendResponse({resp::Type::KERNEL_LAUNCH, request.id_, resp::Event{evt}});

@@ -30,8 +30,8 @@ public:
   LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
   void doUnloadCode(KernelId kernel) final;
   EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                         uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-                         std::optional<UserTrace> userTraceConfig = std::nullopt) final;
+                         uint64_t shire_mask, bool barrier, bool flushL3, std::optional<UserTrace> userTraceConfig,
+                         const std::string& coreDumpFilePath) final;
   EventId doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size, bool barrier,
                                const CmaCopyFunction&) final;
 

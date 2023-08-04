@@ -282,6 +282,7 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
                                          RT_VLOG(LOW) << "Load code ended.";
                                          dispatch(evt);
                                        }});
+  coreDumper_.addCodeAddress(DeviceId{stInfo.device_}, deviceBuffer);
   return loadCodeResult;
 }
 
@@ -298,6 +299,7 @@ void RuntimeImp::doUnloadCode(KernelId kernel) {
 
   // and remove the kernel
   kernels_.erase(it);
+  coreDumper_.removeCodeAddress(deviceId, deviceBuffer);
 }
 
 std::byte* RuntimeImp::doMallocDevice(DeviceId device, size_t size, uint32_t alignment) {
@@ -382,6 +384,7 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
     }
     if (executionContextCache_) {
       if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
+
         // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed
         if (errorCode != DeviceErrorCode::KernelLaunchHostAborted) {
           // do the copy
@@ -390,6 +393,7 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
           auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
                                       reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
           doWaitForEvent(e);
+
           streamError.errorContext_.emplace(std::move(errorContexts));
           executionContextCache_->releaseBuffer(event);
         } else {
@@ -416,6 +420,12 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
         dispatch(evt);
       }
     };
+
+    SpinLock lock(mutex_);
+    auto allocs = memoryManagers_.at(device).getAllocations();
+    lock.unlock();
+    coreDumper_.dump(event, allocs, streamError, *this);
+
     if (!streamManager_.executeCallback(event, streamError, afterCb)) {
       // the callback was not set, so add the error to the error list
       streamManager_.addError(event, std::move(streamError));

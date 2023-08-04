@@ -62,12 +62,12 @@ TEST(mp_monitor, getAliveEvents) {
   for (int i = 0; i < 10; ++i) {
     orch.createClient([](rt::IRuntime* rt) {
       constexpr auto dev = rt::DeviceId{0};
-      auto monitor = static_cast<rt::IMonitor*>(static_cast<rt::Client*>(rt));
+      auto monitorClient = static_cast<rt::IMonitor*>(static_cast<rt::Client*>(rt));
       auto dst = rt->mallocDevice(dev, allocSize);
       auto st = rt->createStream(dev);
-      auto prevEvents = monitor->getAliveEvents()[dev];
+      auto prevEvents = monitorClient->getAliveEvents()[dev];
       rt->memcpyHostToDevice(st, h_src.data(), dst, allocSize);
-      auto currentEvents = monitor->getAliveEvents()[dev];
+      auto currentEvents = monitorClient->getAliveEvents()[dev];
       ASSERT_GT(currentEvents, prevEvents);
       rt->waitForStream(st);
     });

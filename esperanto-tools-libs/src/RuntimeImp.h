@@ -11,6 +11,7 @@
 #pragma once
 
 #include "CommandSender.h"
+#include "CoreDumper.h"
 #include "EventManager.h"
 #include "MemoryManager.h"
 #include "Observer.h"
@@ -63,8 +64,8 @@ public:
   void doDestroyStream(StreamId stream) final;
 
   EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                         uint64_t shire_mask, bool barrier, bool flushL3,
-                         std::optional<UserTrace> userTraceConfig) final;
+                         uint64_t shire_mask, bool barrier, bool flushL3, std::optional<UserTrace> userTraceConfig,
+                         const std::string& coreDumpFilePath) final;
 
   EventId doMemcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
                                const CmaCopyFunction& cmaCopyFunction) final;
@@ -201,5 +202,6 @@ private:
   bool checkMemcpyDeviceAddress_ = false;
   DeviceApiVersion deviceApiVersion_;
   KernelAbortedCallback kernelAbortedCallback_;
+  CoreDumper coreDumper_;
 };
 } // namespace rt

@@ -122,11 +122,11 @@ EventId IRuntime::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, boo
 
 EventId IRuntime::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
                                uint64_t shire_mask, bool barrier, bool flushL3,
-                               std::optional<UserTrace> userTraceConfig) {
+                               std::optional<UserTrace> userTraceConfig, const std::string& coreDumpPath) {
   EASY_FUNCTION()
   ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, stream, kernel, -1ULL);
   auto evt = doKernelLaunch(stream, kernel, kernel_args, kernel_args_size, shire_mask, barrier, flushL3,
-                            std::move(userTraceConfig));
+                            std::move(userTraceConfig), coreDumpPath);
   profileEvent.setEventId(evt);
   return evt;
 }

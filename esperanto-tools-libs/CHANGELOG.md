@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unrealeased]
 ### Added
 ### Changed
+- [SW-16043] add coredump feature. Bumped protocol to 3.2.
 ### Deprecated
 ### Removed
 ## Fixed
