@@ -279,10 +279,13 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
 #define CALC_POWER(voltage, current) (uint16_t)(voltage * current)
 
 /* Macro to initialize avg, min and max of a stat module */
-#define INIT_STAT_VALUE(module, value) \
-    module.avg = value;                \
-    module.max = 0;                    \
+#define INIT_STAT_VALUE(module) \
+    module.avg = 0;             \
+    module.max = 0;             \
     module.min = 0xFFFF;
+
+/* Macro to set avg of a stat module */
+#define INITIAL_SET_STAT_AVG_VALUE(module, value) module.avg = value;
 
 /* defines for set voltage wait and check loop */
 #define PERCENTAGE_DIFFERENCE(a, b) abs(((a - b) * 100) / b)
@@ -2715,6 +2718,21 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
     uint16_t soc_pwr_10mW;
     MinShire_VM_sample minshire_voltage = { { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF }, { 0, 0, 0xFFFF } };
 
+    /* initialize minion temperature values in op stats */
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.temperature)
+    /* initialize system temperature values in op stats */
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.system.temperature)
+    /* Initialize power min, max and avg values */
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.power)
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.sram.power)
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.noc.power)
+    /* Initialize voltage min, max andd avg values */
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.voltage)
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.sram.voltage)
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.noc.voltage)
+    /* initialize op stats average power */
+    INIT_STAT_VALUE(g_soc_power_reg.op_stats.system.power)
+
     /* Reset all PVT sensors */
     pvt_hilo_reset();
 
@@ -2723,7 +2741,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
     if (status == STATUS_SUCCESS)
     {
         /* initialize temperature valuesin op stats */
-        INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.temperature, tmp_val)
+        INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.minion.temperature, tmp_val)
 
         /* TODO: PMIC is currently reporting system temperature as 0. This is to be validated once fixed */
         status = pmic_get_temperature(&tmp_val);
@@ -2731,7 +2749,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
         /* Update system temperature */
         if (status == STATUS_SUCCESS)
         {
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.system.temperature, tmp_val)
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.system.temperature, tmp_val)
 
             /* Update PMB stats */
             status = update_pmb_stats(true);
@@ -2739,13 +2757,13 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 
         if (status == STATUS_SUCCESS)
         {
-            /* Initialize power min, max andd avg values */
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.power,
-                            g_pmic_power_reg.pmb_stats.minion.w_out.average)
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.sram.power,
-                            g_pmic_power_reg.pmb_stats.sram.w_out.average)
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.noc.power,
-                            g_pmic_power_reg.pmb_stats.noc.w_out.average)
+            /* Initialize power avg values */
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.minion.power,
+                                       g_pmic_power_reg.pmb_stats.minion.w_out.average)
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.sram.power,
+                                       g_pmic_power_reg.pmb_stats.sram.w_out.average)
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.noc.power,
+                                       g_pmic_power_reg.pmb_stats.noc.w_out.average)
 
             /* Update PVT stats */
             status = pvt_get_minion_avg_low_high_voltage(&minshire_voltage);
@@ -2753,12 +2771,13 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
 
         if (status == STATUS_SUCCESS)
         {
-            /* Initialize voltage min, max andd avg values */
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.minion.voltage,
-                            minshire_voltage.vdd_mnn.current)
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.sram.voltage,
-                            minshire_voltage.vdd_sram.current)
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.noc.voltage, minshire_voltage.vdd_noc.current)
+            /* Initialize voltage avg values */
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.minion.voltage,
+                                       minshire_voltage.vdd_mnn.current)
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.sram.voltage,
+                                       minshire_voltage.vdd_sram.current)
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.noc.voltage,
+                                       minshire_voltage.vdd_noc.current)
 
             /* Read card average power */
             status = pmic_read_average_soc_power(&soc_pwr_10mW);
@@ -2767,7 +2786,7 @@ int Thermal_Pwr_Mgmt_Init_OP_Stats(void)
         if (status == STATUS_SUCCESS)
         {
             /* initialize op stats with average power in mW */
-            INIT_STAT_VALUE(g_soc_power_reg.op_stats.system.power, soc_pwr_10mW)
+            INITIAL_SET_STAT_AVG_VALUE(g_soc_power_reg.op_stats.system.power, soc_pwr_10mW)
         }
     }
 

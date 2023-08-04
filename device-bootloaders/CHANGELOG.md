@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-18127] Fix initialization of op stats values.
 ### Security
 
 ## [0.13.0] - 2023-08-03
