@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.12.0] - 2023-08-03
+### Added
 - [SW-17597b] Some refactoring for [SW-17597].
 - Started development for 0.12.0
 - (Conan) Generate packages for linux-ubuntu22.04-x86_64-gcc11-release
@@ -18,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 - Updated system-sw embedded components
 - [CI] Adapt pipeline and conanfile.py to gitlab.com
+- Update system-sw embedded components
 ### Deprecated
 ### Removed
 ### Fixed
