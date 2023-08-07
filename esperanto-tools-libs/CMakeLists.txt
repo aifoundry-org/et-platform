@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-project(runtime VERSION 0.12.0 LANGUAGES CXX C)
+project(runtime VERSION 0.13.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 
