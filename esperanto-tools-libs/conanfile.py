@@ -65,7 +65,7 @@ class RuntimeConan(ConanFile):
     @property
     def _min_device_api(self):
         return {
-            "current": "1.4.0",
+            "current": "2.0.0",
         }.get(str("current"))
 
     def requirements(self):

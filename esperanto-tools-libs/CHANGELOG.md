@@ -5,14 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-## [Unrealeased]
+## [unreleased]
 ### Added
 ### Changed
-- [SW-16043] add coredump feature. Bumped protocol to 3.2.
 ### Deprecated
 ### Removed
 ## Fixed
 ### Security
+
+## [0.12.0]
+### Added
+- [SW-16043] add coredump feature. Bumped protocol to 3.2.
+### Changed
+- [SW-18125] bumped minimum device-api requirement to 2.0.0
 
 ## [0.11.0]
 ### Added

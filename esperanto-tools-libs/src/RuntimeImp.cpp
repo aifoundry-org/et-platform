@@ -629,8 +629,8 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   }
   RT_LOG(INFO) << "Device API version: " << deviceApiVersion_.major << "." << deviceApiVersion_.minor << "."
                << deviceApiVersion_.patch;
-  if (deviceApiVersion_.major != 1 || deviceApiVersion_.minor < 4) {
-    throw Exception("Incompatible device-api version. This runtime version supports device-api 1.>=4.Y.");
+  if (deviceApiVersion_.major != 2) {
+    throw Exception("Incompatible device-api version. This runtime version supports device-api 2.X.Y.");
   }
 }
 
