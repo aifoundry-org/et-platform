@@ -4,8 +4,8 @@ include:
     file:
       - 'pods/nano-pod.yaml'
       - 'jobs/generic-k8s-job.yaml'
-      - 'jobs/sw-platform-trigger.yaml'
-      - 'jobs/check-top-of-master.yaml'
+      - 'jobs/sw-platform-trigger-template.yaml'
+      - 'jobs/check-top-of-master-template.yaml'
   
   - project: 'esperantotech/software/gitlab-ci-common'
     ref: master
@@ -15,7 +15,7 @@ include:
   - project: 'esperantotech/software/sw-platform'
     ref: develop/system-sw
     file:
-      - 'gitlab-ci/system-sw/misc/verify-merge-request.yaml'
+      -                           gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
 stages:
   - generate_build
@@ -40,6 +40,31 @@ variables:
   TRIG_ON_TAGS_PUSH: 'true'
   EXTRA_OPTION_SUBPROJECT: $CI_PIPELINE_SOURCE
 
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+.release_job:
+  rules:
+    - &release_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - &release_or_development_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) || ($CI_PIPELINE_SOURCE == "merge_request_event")
+
+# Only run job in these cases:
+# - if there is a MR open
+.development_job:
+  rules:
+    - &development_job_rule
+      if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
+
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -52,9 +77,34 @@ verify_project_changes:
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
   stage: .pre
   rules:
-    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+    - *development_job_rule
   variables:
     PROJ_VER_FILE_NAME: VERSION
+
+###############################################################################
+###############################################################################
+###############################################################################
+####
+
+check-on-top-of-master:
+  extends: .check-on-top-of-master
+  stage: .pre
+  needs: [ ]
+  rules:
+    - *development_job_rule
+
+###############################################################################
+###############################################################################
+############################################################################
+
+create-sw-platform-branch:
+  extends: .create-sw-platform-branch
+  stage: generate_build
+  needs:
+    - verify_project_changes
+    - check-on-top-of-master
+  rules:
+    - *development_job_rule
 
 ###############################################################################
 ###############################################################################
@@ -66,6 +116,13 @@ generate_build:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
+  needs:
+    - job: verify_project_changes
+      optional: true
+    - job: check-on-top-of-master
+      optional: true
+  rules:
+    - *release_or_development_job_rule
 
   variables:
     TIMEOUT: 15m
@@ -79,15 +136,27 @@ generate_build:conan:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
 
+###############################################################################
+###############################################################################
+
+create-sw-platform-trigger:
+  extends: .create-sw-platform-trigger
+  stage: build
+  needs:
+    - create-sw-platform-branch
+  rules:
+    - *development_job_rule
 
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
 build:conan:
-  needs:
-  - generate_build:conan
   stage: build
+  needs:
+    - generate_build:conan
+  rules:
+    - *release_or_development_job_rule
   trigger:
     include:
     - artifact: conan/build_pipeline.yml
@@ -98,10 +167,19 @@ build:conan:
 ###############################################################################
 ###############################################################################
 
-# integration testing with sw-platform
-#
-# This is automatically done thanks to this included file:
-#   /jobs/sw-platform-trigger.yaml
+tests:integration-repo:
+  extends: .meta-trigger
+  stage: test
+  needs:
+    - create-sw-platform-trigger
+    - build:conan
+  rules:
+    - *development_job_rule
+  trigger:
+    strategy: depend
+    include:
+      - artifact: generated-trigger-job.yaml
+        job: create-sw-platform-trigger
 
 ###############################################################################
 ###############################################################################
@@ -116,7 +194,8 @@ on_success:promote:
   needs:
     - generate_build:conan
     - build:conan
-    - meta-trigger
+  rules:
+    - *release_job_rule
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
