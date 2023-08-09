@@ -70,6 +70,10 @@ class EtCommonLibsConan(ConanFile):
         if self.settings.arch != "rv64":
             raise ConanInvalidConfiguration("Cross-compiling to arch %s is not supported" % self.settings.arch)
 
+    def compatibility(self):
+        if self.settings.compiler == "clang":
+            return [{"settings": [("compiler", "gcc"), ("compiler.version", "8.2")]}]
+    
     def source(self):
         get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
         get_sources_if_scm_pristine(self)
