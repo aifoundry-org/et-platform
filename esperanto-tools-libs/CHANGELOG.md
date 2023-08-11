@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
-## Fixed
+### Fixed
+- [SW-18212] Fix missing hostUtils::actionList in package_info components
 ### Security
 
 ## [0.12.0]

@@ -130,7 +130,7 @@ class RuntimeConan(ConanFile):
         self.cpp_info.components["etrt"].names["cmake_find_package"] = "etrt"
         self.cpp_info.components["etrt"].names["cmake_find_package_multi"] = "etrt"
         self.cpp_info.components["etrt"].set_property("cmake_target_name", "runtime::etrt")
-        self.cpp_info.components["etrt"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "elfio::elfio", "easy_profiler::easy_profiler"]
+        self.cpp_info.components["etrt"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "hostUtils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
         self.cpp_info.components["etrt"].libs = ["etrt"]
         self.cpp_info.components["etrt"].includedirs = ["include"]
         self.cpp_info.components["etrt"].libdirs = ["lib"]
@@ -138,7 +138,7 @@ class RuntimeConan(ConanFile):
         self.cpp_info.components["etrt_static"].names["cmake_find_package"] = "etrt_static"
         self.cpp_info.components["etrt_static"].names["cmake_find_package_multi"] = "etrt_static"
         self.cpp_info.components["etrt_static"].set_property("cmake_target_name", "runtime::etrt_static")
-        self.cpp_info.components["etrt_static"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "elfio::elfio", "easy_profiler::easy_profiler"]
+        self.cpp_info.components["etrt_static"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "hostUtils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
         self.cpp_info.components["etrt_static"].libs = ["etrt_static"]
         self.cpp_info.components["etrt_static"].includedirs = ["include"]
         self.cpp_info.components["etrt_static"].libdirs = ["lib"]
