@@ -504,7 +504,7 @@ static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
     struct device_mgmt_get_mm_stats_rsp_t dm_rsp;
     int32_t status;
 
-    Log_Write(LOG_LEVEL_INFO, "Performance request: %s\n", __func__);
+    Log_Write(LOG_LEVEL_DEBUG, "Performance request: %s\n", __func__);
 
     status = get_mm_stats(&dm_rsp.mm_stats);
 
@@ -513,7 +513,7 @@ static void dm_svc_perf_get_mm_stats(uint16_t tag, uint64_t req_start_time)
         Log_Write(LOG_LEVEL_ERROR, "perf mgmt error: dm_svc_perf_get_mm_stats()\r\n");
     }
 
-    Log_Write(LOG_LEVEL_INFO, "Performance response: %s\n", __func__);
+    Log_Write(LOG_LEVEL_DEBUG, "Performance response: %s\n", __func__);
 
     FILL_RSP_HEADER(dm_rsp, tag, DM_CMD_GET_MM_STATS, timer_get_ticks_count() - req_start_time,
                     status)

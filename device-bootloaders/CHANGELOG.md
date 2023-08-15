@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-18127] Fix initialization of op stats values.
+- Fix the I2C communication issue by disabling context switch around the I2C communication APIs.
 ### Security
 
 ## [0.13.0] - 2023-08-03

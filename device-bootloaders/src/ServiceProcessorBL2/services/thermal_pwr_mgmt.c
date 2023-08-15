@@ -545,7 +545,8 @@ int update_module_current_temperature(void)
         CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.temperature, temperature)
         CMA(g_soc_power_reg.op_stats.minion.temperature, temperature, CMA_TEMP_SAMPLE_COUNT)
 
-        /*TODO: update system temperature stats when it is available */
+        /* TODO: update system temperature stats when it is available */
+        CALC_MIN_MAX(g_soc_power_reg.op_stats.system.temperature, 0)
 
         /* Switch power throttle state only if temperature is above threshold value
            and Active Power Management is enabled*/
@@ -2942,7 +2943,7 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
 *
 *   INPUTS
 *
-*       state    State of the MM to be set to 
+*       state    State of the MM to be set to
 *
 *   OUTPUTS
 *

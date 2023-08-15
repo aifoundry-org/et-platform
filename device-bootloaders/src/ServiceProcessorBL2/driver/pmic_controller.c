@@ -227,7 +227,15 @@ int wait_pmic_ready(void)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
 {
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the PMIC communication, hence this is required for now. */
+    portENTER_CRITICAL();
+
     int status = i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
     if (0 != status)
     {
         MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed, status: %d!\n", reg, status);
@@ -261,7 +269,15 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 
 inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
 {
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    Context switching messes the PMIC communication, hence this is required for now. */
+    portENTER_CRITICAL();
+
     int status = i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
     if (0 != status)
     {
         MESSAGE_ERROR("set_pmic_reg: PMIC write reg: %d failed, status: %d!", reg, status);
