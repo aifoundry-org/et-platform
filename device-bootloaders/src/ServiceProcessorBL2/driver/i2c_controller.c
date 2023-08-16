@@ -26,7 +26,6 @@
 #include "interrupt.h"
 #include "delays.h"
 
-/* #define sdaHoldTime 0x50005 */
 #define ET_SS_MIN_SCL_HIGH       4400
 #define ET_SS_MIN_SCL_LOW        5200
 #define ET_FS_MIN_SCL_HIGH       400
