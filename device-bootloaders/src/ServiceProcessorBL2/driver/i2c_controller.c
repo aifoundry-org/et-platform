@@ -26,10 +26,7 @@
 #include "interrupt.h"
 #include "delays.h"
 
-static void i2c_clock_init(ET_I2C_DEV_t *dev)
-{
-    /* #define sdaHoldTime 0x50005 */
-
+/* #define sdaHoldTime 0x50005 */
 #define ET_SS_MIN_SCL_HIGH       4400
 #define ET_SS_MIN_SCL_LOW        5200
 #define ET_FS_MIN_SCL_HIGH       400
@@ -40,8 +37,10 @@ static void i2c_clock_init(ET_I2C_DEV_t *dev)
 #define ET_CLOCK_SPEED_DIVIDER 1000
 #define ET_IC_CLK_MHZ          25
 
-#define I2C_MAX_TIMEOUT_MS 200
+#define I2C_MAX_TIMEOUT_MS 1000
 
+static void i2c_clock_init(ET_I2C_DEV_t *dev)
+{
     uint16_t val_ss_scl_hcnt, val_ss_scl_lcnt;
     uint16_t val_fs_scl_hcnt, val_fs_scl_lcnt;
 
