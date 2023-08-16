@@ -180,6 +180,10 @@ static void dm_task_entry(void *pvParameters)
         Log_Write(LOG_LEVEL_ERROR, "Error initializing OP stats: %s\n", __func__);
     }
 
+    /* Initialize the frequency values in global data - later on the change
+    is frequency (if required) is updated by the consequent consumers */
+    get_module_asic_frequencies(NULL);
+
     //semaphore is used to syncronize dm sampling and pmic fw update process.
     //dm sampling is blocked during pmic fw update.
     dm_sampling_semaphore_handle = xSemaphoreCreateBinaryStatic(&dm_sampling_semaphore_buffer);
@@ -187,7 +191,10 @@ static void dm_task_entry(void *pvParameters)
     {
         Log_Write(LOG_LEVEL_ERROR, "Create DM sampling semaphore failed.\n");
     }
-    dm_sampling_task_semaphore_give();
+    else
+    {
+        dm_sampling_task_semaphore_give();
+    }
 
     while (1)
     {
@@ -259,10 +266,10 @@ static void dm_task_entry(void *pvParameters)
             Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_dram_capacity_percent()\r\n");
         }
 
+        dm_sampling_task_semaphore_give();
+
         /* Log op stats to trace */
         dm_log_operating_point_stats();
-
-        dm_sampling_task_semaphore_give();
 
         /* Wait for the sampling period */
         vTaskDelay(pdMS_TO_TICKS(DM_TASK_DELAY_MS));

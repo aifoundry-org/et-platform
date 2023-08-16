@@ -324,7 +324,10 @@ int get_module_asic_frequencies(struct asic_frequencies_t *asic_frequencies)
         get_soc_perf_reg()->asic_frequency.io_shire_mhz = freq;
     }
 
-    *asic_frequencies = get_soc_perf_reg()->asic_frequency;
+    if (asic_frequencies != NULL)
+    {
+        *asic_frequencies = get_soc_perf_reg()->asic_frequency;
+    }
 
     return 0;
 }
