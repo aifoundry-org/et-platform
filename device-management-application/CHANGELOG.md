@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-18234] Fixed TDP level range in DM service
 ### Security
 
 ## [1.12.0] - 2023-08-03

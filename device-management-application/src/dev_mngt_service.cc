@@ -1490,7 +1490,7 @@ bool validReset() {
   return true;
 }
 
-#define TDP_LEVEL_MAX 40
+#define TDP_LEVEL_MAX 60
 
 bool validTDPLevel() {
   if (!validDigitsOnly()) {
@@ -1503,7 +1503,7 @@ bool validTDPLevel() {
   auto level = std::strtoul(optarg, &end, 10);
 
   if (level > TDP_LEVEL_MAX || end == optarg || *end != '\0' || errno != 0) {
-    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-40 )" << std::endl;
+    DM_VLOG(LOW) << "Aborting, argument: " << optarg << " is not valid tdp level ( 0-60 )" << std::endl;
     return false;
   }
 
