@@ -718,41 +718,42 @@ int update_module_soc_power(void)
     /* Update the power state */
     update_module_power_state(GET_POWER_STATE(POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW));
 
-    /* Switch to idle power state*/
-    if (mm_state == MM_STATE_IDLE)
+    if (g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON)
     {
-        /* go to idle state */
-        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
-        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
-    }
-    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) >= tdp_level_mW) &&
-             (g_soc_power_reg.power_throttle_state <= POWER_THROTTLE_STATE_POWER_DOWN) &&
-             (g_soc_power_reg.active_power_management))
-    {
-        /* Log the event*/
-        Log_Write(LOG_LEVEL_CRITICAL,
-                  "Power throttle down event, current pwr %u  tdp: tdp level %u\n",
-                  POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
+        /* Switch to idle power state*/
+        if (mm_state == MM_STATE_IDLE)
+        {
+            /* go to idle state */
+            g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
+            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+        }
+        else if ((POWER_10MW_TO_MW(soc_pwr_10mW) > tdp_level_mW) &&
+                 (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN))
+        {
+            /* Log the event*/
+            Log_Write(LOG_LEVEL_CRITICAL,
+                      "Power throttle down event, current pwr %u  tdp: tdp level %u\n",
+                      POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
 
-        /* Do the power throttling down */
-        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
-        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
-    }
+            /* Do the power throttling down */
+            g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_DOWN;
+            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+        }
 
-    /* Switch power throttle state only if we are currently in lower priority throttle
-        state and Active Power Management is enabled*/
-    else if ((POWER_10MW_TO_MW(soc_pwr_10mW) < LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
-             (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP) &&
-             (g_soc_power_reg.active_power_management))
-    {
-        /* Log the event*/
-        Log_Write(LOG_LEVEL_CRITICAL,
-                  "Power throttle up event, current pwr %u  tdp: tdp level %u\n",
-                  POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
+        /* Switch power throttle state only if we are currently in lower priority throttle
+            state and Active Power Management is enabled*/
+        else if ((POWER_10MW_TO_MW(soc_pwr_10mW) < LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+                 (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP))
+        {
+            /* Log the event*/
+            Log_Write(LOG_LEVEL_CRITICAL,
+                      "Power throttle up event, current pwr %u  tdp: tdp level %u\n",
+                      POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
 
-        /* Do the power throttling up */
-        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
-        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+            /* Do the power throttling up */
+            g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_UP;
+            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+        }
     }
 
     return 0;
@@ -1633,6 +1634,9 @@ static int set_minion_operating_point(uint16_t new_freq,
             Log_Write(LOG_LEVEL_ERROR, "Failed to update shire voltage\n");
             return status;
         }
+
+        /* Update voltage in global register*/
+        g_pmic_power_reg.module_voltage.minion = new_voltage;
     }
 
     /* Set L2cache voltage, it is using same clock as minion */
@@ -1648,6 +1652,9 @@ static int set_minion_operating_point(uint16_t new_freq,
             Log_Write(LOG_LEVEL_ERROR, "Failed to update L2Cache voltage\n");
             return status;
         }
+
+        /* Update voltage in global register*/
+        g_pmic_power_reg.module_voltage.l2_cache = new_voltage;
     }
 
     status = pwr_svc_find_hpdpll_mode(new_freq, &hpdpll_mode);
@@ -1670,14 +1677,13 @@ static int set_minion_operating_point(uint16_t new_freq,
         }
         return status;
     }
-
+    Log_Write(
+        LOG_LEVEL_CRITICAL, "new OP: Freq %d MNN voltage %d SRM voltage %d \n", new_freq,
+        PMIC_HEX_TO_MILLIVOLT(g_pmic_power_reg.module_voltage.minion, PMIC_MINION_VOLTAGE_BASE,
+                              PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER),
+        PMIC_HEX_TO_MILLIVOLT(g_pmic_power_reg.module_voltage.l2_cache, PMIC_SRAM_VOLTAGE_BASE,
+                              PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER));
     Update_Minion_Frequency_Global_Reg(new_freq);
-
-    /* Update voltage in global register*/
-    g_pmic_power_reg.module_voltage.minion = new_voltage;
-
-    /* Update voltage in global register*/
-    g_pmic_power_reg.module_voltage.l2_cache = new_voltage;
 
     power_status->tgt_freq = new_freq;
     power_status->tgt_voltage = new_voltage;
@@ -1978,6 +1984,7 @@ void power_throttling(power_throttle_state_e throttle_state)
                 status = reduce_minion_operating_point(&power_status);
                 break;
             }
+            case POWER_THROTTLE_STATE_THERMAL_IDLE:
             case POWER_THROTTLE_STATE_POWER_IDLE: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
@@ -2112,7 +2119,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
                 /* Add a log to indicate thermal */
                 Log_Write(LOG_LEVEL_CRITICAL,
-                          "Thermal throttle down event, current temprature: %u, threshold: %d",
+                          "Thermal throttle down event, current temprature: %u, threshold: %d\n",
                           current_temperature,
                           g_soc_power_reg.temperature_threshold.sw_temperature_c);
 
