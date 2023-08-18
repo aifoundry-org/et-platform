@@ -135,6 +135,8 @@ void testLog::dumpTraceBufferIfFatal(const bemu::Agent& agent) {
     
     auto traceInfoStream = std::ofstream("traceKernels_OnFatal_dev_"+ std::to_string(i) + ".bin", std::ios::binary | std::ios::out);  
     traceInfoStream.write((char*)dstbuf.data(), dstbuf.size());
+    traceInfoStream.flush();
+    traceInfoStream.close();
   }
   
 }
