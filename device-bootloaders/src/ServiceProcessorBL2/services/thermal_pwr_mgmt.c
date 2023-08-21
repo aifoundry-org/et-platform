@@ -551,7 +551,7 @@ int update_module_current_temperature(void)
         /* Switch power throttle state only if temperature is above threshold value
            and Active Power Management is enabled*/
         if ((temperature > g_soc_power_reg.temperature_threshold.sw_temperature_c) &&
-            (g_soc_power_reg.power_throttle_state <= POWER_THROTTLE_STATE_THERMAL_DOWN) &&
+            (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
             (g_soc_power_reg.active_power_management))
         {
             // Do the thermal throttling
@@ -721,24 +721,26 @@ int update_module_soc_power(void)
     if (g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON)
     {
         /* Switch to idle power state */
-        if ((mm_state == MM_STATE_IDLE) &&
-            (g_soc_power_reg.power_throttle_state != POWER_THROTTLE_STATE_POWER_IDLE))
+        if (mm_state == MM_STATE_IDLE)
         {
-            /* Log the event */
-            Log_Write(LOG_LEVEL_CRITICAL,
-                      "Power idle state event, current pwr %u  tdp: tdp level %u\n",
-                      POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
+            if (g_soc_power_reg.power_throttle_state != POWER_THROTTLE_STATE_POWER_IDLE)
+            {
+                /* Log the event */
+                Log_Write(LOG_LEVEL_CRITICAL,
+                          "Power idle state event, current pwr %u  tdp level %u\n",
+                          POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
 
-            /* Go to idle state */
-            g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
-            xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+                /* Go to idle state */
+                g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
+                xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+            }
         }
         else if ((POWER_10MW_TO_MW(soc_pwr_10mW) > tdp_level_mW) &&
                  (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN))
         {
             /* Log the event */
             Log_Write(LOG_LEVEL_CRITICAL,
-                      "Power throttle down event, current pwr %u  tdp: tdp level %u\n",
+                      "Power throttle down event, current pwr %u  tdp level: %u\n",
                       POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
 
             /* Do the power throttling down */
@@ -753,7 +755,7 @@ int update_module_soc_power(void)
         {
             /* Log the event */
             Log_Write(LOG_LEVEL_CRITICAL,
-                      "Power throttle up event, current pwr %u  tdp: tdp level %u\n",
+                      "Power throttle up event, current pwr %u  tdp level: %u\n",
                       POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
 
             /* Do the power throttling up */
@@ -2175,6 +2177,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     if (g_soc_power_reg.power_throttle_state <= throttle_state)
     {
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
+        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
 
     if (throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
