@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18127] Fix initialization of op stats values.
 - Fix the I2C communication issue by disabling context switch around the I2C communication APIs.
 - [SW-18201] Initializing the frequency values at the startup of system.
-- [SW-18234] Fixed throttling bug and added more logging
+- [SW-18234] Fixed throttling bug and added more logging.
+- Bugfix: Fixing the throttling idle state condition.
 ### Security
 
 ## [0.13.0] - 2023-08-03

@@ -720,17 +720,23 @@ int update_module_soc_power(void)
 
     if (g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON)
     {
-        /* Switch to idle power state*/
-        if (mm_state == MM_STATE_IDLE)
+        /* Switch to idle power state */
+        if ((mm_state == MM_STATE_IDLE) &&
+            (g_soc_power_reg.power_throttle_state != POWER_THROTTLE_STATE_POWER_IDLE))
         {
-            /* go to idle state */
+            /* Log the event */
+            Log_Write(LOG_LEVEL_CRITICAL,
+                      "Power idle state event, current pwr %u  tdp: tdp level %u\n",
+                      POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
+
+            /* Go to idle state */
             g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
             xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
         }
         else if ((POWER_10MW_TO_MW(soc_pwr_10mW) > tdp_level_mW) &&
                  (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_DOWN))
         {
-            /* Log the event*/
+            /* Log the event */
             Log_Write(LOG_LEVEL_CRITICAL,
                       "Power throttle down event, current pwr %u  tdp: tdp level %u\n",
                       POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
@@ -745,7 +751,7 @@ int update_module_soc_power(void)
         else if ((POWER_10MW_TO_MW(soc_pwr_10mW) < LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
                  (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP))
         {
-            /* Log the event*/
+            /* Log the event */
             Log_Write(LOG_LEVEL_CRITICAL,
                       "Power throttle up event, current pwr %u  tdp: tdp level %u\n",
                       POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW);
@@ -2216,7 +2222,8 @@ void thermal_power_task_entry(void *pvParameter)
 
         throttle_state = g_soc_power_reg.power_throttle_state;
 
-        Log_Write(LOG_LEVEL_INFO, "POWER THROTTLING:%d\n", g_soc_power_reg.power_throttle_state);
+        Log_Write(LOG_LEVEL_INFO, "Power Throttle event received. throttle_state: %d\n",
+                  g_soc_power_reg.power_throttle_state);
 
         switch (g_soc_power_reg.power_throttle_state)
         {
