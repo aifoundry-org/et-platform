@@ -163,6 +163,11 @@ typedef struct imageMetadata_
 #define PMIC_HEX_TO_MILLIVOLT(hex_val, base, multiplier, divider) \
     (((hex_val * multiplier) / divider) + base)
 
+/*! \def EXTRACT_BYTE(byte_idx, org_val)
+    \brief Macro definition to extract the specified byte from a variable.
+*/
+#define EXTRACT_BYTE(byte_idx, org_val) (0xFF & (org_val >> (byte_idx * 8)))
+
 /*! \def PMIC_BUSY_WAIT_TIMEOUT_MS
     \brief Macro definition for PMIC wait timeout when busy flag is set
 */

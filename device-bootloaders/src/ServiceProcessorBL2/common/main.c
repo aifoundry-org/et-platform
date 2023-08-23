@@ -99,13 +99,41 @@ static TaskHandle_t gs_taskHandleMain;
 static StackType_t gs_stackMain[MAIN_TASK_STACK_SIZE];
 static StaticTask_t gs_taskBufferMain;
 
+static inline void display_pmic_fw_info(void)
+{
+    uint8_t major;
+    uint8_t minor;
+    uint8_t revision;
+    uint32_t pmic_fw_hash;
+
+    // Read PMIC version and display
+    if (0 != pmic_get_fw_version(&major, &minor, &revision))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MAIN:[txt]PMIC get FW Version error!\n");
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]PMIC FW version: %d.%d.%d\n", major, minor,
+                  revision);
+    }
+
+    // Read PMIC FW hash and display
+    if (0 != pmic_get_fw_src_hash(&pmic_fw_hash))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MAIN:[txt]PMIC get FW Hash error!\n");
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]PMIC FW Hash: %c%c%c%c\n",
+                  EXTRACT_BYTE(0, pmic_fw_hash), EXTRACT_BYTE(1, pmic_fw_hash),
+                  EXTRACT_BYTE(2, pmic_fw_hash), EXTRACT_BYTE(3, pmic_fw_hash));
+    }
+}
+
 static void taskMain(void *pvParameters)
 {
     uint64_t minion_shires_mask;
     int status;
-    uint8_t major;
-    uint8_t minor;
-    uint8_t revision;
     (void)pvParameters;
 
     // Disable buffering on stdout
@@ -118,16 +146,8 @@ static void taskMain(void *pvParameters)
     // Establish connection to PMIC
     setup_pmic();
 
-    // Read PMIC version and display
-    if (0 != pmic_get_fw_version(&major, &minor, &revision))
-    {
-        Log_Write(LOG_LEVEL_ERROR, "MAIN:[txt]PMIC get FW Version error!\n");
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]PMIC FW version: %d.%d.%d\n", major, minor,
-                  revision);
-    }
+    // Print the PMIC FW info
+    display_pmic_fw_info();
 
     // Read and printout ecid
     ecid_t ecid;

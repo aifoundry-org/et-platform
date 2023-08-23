@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18201] Initializing the frequency values at the startup of system.
 - [SW-18234] Fixed throttling bug and added more logging.
 - Bugfix: Fixing the throttling idle state condition.
+- Reading PMIC FW Hash at boot and fixed bug in reading the correct versions based on slot.
 ### Security
 
 ## [0.13.0] - 2023-08-03

@@ -84,8 +84,6 @@
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
 
-#define EXTRACT_BYTE(byte_idx, org_val) (0xFF & (org_val >> (byte_idx * 8)))
-
 #define PMIC_SLAVE_ADDRESS         0x42
 #define PMIC_GPIO_INT_PIN_NUMBER   0x1
 #define ENABLE_ALL_PMIC_INTERRUPTS 0xFF
@@ -106,6 +104,25 @@ static struct pmic_event_control_block event_control_block __attribute__((sectio
 
 /* Generic PMIC setup */
 static ET_I2C_DEV_t g_pmic_i2c_dev_reg;
+
+/* Static function prototypes */
+static int pmic_fw_update_subcommand(uint8_t slot, uint8_t subcommand, uint32_t *data);
+static int pmic_get_active_boot_slot(uint8_t *slot);
+
+/* Inline functions */
+static inline int pmic_get_inactive_boot_slot(uint8_t *slot)
+{
+    int status;
+
+    status = pmic_get_active_boot_slot(slot);
+    if (status == STATUS_SUCCESS)
+    {
+        /* Invert it to inactive slot */
+        *slot = !slot;
+    }
+
+    return status;
+}
 
 /************************************************************************
 *
@@ -755,7 +772,17 @@ void pmic_error_isr(void)
 
 int pmic_get_fw_src_hash(uint32_t *fw_src_hash)
 {
-    return (get_pmic_reg(PMIC_I2C_FIRMWARE_SRC_HASH_ADDRESS, (uint8_t *)fw_src_hash, 4));
+    int32_t status;
+    uint8_t slot;
+
+    /* Read the active slot number */
+    status = pmic_get_active_boot_slot(&slot);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    return pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_HASHREAD, fw_src_hash);
 }
 
 /************************************************************************
@@ -780,23 +807,25 @@ int pmic_get_fw_src_hash(uint32_t *fw_src_hash)
 int pmic_get_fw_version(uint8_t *major, uint8_t *minor, uint8_t *patch)
 {
     uint32_t fw_sem_ver;
-    uint8_t val = PMIC_I2C_FW_MGMTCMD_VERSION;
+    int32_t status;
+    uint8_t slot;
 
-    /* write SUB_CMD:05 */
-    set_pmic_reg(PMIC_I2C_FW_MGMTCMD_ADDRESS, &val, 1);
-
-    /* read data back */
-    if (0 != get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&fw_sem_ver, 4))
+    /* Read the active slot number */
+    status = pmic_get_active_boot_slot(&slot);
+    if (status != STATUS_SUCCESS)
     {
-        MESSAGE_ERROR("pmic_get_fw_version: PMIC read reg failed");
-        return ERROR_PMIC_I2C_READ_FAILED;
+        return status;
     }
 
-    *major = (fw_sem_ver & 0xFF0000) >> 16;
-    *minor = (fw_sem_ver & 0xFF00) >> 8;
-    *patch = (fw_sem_ver & 0xFF);
+    status = pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_VERSION, &fw_sem_ver);
+    if (status == STATUS_SUCCESS)
+    {
+        *major = EXTRACT_BYTE(2, fw_sem_ver);
+        *minor = EXTRACT_BYTE(1, fw_sem_ver);
+        *patch = EXTRACT_BYTE(0, fw_sem_ver);
+    }
 
-    return SUCCESS;
+    return status;
 }
 
 /************************************************************************
@@ -2101,11 +2130,11 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 *
 *   FUNCTION
 *
-*       pmic_get_inactive_boot_slot
+*       pmic_get_active_boot_slot
 *
 *   DESCRIPTION
 *
-*       This function gets the boot slot not currently running.
+*       This function gets the boot slot currently running.
 *
 *   INPUTS
 *
@@ -2113,11 +2142,11 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 *
 *   OUTPUTS
 *
-*       slot      boot slot not currently running
+*       slot      boot slot currently running
 *
 ***********************************************************************/
 
-static int pmic_get_inactive_boot_slot(uint8_t *slot)
+static int pmic_get_active_boot_slot(uint8_t *slot)
 {
     int status;
     uint32_t val;
@@ -2141,7 +2170,7 @@ static int pmic_get_inactive_boot_slot(uint8_t *slot)
         return status;
     }
 
-    *slot = (uint8_t)!val;
+    *slot = (uint8_t)val;
     return STATUS_SUCCESS;
 }
 
