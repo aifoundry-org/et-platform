@@ -60,8 +60,8 @@ static void reset_etsoc(void)
         status = pmic_set_wdog_timeout_time(SP_BOOT_TIMEOUT);
         if (status == STATUS_SUCCESS)
         {
-            // Now Reset SP.
-            pmic_force_reset();
+            /* Reset the SP + PMIC */
+            pmic_force_power_off_on();
         }
     }
     else
