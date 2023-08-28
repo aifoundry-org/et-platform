@@ -23,8 +23,10 @@ class FunctionalTestDevMgmtApiHistoricalExtremeValCmds : public TestDevMgmtApiSy
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
     controlTraceLogging();
+    initDevErrorEvent();
   }
   void TearDown() override {
+    checkDevErrorEvent();
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     if (handle_ != nullptr) {
       dlclose(handle_);

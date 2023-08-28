@@ -44,6 +44,28 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-management
 )
 
+add_library(DMTests
+    DevErrorEvent.cpp
+    TestDevMgmtApiSyncCmds.cpp
+)
+
+target_compile_features(DMTests PRIVATE cxx_std_17)
+target_include_directories(DMTests
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(DMTests
+    PUBLIC
+        deviceManagement::DM
+        deviceLayer::deviceLayer
+        fmt::fmt
+        GTest::GTest
+        GTest::Main
+        gflags::gflags
+        ${CMAKE_DL_LIBS}
+)
+
 # Helper to create tests
 function(create_test)
     cmake_parse_arguments(TEST
@@ -55,21 +77,7 @@ function(create_test)
 
     add_executable(${TEST_TARGET} ${TEST_SOURCES})
     target_compile_features(${TEST_TARGET} PRIVATE cxx_std_17)
-    target_include_directories(${TEST_TARGET}
-        PRIVATE
-            $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
-            ${CMAKE_CURRENT_SOURCE_DIR}
-    )
-    target_link_libraries(${TEST_TARGET}
-        PRIVATE
-            deviceManagement::DM
-            deviceLayer::deviceLayer
-            fmt::fmt
-            GTest::GTest
-            GTest::Main
-            gflags::gflags
-            ${CMAKE_DL_LIBS}
-    )
+    target_link_libraries(${TEST_TARGET} PRIVATE DMTests)
 
     # set internal execution timeout value relative to actual timeout. Internal timeout
     # is smaller for wraping up the execution and printing the test summary
@@ -98,49 +106,49 @@ endfunction()
 ####################
 create_test(
     TARGET	FunctionalTestDevMgmtApiAssetTrackingCmds
-    SOURCES	functional/FunctionalTestDevMgmtApiAssetTrackingCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES	functional/FunctionalTestDevMgmtApiAssetTrackingCmds.cpp
     ARGS	""
     PROPERTIES	"LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     functional/FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      FunctionalTestDevMgmtApiHistoricalExtremeValCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiHistoricalExtremeValCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     functional/FunctionalTestDevMgmtApiHistoricalExtremeValCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      FunctionalTestDevMgmtApiErrorControlCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiErrorControlCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     functional/FunctionalTestDevMgmtApiErrorControlCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      FunctionalTestDevMgmtApiLinkMgmtCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiLinkMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     functional/FunctionalTestDevMgmtApiLinkMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      FunctionalTestDevMgmtApiPerfMgmtCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiPerfMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     functional/FunctionalTestDevMgmtApiPerfMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;60"
 )
 
 create_test(
     TARGET      FunctionalTestDevMgmtApiFirmwareMgmtCmds
-    SOURCES     functional/FunctionalTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     functional/FunctionalTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;120"
 )
@@ -150,14 +158,14 @@ create_test(
 #####################
 create_test(
     TARGET      IntegrationTestDevMgmtApiCmds
-    SOURCES     integration/IntegrationTestDevMgmtApiCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     integration/IntegrationTestDevMgmtApiCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
 )
 
 create_test(
     TARGET      IntegrationTestDevMgmtApiTraceCmds
-    SOURCES     integration/IntegrationTestDevMgmtApiTraceCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     integration/IntegrationTestDevMgmtApiTraceCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
 )
@@ -167,14 +175,14 @@ create_test(
 #####################
 create_test(
     TARGET      RunControlApiTestcmds
-    SOURCES     mdi_debug/RunControlApiTestcmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     mdi_debug/RunControlApiTestcmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;MDI;TIMEOUT;300"
 )
 
 create_test(
     TARGET      StateInspectionApiTestcmds
-    SOURCES     mdi_debug/StateInspectionApiTestcmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     mdi_debug/StateInspectionApiTestcmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;MDI;TIMEOUT;300"
 )
@@ -184,63 +192,63 @@ create_test(
 ##################
 create_test(
     TARGET      SecurityTestDevMgmtApiGenericCmds
-    SOURCES     security/SecurityTestDevMgmtApiGenericCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiGenericCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      SecurityTestDevMgmtApiAssetTrackingCmds
-    SOURCES     security/SecurityTestDevMgmtApiAssetTrackingCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiAssetTrackingCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds
-    SOURCES     security/SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiThermalAndPowerMonitoringCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      SecurityTestDevMgmtApiHistoricalExtremeValCmds
-    SOURCES     security/SecurityTestDevMgmtApiHistoricalExtremeValCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiHistoricalExtremeValCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      SecurityTestDevMgmtApiErrorControlCmds
-    SOURCES     security/SecurityTestDevMgmtApiErrorControlCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiErrorControlCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      SecurityTestDevMgmtApiLinkMgmtCmds
-    SOURCES     security/SecurityTestDevMgmtApiLinkMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiLinkMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      SecurityTestDevMgmtApiPerfMgmtCmds
-    SOURCES     security/SecurityTestDevMgmtApiPerfMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     security/SecurityTestDevMgmtApiPerfMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;SECURITY;TIMEOUT;60"
 )
 
 create_test(
     TARGET      OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds
-    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;120"
 )
 
 create_test(
     TARGET      OpsNodeDependentTestDevMgmtApiTraceCmds
-    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiTraceCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     opsNodeDependent/OpsNodeDependentTestDevMgmtApiTraceCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;OPS_NODE_DEPENDENT;TIMEOUT;60"
 )
@@ -250,7 +258,7 @@ create_test(
 ################
 create_test(
     TARGET      StressTestDevMgmtApiFirmwareMgmtCmds
-    SOURCES     stress/StressTestDevMgmtApiFirmwareMgmtCmds.cpp TestDevMgmtApiSyncCmds.cpp
+    SOURCES     stress/StressTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;STRESS;TIMEOUT;450"
 )

@@ -11,6 +11,7 @@
 #ifndef TEST_DEVICE_M_H
 #define TEST_DEVICE_M_H
 
+#include "DevErrorEvent.h"
 #include "deviceManagement/DeviceManagement.h"
 #include "utils.h"
 
@@ -120,6 +121,10 @@ protected:
 
   // Integration tests for SP tracing and error events
   void initTestTrace();
+  void initDevErrorEvent();
+  void checkDevErrorEvent(std::vector<std::string> list = {"DramUceEvent", "MinionHangUceEvent", "PcieUceEvent",
+                                                           "SpHangUceEvent", "SpWdogUceEvent", "SramUceEvent"},
+                          bool isCheckList = true);
   bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
   void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
 
@@ -280,6 +285,7 @@ protected:
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
   logging::LoggerDefault logger_;
+  std::unordered_map<int, DevErrorEvent> eventsAtStartMap_;
 };
 
 #endif // TEST_DEVICE_M_H

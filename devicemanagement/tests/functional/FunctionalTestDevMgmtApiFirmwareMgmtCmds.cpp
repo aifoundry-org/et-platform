@@ -23,8 +23,11 @@ class FunctionalTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
     controlTraceLogging();
+    initDevErrorEvent();
   }
   void TearDown() override {
+    // NOTE: Skip checking of device error events in ETSOC reset tests because error counters
+    // are also reset during the reset
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     if (handle_ != nullptr) {
       dlclose(handle_);
@@ -41,6 +44,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
   // if (targetInList({Target::FullBoot, Target::Silicon})) {
   if (targetInList({Target::FullBoot})) {
     getFWBootstatus(false /* Multiple devices */);
+    checkDevErrorEvent();
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
@@ -50,6 +54,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getFWBootstatus) {
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModuleFWRevision(false /* Multiple devices */);
+    checkDevErrorEvent();
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
@@ -86,6 +91,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, resetSOCMultiDevice) {
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, testShireCacheConfig) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     testShireCacheConfig(false /* Multiple Devices */);
+    checkDevErrorEvent();
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;

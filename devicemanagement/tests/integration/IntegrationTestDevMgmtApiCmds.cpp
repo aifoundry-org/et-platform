@@ -33,7 +33,9 @@ class IntegrationTestDevMgmtApiCmds : public TestDevMgmtApiSyncCmds {
 };
 
 TEST_F(IntegrationTestDevMgmtApiCmds, serializeAccessMgmtNode) {
+  initDevErrorEvent();
   serializeAccessMgmtNode(false);
+  checkDevErrorEvent();
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
@@ -41,6 +43,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, getDeviceErrorEvents) {
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
+  initDevErrorEvent();
   DV_LOG(INFO) << "setTraceControl: verifying disable trace control command";
   setTraceControl(false /* Multiple devices */, device_mgmt_api::TRACE_CONTROL_TRACE_DISABLE);
   DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to UART) control command";
@@ -48,15 +51,18 @@ TEST_F(IntegrationTestDevMgmtApiCmds, setTraceControl) {
   DV_LOG(INFO) << "setTraceControl: verifying enabling trace (dump to trace buffer) control command";
   setTraceControl(false /* Multiple devices */,
                   device_mgmt_api::TRACE_CONTROL_TRACE_ENABLE | device_mgmt_api::TRACE_CONTROL_TRACE_UART_ENABLE);
+  checkDevErrorEvent();
 }
 
 TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {
+  initDevErrorEvent();
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
                     device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
 
   /* Restore the logging level back */
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
                     device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_INFO);
+  checkDevErrorEvent();
 }
 
 int main(int argc, char** argv) {
