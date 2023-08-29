@@ -105,6 +105,9 @@ static struct pmic_event_control_block event_control_block __attribute__((sectio
 /* Generic PMIC setup */
 static ET_I2C_DEV_t g_pmic_i2c_dev_reg;
 
+/* Global to indicate if any PMIC firmware update was done */
+static bool g_pmic_fw_update_done = false;
+
 /* Static function prototypes */
 static int pmic_fw_update_subcommand(uint8_t slot, uint8_t subcommand, uint32_t *data);
 static int pmic_get_active_boot_slot(uint8_t *slot);
@@ -122,6 +125,30 @@ static inline int pmic_get_inactive_boot_slot(uint8_t *slot)
     }
 
     return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_check_firmware_updated
+*
+*   DESCRIPTION
+*
+*       This function returns true if the pmic firmware update was done.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       boolean - true if firmware was updated, else false
+*
+***********************************************************************/
+bool pmic_check_firmware_updated(void)
+{
+    return g_pmic_fw_update_done;
 }
 
 /************************************************************************
@@ -2670,6 +2697,9 @@ int pmic_firmware_update(void)
         Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum failure %u\n", cksum_result);
         return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
     }
+
+    /* Set the global to indicate that PMIC Firmware was successful */
+    g_pmic_fw_update_done = true;
 
     verify_end = timer_get_ticks_count();
     end = timer_get_ticks_count();

@@ -1685,19 +1685,20 @@ static int set_minion_operating_point(uint16_t new_freq,
         }
         return status;
     }
-    Log_Write(
-        LOG_LEVEL_CRITICAL, "new OP: Freq %d MNN voltage %d SRM voltage %d \n", new_freq,
-        PMIC_HEX_TO_MILLIVOLT(g_pmic_power_reg.module_voltage.minion, PMIC_MINION_VOLTAGE_BASE,
-                              PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER),
-        PMIC_HEX_TO_MILLIVOLT(g_pmic_power_reg.module_voltage.l2_cache, PMIC_SRAM_VOLTAGE_BASE,
-                              PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER));
     Update_Minion_Frequency_Global_Reg(new_freq);
 
     power_status->tgt_freq = new_freq;
     power_status->tgt_voltage = new_voltage;
 
     Trace_Power_Status(Trace_Get_SP_CB(), power_status);
-    return 0;
+
+    Log_Write(
+        LOG_LEVEL_CRITICAL, "new OP: Freq %d MNN voltage %d SRM voltage %d \n", new_freq,
+        PMIC_HEX_TO_MILLIVOLT(g_pmic_power_reg.module_voltage.minion, PMIC_MINION_VOLTAGE_BASE,
+                              PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER),
+        PMIC_HEX_TO_MILLIVOLT(g_pmic_power_reg.module_voltage.l2_cache, PMIC_SRAM_VOLTAGE_BASE,
+                              PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER));
+    return status;
 }
 /************************************************************************
 *

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added support for resetting PMIC only if the PMIC firmware update was done.
 ### Changed
 - [SW-18224] Increase the I2C semaphore timeout.
 - Remove unnecessary delay in power throttling and adjust a few throttling conditions.

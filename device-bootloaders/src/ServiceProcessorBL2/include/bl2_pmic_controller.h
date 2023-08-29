@@ -201,6 +201,12 @@ typedef struct imageMetadata_
 */
 void setup_pmic(void);
 
+/*! \fn bool pmic_check_firmware_updated(void)
+    \brief This function returns true if PMIC update was done.
+    \return true or false
+*/
+bool pmic_check_firmware_updated(void);
+
 /*! \fn int wait_pmic_ready(void)
     \brief This function waits for PMIC ready to assert or time out.
     \return The function call status, pass/fail.
