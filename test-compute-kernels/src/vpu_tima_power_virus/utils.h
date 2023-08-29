@@ -12,6 +12,11 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+
+/* Kernel status codes */
+#define SUCCESS 0
+#define ERROR_SELF_CHECK_MASK_MISMATCH -1
+
 typedef struct et_tensor_load_conf
 {
    bool     use_tmask;
@@ -167,7 +172,7 @@ void setup_cache_scp(){
       mcache_control(1,0,0);
       WAIT_CACHEOPS;
       //NOP;   // VERIF-3295: Xavier suggested an extra NOP before FENCE; (here the above "WAIT_CACHEOPS" takes at least 1 cycle)
-      FENCE;   // PRM-8; VERIF-3295 
+      FENCE;   // PRM-8; VERIF-3295
 
       // Scratchpad Mode
       mcache_control(1,1,0);

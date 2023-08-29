@@ -11,12 +11,19 @@ typedef struct {
     uint64_t loop_size;
 } Parameters;
 
-int main(const Parameters* const kernel_params_ptr) {
-    int tid = (int)get_thread_id();
-    uint64_t ret = 0;
-    if (tid == 0) {
+int main(const Parameters* const kernel_params_ptr)
+{
+    int ret = SUCCESS;
+
+    if (get_thread_id() == 0)
+    {
         ret = vpu_tima_power_virus(kernel_params_ptr->loop_size);
+
+        if (ret != SUCCESS)
+        {
+            et_printf("vpu_tima_power_virus: failed! status code: %d\n", ret);
+        }
     }
-    if (ret == 0) return 0;
-    else return -1;
+
+    return ret;
 }
