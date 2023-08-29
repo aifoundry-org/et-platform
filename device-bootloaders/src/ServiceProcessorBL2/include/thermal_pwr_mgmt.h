@@ -70,12 +70,12 @@
 #define MINION_FREQUENCY_MIN_LIMIT  300
 #define MINION_FREQUENCY_STEP_VALUE 50
 
-/* minion voltage limits*/
-#define MINION_VOLTAGE_MIN_LIMIT 350
-#define MINION_VOLTAGE_MAX_LIMIT 850
+/* minion voltage limits */
+#define MINION_VOLTAGE_MIN_LIMIT 400
+#define MINION_VOLTAGE_MAX_LIMIT 650
 
-/* L2CACHE voltage limits*/
-#define L2CACHE_VOLTAGE_MIN_LIMIT 500
+/* L2CACHE voltage limits */
+#define L2CACHE_VOLTAGE_MIN_LIMIT 650
 #define L2CACHE_VOLTAGE_MAX_LIMIT 1000
 
 // Defines for converting power values
@@ -85,14 +85,14 @@
 /*! \def TEMP_THRESHOLD_SW_MANAGED
     \brief A macro that provides early indication temperature threshold value
 */
-#define TEMP_THRESHOLD_SW_MANAGED 70
+#define TEMP_THRESHOLD_SW_MANAGED 65
 
 /*! \def POWER_THRESHOLD_SW_MANAGED
     \brief A macro that provides early indication power threshold value.
 *          This power threshold will be set as initial value for SW power managing.
 *          Following M.2 spec.
 */
-#define POWER_THRESHOLD_SW_MANAGED 55
+#define POWER_THRESHOLD_SW_MANAGED 65
 
 /*! \def SAFE_POWER_THRESHOLD
     \brief A macro that provides safe power threshold value.
@@ -110,7 +110,7 @@
 /*! \def POWER_GUARDBAND_SCALE_FACTOR
     \brief A macro that provides power scale factor in percentages.
 */
-#define POWER_GUARDBAND_SCALE_FACTOR 10
+#define POWER_GUARDBAND_SCALE_FACTOR 5
 
 /*! \def DELTA_TEMP_UPDATE_PERIOD
     \brief A macro that provides dTj/dt - time(uS) for Junction temperature to be updated

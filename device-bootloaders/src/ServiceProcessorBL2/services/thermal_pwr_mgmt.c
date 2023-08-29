@@ -227,9 +227,9 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
 /*! \def GET_POWER_STATE(power_mW)
     \brief Depending on given power returns current power state.
 */
-#define GET_POWER_STATE(power_mW, tdp)                  \
-    (power_mW > UPPER_POWER_THRESHOLD_GUARDBAND(tdp)) ? \
-        POWER_STATE_MAX_POWER :                         \
+#define GET_POWER_STATE(power_mW, tdp) \
+    (power_mW > tdp) ?                 \
+        POWER_STATE_MAX_POWER :        \
         (power_mW > SAFE_POWER_THRESHOLD) ? POWER_STATE_MANAGED_POWER : POWER_STATE_SAFE_POWER
 
 /*! \def MAX(x,y)
@@ -718,6 +718,7 @@ int update_module_soc_power(void)
     /* Update the power state */
     update_module_power_state(GET_POWER_STATE(POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW));
 
+    /* Check if the power management is enabled */
     if (g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON)
     {
         /* Switch to idle power state */
@@ -748,9 +749,8 @@ int update_module_soc_power(void)
             xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
         }
 
-        /* Switch power throttle state only if we are currently in lower priority throttle
-            state and Active Power Management is enabled*/
-        else if ((POWER_10MW_TO_MW(soc_pwr_10mW) < LOWER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) &&
+        /* Switch power throttle state only if we are currently in lower priority throttle state */
+        else if ((POWER_10MW_TO_MW(soc_pwr_10mW) < tdp_level_mW) &&
                  (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_POWER_UP))
         {
             /* Log the event */
@@ -2019,9 +2019,6 @@ void power_throttling(power_throttle_state_e throttle_state)
                       status);
             return;
         }
-
-        /* TODO: What should be this delay? */
-        vTaskDelay(pdMS_TO_TICKS(DELTA_POWER_UPDATE_PERIOD));
 
         /* Get the current power */
         status = pmic_read_average_soc_power(&avg_pwr_10mW);
