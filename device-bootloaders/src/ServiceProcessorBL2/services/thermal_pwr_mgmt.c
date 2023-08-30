@@ -2935,12 +2935,21 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
 {
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     int32_t status = STATUS_SUCCESS;
+
+    /* Enter critical section - Prevents the calling task to not to schedule out.
+    While the voltage is being changed on a module, the transactions cannot happen. */
+    portENTER_CRITICAL();
+
     status = pmic_set_voltage(voltage_type, voltage);
-    if (status != STATUS_SUCCESS)
+    if (status == STATUS_SUCCESS)
     {
-        return status;
+        status = check_voltage_stability(voltage_type, voltage);
     }
-    return check_voltage_stability(voltage_type, voltage);
+
+    /* Exit critical section */
+    portEXIT_CRITICAL();
+
+    return status;
 #else
     return pmic_set_voltage(voltage_type, voltage);
 #endif

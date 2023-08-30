@@ -151,10 +151,11 @@ int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp,
 
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
-        /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ(cmd, cmd_size))
+        retval = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, cmd_size);
+        if (retval != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", retval);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
@@ -211,9 +212,11 @@ int32_t MM_Iface_Send_Echo_Cmd(void)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
@@ -279,9 +282,11 @@ int32_t MM_Iface_Get_DRAM_BW(uint32_t *read_bw, uint32_t *write_bw)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
@@ -347,9 +352,11 @@ int32_t MM_Iface_Get_MM_Stats(struct compute_resources_sample *stats)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
@@ -422,9 +429,11 @@ int32_t MM_Iface_MM_Stats_Run_Control(sp2mm_stats_control_e control)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
@@ -494,9 +503,11 @@ int32_t MM_Iface_Send_Abort_All_Cmd(void)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
@@ -558,14 +569,15 @@ int32_t MM_Iface_Send_Update_Freq_Cmd(uint16_t freq)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }
 
-        /* TODO: No response is expected; is there a need for it? */
         xSemaphoreGive(mm_cmd_lock);
     }
     else
@@ -609,9 +621,11 @@ int32_t MM_Iface_Wait_For_CM_Boot_Cmd(uint64_t shire_mask)
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
         /* Send command to MM. */
-        if (0 != MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd)))
+        status = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, sizeof(cmd));
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error!\r\n");
+            Log_Write(LOG_LEVEL_ERROR,
+                      "MM_Iface_Push_Cmd_To_SP2MM_SQ: CQ push error! status code: %d\r\n", status);
             xSemaphoreGive(mm_cmd_lock);
             return MM_IFACE_SP2MM_CMD_PUSH_ERROR;
         }

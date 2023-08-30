@@ -620,11 +620,11 @@ static int enable_minion_shire(uint64_t shire_mask)
     /* Clock gate debug logic */
     CLOCK_GATE_DEBUG_LOGIC
 
-    /* Partition size of SCP, L2 and L3 
-     Default Mode 0 : 
-       SCP - 80 MB (2.5 MB / shire ) 
+    /* Partition size of SCP, L2 and L3
+     Default Mode 0 :
+       SCP - 80 MB (2.5 MB / shire )
        L2 -  16 MB (0.5 MB/ shire )
-       L3 -  32 MB (1 MB / shire )  
+       L3 -  32 MB (1 MB / shire )
        Fetch scp l2 and l3 size from flash configuration
     */
     status = flash_fs_get_sc_config(&sc_config_data);
