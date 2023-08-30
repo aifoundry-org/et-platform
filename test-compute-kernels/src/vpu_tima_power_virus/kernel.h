@@ -167,7 +167,7 @@ int vpu_tima_power_virus(uint64_t loop_size) {
 
    setup_l1_scp();
 
-   for (uint64_t i = 0; ((i < loop_size) && (res == SUCCESS)); i++) {
+   for (uint64_t i = 0; (i < loop_size); i++) {
       do_tima( true,  true,  0, 0);
       for (uint64_t j = 0; j < 256; j+=3) {
          do_tima( true, false,  0, j);
@@ -190,6 +190,11 @@ int vpu_tima_power_virus(uint64_t loop_size) {
       do_tima(false, false, 15, 0);
 
       res = selfcheck(mask_tima_gold_ref);
+      if (res != SUCCESS)
+      {
+         et_printf("vpu_tima_power_virus: selfcheck failed on iteration %d! status code: %d", i, res);
+         break;
+      }
    }
 
    return res;
