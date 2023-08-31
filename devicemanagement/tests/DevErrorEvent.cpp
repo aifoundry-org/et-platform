@@ -42,8 +42,10 @@ bool DevErrorEvent::hasFailure(std::vector<std::string> list, bool isCheckList) 
       }
       assert(fullList.size() == static_cast<int>(EventType::TotalEvents));
     });
-    std::set_difference(fullList.begin(), fullList.end(), list.begin(), list.end(),
-                        std::inserter(checkList, checkList.begin()));
+    std::sort(list.begin(), list.end(),
+              [this](const auto& a, const auto& b) { return getEventType(a) < getEventType(b); });
+    std::set_difference(fullList.begin(), fullList.end(), list.begin(), list.end(), std::back_inserter(checkList),
+                        [this](const auto& a, const auto& b) { return getEventType(a) < getEventType(b); });
   }
   for (const auto& event : checkList) {
     if (getDevErrorEventCount(event) > 0) {

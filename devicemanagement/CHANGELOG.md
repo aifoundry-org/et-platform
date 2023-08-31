@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-18352b] Fix check device error events logic when isCheckList set to false
 ### Security
 
 ## [0.12.0] - 2023-08-03
