@@ -151,7 +151,7 @@ int32_t MM_Iface_MM_Command_Shell(const void *cmd, uint32_t cmd_size, char *rsp,
 
     if (xSemaphoreTake(mm_cmd_lock, SP2MM_CMD_TIMEOUT) == pdTRUE)
     {
-        retval = MM_Iface_Push_Cmd_To_SP2MM_SQ((void *)&cmd, cmd_size);
+        retval = MM_Iface_Push_Cmd_To_SP2MM_SQ(cmd, cmd_size);
         if (retval != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR,
