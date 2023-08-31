@@ -203,21 +203,22 @@ static inline void logTraceException(std::stringstream& logs, const struct trace
   }
 }
 
-static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct trace_entry_header_t* entry) {
+static inline bool decodeSingleTraceEvent(std::stringstream& logs, int& unparsedPackets,
+                                          const struct trace_entry_header_t* entry) {
   auto validTypeFound = true;
-  logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :";
   if (entry->type == TRACE_TYPE_STRING) {
     std::array<char, TRACE_STRING_MAX_SIZE + 1> stringLog;
     const trace_string_t* tracePacketString = templ::bit_cast<trace_string_t*>(entry);
     snprintf(stringLog.data(), TRACE_STRING_MAX_SIZE + 1, "%s", tracePacketString->string);
-    logs << stringLog.data() << std::endl;
+    logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :" << stringLog.data() << std::endl;
   } else if (entry->type == TRACE_TYPE_EXCEPTION) {
+    logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :";
     logTraceException(logs, entry);
   } else if (entry->type > TRACE_TYPE_STRING && entry->type <= TRACE_TYPE_CUSTOM_EVENT) {
-    logs << "Trace Packet Type:" << entry->type
-         << ", Use trace-utils decoder on trace binary file to parse this packet." << std::endl;
+    unparsedPackets++;
   } else {
-    logs << "Invalid Trace Packet Type:" << entry->type << std::endl;
+    logs << "H:" << entry->hart_id << " Timestamp:" << entry->cycle << " :Invalid Trace Packet Type:" << entry->type
+         << std::endl;
     validTypeFound = false;
   }
   return validTypeFound;
@@ -257,11 +258,16 @@ bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, Tr
   const struct trace_entry_header_t* entry = NULL;
   bool validEventFound = false;
   std::stringstream logs;
+  int unparsedPackets = 0;
   for (entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry); entry;
        entry = Trace_Decode(templ::bit_cast<trace_buffer_std_header_t*>(traceBuf.data()), entry)) {
-    if (decodeSingleTraceEvent(logs, entry)) {
+    if (decodeSingleTraceEvent(logs, unparsedPackets, entry)) {
       validEventFound = true;
     }
+  }
+  if (unparsedPackets > 0) {
+    logs << "Trace unparsed packets:" << unparsedPackets
+         << ", Use trace-utils decoder on trace binary file to parse these packets." << std::endl;
   }
 
   logfile << logs.str();

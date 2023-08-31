@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-18395] Maintaining a count of unparsed events in textual trace instead of logging each event separately.
 ### Deprecated
 ### Removed
 ### Fixed
