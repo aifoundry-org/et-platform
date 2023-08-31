@@ -15,6 +15,11 @@ int main(const Parameters* const kernel_params_ptr)
 {
     int ret = SUCCESS;
 
+    if (get_hart_id() == 0)
+    {
+        et_printf("vpu_tima_power_virus..\n");
+    }
+
     if (get_thread_id() == 0)
     {
         ret = vpu_tima_power_virus(kernel_params_ptr->loop_size);

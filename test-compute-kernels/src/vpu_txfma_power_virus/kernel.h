@@ -2,6 +2,8 @@
 #ifndef _VPU_POWER_VIRUS_KERNEL_
 #define _VPU_POWER_VIRUS_KERNEL_ 1
 
+#include <etsoc/common/utils.h>
+
 void vpu_pv_set_m0_m1(uint64_t m0_m1);
 void vpu_pv_load_f0(volatile uint32_t *mem);
 void vpu_pv_load_f1(volatile uint32_t *mem);

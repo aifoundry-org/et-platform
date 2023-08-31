@@ -100,7 +100,7 @@ int selfcheck(uint64_t mask_tima_gold_ref) {
       );
 
       if (mask_regs != mask_tima_gold_ref) {
-         et_printf("Expected Reg: 0x%X Vs Golden Ref: 0x%X", mask_regs, mask_tima_gold_ref);
+         et_printf("Expected Reg: 0x%1X Vs Golden Ref: 0x%1X", mask_regs, mask_tima_gold_ref);
          return ERROR_SELF_CHECK_MASK_MISMATCH;
       }
 
@@ -167,7 +167,7 @@ int vpu_tima_power_virus(uint64_t loop_size) {
 
    setup_l1_scp();
 
-   for (uint64_t i = 0; (i < loop_size); i++) {
+   for (int i = 0; (i < loop_size); i++) {
       do_tima( true,  true,  0, 0);
       for (uint64_t j = 0; j < 256; j+=3) {
          do_tima( true, false,  0, j);

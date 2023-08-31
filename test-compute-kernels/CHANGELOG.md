@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18383] Improve logging in TIMA virus kernel.
 - Improve logging in TIMA virus kernel.
 ### Changed
+- Added printf for first hart on Virus test
 ### Deprecated
 ### Removed
 ### Fixed

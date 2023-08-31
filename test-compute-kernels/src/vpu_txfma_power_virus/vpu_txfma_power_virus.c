@@ -6,8 +6,20 @@ typedef struct {
 } Parameters;
 
 int main(const Parameters* const kernel_params_ptr) {
-    uint64_t ret = vpu_power_virus(kernel_params_ptr->loop_size);
-    if (ret == 0) return 0;
-    else return -1;
+    int ret = 0;
+
+    if (get_hart_id() == 0)
+    {
+        et_printf("vpu_txfma_power_virus..\n");
+    }
+
+    ret = vpu_power_virus(kernel_params_ptr->loop_size);
+
+    if (ret != 0)
+    {
+        et_printf("vpu_txfma_power_virus: failed! status code: %d\n", ret);
+    }
+
+    return ret;
 }
 
