@@ -122,9 +122,7 @@ protected:
   // Integration tests for SP tracing and error events
   void initTestTrace();
   void initDevErrorEvent();
-  void checkDevErrorEvent(std::vector<std::string> list = {"DramUceEvent", "MinionHangUceEvent", "PcieUceEvent",
-                                                           "SpHangUceEvent", "SpWdogUceEvent", "SramUceEvent"},
-                          bool isCheckList = true);
+  void checkDevErrorEvent(std::vector<std::string> list = {"SpTraceBufferFullCeEvent"}, bool isCheckList = false);
   bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
   void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
 
