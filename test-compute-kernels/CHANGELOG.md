@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Add tensor FMA wait for TIMA to complete.
 ### Security
 
 ## [1.7.0] - 2023-08-03

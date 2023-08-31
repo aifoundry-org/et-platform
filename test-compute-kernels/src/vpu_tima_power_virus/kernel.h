@@ -189,6 +189,9 @@ int vpu_tima_power_virus(uint64_t loop_size) {
       }
       do_tima(false, false, 15, 0);
 
+      /* wait for the FMAs to complete */
+      WAIT_TENSOR_FMA
+
       res = selfcheck(mask_tima_gold_ref);
       if (res != SUCCESS)
       {
