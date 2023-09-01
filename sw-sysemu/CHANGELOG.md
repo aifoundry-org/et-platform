@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.13.0] - 2023-09-01
+### Added
+### Changed
 - Updated system-sw embedded components
 - Disabed the inux-ubuntu22.04-x86_64-gcc11-release build until the issue is resolved.
 ### Deprecated
