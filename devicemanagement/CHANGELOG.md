@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.13.0] - 2023-09-01
+### Added
 - [SW-18352] Add support to check device error events
 ### Changed
 - [SW-18398] Restrict check for device error events
