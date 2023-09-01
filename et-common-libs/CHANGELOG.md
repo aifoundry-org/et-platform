@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.19.0] - 2023-09-01
+### Added
+### Changed
 - (Conan) Define compatibility of binaries form gcc --> clang
 ### Deprecated
 ### Removed
