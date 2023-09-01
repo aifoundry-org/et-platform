@@ -38,12 +38,12 @@ class DeviceManagementApplicationConan(ConanFile):
     def configure(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
-    
+
     def layout(self):
         cmake_layout(self)
 
     def requirements(self):
-        self.requires("deviceManagement/0.12.0")
+        self.requires("deviceManagement/0.13.0")
         self.requires("esperantoTrace/2.0.0")
         self.requires("deviceLayer/2.2.0")
         self.requires("hostUtils/0.3.0")
@@ -63,7 +63,7 @@ class DeviceManagementApplicationConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.generate()
-    
+
         deps = CMakeDeps(self)
         deps.generate()
 
@@ -77,7 +77,7 @@ class DeviceManagementApplicationConan(ConanFile):
         cmake.configure()
         cmake.install()
         rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
         # this pkg only contains executables
         self.cpp_info.frameworkdirs = []
