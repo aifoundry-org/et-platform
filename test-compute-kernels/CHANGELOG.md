@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.8.0] - 2023-09-01
+### Added
 - [SW-18383] Improve logging in TIMA virus kernel.
 - Improve logging in TIMA virus kernel.
 ### Changed
