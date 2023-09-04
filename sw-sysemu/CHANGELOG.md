@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [0.13.0] - 2023-09-01
+### Added
+### Changed
+- Updated system-sw embedded components
+- Disabed the inux-ubuntu22.04-x86_64-gcc11-release build until the issue is resolved.
+### Deprecated
+### Removed
+### Fixed
 - Flush and close ofstream on write trace_OnFatal file.
 ### Security
 
@@ -70,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.0] - 2023-01-11
 ### Added
 ### Changed
-- (Conan) Updated embedded elfs for matching 0.8.0 release 
+- (Conan) Updated embedded elfs for matching 0.8.0 release
 ### Deprecated
 ### Removed
 ### Fixed
