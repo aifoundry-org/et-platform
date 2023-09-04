@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Updated system-sw embedded components
+- Disabed the inux-ubuntu22.04-x86_64-gcc11-release build until the issue is resolved.
 ### Deprecated
 ### Removed
 ### Fixed
@@ -71,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.0] - 2023-01-11
 ### Added
 ### Changed
-- (Conan) Updated embedded elfs for matching 0.8.0 release 
+- (Conan) Updated embedded elfs for matching 0.8.0 release
 ### Deprecated
 ### Removed
 ### Fixed
