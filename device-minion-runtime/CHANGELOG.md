@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-18427] Fixed the stats worker to handle trace disabled case and fixed the null pointer evict issue.
 ### Security
 
 ## [0.19.0] - 2023-08-03

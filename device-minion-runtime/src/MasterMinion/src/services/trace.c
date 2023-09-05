@@ -650,28 +650,32 @@ uint32_t Trace_Evict_Buffer_MM_Stats(void)
 *   OUTPUTS
 *
 *       uint32_t    Size of buffer that was used and evicted.
+*                   0xFFFFFFFF in case of invalid entry pointer
 *
 ***********************************************************************/
 uint32_t Trace_Evict_Event_MM_Stats(const void *entry, uint32_t size)
 {
     struct trace_buffer_std_header_t *trace_header =
         (struct trace_buffer_std_header_t *)MM_STATS_TRACE_BUFFER_BASE;
-    uint32_t offset;
+    uint32_t offset = 0xFFFFFFFF;
 
-    et_trace_mm_stats_cb_lock_acquire();
+    if (entry != NULL)
+    {
+        et_trace_mm_stats_cb_lock_acquire();
 
-    /* Evict the data packet to L3 */
-    ETSOC_MEM_EVICT(entry, size, to_L3)
+        /* Evict the data packet to L3 */
+        ETSOC_MEM_EVICT(entry, size, to_L3)
 
-    offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
+        offset = atomic_load_local_32(&(MM_Stats_Trace_CB.cb.offset_per_hart));
 
-    /* Update buffer size in buffer header */
-    atomic_store_local_32(&trace_header->data_size, offset);
+        /* Update buffer size in buffer header */
+        atomic_store_local_32(&trace_header->data_size, offset);
 
-    /* Evict the header to L3 */
-    ETSOC_MEM_EVICT((void *)trace_header, sizeof(struct trace_buffer_std_header_t), to_L3)
+        /* Evict the header to L3 */
+        ETSOC_MEM_EVICT((void *)trace_header, sizeof(struct trace_buffer_std_header_t), to_L3)
 
-    et_trace_mm_stats_cb_lock_release();
+        et_trace_mm_stats_cb_lock_release();
+    }
 
     return offset;
 }

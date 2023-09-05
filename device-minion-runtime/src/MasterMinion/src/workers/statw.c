@@ -536,6 +536,13 @@ int32_t STATW_Get_MM_Stats(struct compute_resources_sample *sample)
         struct trace_entry_header_t *src = (struct trace_entry_header_t *)trace_entry;
 
         status = Trace_Event_Copy(Trace_Get_MM_Stats_CB(), src, &dst, sizeof(dst));
+
+        /* If the trace CB is invalid, or trace is disabled, just return null data */
+        if (status == TRACE_INVALID_CB)
+        {
+            memset(sample, 0, sizeof(*sample));
+            status = STATUS_SUCCESS;
+        }
         if (status != TRACE_STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "STATW_Get_MM_Stats: Trace_Event_Copy failed %d!\n", status);
@@ -854,13 +861,15 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
                 TRACE_CUSTOM_TYPE_MM_COMPUTE_RESOURCES, (const uint8_t *)&data_sample,
                 sizeof(data_sample));
 
-            /* Evict last Trace event which is logged above.
-               Evicting complete buffer evertime does not evict properly. */
-            Trace_Evict_Event_MM_Stats(
-                entry, (sizeof(struct trace_custom_event_t) + sizeof(data_sample)));
+            if (entry != NULL)
+            {
+                /* Evict last Trace event which is logged above */
+                Trace_Evict_Event_MM_Stats(
+                    entry, (sizeof(struct trace_custom_event_t) + sizeof(data_sample)));
 
-            /* Save the trace entry for retrieval in STATW_Get_MM_Stats via Trace_Event_Copy */
-            atomic_store_local_64(&STATW_CB.saved_trace_entry, (uint64_t)entry);
+                /* Save the trace entry for retrieval in STATW_Get_MM_Stats via Trace_Event_Copy */
+                atomic_store_local_64(&STATW_CB.saved_trace_entry, (uint64_t)entry);
+            }
         }
     }
 }
