@@ -293,24 +293,32 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
 #define SET_VOLTAGE_THRESHOLD       5
 
 /* define for a wait and check loop for set voltage function */
-#define VALIDATE_VOLTAGE_CHANGE(time_out, func, param, val, voltage_mv, status)                 \
-    status = ERROR_PMIC_SET_VOLTAGE;                                                            \
-    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);                    \
-    while (timer_get_ticks_count() < time_out)                                                  \
-    {                                                                                           \
-        func(&param);                                                                           \
-        if (PERCENTAGE_DIFFERENCE(voltage_mv, val) <= SET_VOLTAGE_THRESHOLD)                    \
-        {                                                                                       \
-            status = STATUS_SUCCESS;                                                            \
-            break;                                                                              \
-        }                                                                                       \
-        US_DELAY_GENERIC(50);                                                                   \
-    }                                                                                           \
-    if (status == STATUS_SUCCESS)                                                               \
-    {                                                                                           \
-        Log_Write(LOG_LEVEL_INFO,                                                               \
-                  "VALIDATE_VOLTAGE_CHANGE: Cycles consumed in stabilization: %ld\n",           \
-                  (timer_get_ticks_count() - (time_out - pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT)))); \
+#define VALIDATE_VOLTAGE_CHANGE(module, time_out, func, param, val, voltage_mv, status)                         \
+    status = ERROR_PMIC_SET_VOLTAGE;                                                                            \
+    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);                                    \
+    while (timer_get_ticks_count() < time_out)                                                                  \
+    {                                                                                                           \
+        func(&param);                                                                                           \
+        if (PERCENTAGE_DIFFERENCE(voltage_mv, val) <= SET_VOLTAGE_THRESHOLD)                                    \
+        {                                                                                                       \
+            status = STATUS_SUCCESS;                                                                            \
+            break;                                                                                              \
+        }                                                                                                       \
+        US_DELAY_GENERIC(50);                                                                                   \
+    }                                                                                                           \
+    if (status == STATUS_SUCCESS)                                                                               \
+    {                                                                                                           \
+        Log_Write(                                                                                              \
+            LOG_LEVEL_INFO,                                                                                     \
+            "VALIDATE_VOLTAGE_CHANGE: %ld cycles consumed stabilizing voltage of module: %d\n",                 \
+            (timer_get_ticks_count() - (time_out - pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT))), module);               \
+    }                                                                                                           \
+    else                                                                                                        \
+    {                                                                                                           \
+        Log_Write(                                                                                              \
+            LOG_LEVEL_ERROR,                                                                                    \
+            "VALIDATE_VOLTAGE_CHANGE: Module %d voltage verification failed: target vol: %d current vol: %d\n", \
+            module, voltage_mv, val);                                                                           \
     }
 
 /************************************************************************
@@ -1639,7 +1647,7 @@ static int set_minion_operating_point(uint16_t new_freq,
         status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage);
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "Failed to update shire voltage\n");
+            Log_Write(LOG_LEVEL_ERROR, "Failed to update Minion shire voltage\n");
             return status;
         }
 
@@ -2844,7 +2852,7 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
                                                          PMIC_DDR_VOLTAGE_MULTIPLIER,
                                                          PMIC_GENERIC_VOLTAGE_DIVIDER);
             MemShire_VM_sample memshire_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_memshire_avg_low_high_voltage,
+            VALIDATE_VOLTAGE_CHANGE(voltage_type, time_end, pvt_get_memshire_avg_low_high_voltage,
                                     memshire_voltage, memshire_voltage.vdd_ms.current, voltage_mv,
                                     status)
             break;
@@ -2853,40 +2861,43 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
                                                          PMIC_SRAM_VOLTAGE_MULTIPLIER,
                                                          PMIC_GENERIC_VOLTAGE_DIVIDER);
             MinShire_VM_sample minshire_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, minshire_voltage,
-                                    minshire_voltage.vdd_sram.current, voltage_mv, status)
+            VALIDATE_VOLTAGE_CHANGE(voltage_type, time_end, pvt_get_minion_avg_low_high_voltage,
+                                    minshire_voltage, minshire_voltage.vdd_sram.current, voltage_mv,
+                                    status)
             break;
         case MODULE_MAXION:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_MAXION_VOLTAGE_BASE,
                                                          PMIC_MAXION_VOLTAGE_MULTIPLIER,
                                                          PMIC_GENERIC_VOLTAGE_DIVIDER);
             IOShire_VM_sample ioshire_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_ioshire_vm_sample, ioshire_voltage,
-                                    ioshire_voltage.vdd_mxn.current, voltage_mv, status)
+            VALIDATE_VOLTAGE_CHANGE(voltage_type, time_end, pvt_get_ioshire_vm_sample,
+                                    ioshire_voltage, ioshire_voltage.vdd_mxn.current, voltage_mv,
+                                    status)
             break;
         case MODULE_MINION:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_MINION_VOLTAGE_BASE,
                                                          PMIC_MINION_VOLTAGE_MULTIPLIER,
                                                          PMIC_GENERIC_VOLTAGE_DIVIDER);
             MinShire_VM_sample mnn_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, mnn_voltage,
-                                    mnn_voltage.vdd_mnn.current, voltage_mv, status)
+            VALIDATE_VOLTAGE_CHANGE(voltage_type, time_end, pvt_get_minion_avg_low_high_voltage,
+                                    mnn_voltage, mnn_voltage.vdd_mnn.current, voltage_mv, status)
             break;
         case MODULE_NOC:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_NOC_VOLTAGE_BASE,
                                                          PMIC_NOC_VOLTAGE_MULTIPLIER,
                                                          PMIC_GENERIC_VOLTAGE_DIVIDER);
             MinShire_VM_sample noc_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_minion_avg_low_high_voltage, noc_voltage,
-                                    noc_voltage.vdd_noc.current, voltage_mv, status)
+            VALIDATE_VOLTAGE_CHANGE(voltage_type, time_end, pvt_get_minion_avg_low_high_voltage,
+                                    noc_voltage, noc_voltage.vdd_noc.current, voltage_mv, status)
             break;
         case MODULE_PCIE_LOGIC:
             voltage_mv = (uint16_t)PMIC_HEX_TO_MILLIVOLT(voltage, PMIC_PCIE_LOGIC_VOLTAGE_BASE,
                                                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER,
                                                          PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER);
             IOShire_VM_sample pcie_logic_voltage = { 0 };
-            VALIDATE_VOLTAGE_CHANGE(time_end, pvt_get_ioshire_vm_sample, pcie_logic_voltage,
-                                    pcie_logic_voltage.vdd_0p75.current, voltage_mv, status)
+            VALIDATE_VOLTAGE_CHANGE(voltage_type, time_end, pvt_get_ioshire_vm_sample,
+                                    pcie_logic_voltage, pcie_logic_voltage.vdd_0p75.current,
+                                    voltage_mv, status)
             break;
         case MODULE_PCIE: /* pvt is reporting wrong pcie voltage for PCIE */
         case MODULE_VDDQLP:
@@ -2895,16 +2906,10 @@ static int check_voltage_stability(module_e voltage_type, uint8_t voltage)
             status = STATUS_SUCCESS;
             break;
         default: {
-            MESSAGE_ERROR("Error invalid voltage type to set Voltage");
+            Log_Write(LOG_LEVEL_ERROR, "Error invalid voltage type to set Voltage");
             status = ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
             break;
         }
-    }
-
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "%s:Module:%d:Voltage to set:%d\r\n", __func__, voltage_type,
-                  voltage);
     }
 
     return status;
