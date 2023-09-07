@@ -121,7 +121,7 @@ static inline int pmic_get_inactive_boot_slot(uint8_t *slot)
     if (status == STATUS_SUCCESS)
     {
         /* Invert it to inactive slot */
-        *slot = !slot;
+        *slot = !(*slot);
     }
 
     return status;
