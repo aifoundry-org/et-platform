@@ -97,7 +97,8 @@ static inline void et_trace_threshold_notify(const struct trace_control_block_t 
         (const struct trace_buffer_std_header_t *)cb->base_per_hart;
 
     /* Generate trace buffer threshold event */
-    FILL_EVENT_HEADER(&message.header, SP_TRACE_BUFFER_FULL, sizeof(struct event_message_t))
+    message.header.msg_id = DM_EVENT_SP_TRACE_BUFFER_FULL;
+    message.header.size = sizeof(struct event_message_t) - sizeof(struct cmn_header_t);
     FILL_EVENT_PAYLOAD(&message.payload, WARNING, 1, trace_header->type, cb->threshold)
 
     /* Post event to Host - ignore status to avoid potential nested locks */

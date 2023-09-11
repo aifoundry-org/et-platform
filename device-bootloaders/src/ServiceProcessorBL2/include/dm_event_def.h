@@ -59,7 +59,7 @@ enum event_ids
     SP_RUNTIME_ERROR,      /** < SP runtime error event */
     SP_WATCHDOG_RESET,     /** < Watchdog reset event */
     SP_TRACE_BUFFER_FULL,  /** < SP trace buffer full or threshold reached */
-    MAX_ERROR_EVENT = 512, /**< Max limit for error IDs. */
+    MAX_ERROR_EVENT = 511, /**< Max limit for error IDs. */
 };
 
 /*!
