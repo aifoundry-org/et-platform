@@ -26,7 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
-- [SW-18262] Added more margin to MNN to address bit errors detected with Virus Kernel
 - [SW=16050] Fix intermittent DMA hangs due to NOC marginality
 - [SW-18127] Fix initialization of op stats values.
 - Fix the I2C communication issue by disabling context switch around the I2C communication APIs.

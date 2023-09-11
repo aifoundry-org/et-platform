@@ -37,7 +37,7 @@
 #define SECONDS_IN_MINUTE 60
 
 // Defines the Boot voltages for the respective Voltage Domains
-#define MINION_BOOT_VOLTAGE 0x33U // 505 mV
+#define MINION_BOOT_VOLTAGE 0x32U // 500 mV
 #define SRAM_BOOT_VOLTAGE   0x64U // 730 mV
 #define NOC_BOOT_VOLTAGE    0x2FU // 485 mV
 #define DDR_BOOT_VOLTAGE    0x6EU // 800 mV
