@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-18398b] Update DevErrorEvent implementation for the skipList usage to add/remove EventType entry from the default skipList without requiring to replace the complete skipList.
 ### Deprecated
 ### Removed
 ### Fixed

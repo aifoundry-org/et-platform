@@ -121,8 +121,9 @@ protected:
 
   // Integration tests for SP tracing and error events
   void initTestTrace();
-  void initDevErrorEvent();
-  void checkDevErrorEvent(std::vector<std::string> list = {"SpTraceBufferFullCeEvent"}, bool isCheckList = false);
+  void initDevErrorEvent(std::initializer_list<DevErrorEvent::EventType> skipList = {
+                           DevErrorEvent::EventType::SpTraceBufferFullCeEvent});
+  void checkDevErrorEvent();
   bool decodeTraceEvents(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
   void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, TraceBufferType bufferType) const;
 
@@ -280,10 +281,31 @@ protected:
     return false;
   }
 
+  void inline setDevErrorEventSkipList(const std::vector<DevErrorEvent::EventType>& list) {
+    devErrorEventSkipList_.clear();
+    std::copy(list.begin(), list.end(), std::back_inserter(devErrorEventSkipList_));
+  }
+
+  void inline addToDevErrorEventSkipList(const std::vector<DevErrorEvent::EventType>& list) {
+    for (auto eventType : list) {
+      if (auto it = std::find(devErrorEventSkipList_.begin(), devErrorEventSkipList_.end(), eventType);
+          it == devErrorEventSkipList_.end()) {
+        devErrorEventSkipList_.push_back(eventType);
+      }
+    }
+  }
+  void inline removeFromDevErrorEventSkipList(const std::vector<DevErrorEvent::EventType>& list) {
+    for (auto eventType : list) {
+      devErrorEventSkipList_.erase(std::remove(devErrorEventSkipList_.begin(), devErrorEventSkipList_.end(), eventType),
+                                   devErrorEventSkipList_.end());
+    }
+  }
+
   void* handle_ = nullptr;
   std::unique_ptr<IDeviceLayer> devLayer_;
   logging::LoggerDefault logger_;
   std::unordered_map<int, DevErrorEvent> eventsAtStartMap_;
+  std::vector<DevErrorEvent::EventType> devErrorEventSkipList_;
 };
 
 #endif // TEST_DEVICE_M_H

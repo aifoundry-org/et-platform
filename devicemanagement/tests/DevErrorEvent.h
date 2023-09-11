@@ -17,26 +17,6 @@ namespace device_management {
 
 class DevErrorEvent {
 public:
-  DevErrorEvent() = delete;
-  explicit DevErrorEvent(std::string errStats);
-  uint64_t getDevErrorEventCount(std::string event);
-  bool hasFailure(std::vector<std::string> list, bool isCheckList);
-  DevErrorEvent operator+(const DevErrorEvent& other) const {
-    auto result = *this;
-    for (auto typeIdx = 0U; typeIdx < static_cast<uint8_t>(EventType::TotalEvents); typeIdx++) {
-      result.counters_[typeIdx] = this->counters_[typeIdx] + other.counters_[typeIdx];
-    }
-    return result;
-  }
-  DevErrorEvent operator-(const DevErrorEvent& other) const {
-    auto result = *this;
-    for (auto typeIdx = 0U; typeIdx < static_cast<uint8_t>(EventType::TotalEvents); typeIdx++) {
-      result.counters_[typeIdx] = this->counters_[typeIdx] - other.counters_[typeIdx];
-    }
-    return result;
-  }
-
-private:
   enum class EventType : uint8_t {
     DramCeEvent = 0,
     MinionCeEvent,
@@ -56,6 +36,27 @@ private:
     SramUceEvent,
     TotalEvents
   };
+
+  DevErrorEvent() = delete;
+  explicit DevErrorEvent(std::string errStats);
+  uint64_t getDevErrorEventCount(EventType event);
+  bool hasFailure(std::vector<EventType> skipList);
+  DevErrorEvent operator+(const DevErrorEvent& other) const {
+    auto result = *this;
+    for (auto typeIdx = 0U; typeIdx < static_cast<uint8_t>(EventType::TotalEvents); typeIdx++) {
+      result.counters_[typeIdx] = this->counters_[typeIdx] + other.counters_[typeIdx];
+    }
+    return result;
+  }
+  DevErrorEvent operator-(const DevErrorEvent& other) const {
+    auto result = *this;
+    for (auto typeIdx = 0U; typeIdx < static_cast<uint8_t>(EventType::TotalEvents); typeIdx++) {
+      result.counters_[typeIdx] = this->counters_[typeIdx] - other.counters_[typeIdx];
+    }
+    return result;
+  }
+
+private:
   static std::string getString(enum EventType type) {
     switch (type) {
     case EventType::DramCeEvent:
@@ -94,17 +95,6 @@ private:
       DV_LOG(INFO) << "Unknown event type: " + std::to_string(static_cast<int>(type));
       return "Unknown";
     }
-  }
-  static EventType getEventType(std::string str) {
-    static std::once_flag strOnceFlag;
-    static std::unordered_map<std::string, EventType> strMap;
-    std::call_once(strOnceFlag, []() {
-      for (auto typeIdx = 0U; typeIdx < static_cast<uint8_t>(EventType::TotalEvents); typeIdx++) {
-        strMap[getString(static_cast<EventType>(typeIdx))] = static_cast<EventType>(typeIdx);
-      }
-      assert(strMap.size() == static_cast<int>(EventType::TotalEvents));
-    });
-    return strMap[str];
   }
   std::array<uint64_t, static_cast<uint8_t>(EventType::TotalEvents)> counters_ = {0};
 };
