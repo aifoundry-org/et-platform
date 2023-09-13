@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-18460] Add more error logs for debugging.
+- [SW-15352] Check PMIC board type in FOTA process.
 ### Changed
 ### Deprecated
 ### Removed

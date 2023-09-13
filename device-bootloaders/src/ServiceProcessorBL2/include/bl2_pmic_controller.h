@@ -505,12 +505,16 @@ int I2C_PMIC_Write(uint8_t reg, uint8_t data);
 */
 int pmic_get_int_config(uint8_t *int_config);
 
-/*! \fn int pmic_get_board_type(uint32_t *board_type)
-    \brief This function reads board type.
+/*! \fn int pmic_get_board_type(uint8_t *board_type, uint8_t* board_design_revision, uint8_t* board_modification_revision, uint8_t* board_id)
+    \brief This function reads board version information.
     \param board_type - board type BUB(0x1), PCIe(0x2)
+    \param board_design_revision - board design revision
+    \param board_modification_revision - board modification revision
+    \param board_id - board unique id set at producrion
     \return The function call status, pass/fail
 */
-int pmic_get_board_type(uint32_t *board_type);
+int pmic_get_board_type(uint8_t *board_type, uint8_t *board_design_revision,
+                        uint8_t *board_modification_revision, uint8_t *board_id);
 
 /*! \fn int pmic_set_gpio_as_output(uint8_t index)
     \brief This function sets GPIO direction as output.
