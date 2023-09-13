@@ -625,6 +625,9 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	vq_data = is_mgmt ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
 	vq_stats_gid = is_mgmt ? ET_SYSFS_GID_MGMT_VQ_STATS :
 				 ET_SYSFS_GID_OPS_VQ_STATS;
+	// Memory barrier to ensure changes for the sleeper on waitqueue
+	// before it awakes
+	smp_mb();
 	wake_up_all(&vq_data->vq_common.waitqueue);
 	while (waitqueue_active(&vq_data->vq_common.waitqueue))
 		msleep(1);

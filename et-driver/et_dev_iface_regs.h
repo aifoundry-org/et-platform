@@ -176,7 +176,7 @@ struct et_dir_mem_region {
 	u64 bar_offset;
 	u64 bar_size;
 	u64 dev_address;
-} __packed  __aligned(8);
+} __packed __aligned(8);
 
 /*
  * Values representing Mgmt Device Boot status.

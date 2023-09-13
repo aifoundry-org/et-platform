@@ -92,6 +92,8 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	struct et_ops_dev *ops;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
+	if (!ops->is_initialized)
+		return EPOLLHUP;
 
 	poll_wait(fp, &ops->vq_data.vq_common.waitqueue, wait);
 
@@ -461,6 +463,8 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	struct et_mgmt_dev *mgmt;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
+	if (!mgmt->is_initialized)
+		return EPOLLHUP;
 
 	poll_wait(fp, &mgmt->vq_data.vq_common.waitqueue, wait);
 
@@ -2571,6 +2575,12 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		return rv;
 	}
 
+	if (!pci_device_is_present(et_dev->pdev)) {
+		dev_err(&pdev->dev, "PCIe device is inaccessible\n");
+		rv = -ENODEV;
+		goto error_destroy_et_pci_dev;
+	}
+
 	rv = pci_save_state(pdev);
 	if (rv) {
 		dev_warn(&pdev->dev, "couldn't save PCI state\n");
@@ -2630,6 +2640,7 @@ error_free_saved_state:
 		et_dev->pstate = NULL;
 	}
 
+error_destroy_et_pci_dev:
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 

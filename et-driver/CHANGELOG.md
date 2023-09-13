@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-18407] Fixes for driver instance clean-up on AER error detection
+  * Hang-up epoll_wait() by sending EPOLLHUP event to user-space when AER error is detected. The epoll_wait() in user-space will immediately bail-out of wait with event EPOLLHUP
+  * Check for device presence in probe() before making any I/O access
 ### Security
 
 ## [0.15.0] - 2023-08-03
