@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [CI] Adapt to conan pre-release versioning
+- conan: remove bundle computation to resolve the conflict
 ### Deprecated
 ### Removed
 ### Fixed
