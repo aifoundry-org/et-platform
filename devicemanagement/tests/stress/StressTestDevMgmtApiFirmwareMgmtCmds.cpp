@@ -33,6 +33,43 @@ class StressTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageSingleDevice) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    if (isParallelRun()) {
+      DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+      FLAGS_enable_trace_dump = false;
+      return;
+    }
+    int iteration = 5;
+    for (int i = 0; i < iteration; i++) {
+      setFirmwareUpdateImage(true /* Single Device */, false);
+    }
+    extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageMultiDevice) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    if (isParallelRun()) {
+      DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+      FLAGS_enable_trace_dump = false;
+      return;
+    }
+    int iteration = 5 / devLayer_->getDevicesCount();
+    iteration = iteration ? iteration : 1;
+    for (int i = 0; i < iteration; i++) {
+      setFirmwareUpdateImage(false /* Multiple Devices */, false);
+    }
+    extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
 TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
   if (isParallelRun()) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";

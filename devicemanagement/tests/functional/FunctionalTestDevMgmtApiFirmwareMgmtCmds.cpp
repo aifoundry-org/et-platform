@@ -65,10 +65,19 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
   setSpRootCertificate(false);
 }*/
 
-// Pending SysEMU pointer update. Stuck behind a modelling bug
-// TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImage) {
-//  updateFirmwareImage(false);
-//}
+TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImage) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    if (isParallelRun()) {
+      DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+      FLAGS_enable_trace_dump = false;
+      return;
+    }
+    setFirmwareUpdateImage(false /* Multiple Devices */, false);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
 
 TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
   if (isParallelRun()) {

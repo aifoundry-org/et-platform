@@ -2772,7 +2772,7 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
   }
 }
 
-void TestDevMgmtApiSyncCmds::updateFirmwareImage(bool singleDevice) {
+void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool resetDev) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
@@ -2792,12 +2792,20 @@ void TestDevMgmtApiSyncCmds::updateFirmwareImage(bool singleDevice) {
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
-
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
       ASSERT_EQ(output_buff[0], 0);
+    }
+
+    if (resetDev) {
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
+                                  hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
+                device_mgmt_api::DM_STATUS_SUCCESS);
+      DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      // Check if trace control works after reset since reset SoC is a command without response
+      controlTraceLogging();
     }
   }
 }

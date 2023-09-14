@@ -34,7 +34,7 @@ get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion
 
 # This will be used by test case to verify f/w update support as this is CMakeLists for DM tests.
 # End user can use f/w image of choice by passing it as argument to dev_mngt_service.
-set(FLASH_IMG_PATH "${FLASH_INSTALL_DIR}/dev-image/production-signed-with-test-keys/flash_32Mbit.bin")
+set(FLASH_IMG_PATH "${FLASH_INSTALL_DIR}/dev-image/production-signed-with-test-keys-pcie-phy-fw-override/flash_32Mbit.bin")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Autogen.h.in Autogen.h)
@@ -150,7 +150,7 @@ create_test(
     TARGET      FunctionalTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     functional/FunctionalTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;120"
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;240"
 )
 
 #####################
@@ -166,6 +166,13 @@ create_test(
 create_test(
     TARGET      IntegrationTestDevMgmtApiTraceCmds
     SOURCES     integration/IntegrationTestDevMgmtApiTraceCmds.cpp
+    ARGS        ""
+    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
+)
+
+create_test(
+    TARGET      IntegrationTestDevMgmtApiFirmwareMgmtCmds
+    SOURCES     integration/IntegrationTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
     PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
 )
