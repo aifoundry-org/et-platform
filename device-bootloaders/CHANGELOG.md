@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18460] Add more error logs for debugging.
 - [SW-15352] Check PMIC board type in FOTA process.
 ### Changed
+- [SW-18208] Enabling PMIC Firmware update.
 ### Deprecated
 ### Removed
 ### Fixed

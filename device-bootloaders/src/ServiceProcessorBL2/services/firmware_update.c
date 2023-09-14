@@ -31,11 +31,12 @@
 *
 *   FUNCTION
 *
-*       reset_etsoc
+*       firmware_update_reset_etsoc
 *
 *   DESCRIPTION
 *
-*       This function resets ETSOC through PMIC
+*       This function resets ETSOC through PMIC and if a firmware update
+*       was done in past, it'll boot to new firmware.
 *
 *   INPUTS
 *
@@ -46,36 +47,46 @@
 *       None
 *
 ***********************************************************************/
-static void reset_etsoc(void)
+static void firmware_update_reset_etsoc(void)
 {
     int32_t status;
-    Log_Write(LOG_LEVEL_INFO, "Resetting ETSOC..!\n");
 
-    /* enable and program external PMIC watchdog timeout to auto reset SP if it fails to reset watchdog in time.
-       This watchdog reset will be disabled upon successful SP boot.
-       PERST is also toggle by pmic in this force reset process */
-    status = pmic_enable_wdog_timeout_reset();
-    if (status == STATUS_SUCCESS)
+    /* Reset PMIC as well if PMIC firmware was updated */
+    if (pmic_check_firmware_updated())
     {
-        status = pmic_set_wdog_timeout_time(SP_BOOT_TIMEOUT);
-        if (status == STATUS_SUCCESS)
-        {
-            /* Reset PMIC as well if PMIC firmware was updated */
-            if (pmic_check_firmware_updated())
-            {
-                /* Reset the SP + PMIC */
-                pmic_force_power_off_on();
-            }
-            else
-            {
-                /* Reset the SP */
-                pmic_force_reset();
-            }
-        }
+        Log_Write(LOG_LEVEL_INFO, "Resetting ETSOC and PMIC..!\n");
+
+        /* Reset the SP + PMIC */
+        pmic_force_power_off_on();
     }
     else
     {
-        pmic_disable_wdog_timeout_reset();
+        /* Enable and program external PMIC watchdog timeout to auto reset SP if it
+        fails to reset watchdog in time. This watchdog reset will be disabled upon
+        successful SP boot. PERST is also toggled by pmic in this force reset process */
+        status = pmic_enable_wdog_timeout_reset();
+        if (status == STATUS_SUCCESS)
+        {
+            status = pmic_set_wdog_timeout_time(SP_BOOT_TIMEOUT);
+            if (status == STATUS_SUCCESS)
+            {
+                Log_Write(LOG_LEVEL_INFO, "Resetting ETSOC..!\n");
+
+                /* Reset the SP */
+                pmic_force_reset();
+            }
+            else
+            {
+                pmic_disable_wdog_timeout_reset();
+
+                Log_Write(LOG_LEVEL_ERROR, "Failed to set PMIC watchdog timeout. status: %d\r\n",
+                          status);
+            }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Failed to enable PMIC watchdog. status: %d\r\n", status);
+        }
     }
 }
 
@@ -762,14 +773,13 @@ static int32_t dm_svc_firmware_update(void)
               timer_convert_ticks_to_secs(prog_end - prog_start),
               timer_convert_ticks_to_secs(verify_end - verify_start));
 
-    /* TODO: Enable the PMIC FW update once the changeset is merged */
-    // Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
-    // /* Suspend the Periodic sampling during pmic fw update process */
-    // dm_sampling_task_semaphore_take();
-    // /* Update the PMIC firmware image */
-    // status = pmic_firmware_update();
-    // /* Resume the periodic sampling */
-    // dm_sampling_task_semaphore_give();
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Initiating PMIC FW update...\n");
+    /* Suspend the Periodic sampling during pmic fw update process */
+    dm_sampling_task_semaphore_take();
+    /* Update the PMIC firmware image */
+    status = pmic_firmware_update();
+    /* Resume the periodic sampling */
+    dm_sampling_task_semaphore_give();
 
     /* Only switch to new partition if PMIC FW update was successful */
     if (status == STATUS_SUCCESS)
@@ -1108,7 +1118,7 @@ void firmware_service_process_request(tag_id_t tag_id, msg_id_t msg_id, void *bu
             break;
 
         case DM_CMD_RESET_ETSOC:
-            reset_etsoc();
+            firmware_update_reset_etsoc();
             break;
         default:
             Log_Write(LOG_LEVEL_ERROR, "firmware_service_process_request: invalid message id %u.\n",
