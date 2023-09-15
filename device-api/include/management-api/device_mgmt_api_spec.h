@@ -136,6 +136,10 @@ enum DM_CMD {
   DM_CMD_MDI_WRITE_MEM = 144, /**<  */
   DM_CMD_MDI_SET_BREAKPOINT_EVENT = 192, /**<  */
   DM_CMD_MDI_END = 255, /**<  */
+  /* 256 - 511 are SP error Events */
+  DM_EVENT_BEGIN = 512, /* Total 128 DM events */
+  DM_EVENT_SP_TRACE_BUFFER_FULL = 512, /**< Critical SP trace buffer full event */
+  DM_EVENT_END = 639,
 };
 
 typedef uint8_t power_state_e;

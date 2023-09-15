@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-15748] Adding SP trace buffer full event for DM lib
 ### Changed
 ### Deprecated
 ### Removed
