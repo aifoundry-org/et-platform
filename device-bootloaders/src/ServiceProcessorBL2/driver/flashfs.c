@@ -34,6 +34,7 @@
         flash_fs_get_module_rev
         flash_fs_get_memory_size
         flash_fs_get_form_factor
+        flash_fs_rescan_partition
 */
 /***********************************************************************/
 
@@ -1896,6 +1897,107 @@ int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg)
     }
 
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_rescan_partition
+*
+*   DESCRIPTION
+*
+*       This function rescans the given partition and loads the partition
+*       info in global data.
+*
+*   INPUTS
+*
+*       partition    Partition number (0 or 1)
+*
+*   OUTPUTS
+*
+*       status       success or error.
+*
+***********************************************************************/
+int flash_fs_rescan_partition(uint32_t partition)
+{
+    uint32_t crc = 0;
+    uint32_t partition_address;
+    uint32_t partition_size = sg_flash_fs_bl2_info.flash_size / 2;
+    ESPERANTO_PARTITION_BL2_INFO_t *partition_info;
+
+    if (0 == partition)
+    {
+        partition_address = 0;
+    }
+    else if (1 == partition)
+    {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+    }
+    else
+    {
+        return ERROR_SPI_FLASH_NO_VALID_PARTITION;
+    }
+
+    /* Get the pointer to partition info */
+    partition_info = &sg_flash_fs_bl2_info.partition_info[partition];
+
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, partition_address,
+                                   (uint8_t *)&(partition_info->header),
+                                   sizeof(partition_info->header)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: failed to read header!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+    if (ESPERANTO_PARTITION_TAG != partition_info->header.partition_tag)
+    {
+        Log_Write(
+            LOG_LEVEL_ERROR,
+            "flash_fs_scan_partition: partition header tag mismatch! (expected %08x, got %08x)\n",
+            ESPERANTO_PARTITION_TAG, partition_info->header.partition_tag);
+        return ERROR_SPI_FLASH_PARTITION_INVALID_HEADER;
+    }
+    if (sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t) != partition_info->header.partition_header_size)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition header size mismatch!\n");
+        return ERROR_SPI_FLASH_PARTITION_INVALID_SIZE;
+    }
+    if (sizeof(ESPERANATO_REGION_INFO_t) != partition_info->header.region_info_size)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition region size mismatch!\n");
+        return ERROR_SPI_FLASH_PARTITION_INVALID_SIZE;
+    }
+    if (partition_info->header.regions_count > ESPERANTO_MAX_REGIONS_COUNT)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: invalid regions count value!\n");
+        return ERROR_SPI_FLASH_PARTITION_INVALID_COUNT;
+    }
+
+    crc32(&(partition_info->header),
+          offsetof(ESPERANTO_FLASH_PARTITION_HEADER_t, partition_header_checksum), &crc);
+    if (crc != partition_info->header.partition_header_checksum)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition header CRC mismatch!\n");
+        return ERROR_SPI_FLASH_PARTITION_CRC_MISMATCH;
+    }
+    if ((partition_size / FLASH_PAGE_SIZE) != partition_info->header.partition_size)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition size mismatch!\n");
+        return ERROR_SPI_FLASH_PARTITION_INVALID_SIZE;
+    }
+
+    if (0 !=
+        spi_flash_normal_read(
+            sg_flash_fs_bl2_info.flash_id,
+            (uint32_t)(partition_address + sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t)),
+            (uint8_t *)(partition_info->regions_table),
+            (uint32_t)(partition_info->header.regions_count * sizeof(ESPERANATO_REGION_INFO_t))))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: failed to read regions table!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    return flash_fs_scan_regions(partition_size, partition_info);
 }
 
 #pragma GCC pop_options

@@ -723,9 +723,9 @@ static int32_t dm_svc_firmware_update(void)
     else
     {
         prog_end = timer_get_ticks_count();
-        Log_Write(LOG_LEVEL_INFO, "Current FW image at partition %d\n",
+        Log_Write(LOG_LEVEL_INFO, "[ETFP] Current ETSoC FW image at partition %d\n",
                   sp_bl2_data->flash_fs_bl2_info.active_partition);
-        Log_Write(LOG_LEVEL_INFO, "New FW image at partition %d\n",
+        Log_Write(LOG_LEVEL_INFO, "[ETFP] New ETSoC FW image at partition %d\n",
                   1 - sp_bl2_data->flash_fs_bl2_info.active_partition);
     }
 

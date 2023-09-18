@@ -2601,6 +2601,14 @@ int pmic_firmware_update(void)
 
     passive_partition = 1 - get_service_processor_bl2_data()->flash_fs_bl2_info.active_partition;
 
+    /* Re-scan the partition to load the updated data (if any) */
+    status = flash_fs_rescan_partition(passive_partition);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Passive partition re-scan complete.\n");
+
     /* Read the PMIC FW region size from the flash image */
     status =
         flash_fs_load_file_info(passive_partition, slot_region_id, &dummy, &pmic_fw_region_size);

@@ -240,4 +240,11 @@ int flash_fs_update_shire_cache_config(uint16_t scp_size, uint16_t l2_size, uint
 */
 int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg);
 
+/*! \fn int flash_fs_rescan_partition(uint32_t partition)
+    \brief This function rescans the given partition and loads the partition info in global data.
+    \param partition Partition number (0 or 1)
+    \return The function call status, pass/fail.
+*/
+int flash_fs_rescan_partition(uint32_t partition);
+
 #endif
