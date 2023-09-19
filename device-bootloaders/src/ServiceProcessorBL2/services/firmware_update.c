@@ -761,6 +761,14 @@ static int32_t dm_svc_firmware_update(void)
         return ERROR_FW_UPDATE_WRITE_CFG_REGION;
     }
 
+    /* Re-scan the passive partition to load the updated data in BL2 runtime (if any) */
+    status = flash_fs_scan_partition(1 - sp_bl2_data->flash_fs_bl2_info.active_partition);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Passive partition re-scan complete.\n");
+
     verify_end = timer_get_ticks_count();
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] All loaded bytes verified OK!\n");
     end = timer_get_ticks_count();

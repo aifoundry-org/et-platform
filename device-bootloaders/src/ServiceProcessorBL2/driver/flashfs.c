@@ -34,7 +34,7 @@
         flash_fs_get_module_rev
         flash_fs_get_memory_size
         flash_fs_get_form_factor
-        flash_fs_rescan_partition
+        flash_fs_scan_partition
 */
 /***********************************************************************/
 
@@ -342,33 +342,6 @@ static int flash_fs_scan_regions(uint32_t partition_size,
 *
 *   FUNCTION
 *
-*       flash_fs_scan_partition
-*
-*   DESCRIPTION
-*
-*       This function scans and checks partition regions
-*
-*   INPUTS
-*
-*       partition_size       size_of_partition
-*       partition_info       partition info struct
-*
-*   OUTPUTS
-*
-*       partition_info       partition info struct with updated indexes
-*
-***********************************************************************/
-
-static int flash_fs_scan_partition(uint32_t partition_size,
-                                   ESPERANTO_PARTITION_BL2_INFO_t *partition_info)
-{
-    return flash_fs_scan_regions(partition_size, partition_info);
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       flash_fs_preload_config_data
 *
 *   DESCRIPTION
@@ -493,7 +466,8 @@ int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
             continue;
         }
 
-        if (0 != flash_fs_scan_partition(partition_size, &flash_fs_bl2_info->partition_info[n]))
+        /* Verify and load the partition regions info */
+        if (0 != flash_fs_scan_regions(partition_size, &flash_fs_bl2_info->partition_info[n]))
         {
             Log_Write(LOG_LEVEL_ERROR, "Partition %u seems corrupted.\n", n);
         }
@@ -1903,11 +1877,11 @@ int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg)
 *
 *   FUNCTION
 *
-*       flash_fs_rescan_partition
+*       flash_fs_scan_partition
 *
 *   DESCRIPTION
 *
-*       This function rescans the given partition and loads the partition
+*       This function scans the given partition and loads the partition
 *       info in global data.
 *
 *   INPUTS
@@ -1919,13 +1893,14 @@ int flash_fs_get_sc_config(struct shire_cache_config_t *sc_cfg)
 *       status       success or error.
 *
 ***********************************************************************/
-int flash_fs_rescan_partition(uint32_t partition)
+int flash_fs_scan_partition(uint32_t partition)
 {
     uint32_t crc = 0;
     uint32_t partition_address;
     uint32_t partition_size = sg_flash_fs_bl2_info.flash_size / 2;
     ESPERANTO_PARTITION_BL2_INFO_t *partition_info;
 
+    /* Verify the partition number */
     if (0 == partition)
     {
         partition_address = 0;
@@ -1942,6 +1917,7 @@ int flash_fs_rescan_partition(uint32_t partition)
     /* Get the pointer to partition info */
     partition_info = &sg_flash_fs_bl2_info.partition_info[partition];
 
+    /* Read the partiton header from flash */
     if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, partition_address,
                                    (uint8_t *)&(partition_info->header),
                                    sizeof(partition_info->header)))
@@ -1949,6 +1925,8 @@ int flash_fs_rescan_partition(uint32_t partition)
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: failed to read header!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
+
+    /* Verify the partiton header tag */
     if (ESPERANTO_PARTITION_TAG != partition_info->header.partition_tag)
     {
         Log_Write(
@@ -1957,22 +1935,29 @@ int flash_fs_rescan_partition(uint32_t partition)
             ESPERANTO_PARTITION_TAG, partition_info->header.partition_tag);
         return ERROR_SPI_FLASH_PARTITION_INVALID_HEADER;
     }
+
+    /* Verify the partition header size */
     if (sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t) != partition_info->header.partition_header_size)
     {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition header size mismatch!\n");
         return ERROR_SPI_FLASH_PARTITION_INVALID_SIZE;
     }
+
+    /* Verify the partition regions size */
     if (sizeof(ESPERANATO_REGION_INFO_t) != partition_info->header.region_info_size)
     {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition region size mismatch!\n");
         return ERROR_SPI_FLASH_PARTITION_INVALID_SIZE;
     }
+
+    /* Check if the regions count in partition is in limits */
     if (partition_info->header.regions_count > ESPERANTO_MAX_REGIONS_COUNT)
     {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: invalid regions count value!\n");
         return ERROR_SPI_FLASH_PARTITION_INVALID_COUNT;
     }
 
+    /* Calculate and verify the partition header checksum */
     crc32(&(partition_info->header),
           offsetof(ESPERANTO_FLASH_PARTITION_HEADER_t, partition_header_checksum), &crc);
     if (crc != partition_info->header.partition_header_checksum)
@@ -1980,12 +1965,15 @@ int flash_fs_rescan_partition(uint32_t partition)
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition header CRC mismatch!\n");
         return ERROR_SPI_FLASH_PARTITION_CRC_MISMATCH;
     }
+
+    /* Verify the partiton total size */
     if ((partition_size / FLASH_PAGE_SIZE) != partition_info->header.partition_size)
     {
         Log_Write(LOG_LEVEL_ERROR, "flash_fs_scan_partition: partition size mismatch!\n");
         return ERROR_SPI_FLASH_PARTITION_INVALID_SIZE;
     }
 
+    /* Read the image regions from the flash partition */
     if (0 !=
         spi_flash_normal_read(
             sg_flash_fs_bl2_info.flash_id,
@@ -1997,6 +1985,7 @@ int flash_fs_rescan_partition(uint32_t partition)
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
+    /* Scan the parition regions for correctness and load info to global data */
     return flash_fs_scan_regions(partition_size, partition_info);
 }
 
