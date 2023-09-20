@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed bug in resizing Window
 ### Security
 
 ## [1.13.0] - 2023-09-01

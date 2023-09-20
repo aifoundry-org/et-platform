@@ -125,7 +125,7 @@ int getFullScreenHeight() {
   pclose(fp);
   // Performing linear regression in order to scale the value to represent
   // actual full screen height
-  height = FS_HEIGHT_SLOPE * height - FS_HEIGHT_Y_INTERCEPT;
+  height = FS_HEIGHT_SLOPE * height + FS_HEIGHT_Y_INTERCEPT;
   return height;
 }
 
@@ -148,7 +148,7 @@ int getScreenWidth() {
   pclose(fp);
   // Performing linear regression in order to scale the value to represent
   // actual full screen WIDTH
-  width = FS_WIDTH_SLOPE * width - FS_WIDTH_Y_INTERCEPT;
+  width = FS_WIDTH_SLOPE * width + FS_WIDTH_Y_INTERCEPT;
   return width;
 }
 
@@ -175,7 +175,7 @@ std::deque<int> PerfMeasure::getData() {
  */
 void PerfMeasure::setData(int width, int v) {
   size_t maxQueueSize = width;
-  if (data.size() >= maxQueueSize) {
+  while (data.size() >= maxQueueSize) {
     data.pop_front();
   }
   data.push_back(v);

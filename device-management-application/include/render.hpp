@@ -91,8 +91,8 @@ using namespace ftxui;
 #define HS_HEIGHT_SLOPE 2.032
 #define HS_HEIGHT_Y_INTERCEPT -20.99
 
-#define FS_WIDTH_SLOPE 2
-#define FS_WIDTH_Y_INTERCEPT -24
+#define FS_WIDTH_SLOPE 2.033
+#define FS_WIDTH_Y_INTERCEPT -28.99
 
 #define DEFAULT_DIM_SIZE 300
 
