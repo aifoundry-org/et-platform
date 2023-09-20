@@ -24,6 +24,20 @@ find_package(esperantoTrace REQUIRED)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 
+include(FetchContent)
+
+FetchContent_Declare(ftxui
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+  GIT_TAG v3.0.0
+)
+
+FetchContent_GetProperties(ftxui)
+if(NOT ftxui_POPULATED)
+  FetchContent_Populate(ftxui)
+  add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
+
 add_executable(dev_mngt_service
     src/dev_mngt_service.cc
 )
@@ -62,11 +76,13 @@ install(TARGETS dev_mngt_service
 
 add_executable(et-powertop
     src/et-top.cc
+    src/render.cpp
 )
 target_compile_features(et-powertop PUBLIC cxx_std_17)
 target_include_directories(et-powertop
     PRIVATE
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
+	    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 )
 target_compile_definitions(et-powertop
     PUBLIC
@@ -82,6 +98,10 @@ target_link_libraries(et-powertop
         hostUtils::logging
         $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
         deviceLayer::deviceLayer
+        ftxui::screen
+        ftxui::dom
+        ftxui::component
+
 )
 target_compile_options(et-powertop
     PRIVATE

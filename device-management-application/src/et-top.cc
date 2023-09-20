@@ -7,55 +7,10 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-
-#include "deviceLayer/IDeviceLayer.h"
-#include "deviceManagement/DeviceManagement.h"
 #define ET_TRACE_DECODER_IMPL
-#include "esperanto/et-trace/decoder.h"
-#include "esperanto/et-trace/layout.h"
-#include <hostUtils/logging/Logging.h>
-
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <fstream>
-#include <glog/logging.h>
-#include <iomanip>
-#include <iostream>
-#include <regex>
-#include <sstream>
-#include <sys/stat.h>
-#include <termios.h>
-#include <unistd.h>
-
-#define DV_LOG(severity) ET_LOG(ET_TOP, severity)
-#define DV_DLOG(severity) ET_DLOG(ET_TOP, severity)
-#define DV_VLOG(level) ET_VLOG(ET_TOP, level)
-
-#define ET_TOP "et-powertop"
-
-#define BIN2VOLTAGE(REG_VALUE, BASE, MULTIPLIER, DIVIDER) (BASE + ((REG_VALUE * MULTIPLIER) / DIVIDER))
-#define VOLTAGE2BIN(VOL_VALUE, BASE, MULTIPLIER, DIVIDER) (((VOL_VALUE - BASE) * DIVIDER) / MULTIPLIER)
-#define POWER_10MW_TO_W(pwr10mw) (pwr10mw / 100.0)
-#define POWER_MW_TO_W(pwrMw) (pwrMw / 1000.0)
-
-static const uint32_t kDmServiceRequestTimeout = 100000;
-static const uint32_t kUpdateDelayMS = 1000;
-static const int32_t kMaxDeviceNum = 63;
-static const uint16_t kOtherPower = 3750;
-static const int32_t kOpsCqNum = 1;
-static const int32_t kOpsSqNum = 2;
+#include "render.hpp"
 
 static struct termios orig_termios;
-
-enum op_value_unit {
-  OP_VALUE_UNIT_POWER_WATTS,
-  OP_VALUE_UNIT_POWER_MILLIWATTS,
-  OP_VALUE_UNIT_POWER_10MILLIWATTS,
-  OP_VALUE_UNIT_TEMPERATURE_CELCIUS,
-  OP_VALUE_UNIT_VOLTAGE_MILLIVOLTS,
-  OP_VALUE_UNIT_FREQ_MEGAHERTZ,
-};
 
 static void restoreTTY(void) {
   if (tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios) != 0) {
@@ -125,145 +80,54 @@ static inline std::string getLineFromStdin(size_t strLength, bool echoOnStdout =
   return std::string(vec.begin(), vec.end());
 }
 
-struct vq_stats_t {
-  std::string qname;
-  uint64_t msgCount;
-  uint64_t msgRate;
-  uint64_t utilPercent;
-};
+EtTop::EtTop(int defDevNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm,
+             bool batchMode, uint64_t updateLimit)
+  : devNum_(defDevNum)
+  , batchMode_(batchMode)
+  , updateLimit_(updateLimit)
+  , stop_(false)
+  , refreshDeviceDetails_(true)
+  , displayWattsBars_(false)
+  , dumpNextSpStatsBuffer_(false)
+  , dumpNextMmStatsBuffer_(false)
+  , displayErrorDetails_(batchMode)
+  , displayFreqDetails_(batchMode)
+  , displayVoltDetails_(batchMode)
+  , graphView_(batchMode)
+  , dl_(dl)
+  , dm_(dm) {
+  vqStats_[0].qname = "SQ0:";
+  vqStats_[1].qname = "SQ1:";
+  vqStats_[2].qname = "CQ0:";
+  mmStats_.cycle = 0;
+}
 
-struct mem_stats_t {
-  uint64_t cmaAllocated;
-  uint64_t cmaAllocationRate;
-};
+bool EtTop::stopStats(void) {
+  return stop_;
+}
 
-struct err_stats_t {
-  uint64_t ceCount;
-  uint64_t uceCount;
-  std::map<std::string, uint64_t> ce;
-  std::map<std::string, uint64_t> uce;
-};
-
-struct aer_stats_t {
-  uint64_t aerCount;
-  uint64_t fatalCount;
-  uint64_t nonfatalCount;
-  uint64_t correctableCount;
-  std::map<std::string, uint64_t> fatal;
-  std::map<std::string, uint64_t> nonfatal;
-  std::map<std::string, uint64_t> correctable;
-};
-
-struct sp_stats_t {
-  op_stats_t op;
-};
-
-struct mm_stats_t {
-  uint64_t cycle;
-  struct compute_resources_sample computeResources;
-} mm_stats_t;
-
-class EtTop {
-public:
-  EtTop(int defDevNum, std::unique_ptr<dev::IDeviceLayer>& dl, device_management::DeviceManagement& dm, bool batchMode,
-        uint64_t updateLimit)
-    : devNum_(defDevNum)
-    , batchMode_(batchMode)
-    , updateLimit_(updateLimit)
-    , stop_(false)
-    , refreshDeviceDetails_(true)
-    , displayWattsBars_(false)
-    , dumpNextSpStatsBuffer_(false)
-    , dumpNextMmStatsBuffer_(false)
-    , displayErrorDetails_(batchMode)
-    , displayFreqDetails_(batchMode)
-    , displayVoltDetails_(batchMode)
-    , dl_(dl)
-    , dm_(dm) {
-    vqStats_[0].qname = "SQ0:";
-    vqStats_[1].qname = "SQ1:";
-    vqStats_[2].qname = "CQ0:";
-    mmStats_.cycle = 0;
+void EtTop::collectStats(void) {
+  if (refreshDeviceDetails_) {
+    collectDeviceDetails();
+    refreshDeviceDetails_ = false;
   }
-
-  void processInput(void);
-  void displayStats(void);
-  void resetStats(void);
-  bool stopStats(void) {
-    return stop_;
+  collectMemStats();
+  collectErrStats();
+  collectAerStats();
+  collectVqStats();
+  collectSpStats();
+  collectMmStats();
+  if (displayFreqDetails_) {
+    collectFreqStats();
   }
-  void collectStats(void) {
-    if (refreshDeviceDetails_) {
-      collectDeviceDetails();
-      refreshDeviceDetails_ = false;
-    }
-    collectMemStats();
-    collectErrStats();
-    collectAerStats();
-    collectVqStats();
-    collectSpStats();
-    collectMmStats();
-    if (displayFreqDetails_) {
-      collectFreqStats();
-    }
-    if (displayVoltDetails_) {
-      collectVoltStats();
-    }
-    return;
+  if (displayVoltDetails_) {
+    collectVoltStats();
   }
-
-private:
-  void collectDeviceDetails(void);
-  bool processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total);
-  void displayOpStat(const std::string stat, const struct op_value& ov, const op_value_unit unit,
-                     const bool isPower = false, const float cardMax = 0.0, const bool addBarLabels = false);
-  void displayFreqStat(const std::string stat, bool endLine, uint64_t frequency);
-  void displayFreqStat(const std::string stat, const struct op_value& frequency);
-  void displayVoltStat(const std::string stat, bool endLine, uint64_t moduleVoltage, uint64_t asicVoltage);
-  void displayVoltStat(const std::string stat, uint64_t moduleVoltage, const struct op_value& asicVoltage);
-  void displayComputeStat(const std::string stat, const struct resource_value& rv);
-  void displayErrorDetails(std::map<std::string, uint64_t>& error, bool addColon = false, std::string prefix = "");
-  void collectMemStats(void);
-  void collectErrStats(void);
-  void collectAerStats(void);
-  void collectVqStats(void);
-  void collectSpStats(void);
-  void collectMmStats(void);
-  void collectFreqStats(void);
-  void collectVoltStats(void);
-
-  int devNum_;
-  bool batchMode_;
-  uint64_t updateLimit_;
-  bool stop_;
-  bool refreshDeviceDetails_;
-  bool displayWattsBars_;
-  bool dumpNextSpStatsBuffer_;
-  bool dumpNextMmStatsBuffer_;
-  bool displayErrorDetails_;
-  bool displayFreqDetails_;
-  bool displayVoltDetails_;
-  std::unique_ptr<dev::IDeviceLayer>& dl_;
-  device_management::DeviceManagement& dm_;
-  std::string cardId_;
-  std::string fwVersion_;
-  std::string pmicFwVersion_;
-
-  std::array<vq_stats_t, kOpsSqNum + kOpsCqNum> vqStats_;
-  struct mem_stats_t memStats_;
-  struct err_stats_t errStats_;
-  struct aer_stats_t aerStats_;
-  struct sp_stats_t spStats_;
-  struct mm_stats_t mmStats_;
-  device_mgmt_api::asic_frequencies_t freqStats_;
-  device_mgmt_api::module_voltage_t moduleVoltStats_;
-  device_mgmt_api::asic_voltage_t asicVoltStats_;
-};
+  return;
+}
 
 void EtTop::collectMemStats(void) {
   std::string dummy;
-  std::string line;
-
   std::istringstream attrFileAlloc(dl_->getDeviceAttribute(devNum_, "mem_stats/cma_allocated"));
   for (std::string line; std::getline(attrFileAlloc, line);) {
     std::stringstream ss;
@@ -649,7 +513,6 @@ void EtTop::processInput(void) {
   int rc;
   char ch;
   bool help = false;
-
   do {
     rc = read(STDIN_FILENO, &ch, 1);
     if (rc == -1) {
@@ -844,10 +707,31 @@ void EtTop::displayErrorDetails(std::map<std::string, uint64_t>& error, bool add
   return;
 }
 
+/**
+ * @brief Generates a graphical view for the performance metrics displayed by et_powertop.
+ *
+ * This function calls rendering function for various views represents them on screen
+ */
+void EtTop::displayStatsGraph(void) {
+
+  graph_init();
+  displayFreqDetails_ = true;
+  displayVoltDetails_ = true;
+
+  auto powerView = powerViewRenderer(spStats_.op);
+  auto computeView = computeViewRenderer(mmStats_);
+  auto tempView = tempViewRenderer(spStats_);
+  auto freqView = freqViewRenderer(freqStats_);
+  auto voltView = voltViewRenderer(moduleVoltStats_);
+  auto utilizationView = utilizationViewRenderer(mmStats_);
+  auto throughputView = throughputViewRenderer(mmStats_);
+  renderMainDisplay(powerView, computeView, tempView, freqView, voltView, utilizationView, throughputView, this);
+
+  displayFreqDetails_ = false;
+  displayVoltDetails_ = false;
+}
+
 void EtTop::displayStats(void) {
-  time_t now;
-  char nowbuf[30];
-  char* hhmmss = &nowbuf[10];
 
   if (updateLimit_ > 0 && --updateLimit_ == 0) {
     stop_ = true;
@@ -858,9 +742,13 @@ void EtTop::displayStats(void) {
   } else {
     system("clear");
   }
+  time_t now;
+  char nowbuf[30];
+  char* hhmmss = &nowbuf[10];
   time(&now);
   ctime_r(&now, nowbuf);
   nowbuf[20] = '\0';
+
   std::cout << ET_TOP " v" ET_TOP_VERSION " device " << devNum_ << hhmmss << std::endl;
   std::cout << "Card ID: " << std::setw(10) << std::left << cardId_ << "\tETSOC FW: " << std::setw(12) << std::left
             << fwVersion_ << "\tPMIC FW: " << std::setw(12) << std::left << pmicFwVersion_ << std::endl;
@@ -962,7 +850,6 @@ void EtTop::displayStats(void) {
       }
     }
   }
-
   if (!batchMode_) {
     std::cout << "Type 'h' for help ";
   }
@@ -975,6 +862,7 @@ int main(int argc, char** argv) {
   long int devNum = 0;
   std::chrono::duration delay = std::chrono::milliseconds(kUpdateDelayMS);
   long int updateLimit = 0;
+  bool graphMode = false;
   bool batchMode = false;
   bool usageError = false;
   bool resetStats = false;
@@ -1002,7 +890,9 @@ int main(int argc, char** argv) {
       }
 
       while (!usageError && i < argc) {
-        if (!batchMode && !strcmp(argv[i], "-b")) {
+        if (!graphMode && !strcmp(argv[i], "-g")) {
+          graphMode = true;
+        } else if (!batchMode && !strcmp(argv[i], "-b")) {
           batchMode = true;
         } else if (!resetStats && !strcmp(argv[i], "-r")) {
           resetStats = true;
@@ -1081,21 +971,23 @@ int main(int argc, char** argv) {
     etTop.resetStats();
     checkPoint += delay;
   }
+  if (graphMode) {
+    etTop.displayStatsGraph();
+  } else {
+    while (!etTop.stopStats()) {
+      if (!batchMode) {
+        etTop.processInput();
+      }
 
-  while (!etTop.stopStats()) {
-    if (!batchMode) {
-      etTop.processInput();
+      if (checkPoint > std::chrono::steady_clock::now()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      } else {
+        checkPoint = std::chrono::steady_clock::now() + delay;
+        etTop.collectStats();
+        etTop.displayStats();
+      }
     }
-
-    if (checkPoint > std::chrono::steady_clock::now()) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    } else {
-      checkPoint = std::chrono::steady_clock::now() + delay;
-      etTop.collectStats();
-      etTop.displayStats();
-    }
+    std::cout << std::endl;
   }
-
-  std::cout << std::endl;
   return 0;
 }
