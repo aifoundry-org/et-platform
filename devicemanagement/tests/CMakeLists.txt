@@ -278,7 +278,7 @@ create_test(
     TARGET      StressTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     stress/StressTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;STRESS;TIMEOUT;450"
+    PROPERTIES  "LABELS;STRESS;TIMEOUT;800"
 )
 
 configure_file(

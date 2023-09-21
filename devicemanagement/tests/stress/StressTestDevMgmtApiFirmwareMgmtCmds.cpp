@@ -71,6 +71,22 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageMultiDevice) {
   }
 }
 
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetMultiDevice) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    if (isParallelRun()) {
+      DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+      FLAGS_enable_trace_dump = false;
+      return;
+    }
+    int iterations = 5 / devLayer_->getDevicesCount();
+    setFirmwareUpdateImage(false /* Multiple Devices */, true, iterations);
+    extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
 TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
   if (isParallelRun()) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
