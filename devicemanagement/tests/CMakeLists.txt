@@ -35,6 +35,9 @@ get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion
 # This will be used by test case to verify f/w update support as this is CMakeLists for DM tests.
 # End user can use f/w image of choice by passing it as argument to dev_mngt_service.
 set(FLASH_IMG_PATH "${FLASH_INSTALL_DIR}/dev-image/production-signed-with-test-keys-pcie-phy-fw-override/flash_32Mbit.bin")
+set(FLASH_TOOL ${CMAKE_INSTALL_PREFIX}/bin/esperanto_flash_tool)
+set(DEVICE_SIGNED_ARTIFACTS_DIR ${CMAKE_INSTALL_PREFIX}/lib/esperanto-fw/device-artifacts/signed-artifacts/test-key-artifacts)
+set(FLASH_32MBIT_TEMPLATE ${ROOT_BINARY_DIR}/device-software/device-artifacts/flash-image/src/device-artifacts-flash-image-build/dev-image/production-signed-with-test-keys-pcie-phy-fw-override/flash_32Mbit_template.json)
 
 option(ENABLE_SANITIZER_ADDRESS "" OFF)
 option(ENABLE_SANITIZER_LEAK "" OFF)

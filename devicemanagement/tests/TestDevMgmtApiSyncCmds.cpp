@@ -60,6 +60,22 @@ DEFINE_uint32(exec_timeout_ms, 30000, "Internal execution timeout in millisecond
 #define MAJOR_VERSION(ver) ((ver >> 24) & 0xff)
 #define MINOR_VERSION(ver) ((ver >> 16) & 0xff)
 #define REVISION_VERSION(ver) ((ver >> 8) & 0xff)
+#define PMIC_FORMAT_VERSION(major, minor, revision) ((major << 16) | (minor << 8) | revision)
+#define EXTRACT_BYTE(byte_idx, org_val) (0xFF & (org_val >> (byte_idx * 8)))
+
+// These constants are based on the settings of firmware and flash tool
+static constexpr const int kPmicFlashImageMetadataOffset = 256;
+static constexpr const int kFlashImageRawFileHeaderSize = 2816;
+
+// PMIC Image metadata header - must be synced with device
+typedef struct imageMetadata_ {
+  uint32_t start_addr;
+  uint32_t version;
+  uint32_t board_type;
+  char hash[16];
+  uint32_t checksum;
+  uint32_t image_size;
+} pmicImageMetadata_t;
 
 getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   const char* error;
@@ -323,6 +339,66 @@ static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct 
     validTypeFound = false;
   }
   return validTypeFound;
+}
+
+static inline bool updatePmicFwMetadata(std::string pmicSlotImgPath) {
+  std::fstream pmicImage;
+  // Open the PMIC slot image
+  pmicImage.open(pmicSlotImgPath, std::fstream::binary | std::fstream::in | std::fstream::out);
+  if (pmicImage.is_open() && (pmicImage.tellp() <= 0)) {
+    uint32_t pmicCurrentVersion;
+    int pmicMetaStartOffset = kFlashImageRawFileHeaderSize + kPmicFlashImageMetadataOffset;
+    // Seek to the start of the PMIC FW version in metadata
+    pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, version), std::fstream::beg);
+    // Read the PMIC FW version
+    pmicImage.read(templ::bit_cast<char*>(&pmicCurrentVersion), sizeof(pmicCurrentVersion));
+    DV_LOG(INFO) << "PMIC current version: " << EXTRACT_BYTE(2, pmicCurrentVersion) << "."
+                 << EXTRACT_BYTE(1, pmicCurrentVersion) << "." << EXTRACT_BYTE(0, pmicCurrentVersion);
+
+    // Increment the major version for testing
+    uint8_t newMajor = EXTRACT_BYTE(2, pmicCurrentVersion) + 1;
+    uint32_t pmicNewVersion =
+      PMIC_FORMAT_VERSION(newMajor, EXTRACT_BYTE(1, pmicCurrentVersion), EXTRACT_BYTE(0, pmicCurrentVersion));
+    DV_LOG(INFO) << "PMIC new version: " << EXTRACT_BYTE(2, pmicNewVersion) << "." << EXTRACT_BYTE(1, pmicNewVersion)
+                 << "." << EXTRACT_BYTE(0, pmicNewVersion);
+
+    // Seek to the start of the PMIC FW version in metadata
+    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, version), std::fstream::beg);
+    // Write the new PMIC FW version
+    pmicImage.write(templ::bit_cast<char*>(&pmicNewVersion), sizeof(pmicCurrentVersion));
+
+    // Re-compute the checksum
+    uint32_t checksum = 0;
+    // Write zero initially to checksum
+    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, checksum), std::fstream::beg);
+    // Write the new PMIC FW version
+    pmicImage.write(templ::bit_cast<char*>(&checksum), sizeof(checksum));
+    // Get the total size of PMIC image
+    uint32_t fileSize;
+    pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, image_size), std::fstream::beg);
+    // Read the PMIC FW version
+    pmicImage.read(templ::bit_cast<char*>(&fileSize), sizeof(fileSize));
+
+    // Now recompute the checksum from the beginning of PMIC image
+    int32_t temp32;
+    pmicImage.seekg(kFlashImageRawFileHeaderSize, std::fstream::beg);
+    for (int idx = 0; idx < fileSize; idx += 4) {
+      pmicImage.read(templ::bit_cast<char*>(&temp32), sizeof(temp32));
+      checksum += temp32;
+    }
+    checksum = ((0 - checksum) & ((1UL << 32) - 1));
+    DV_LOG(INFO) << "PMIC new checksum: " << checksum;
+
+    // Seek to the start of the PMIC checksum in metadata
+    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, checksum), std::fstream::beg);
+    // Write the new PMIC checksum
+    pmicImage.write(templ::bit_cast<char*>(&checksum), sizeof(checksum));
+
+    pmicImage.close();
+    return true;
+  } else {
+    return false;
+  }
 }
 
 void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBufRaw,
@@ -2817,41 +2893,61 @@ void TestDevMgmtApiSyncCmds::setModuleActivePowerManagementRangeInvalidInputBuff
   }
 }
 
-void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool resetDev) {
+void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool resetDev, int iterations) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
+  // Verify the paths for flash image and its tools
+  ASSERT_TRUE(fs::exists(FLASH_TOOL_PATH));
+  ASSERT_TRUE(fs::exists(FLASH_IMG_PATH));
+  ASSERT_TRUE(fs::exists(FLASH_32MBIT_TEMPLATE_PATH));
+  ASSERT_TRUE(fs::exists(DEVICE_SIGNED_ARTIFACTS_PATH));
+
+  std::string pmicSlot0ImgPath = DEVICE_SIGNED_ARTIFACTS_PATH + std::string("/signed_pmic_s0_fw.img");
+  std::string pmicSlot1ImgPath = DEVICE_SIGNED_ARTIFACTS_PATH + std::string("/signed_pmic_s1_fw.img");
+  std::string flashToolCmd =
+    FLASH_TOOL_PATH + std::string(" create ") + FLASH_IMG_PATH + std::string(" ") + FLASH_32MBIT_TEMPLATE_PATH;
+
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
-  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    // DM_CMD_SET_FIRMWARE_UPDATE : Device returns response of type device_mgmt_default_rsp_t.
-    // Payload in response is of type uint32_t
-    const uint32_t output_size = sizeof(uint32_t);
 
-    char output_buff[output_size] = {0};
-    auto hst_latency = std::make_unique<uint32_t>();
-    auto dev_latency = std::make_unique<uint64_t>();
+  for (int iter = 0; iter < iterations; iter++) {
+    // Increment the pmic slot 0 fw version
+    ASSERT_TRUE(updatePmicFwMetadata(pmicSlot0ImgPath));
+    // Increment the pmic slot 1 fw version
+    ASSERT_TRUE(updatePmicFwMetadata(pmicSlot1ImgPath));
 
-    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE, FLASH_IMG_PATH, 1,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
-                                DURATION2MS(end - Clock::now())),
-              device_mgmt_api::DM_STATUS_SUCCESS);
-    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    // Run command to invoke flash tool to re-create the flash image
+    ASSERT_EQ(system(flashToolCmd.c_str()), 0);
 
-    // Skip validation if loopback driver
-    if (getTestTarget() != Target::Loopback) {
-      ASSERT_EQ(output_buff[0], 0);
-    }
+    for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+      // DM_CMD_SET_FIRMWARE_UPDATE : Device returns response of type device_mgmt_default_rsp_t.
+      // Payload in response is of type uint32_t
+      const uint32_t output_size = sizeof(uint32_t);
+      char output_buff[output_size] = {0};
+      auto hst_latency = std::make_unique<uint32_t>();
+      auto dev_latency = std::make_unique<uint64_t>();
 
-    if (resetDev) {
-
-      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
-                                  hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
+      ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE, FLASH_IMG_PATH, 1,
+                                  output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                  DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
       DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-      // Check if trace control works after reset since reset SoC is a command without response
-      controlTraceLogging();
+
+      // Skip validation if loopback driver
+      if (getTestTarget() != Target::Loopback) {
+        ASSERT_EQ(output_buff[0], 0);
+      }
+
+      if (resetDev) {
+        ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
+                                    hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
+                  device_mgmt_api::DM_STATUS_SUCCESS);
+        DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+        // Check if trace control works after reset since reset SoC is a command without response
+        controlTraceLogging();
+      }
     }
   }
 }

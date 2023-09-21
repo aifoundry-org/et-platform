@@ -44,10 +44,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageSingleDevice) {
       return;
     }
     initEventProcessor();
-    int iteration = 5;
-    for (int i = 0; i < iteration; i++) {
-      setFirmwareUpdateImage(true /* Single Device */, false);
-    }
+    setFirmwareUpdateImage(true /* Single Device */, false, 5);
     cleanupEventProcessor();
     extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
   } else {
@@ -64,11 +61,8 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageMultiDevice) {
       return;
     }
     initEventProcessor();
-    int iteration = 5 / devLayer_->getDevicesCount();
-    iteration = iteration ? iteration : 1;
-    for (int i = 0; i < iteration; i++) {
-      setFirmwareUpdateImage(false /* Multiple Devices */, false);
-    }
+    int iterations = 5 / devLayer_->getDevicesCount();
+    setFirmwareUpdateImage(false /* Multiple Devices */, false, iterations);
     cleanupEventProcessor();
     extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
   } else {

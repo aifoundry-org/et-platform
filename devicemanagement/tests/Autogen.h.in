@@ -12,5 +12,8 @@
 #define AUTOGEN_H_
 
 static constexpr const char* FLASH_IMG_PATH = "@FLASH_IMG_PATH@";
+static constexpr const char* FLASH_TOOL_PATH = "@FLASH_TOOL@";
+static constexpr const char* DEVICE_SIGNED_ARTIFACTS_PATH = "@DEVICE_SIGNED_ARTIFACTS_DIR@";
+static constexpr const char* FLASH_32MBIT_TEMPLATE_PATH = "@FLASH_32MBIT_TEMPLATE@";
 
 #endif // AUTOGEN_H_
