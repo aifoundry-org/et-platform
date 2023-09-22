@@ -341,31 +341,30 @@ static inline bool decodeSingleTraceEvent(std::stringstream& logs, const struct 
   return validTypeFound;
 }
 
-static inline bool updatePmicFwMetadata(std::string pmicSlotImgPath) {
+static inline uint32_t updatePmicFwMetaVersion(std::string pmicSlotImgPath, uint32_t& oldVersion,
+                                               uint32_t& newVersion) {
   std::fstream pmicImage;
   // Open the PMIC slot image
   pmicImage.open(pmicSlotImgPath, std::fstream::binary | std::fstream::in | std::fstream::out);
   if (pmicImage.is_open() && (pmicImage.tellp() <= 0)) {
-    uint32_t pmicCurrentVersion;
     int pmicMetaStartOffset = kFlashImageRawFileHeaderSize + kPmicFlashImageMetadataOffset;
     // Seek to the start of the PMIC FW version in metadata
     pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, version), std::fstream::beg);
     // Read the PMIC FW version
-    pmicImage.read(templ::bit_cast<char*>(&pmicCurrentVersion), sizeof(pmicCurrentVersion));
-    DV_LOG(INFO) << "PMIC current version: " << EXTRACT_BYTE(2, pmicCurrentVersion) << "."
-                 << EXTRACT_BYTE(1, pmicCurrentVersion) << "." << EXTRACT_BYTE(0, pmicCurrentVersion);
+    pmicImage.read(templ::bit_cast<char*>(&oldVersion), sizeof(oldVersion));
+    DV_LOG(INFO) << "PMIC current version: " << EXTRACT_BYTE(2, oldVersion) << "." << EXTRACT_BYTE(1, oldVersion) << "."
+                 << EXTRACT_BYTE(0, oldVersion);
 
     // Increment the major version for testing
-    uint8_t newMajor = EXTRACT_BYTE(2, pmicCurrentVersion) + 1;
-    uint32_t pmicNewVersion =
-      PMIC_FORMAT_VERSION(newMajor, EXTRACT_BYTE(1, pmicCurrentVersion), EXTRACT_BYTE(0, pmicCurrentVersion));
-    DV_LOG(INFO) << "PMIC new version: " << EXTRACT_BYTE(2, pmicNewVersion) << "." << EXTRACT_BYTE(1, pmicNewVersion)
-                 << "." << EXTRACT_BYTE(0, pmicNewVersion);
+    uint8_t newMajor = EXTRACT_BYTE(2, oldVersion) + 1;
+    newVersion = PMIC_FORMAT_VERSION(newMajor, EXTRACT_BYTE(1, oldVersion), EXTRACT_BYTE(0, oldVersion));
+    DV_LOG(INFO) << "PMIC new version: " << EXTRACT_BYTE(2, newVersion) << "." << EXTRACT_BYTE(1, newVersion) << "."
+                 << EXTRACT_BYTE(0, newVersion);
 
     // Seek to the start of the PMIC FW version in metadata
     pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, version), std::fstream::beg);
     // Write the new PMIC FW version
-    pmicImage.write(templ::bit_cast<char*>(&pmicNewVersion), sizeof(pmicCurrentVersion));
+    pmicImage.write(templ::bit_cast<char*>(&newVersion), sizeof(newVersion));
 
     // Re-compute the checksum
     uint32_t checksum = 0;
@@ -2913,10 +2912,18 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
 
   for (int iter = 0; iter < iterations; iter++) {
+    uint32_t s0OldVersion = 0;
+    uint32_t s0NewVersion = 0;
+    uint32_t s1OldVersion = 0;
+    uint32_t s1NewVersion = 0;
     // Increment the pmic slot 0 fw version
-    ASSERT_TRUE(updatePmicFwMetadata(pmicSlot0ImgPath));
+    ASSERT_TRUE(updatePmicFwMetaVersion(pmicSlot0ImgPath, s0OldVersion, s0NewVersion));
     // Increment the pmic slot 1 fw version
-    ASSERT_TRUE(updatePmicFwMetadata(pmicSlot1ImgPath));
+    ASSERT_TRUE(updatePmicFwMetaVersion(pmicSlot1ImgPath, s1OldVersion, s1NewVersion));
+
+    // The slot 0 and slot 1 version should match
+    ASSERT_EQ(s0OldVersion, s1OldVersion);
+    ASSERT_EQ(s0NewVersion, s1NewVersion);
 
     // Run command to invoke flash tool to re-create the flash image
     ASSERT_EQ(system(flashToolCmd.c_str()), 0);
@@ -2924,7 +2931,7 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
     for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
       // DM_CMD_SET_FIRMWARE_UPDATE : Device returns response of type device_mgmt_default_rsp_t.
       // Payload in response is of type uint32_t
-      const uint32_t output_size = sizeof(uint32_t);
+      uint32_t output_size = sizeof(uint32_t);
       char output_buff[output_size] = {0};
       auto hst_latency = std::make_unique<uint32_t>();
       auto dev_latency = std::make_unique<uint64_t>();
@@ -2940,13 +2947,35 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
         ASSERT_EQ(output_buff[0], 0);
       }
 
+      const uint32_t output_size_v = sizeof(device_mgmt_api::firmware_version_t);
+      char output_buff_v[output_size_v] = {0};
+
+      // Optionally reset the device
       if (resetDev) {
         ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
                                     hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
                   device_mgmt_api::DM_STATUS_SUCCESS);
         DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
-        // Check if trace control works after reset since reset SoC is a command without response
-        controlTraceLogging();
+
+        // Check the PMIC FW version to match to new one. Its okay to match either of the
+        // slot version since both are same
+        ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr,
+                                    0, output_buff_v, output_size_v, hst_latency.get(), dev_latency.get(),
+                                    DURATION2MS(end - Clock::now())),
+                  device_mgmt_api::DM_STATUS_SUCCESS);
+        DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+      }
+      // Validate FW version
+      if (resetDev && (getTestTarget() != Target::Loopback)) {
+        device_mgmt_api::firmware_version_t* firmware_versions = (device_mgmt_api::firmware_version_t*)output_buff_v;
+        DV_LOG(INFO) << fmt::format("\tCurrent PMIC version: {}.{}.{}", MAJOR_VERSION(firmware_versions->pmic_v),
+                                    MINOR_VERSION(firmware_versions->pmic_v),
+                                    REVISION_VERSION(firmware_versions->pmic_v));
+
+        // Match the PMIC version
+        ASSERT_EQ(MAJOR_VERSION(firmware_versions->pmic_v), EXTRACT_BYTE(2, s0NewVersion));
+        ASSERT_EQ(MINOR_VERSION(firmware_versions->pmic_v), EXTRACT_BYTE(1, s0NewVersion));
+        ASSERT_EQ(REVISION_VERSION(firmware_versions->pmic_v), EXTRACT_BYTE(0, s0NewVersion));
       }
     }
   }
