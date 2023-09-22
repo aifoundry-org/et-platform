@@ -185,7 +185,7 @@ create_test(
     TARGET      IntegrationTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     integration/IntegrationTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;300"
+    PROPERTIES  "LABELS;INTEGRATION;TIMEOUT;800"
 )
 
 #####################

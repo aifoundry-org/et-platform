@@ -2230,8 +2230,8 @@ void TestDevMgmtApiSyncCmds::getASICPerCoreDatapathUtilization(bool singleDevice
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION, nullptr, 0,
-                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
+                                nullptr, 0, output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2257,8 +2257,9 @@ void TestDevMgmtApiSyncCmds::getASICUtilization(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_UTILIZATION, nullptr, 0,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2283,7 +2284,7 @@ void TestDevMgmtApiSyncCmds::getASICStalls(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_STALLS, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2309,7 +2310,7 @@ void TestDevMgmtApiSyncCmds::getASICLatency(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_ASIC_LATENCY, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2334,7 +2335,7 @@ void TestDevMgmtApiSyncCmds::getMMErrorCount(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MM_ERROR_COUNT, nullptr, 0, output_buff,
                                 output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
@@ -2356,8 +2357,9 @@ void TestDevMgmtApiSyncCmds::getFWBootstatus(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0, output_buff,
-                                output_size, hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_FIRMWARE_BOOT_STATUS, nullptr, 0,
+                                output_buff, output_size, hst_latency.get(), dev_latency.get(),
+                                DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
 
@@ -2381,7 +2383,7 @@ void TestDevMgmtApiSyncCmds::getModuleFWRevision(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, nullptr, 0,
                                 output_buff, output_size, hst_latency.get(), dev_latency.get(),
                                 DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
@@ -3583,8 +3585,8 @@ void TestDevMgmtApiSyncCmds::resetMM(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
 
-    ASSERT_EQ(dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
-                                dev_latency.get(), DURATION2MS(end - Clock::now())),
+    ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0,
+                                hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
               device_mgmt_api::DM_STATUS_SUCCESS);
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
   }
@@ -3601,7 +3603,7 @@ void TestDevMgmtApiSyncCmds::resetMMWithOpsInUse(bool singleDevice) {
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
     try {
-      dm.serviceRequest(0, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
+      dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_MM_RESET, nullptr, 0, nullptr, 0, hst_latency.get(),
                         dev_latency.get(), DURATION2MS(end - Clock::now()));
 
     } catch (const dev::Exception& ex) {
