@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18602] Added support to rescan a partition after a FW image write.
 ### Changed
 - [SW-18208] Enabling PMIC Firmware update.
+- [SW-18499] Masking out bad Minion Shire PVT sampling.
 ### Deprecated
 ### Removed
 ### Fixed

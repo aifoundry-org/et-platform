@@ -24,13 +24,20 @@
 */
 #define MIN(x, y) x < y ? x : y
 
-/*! \def GET_MINION_VM(mishire_sample_avg,valid_samples_num) 
+/*! \def GET_MINION_VM(minshire_sample_avg, valid_samples_num)
     \brief Reads all MinShire VM values
 */
-#define GET_MINION_VM(mishire_sample_avg, valid_samples_num)                                       \
+#define GET_MINION_VM(minshire_sample_avg, valid_samples_num)                                      \
     int ret;                                                                                       \
     for (int min = 0; min < PVTC_MINION_SHIRE_NUM; min++)                                          \
     {                                                                                              \
+        /* Check for bad minion shire pvt sensor */                                                \
+        if ((pvt_bad_min_shire_mask >> min) & 1UL)                                                 \
+        {                                                                                          \
+            Log_Write(LOG_LEVEL_DEBUG, "MS %2d bad. skipping.\r\n", min);                          \
+            continue;                                                                              \
+        }                                                                                          \
+                                                                                                   \
         MinShire_VM_sample minshire_sample = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };            \
         ret = pvt_get_min_shire_vm_sample(min, &minshire_sample);                                  \
         if (0 != ret)                                                                              \
@@ -39,6 +46,8 @@
                       "MS %2d Voltage [mV]: VDD_MNN: Sample fault"                                 \
                       " VDD_SRAM: Sample fault VDD_NOC: Sample fault\n",                           \
                       min);                                                                        \
+            /* Set the bit to indicate a bad shire */                                              \
+            pvt_bad_min_shire_mask |= (1UL << min);                                                \
         }                                                                                          \
         else                                                                                       \
         {                                                                                          \
@@ -83,7 +92,7 @@
             (uint16_t)(minshire_sample_avg.vdd_noc.current / valid_samples_num);                   \
     }
 
-/*! \def GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num) 
+/*! \def GET_MEMSHIRE_VM(memshire_sample_avg,valid_samples_num)
     \brief Reads all MemShire VM values
 */
 #define GET_MEMSHIRE_VM(memshire_sample_avg, valid_samples_num)                                    \
@@ -351,6 +360,9 @@ static PVTC_VM_mapping pvtc_ext_analog_vm_map[PVTC_EXT_ANALOG_VM_NUM] = { { // E
                                                                             .pvtc_id = PVTC_2,
                                                                             .vm_id = VM_5,
                                                                             .ch_id = CHAN_0 } };
+
+/* Global representing the bad Minion shire mask */
+static uint64_t pvt_bad_min_shire_mask = 0;
 
 static void pvt_configure_controller(uint8_t pvt_id)
 {
@@ -1089,6 +1101,9 @@ int pvt_init(void)
         pvt_configure_sda_regs(i);
     }
 
+    /* Reset the bad Minion Shire PVT sensor mask */
+    pvt_bad_min_shire_mask = 0;
+
     pvt_continuous_sample_run();
 
     return 0;
@@ -1210,7 +1225,7 @@ static void pvt_print_min_shire_voltage_sampled_values(void)
                                                { 0, 0, 0xFFFF } };
     int valid_samples_num = 0;
 
-    GET_MINION_VM(mishire_sample_avg, valid_samples_num)
+    GET_MINION_VM(minshire_sample_avg, valid_samples_num)
 
     Log_Write(LOG_LEVEL_CRITICAL,
               "MinShire Average Volt[mV]: VDD_MNN: %d [%d, %d]"
@@ -1336,7 +1351,7 @@ int pvt_get_minion_avg_low_high_voltage(MinShire_VM_sample *minshire_voltage)
                                                { 0, 0, 0xFFFF } };
     int valid_samples_num = 0;
 
-    GET_MINION_VM(mishire_sample_avg, valid_samples_num)
+    GET_MINION_VM(minshire_sample_avg, valid_samples_num)
 
     if (valid_samples_num == 0)
     {
