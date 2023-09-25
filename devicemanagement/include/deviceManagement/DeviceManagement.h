@@ -206,7 +206,26 @@ public:
   /// @param[in] timeout  Time to wait for the event to receive
   ///
   /// @return true if event is received in given timeout else false
+  bool getMDIEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout);
+
+  /* TODO: SW-18541 - This API will be deprecated */
+  /// @brief Gets the MDI event type
+  ///
+  /// @param[in] device_node  device index to use
+  /// @param[out] event  A vector containing the complete event message
+  /// @param[in] timeout  Time to wait for the event to receive
+  ///
+  /// @return true if event is received in given timeout else false
   bool getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout);
+
+  /// @brief Gets the DM event
+  ///
+  /// @param[in] device_node  device index to use
+  /// @param[out] event  A vector containing the complete event message
+  /// @param[in] timeout  Time to wait for the event to receive
+  ///
+  /// @return true if event is received in given timeout else false
+  bool getDMEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout);
 
 private:
   /// @brief DeviceManagement constructors

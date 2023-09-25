@@ -24,9 +24,11 @@ class StressTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     ASSERT_NE(devLayer_, nullptr);
     initTestTrace();
+    initEventProcessor();
     controlTraceLogging();
   }
   void TearDown() override {
+    cleanupEventProcessor();
     if (handle_ != nullptr) {
       dlclose(handle_);
     }

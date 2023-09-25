@@ -23,9 +23,11 @@ class StateInspectionApiTestcmds : public TestDevMgmtApiSyncCmds {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
+    initEventProcessor();
     controlTraceLogging();
   }
   void TearDown() override {
+    cleanupEventProcessor();
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     if (handle_ != nullptr) {
       dlclose(handle_);

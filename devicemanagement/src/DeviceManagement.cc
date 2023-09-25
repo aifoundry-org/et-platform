@@ -24,9 +24,23 @@
 #include <unordered_map>
 #include <vector>
 
+/* Maximum DM events for fixed queue*/
+#define MAX_DM_EVENTS 100
+
 using namespace dev;
 
 namespace device_management {
+
+template <typename T, int MaxLen, typename Container = std::deque<T>>
+class FixedQueue : public std::queue<T, Container> {
+public:
+  void push(const T& value) {
+    if (this->size() == MaxLen) {
+      this->c.pop_front();
+    }
+    std::queue<T, Container>::push(value);
+  }
+};
 
 struct lockable_ {
   explicit lockable_(uint32_t index)
@@ -65,15 +79,43 @@ struct lockable_ {
 
   void pushEvent(std::vector<std::byte>& event) {
     std::scoped_lock lk(eventsMtx);
-    events.push(std::move(event));
+    auto rCB = reinterpret_cast<const dm_evt*>(event.data());
+    if (rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT &&
+        rCB->info.event_hdr.msg_id < device_mgmt_api::DM_CMD_MDI_END) {
+      mdiEvents.push(std::move(event));
+    } else if (rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_EVENT_SP_TRACE_BUFFER_FULL &&
+               rCB->info.event_hdr.msg_id < device_mgmt_api::DM_EVENT_END) {
+      dmEvents.push(std::move(event));
+    }
     eventsCv.notify_all();
   }
 
+  bool popMDIEvent(std::vector<std::byte>& event, uint32_t timeout) {
+    std::unique_lock lk(eventsMtx);
+    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !mdiEvents.empty(); })) {
+      event = std::move(mdiEvents.front());
+      mdiEvents.pop();
+      return true;
+    }
+    return false;
+  }
+
+  /* TODO: SW-18541 - This API will be deprecated */
   bool popEvent(std::vector<std::byte>& event, uint32_t timeout) {
     std::unique_lock lk(eventsMtx);
-    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !events.empty(); })) {
-      event = std::move(events.front());
-      events.pop();
+    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !mdiEvents.empty(); })) {
+      event = std::move(mdiEvents.front());
+      mdiEvents.pop();
+      return true;
+    }
+    return false;
+  }
+
+  bool popDMEvent(std::vector<std::byte>& event, uint32_t timeout) {
+    std::unique_lock lk(eventsMtx);
+    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !dmEvents.empty(); })) {
+      event = std::move(dmEvents.front());
+      dmEvents.pop();
       return true;
     }
     return false;
@@ -95,14 +137,18 @@ private:
   std::mutex commandMapMtx;
   std::mutex eventsMtx;
   std::condition_variable eventsCv;
-  std::queue<std::vector<std::byte>> events;
+  std::queue<std::vector<std::byte>> mdiEvents;
+  FixedQueue<std::vector<std::byte>, MAX_DM_EVENTS> dmEvents;
 };
 
 bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::byte>& message) {
   auto rCB = reinterpret_cast<const dm_evt*>(message.data());
   // The range can be extended to handle all type of events
-  if (rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT &&
-      rCB->info.event_hdr.msg_id < device_mgmt_api::DM_CMD_MDI_END) {
+  if ((rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_CMD_MDI_SET_BREAKPOINT_EVENT &&
+       rCB->info.event_hdr.msg_id < device_mgmt_api::DM_CMD_MDI_END) ||
+      (rCB->info.event_hdr.msg_id >= device_mgmt_api::DM_EVENT_BEGIN &&
+       rCB->info.event_hdr.msg_id < device_mgmt_api::DM_EVENT_END)) {
+
     auto lockable = getDeviceInstance(device_node);
     lockable->pushEvent(message);
     return true;
@@ -110,9 +156,24 @@ bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::
   return false;
 }
 
+bool DeviceManagement::getMDIEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
+  /* Make sure device is available */
+  if (auto& ptr = deviceMap_[device_node]; !ptr) {
+    auto lockable = getDeviceInstance(device_node);
+    return lockable->popEvent(event, timeout);
+  }
+  return false;
+}
+
+/* TODO: SW-18541 - This API will be deprecated */
 bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
   auto lockable = getDeviceInstance(device_node);
   return lockable->popEvent(event, timeout);
+}
+
+bool DeviceManagement::getDMEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
+  auto lockable = getDeviceInstance(device_node);
+  return lockable->popDMEvent(event, timeout);
 }
 
 void DeviceManagement::receiver(std::shared_ptr<lockable_> lockable) {

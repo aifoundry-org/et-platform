@@ -22,9 +22,11 @@ class IntegrationTestDevMgmtApiTraceCmds : public TestDevMgmtApiSyncCmds {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
+    initEventProcessor();
     initDevErrorEvent();
   }
   void TearDown() override {
+    cleanupEventProcessor();
     checkDevErrorEvent();
     if (handle_ != nullptr) {
       dlclose(handle_);

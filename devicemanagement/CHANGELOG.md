@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-18590] Added firmware update functional and stress tests.
+- [SW-15748] Handling DM events in userspace
 ### Changed
 - [SW-18398b] Update DevErrorEvent implementation for the skipList usage to add/remove EventType entry from the default skipList without requiring to replace the complete skipList.
 ### Deprecated
+- [SW-15748] Marked getEvent() API as deprecated, will be replaced with getMDIEvents()
 ### Removed
 ### Fixed
 ### Security

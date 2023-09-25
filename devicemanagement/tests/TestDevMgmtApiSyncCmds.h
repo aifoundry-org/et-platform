@@ -121,6 +121,9 @@ protected:
 
   // Integration tests for SP tracing and error events
   void initTestTrace();
+  void initEventProcessor();
+  void launchEventProcessor();
+  void cleanupEventProcessor();
   void initDevErrorEvent(std::initializer_list<DevErrorEvent::EventType> skipList = {
                            DevErrorEvent::EventType::SpTraceBufferFullCeEvent});
   void checkDevErrorEvent();
@@ -246,6 +249,10 @@ protected:
   void writeMem_unprivileged(uint64_t testInputData, uint64_t writeAddr);
   void writeMem_privileged(uint64_t testInputData, uint64_t writeAddr);
 
+  /* DM test service APIs*/
+  void initDMTestFramework();
+  void CleanupDMTestFramework();
+
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");
     auto currentTarget = Target::Silicon;
@@ -306,6 +313,8 @@ protected:
   logging::LoggerDefault logger_;
   std::unordered_map<int, DevErrorEvent> eventsAtStartMap_;
   std::vector<DevErrorEvent::EventType> devErrorEventSkipList_;
+  std::thread eventHandler_;
+  bool eventProcessorRunning_ = true;
 };
 
 #endif // TEST_DEVICE_M_H

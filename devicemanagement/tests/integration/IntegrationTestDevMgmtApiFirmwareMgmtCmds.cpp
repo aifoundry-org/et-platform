@@ -22,10 +22,12 @@ class IntegrationTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds 
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
+    initEventProcessor();
     controlTraceLogging();
     initDevErrorEvent();
   }
   void TearDown() override {
+    cleanupEventProcessor();
     // NOTE: Skip checking of device error events in ETSOC reset tests because error counters
     // are also reset during the reset
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);

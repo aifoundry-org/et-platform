@@ -23,6 +23,7 @@ class OpsNodeDependentTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSync
     ASSERT_NE(handle_, nullptr);
   }
   void TearDown() override {
+    cleanupEventProcessor();
     if (handle_ != nullptr) {
       dlclose(handle_);
     }

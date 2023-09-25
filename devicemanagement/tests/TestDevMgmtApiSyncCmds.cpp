@@ -83,6 +83,51 @@ std::string inline getFullTestName() {
          ::testing::UnitTest::GetInstance()->current_test_info()->name();
 }
 
+void TestDevMgmtApiSyncCmds::launchEventProcessor() {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto deviceCount = dm.getDevicesCount();
+  std::vector<std::byte> response;
+
+  while (eventProcessorRunning_) {
+    bool eventOccured = dm.getDMEvent(0, response, 100);
+    if (eventOccured) {
+      auto rCB = reinterpret_cast<const dm_evt*>(response.data());
+      if (rCB->info.event_hdr.msg_id == device_mgmt_api::DM_EVENT_SP_TRACE_BUFFER_FULL) {
+        DV_LOG(INFO) << "SP Buffer FULL event recieved, extracting traces" << std::endl;
+        for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+          if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
+              device_mgmt_api::DM_STATUS_SUCCESS) {
+            DV_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx;
+            continue;
+          }
+          dumpRawTraceBuffer(deviceIdx, response, TraceBufferType::TraceBufferSP);
+          decodeTraceEvents(deviceIdx, response, TraceBufferType::TraceBufferSP);
+        }
+      }
+    }
+  }
+}
+
+void TestDevMgmtApiSyncCmds::initEventProcessor() {
+  // launch the thread to monitor SP trace buffer events
+  eventHandler_ = std::thread(&TestDevMgmtApiSyncCmds::launchEventProcessor, this);
+  eventProcessorRunning_ = true;
+}
+
+void TestDevMgmtApiSyncCmds::cleanupEventProcessor() {
+
+  if (eventProcessorRunning_) {
+    eventProcessorRunning_ = false;
+
+    /* Cleanup event handler thread */
+    if (eventHandler_.joinable()) {
+      eventHandler_.join();
+    }
+  }
+}
+
 void TestDevMgmtApiSyncCmds::initTestTrace() {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -2778,6 +2823,10 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
+  if (resetDev) {
+    /* Event processor has to be stopped as device node is destroyed in reset operation */
+    cleanupEventProcessor();
+  }
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
     // DM_CMD_SET_FIRMWARE_UPDATE : Device returns response of type device_mgmt_default_rsp_t.
@@ -2800,6 +2849,7 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
     }
 
     if (resetDev) {
+
       ASSERT_EQ(dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC, nullptr, 0, nullptr, 0,
                                   hst_latency.get(), dev_latency.get(), DURATION2MS(end - Clock::now())),
                 device_mgmt_api::DM_STATUS_SUCCESS);
@@ -2807,6 +2857,11 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
       // Check if trace control works after reset since reset SoC is a command without response
       controlTraceLogging();
     }
+  }
+
+  if (resetDev) {
+    /* Event processor has to be stopped as device node is destroyed in reset operation */
+    initEventProcessor();
   }
 }
 
@@ -4162,6 +4217,10 @@ void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
+
+  /* Event processor has to be stopped as device node is destroyed in reset operation */
+  cleanupEventProcessor();
+
   auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
@@ -4177,6 +4236,8 @@ void TestDevMgmtApiSyncCmds::resetSOC(bool singleDevice) {
     // Check if trace control works after reset
     controlTraceLogging();
   }
+
+  initEventProcessor();
 }
 
 void TestDevMgmtApiSyncCmds::resetSOCWithOpsInUse(bool singleDevice) {

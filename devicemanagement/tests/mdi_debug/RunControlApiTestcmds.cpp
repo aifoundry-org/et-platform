@@ -23,9 +23,11 @@ class RunControlApiTestcmds : public TestDevMgmtApiSyncCmds {
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
+    initEventProcessor();
     controlTraceLogging();
   }
   void TearDown() override {
+    cleanupEventProcessor();
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     if (handle_ != nullptr) {
       dlclose(handle_);
@@ -35,8 +37,9 @@ class RunControlApiTestcmds : public TestDevMgmtApiSyncCmds {
 
 TEST_F(RunControlApiTestcmds, testRunControlCmdsSetandUnsetBreakpoint) {
   if (targetInList({Target::Silicon, Target::SysEMU})) {
-    testRunControlCmdsSetandUnsetBreakpoint(MDI_TEST_DEFAULT_SHIRE_ID,
-             MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID, (COMPUTE_KERNEL_DEVICE_ADDRESS+MDI_TEST_BP_ADDRESS_OFFSET));
+    testRunControlCmdsSetandUnsetBreakpoint(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK,
+                                            MDI_TEST_DEFAULT_HARTID,
+                                            (COMPUTE_KERNEL_DEVICE_ADDRESS + MDI_TEST_BP_ADDRESS_OFFSET));
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
@@ -45,8 +48,7 @@ TEST_F(RunControlApiTestcmds, testRunControlCmdsSetandUnsetBreakpoint) {
 
 TEST_F(RunControlApiTestcmds, testRunControlCmdsGetHartStatus) {
   if (targetInList({Target::Silicon, Target::SysEMU})) {
-    testRunControlCmdsGetHartStatus(MDI_TEST_DEFAULT_SHIRE_ID,
-             MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID);
+    testRunControlCmdsGetHartStatus(MDI_TEST_DEFAULT_SHIRE_ID, MDI_TEST_DEFAULT_THREAD_MASK, MDI_TEST_DEFAULT_HARTID);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
     FLAGS_enable_trace_dump = false;
