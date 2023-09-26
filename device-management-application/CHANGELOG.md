@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added -g option to the et_powertop command to allow for graphical display of statistics.
 - Added new files which include rendering related code for graphical display.
+- [SW-15748] Implemented check DM events at service startup
 ### Changed
 ### Deprecated
 ### Removed

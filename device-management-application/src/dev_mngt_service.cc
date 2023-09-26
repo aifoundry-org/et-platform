@@ -111,6 +111,10 @@ public:
     std::cout << m[0] << std::endl;
   }
 
+  int getDevicesCount() {
+    return devLayer_->getDevicesCount();
+  }
+
   void* handle_;
   std::unique_ptr<IDeviceLayer> devLayer_;
   getDM_t dmi;
@@ -372,10 +376,29 @@ void dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBuf, T
   }
 }
 
+void check_dm_events(DeviceManagement& dm) {
+  std::vector<std::byte> response;
+  bool event_occured = dm.getDMEvent(node, response, 10);
+  if (event_occured) {
+    auto rCB = reinterpret_cast<const dm_evt*>(response.data());
+    if (rCB->info.event_hdr.msg_id == device_mgmt_api::DM_EVENT_SP_TRACE_BUFFER_FULL) {
+      DM_VLOG(LOW) << "SP Buffer FULL event recieved, extracting traces" << std::endl;
+      std::vector<std::byte> buf;
+      if (dm.getTraceBufferServiceProcessor(node, TraceBufferType::TraceBufferSP, buf) !=
+          device_mgmt_api::DM_STATUS_SUCCESS) {
+        DM_LOG(INFO) << "Unable to get trace buffer for node: " << node << std::endl;
+      }
+      dumpRawTraceBuffer(node, buf, TraceBufferType::TraceBufferSP);
+      decodeTraceEvents(node, buf, TraceBufferType::TraceBufferSP);
+    }
+  }
+}
+
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
 
   static DMLib dml;
   int ret;
+  std::vector<std::byte> response;
 
   ret = dml.verifyDMLib();
   if (ret != DM_STATUS_SUCCESS) {
@@ -383,6 +406,8 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
     return ret;
   }
   DeviceManagement& dm = (*dml.dmi)(dml.devLayer_.get());
+
+  check_dm_events(dm);
 
   auto hst_latency = std::make_unique<uint32_t>();
   auto dev_latency = std::make_unique<uint64_t>();
