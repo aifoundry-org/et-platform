@@ -83,37 +83,45 @@ std::string inline getFullTestName() {
          ::testing::UnitTest::GetInstance()->current_test_info()->name();
 }
 
-void TestDevMgmtApiSyncCmds::launchEventProcessor() {
+void TestDevMgmtApiSyncCmds::launchEventProcessor(int deviceIdx) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
   auto deviceCount = dm.getDevicesCount();
   std::vector<std::byte> response;
-
+  if (deviceIdx >= deviceCount) {
+    DV_LOG(INFO) << "Invalid device index: " << deviceIdx;
+    return;
+  }
   while (eventProcessorRunning_) {
-    bool eventOccured = dm.getDMEvent(0, response, 100);
+    bool eventOccured = dm.getDMEvent(deviceIdx, response, 100);
     if (eventOccured) {
       auto rCB = reinterpret_cast<const dm_evt*>(response.data());
       if (rCB->info.event_hdr.msg_id == device_mgmt_api::DM_EVENT_SP_TRACE_BUFFER_FULL) {
         DV_LOG(INFO) << "SP Buffer FULL event recieved, extracting traces" << std::endl;
-        for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-          if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
-              device_mgmt_api::DM_STATUS_SUCCESS) {
-            DV_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx;
-            continue;
-          }
-          dumpRawTraceBuffer(deviceIdx, response, TraceBufferType::TraceBufferSP);
-          decodeTraceEvents(deviceIdx, response, TraceBufferType::TraceBufferSP);
+        if (dm.getTraceBufferServiceProcessor(deviceIdx, TraceBufferType::TraceBufferSP, response) !=
+            device_mgmt_api::DM_STATUS_SUCCESS) {
+          DV_LOG(INFO) << "Unable to get trace buffer for device: " << deviceIdx;
+          continue;
         }
+        dumpRawTraceBuffer(deviceIdx, response, TraceBufferType::TraceBufferSP);
+        decodeTraceEvents(deviceIdx, response, TraceBufferType::TraceBufferSP);
       }
     }
   }
 }
 
 void TestDevMgmtApiSyncCmds::initEventProcessor() {
-  // launch the thread to monitor SP trace buffer events
-  eventHandler_ = std::thread(&TestDevMgmtApiSyncCmds::launchEventProcessor, this);
-  eventProcessorRunning_ = true;
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto deviceCount = dm.getDevicesCount();
+
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    // launch the thread to monitor SP trace buffer events
+    eventThreads_.push_back(std::thread(&TestDevMgmtApiSyncCmds::launchEventProcessor, this, deviceIdx));
+    eventProcessorRunning_ = true;
+  }
 }
 
 void TestDevMgmtApiSyncCmds::cleanupEventProcessor() {
@@ -122,8 +130,10 @@ void TestDevMgmtApiSyncCmds::cleanupEventProcessor() {
     eventProcessorRunning_ = false;
 
     /* Cleanup event handler thread */
-    if (eventHandler_.joinable()) {
-      eventHandler_.join();
+    for (auto& thread : eventThreads_) {
+      if (thread.joinable()) {
+        thread.join();
+      }
     }
   }
 }

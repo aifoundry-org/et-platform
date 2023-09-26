@@ -122,7 +122,7 @@ protected:
   // Integration tests for SP tracing and error events
   void initTestTrace();
   void initEventProcessor();
-  void launchEventProcessor();
+  void launchEventProcessor(int deviceIdx);
   void cleanupEventProcessor();
   void initDevErrorEvent(std::initializer_list<DevErrorEvent::EventType> skipList = {
                            DevErrorEvent::EventType::SpTraceBufferFullCeEvent});
@@ -314,6 +314,7 @@ protected:
   std::unordered_map<int, DevErrorEvent> eventsAtStartMap_;
   std::vector<DevErrorEvent::EventType> devErrorEventSkipList_;
   std::thread eventHandler_;
+  std::vector<std::thread> eventThreads_;
   bool eventProcessorRunning_ = true;
 };
 
