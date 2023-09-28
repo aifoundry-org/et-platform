@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-18472] Reduced log message length for bus error
 ### Deprecated
 ### Removed
 ### Fixed

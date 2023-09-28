@@ -52,8 +52,8 @@ void extended_interrupt(uint64_t scause, uint64_t sepc, uint64_t stval, const ui
                 get_shire_id(), get_hart_id() & (HARTS_PER_SHIRE - 1));
 
             Log_Write(LOG_LEVEL_ERROR,
-                "CM:U-mode:Bus error interrupt:scause: %lx sepc: %lx stval: %lx sstatus: %lx\n",
-                scause, sepc, stval, sstatus);
+                "CM:U-mode:Bus error:scause: %lx sepc: %lx stval: %lx sstatus: %lx\n", scause, sepc,
+                stval, sstatus);
 
             /* Evict S-mode and U-mode Trace buffers to L3. */
             Trace_Evict_CM_Buffer();

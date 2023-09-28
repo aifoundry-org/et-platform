@@ -639,8 +639,7 @@ static void process_kernel_completion_status(int64_t return_value, uint64_t retu
         /* Save the kernel launch status for sending response to MM */
         kernel_info_set_execution_status(shire_id, KERNEL_COMPLETE_STATUS_ERROR);
 
-        Log_Write(LOG_LEVEL_ERROR,
-            "kernel_launch_post_cleanup:kernel completion return type:%ld\r\n", return_type);
+        Log_Write(LOG_LEVEL_ERROR, "kernel completion status:%ld\r\n", return_type);
 
         /* Check if the thread was aborted by the system, if yes, set the local and global bit mask */
         if ((return_type == KERNEL_RETURN_SYSTEM_ABORT) &&
