@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15352] Check PMIC board type in FOTA process.
 - [SW-18602] Added support to rescan a partition after a FW image write.
 - [SW-15748] Added a separate DM events category for events directly reported to DM userspace, routed trace buffer full event to DM.
+- [SW-18460] Adding voltage verification through PMIC and retries for setting the voltage.
 ### Changed
 - [SW-18208] Enabling PMIC Firmware update.
 - [SW-18499] Masking out bad Minion Shire PVT sampling.

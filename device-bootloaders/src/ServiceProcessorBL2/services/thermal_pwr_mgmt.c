@@ -316,9 +316,34 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
     else                                                                                                        \
     {                                                                                                           \
         Log_Write(                                                                                              \
-            LOG_LEVEL_ERROR,                                                                                    \
+            LOG_LEVEL_WARNING,                                                                                  \
             "VALIDATE_VOLTAGE_CHANGE: Module %d voltage verification failed: target vol: %d current vol: %d\n", \
             module, voltage_mv, val);                                                                           \
+    }
+
+#define VALIDATE_VOLTAGE_CHANGE_PMIC(module, target_voltage, status)                 \
+    {                                                                                \
+        uint64_t time_out = 0;                                                       \
+        uint8_t updated_volt = 0;                                                    \
+                                                                                     \
+        /* Do voltage verification from PMIC first */                                \
+        time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);     \
+        do                                                                           \
+        {                                                                            \
+            /* Get the voltage from PMIC and verify */                               \
+            status = pmic_get_voltage(module, &updated_volt);                        \
+            if ((status == STATUS_SUCCESS) && (updated_volt == target_voltage))      \
+            {                                                                        \
+                break;                                                               \
+            }                                                                        \
+                                                                                     \
+            /* Check timeout condition */                                            \
+            if ((status == STATUS_SUCCESS) && (timer_get_ticks_count() >= time_out)) \
+            {                                                                        \
+                status = ERROR_PMIC_SET_VOLTAGE;                                     \
+            }                                                                        \
+            US_DELAY_GENERIC(50);                                                    \
+        } while (status == STATUS_SUCCESS);                                          \
     }
 
 /************************************************************************
@@ -2940,15 +2965,46 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
 {
 #if !(FAST_BOOT || TEST_FRAMEWORK)
     int32_t status = STATUS_SUCCESS;
+    uint8_t retries = 3;
 
     /* Enter critical section - Prevents the calling task to not to schedule out.
     While the voltage is being changed on a module, the transactions cannot happen. */
     portENTER_CRITICAL();
 
-    status = pmic_set_voltage(voltage_type, voltage);
-    if (status == STATUS_SUCCESS)
+    /* TODO: SW-18770: Remove the retries once the issue is resolved. */
+    while (retries)
     {
-        status = check_voltage_stability(voltage_type, voltage);
+        status = pmic_set_voltage(voltage_type, voltage);
+        if (status == STATUS_SUCCESS)
+        {
+            /* Do the voltage validation from PMIC */
+            VALIDATE_VOLTAGE_CHANGE_PMIC(voltage_type, voltage, status)
+        }
+
+        /* Do voltage verification through PVT */
+        if (status == STATUS_SUCCESS)
+        {
+            status = check_voltage_stability(voltage_type, voltage);
+            if (status == STATUS_SUCCESS)
+            {
+                /* Voltage is stable, no need to retry now */
+                retries = 0;
+            }
+            else
+            {
+                Log_Write(LOG_LEVEL_WARNING,
+                          "Unable to validate PVT 0x%x voltage for module %d. Retrying.\r\n",
+                          voltage, voltage_type);
+
+                /* Decrease the count for retries */
+                retries--;
+            }
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Unable to validate PMIC 0x%x voltage for module %d.\r\n",
+                      voltage, voltage_type);
+        }
     }
 
     /* Exit critical section */
