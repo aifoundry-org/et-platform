@@ -77,15 +77,6 @@ static StackType_t g_pm_task[TT_TASK_STACK_SIZE];
 /* The variable used to hold the task's data structure. */
 static StaticTask_t g_staticTask_ptr;
 
-/* The PMIC isr callback function, called from PMIC isr. */
-static void pmic_isr_callback(uint8_t int_cause);
-
-#if !(FAST_BOOT || TEST_FRAMEWORK)
-/* This function ensure voltage stability after changing voltage through pmic.
-   It checks the voltage with pvt sensors after updating it. */
-static int check_voltage_stability(module_e voltage_type, uint8_t voltage);
-#endif
-
 /* The variable used to track power states change time. */
 static uint64_t power_state_change_time = 0;
 
@@ -321,30 +312,42 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
             module, voltage_mv, val);                                                                          \
     }
 
-#define VALIDATE_VOLTAGE_CHANGE_PMIC(module, target_voltage, status)                 \
-    {                                                                                \
-        uint64_t time_out = 0;                                                       \
-        uint8_t updated_volt = 0;                                                    \
-                                                                                     \
-        /* Do voltage verification from PMIC first */                                \
-        time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);     \
-        do                                                                           \
-        {                                                                            \
-            /* Get the voltage from PMIC and verify */                               \
-            status = pmic_get_voltage(module, &updated_volt);                        \
-            if ((status == STATUS_SUCCESS) && (updated_volt == target_voltage))      \
-            {                                                                        \
-                break;                                                               \
-            }                                                                        \
-                                                                                     \
-            /* Check timeout condition */                                            \
-            if ((status == STATUS_SUCCESS) && (timer_get_ticks_count() >= time_out)) \
-            {                                                                        \
-                status = ERROR_PMIC_SET_VOLTAGE;                                     \
-            }                                                                        \
-            US_DELAY_GENERIC(50);                                                    \
-        } while (status == STATUS_SUCCESS);                                          \
-    }
+/* The PMIC isr callback function, called from PMIC isr. */
+static void pmic_isr_callback(uint8_t int_cause);
+
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+/* This function ensure voltage stability after changing voltage through pmic.
+   It checks the voltage with pvt sensors after updating it. */
+static int check_voltage_stability(module_e voltage_type, uint8_t voltage);
+
+static inline int32_t validate_voltage_change_pmic(uint8_t module, uint8_t target_voltage)
+{
+    uint64_t time_out = 0;
+    int32_t status;
+    uint8_t updated_volt = 0;
+
+    /* Do voltage verification from PMIC first */
+    time_out = timer_get_ticks_count() + pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT);
+    do
+    {
+        /* Get the voltage from PMIC and verify */
+        status = pmic_get_voltage(module, &updated_volt);
+        if ((status == STATUS_SUCCESS) && (updated_volt == target_voltage))
+        {
+            break;
+        }
+
+        /* Check timeout condition */
+        if ((status == STATUS_SUCCESS) && (timer_get_ticks_count() >= time_out))
+        {
+            status = ERROR_PMIC_SET_VOLTAGE;
+        }
+        US_DELAY_GENERIC(50)
+    } while (status == STATUS_SUCCESS);
+
+    return status;
+}
+#endif
 
 /************************************************************************
 *
@@ -2980,7 +2983,7 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
         if (status == STATUS_SUCCESS)
         {
             /* Do the voltage validation from PMIC */
-            VALIDATE_VOLTAGE_CHANGE_PMIC(voltage_type, voltage, status)
+            status = validate_voltage_change_pmic(voltage_type, voltage);
         }
 
         /* Do voltage verification through PVT */
