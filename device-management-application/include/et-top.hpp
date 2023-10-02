@@ -113,6 +113,11 @@ public:
   void resetStats(void);
   bool stopStats(void);
   void collectStats(void);
+  struct sp_stats_t getSpStats(void);
+  struct mm_stats_t getMmStats(void);
+  struct mem_stats_t getMemStats(void);
+  device_mgmt_api::asic_frequencies_t getFreqStats(void);
+  device_mgmt_api::module_voltage_t getModuleVoltStats(void);
 
 private:
   void collectDeviceDetails(void);

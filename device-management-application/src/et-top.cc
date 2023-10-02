@@ -189,6 +189,22 @@ void EtTop::collectVqStats(void) {
   return;
 }
 
+struct sp_stats_t EtTop::getSpStats(void) {
+  return spStats_;
+}
+struct mm_stats_t EtTop::getMmStats(void) {
+  return mmStats_;
+}
+struct mem_stats_t EtTop::getMemStats(void) {
+  return memStats_;
+}
+device_mgmt_api::asic_frequencies_t EtTop::getFreqStats(void) {
+  return freqStats_;
+}
+device_mgmt_api::module_voltage_t EtTop::getModuleVoltStats(void) {
+  return moduleVoltStats_;
+}
+
 bool EtTop::processErrorFile(std::string relAttrPath, std::map<std::string, uint64_t>& error, uint64_t& total) {
   total = 0;
 
@@ -713,18 +729,17 @@ void EtTop::displayErrorDetails(std::map<std::string, uint64_t>& error, bool add
  * This function calls rendering function for various views represents them on screen
  */
 void EtTop::displayStatsGraph(void) {
-
   graph_init();
   displayFreqDetails_ = true;
   displayVoltDetails_ = true;
-
-  auto powerView = powerViewRenderer(spStats_.op);
-  auto computeView = computeViewRenderer(mmStats_);
-  auto tempView = tempViewRenderer(spStats_);
-  auto freqView = freqViewRenderer(freqStats_);
-  auto voltView = voltViewRenderer(moduleVoltStats_);
-  auto utilizationView = utilizationViewRenderer(mmStats_);
-  auto throughputView = throughputViewRenderer(mmStats_);
+  auto powerView = powerViewRenderer();
+  auto computeView = computeViewRenderer();
+  auto tempView = tempViewRenderer();
+  auto freqView = freqViewRenderer();
+  auto voltView = voltViewRenderer();
+  auto utilizationView = utilizationViewRenderer();
+  auto throughputView = throughputViewRenderer();
+  
   renderMainDisplay(powerView, computeView, tempView, freqView, voltView, utilizationView, throughputView, this);
 
   displayFreqDetails_ = false;

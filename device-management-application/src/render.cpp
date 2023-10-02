@@ -317,28 +317,65 @@ Element plotGraph(Canvas& c, std::string title, Element& yAxis) {
   return hbox({graphModule | flex}) | flex;
 }
 
+void getAllData(const struct mm_stats_t& mmStats_,const struct sp_stats_t& spStats_,
+const device_mgmt_api::asic_frequencies_t& freqStats_,const device_mgmt_api::module_voltage_t& moduleVoltStats_,int cWIDTH) {
+    struct op_stats_t op=spStats_.op;
+    pwrEtsoc->setData(cWIDTH,
+                      POWER_MW_TO_W((op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + kOtherPower)));
+    pwrMinion->setData(cWIDTH, POWER_MW_TO_W(op.minion.power.avg));
+    pwrSram->setData(cWIDTH, POWER_MW_TO_W(op.sram.power.avg));
+    pwrNoc->setData(cWIDTH, POWER_MW_TO_W(op.noc.power.avg));
+
+
+    ddrR->setData(cWIDTH, mmStats_.computeResources.ddr_read_bw.avg);
+    ddrW->setData(cWIDTH, mmStats_.computeResources.ddr_write_bw.avg);
+    scbR->setData(cWIDTH, mmStats_.computeResources.l2_l3_read_bw.avg);
+    scbW->setData(cWIDTH, mmStats_.computeResources.l2_l3_write_bw.avg);
+    pciR->setData(cWIDTH, mmStats_.computeResources.pcie_dma_read_bw.avg);
+    pciW->setData(cWIDTH, mmStats_.computeResources.pcie_dma_write_bw.avg);
+
+
+    tpt->setData((cWIDTH / 2), mmStats_.computeResources.cm_bw.avg);
+
+    uMinion->setData(cWIDTH / 2, mmStats_.computeResources.cm_utilization.avg);
+    uDmaR->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_read_utilization.avg);
+    uDmaW->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_write_utilization.avg);
+
+    tempMinion->setData(cWIDTH, spStats_.op.minion.temperature.avg);
+
+    freqMinion->setData(cWIDTH, freqStats_.minion_shire_mhz);
+    freqNoc->setData(cWIDTH, freqStats_.noc_mhz);
+    freqDdr->setData(cWIDTH, freqStats_.ddr_mhz);
+    freqIoShire->setData(cWIDTH, freqStats_.io_shire_mhz);
+    freqMemShire->setData(cWIDTH, freqStats_.mem_shire_mhz);
+    freqPcieShire->setData(cWIDTH, freqStats_.pcie_shire_mhz);
+
+    voltMaxion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1));
+    voltMinion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1));
+    voltNoc->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1));
+    voltL2Cache->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1));
+    voltPShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
+    voltIoShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
+    voltVddq->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 5, 1));
+    voltVddqlp->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 5, 1));
+    voltDdr->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1));
+}
+
 /**
  * @brief Plots the power measurements on a line graph.
  * Renders and displays the transition in power comsumption by various components
  * overtime
- * @param op Operation statistics used for plotting the graph.
  * @return The rendered powerView graph as a component.
  */
-Component powerViewRenderer(struct op_stats_t& op) {
+Component powerViewRenderer() {
   auto powerView = Renderer([&] {
     cWIDTH = getScreenWidth();
     cHEIGHT = getHalfScreenHeight();
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    pwrEtsoc->setData(cWIDTH,
-                      POWER_MW_TO_W((op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + kOtherPower)));
-    pwrMinion->setData(cWIDTH, POWER_MW_TO_W(op.minion.power.avg));
-    pwrSram->setData(cWIDTH, POWER_MW_TO_W(op.sram.power.avg));
-    pwrNoc->setData(cWIDTH, POWER_MW_TO_W(op.noc.power.avg));
     auto c = setupCanvas(powerItems, CANVAS_POWER_MIN, CANVAS_POWER_MAX, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(powerItems, "Watts:", cWIDTH);
-    // return hbox();
     return plotGraph(c, "Power Measurements", yAxis);
   });
   return powerView;
@@ -348,22 +385,15 @@ Component powerViewRenderer(struct op_stats_t& op) {
  * @brief Plots the computation measurements on a line graph.
  * Renders and displays the transition in computation measurements
  * for various components overtime
- * @param mmStats_ Operation statistics used for plotting the graph.
  * @return The rendered computeView graph as a component.
  */
-Component computeViewRenderer(struct mm_stats_t& mmStats_) {
+Component computeViewRenderer() {
   auto computeView = Renderer([&] {
     cWIDTH = getScreenWidth();
     cHEIGHT = getHalfScreenHeight();
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    ddrR->setData(cWIDTH, mmStats_.computeResources.ddr_read_bw.avg);
-    ddrW->setData(cWIDTH, mmStats_.computeResources.ddr_write_bw.avg);
-    scbR->setData(cWIDTH, mmStats_.computeResources.l2_l3_read_bw.avg);
-    scbW->setData(cWIDTH, mmStats_.computeResources.l2_l3_write_bw.avg);
-    pciR->setData(cWIDTH, mmStats_.computeResources.pcie_dma_read_bw.avg);
-    pciW->setData(cWIDTH, mmStats_.computeResources.pcie_dma_write_bw.avg);
     auto c = setupCanvas(computeItems, CANVAS_COMPUTE_MIN, CANVAS_COMPUTE_MAX, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(computeItems, "MB/sec:", cWIDTH);
     return plotGraph(c, "Compute Measurements", yAxis);
@@ -375,12 +405,10 @@ Component computeViewRenderer(struct mm_stats_t& mmStats_) {
  * @brief Plots the throughput measurements on a line graph
  * Renders and displays the transition in throughput values
  * by various components overtime
- * @param mmStats_ Operation statistics used for plotting the graph.
  * @return The rendered throughputView graph as a component.
  */
-Component throughputViewRenderer(struct mm_stats_t& mmStats_) {
+Component throughputViewRenderer() {
   auto throughputView = Renderer([&] {
-    tpt->setData((cWIDTH / 2), mmStats_.computeResources.cm_bw.avg);
     auto c = setupCanvas(throughputItems, CANVAS_THROUGHPUT_MIN, CANVAS_THROUGHPUT_MAX, cHEIGHT, (cWIDTH / 2));
     auto yAxis = setupYAxis(throughputItems, "Kernel/sec:", (cWIDTH / 2));
     return plotGraph(c, "Throughput Measurements", yAxis);
@@ -392,14 +420,10 @@ Component throughputViewRenderer(struct mm_stats_t& mmStats_) {
  * @brief Plots the utilization of various compute elements on a line graph
  * Renders and displays the transition in utlization percentage for different compute
  * elements overtime
- * @param mmStats_ Operation statistics used for plotting the graph.
  * @return The rendered utilizationView graph as a component.
  */
-Component utilizationViewRenderer(struct mm_stats_t& mmStats_) {
+Component utilizationViewRenderer() {
   auto utilizationView = Renderer([&] {
-    uMinion->setData(cWIDTH / 2, mmStats_.computeResources.cm_utilization.avg);
-    uDmaR->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_read_utilization.avg);
-    uDmaW->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_write_utilization.avg);
     auto c = setupCanvas(utilizationItems, CANVAS_UTILIZATION_MIN, CANVAS_UTILIZATION_MAX, cHEIGHT, (cWIDTH / 2));
     auto yAxis = setupYAxis(utilizationItems, "Percent (%):", (cWIDTH / 2));
     return plotGraph(c, "Utilization Measurements", yAxis);
@@ -410,12 +434,10 @@ Component utilizationViewRenderer(struct mm_stats_t& mmStats_) {
 /**
  * @brief Plots the temperature measurements on a line graph
  * Renders and displays the transition in temperature values overtime
- * @param spStats_ Operation statistics used for plotting the graph.
  * @return The rendered tempView graph as a component.
  */
-Component tempViewRenderer(struct sp_stats_t& spStats_) {
+Component tempViewRenderer() {
   auto tempView = Renderer([&] {
-    tempMinion->setData(cWIDTH, spStats_.op.minion.temperature.avg);
     auto c = setupCanvas(tempItems, CANVAS_TEMPERATURE_MIN, CANVAS_TEMPERATURE_MAX, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(tempItems, "Celsius:", cWIDTH);
     return plotGraph(c, "Temperature Measurements", yAxis);
@@ -427,22 +449,15 @@ Component tempViewRenderer(struct sp_stats_t& spStats_) {
  * @brief Plots the frequency measurements on a line graph
  * Renders and displays the transition in frequecy value for different
  * elements overtime
- * @param freqStats_ Operation statistics used for plotting the graph.
  * @return The rendered freqView graph as a component.
  */
-Component freqViewRenderer(device_mgmt_api::asic_frequencies_t& freqStats_) {
+Component freqViewRenderer() {
   auto freqView = Renderer([&] {
     cWIDTH = getScreenWidth();
     cHEIGHT = getHalfScreenHeight();
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    freqMinion->setData(cWIDTH, freqStats_.minion_shire_mhz);
-    freqNoc->setData(cWIDTH, freqStats_.noc_mhz);
-    freqDdr->setData(cWIDTH, freqStats_.ddr_mhz);
-    freqIoShire->setData(cWIDTH, freqStats_.io_shire_mhz);
-    freqMemShire->setData(cWIDTH, freqStats_.mem_shire_mhz);
-    freqPcieShire->setData(cWIDTH, freqStats_.pcie_shire_mhz);
     auto c = setupCanvas(freqItems, CANVAS_FREQUENCY_MIN, CANVAS_FREQUENCY_MAX, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(freqItems, "MHz:", cWIDTH);
     return plotGraph(c, "Frequency Measurements", yAxis);
@@ -454,20 +469,10 @@ Component freqViewRenderer(device_mgmt_api::asic_frequencies_t& freqStats_) {
  * @brief Plots the voltage measurements on a line graph
  * Renders and displays the transition in voltage value for different
  * elements overtime
- * @param moduleVoltStats_ Operation statistics used for plotting the graph.
  * @return The rendered voltView graph as a component.
  */
-Component voltViewRenderer(device_mgmt_api::module_voltage_t& moduleVoltStats_) {
+Component voltViewRenderer() {
   auto voltView = Renderer([&] {
-    voltMaxion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1));
-    voltMinion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1));
-    voltNoc->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1));
-    voltL2Cache->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1));
-    voltPShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
-    voltIoShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
-    voltVddq->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 5, 1));
-    voltVddqlp->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 5, 1));
-    voltDdr->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1));
     auto c = setupCanvas(voltItems, CANVAS_VOLTAGE_MIN, CANVAS_VOLTAGE_MAX, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(freqItems, "mV:", cWIDTH);
     return plotGraph(c, "Voltage Measurements", yAxis);
@@ -481,7 +486,6 @@ Component voltViewRenderer(device_mgmt_api::module_voltage_t& moduleVoltStats_) 
  * which is sent to processes running in a terminal when the terminal's size changes.
  * It introduces a short delay after detecting the resize event.
  * This is done to pause the process while the window is getting resized
- * @param sig The signal number. Expected to be SIGWINCH.
  */
 void handleResize(int sig) {
   sleep(0.3);
@@ -532,6 +536,7 @@ void renderMainDisplay(Component powerView, Component computeView, Component tem
 
   auto mainRenderer = Renderer(mainContainer, [&] {
     signal(SIGWINCH, handleResize);
+
     return vbox({
       text("et-powertop - Graphical View") | bold | hcenter,
       tabSelection->Render(),
@@ -546,6 +551,7 @@ void renderMainDisplay(Component powerView, Component computeView, Component tem
       using namespace std::chrono_literals;
       std::this_thread::sleep_for(0.03s);
       etTop->collectStats();
+      getAllData(etTop->getMmStats(),etTop->getSpStats(),etTop->getFreqStats(),etTop->getModuleVoltStats(),cWIDTH);
       // The |shift| variable belong to the main thread. `screen.Post(task)`
       // will execute the update on the thread where |screen| lives (e.g. the
       // main thread). Using `screen.Post(task)` is threadsafe.

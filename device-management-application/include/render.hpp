@@ -112,13 +112,13 @@ public:
 };
 
 float adjustValue(float value, float l, float h, float height);
-Component powerViewRenderer(struct op_stats_t& op);
-Component computeViewRenderer(struct mm_stats_t& mmStats_);
-Component utilizationViewRenderer(struct mm_stats_t& mmStats_);
-Component throughputViewRenderer(struct mm_stats_t& mmStats_);
-Component tempViewRenderer(struct sp_stats_t& spStats_);
-Component freqViewRenderer(device_mgmt_api::asic_frequencies_t& freqStats_);
-Component voltViewRenderer(device_mgmt_api::module_voltage_t& moduleVoltStats_);
+Component powerViewRenderer();
+Component computeViewRenderer();
+Component utilizationViewRenderer();
+Component throughputViewRenderer();
+Component tempViewRenderer();
+Component freqViewRenderer();
+Component voltViewRenderer();
 void renderMainDisplay(Component powerView, Component computeView, Component tempView, Component freqView,
                        Component voltView, Component utilizationView, Component throughputView, EtTop* etTop);
 
