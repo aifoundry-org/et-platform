@@ -51,7 +51,7 @@ TEST(devices, get_properties) {
   EXPECT_CALL(deviceLayer, getDeviceConfig(_)).Times(1).WillRepeatedly(Return(dc));
   EXPECT_CALL(deviceLayer, getDramSize(_)).Times(1).WillRepeatedly(Return(fakeMemorySize));
   EXPECT_CALL(deviceLayer, getActiveShiresNum(_)).Times(1).WillRepeatedly(Return(fakeAvailableShires));
-  
+
   auto properties = runtime->getDeviceProperties(rt::DeviceId(0));
 
   EXPECT_EQ(properties.frequency_, dc.minionBootFrequency_);

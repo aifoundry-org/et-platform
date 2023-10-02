@@ -128,7 +128,6 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
                                          bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   auto streamInfo = streamManager_.getStreamInfo(stream);
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-
   SpinLock lock(mutex_);
   if (checkMemcpyDeviceAddress_) {
     auto& mm = memoryManagers_.at(DeviceId{streamInfo.device_});

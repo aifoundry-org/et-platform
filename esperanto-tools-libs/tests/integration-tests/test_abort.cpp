@@ -14,11 +14,14 @@
 #include "common/Constants.h"
 #include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
+#include <experimental/filesystem>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
 #include <mutex>
 #include <random>
 #include <thread>
+
+namespace fs = std::experimental::filesystem;
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {
@@ -64,6 +67,37 @@ TEST_F(TestAbort, abortCommand) {
   }
 
   ASSERT_TRUE(errorReported);
+  ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
+}
+
+TEST_F(TestAbort, abortShouldDump) {
+  if (RuntimeFixture::sDlType == RuntimeFixture::DeviceLayerImp::SYSEMU) {
+    RT_LOG(WARNING) << "Abort Command is not supported in sysemu. Returning.";
+    FAIL();
+  }
+
+  runtime_->setOnStreamErrorsCallback(nullptr);
+  RT_LOG(INFO) << "Sending kernel launch which will be aborted later";
+  auto dumpFileName = "coredump-temp.dump";
+  std::remove(dumpFileName);
+  ASSERT_FALSE(fs::exists(dumpFileName));
+  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL, true, false,
+                         std::nullopt, dumpFileName);
+
+  auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
+  std::once_flag flag;
+  rimp->setSentCommandCallback(devices_[0], [this, &flag](rt::Command* cmd) {
+    std::call_once(flag, [this, cmd] {
+      RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
+      runtime_->abortStream(defaultStreams_[0]);
+    });
+  });
+  RT_LOG(INFO) << "Waiting for stream to finish.";
+  while (!runtime_->waitForStream(defaultStreams_[0], 1s))
+    ;
+  RT_LOG(INFO) << "Stream finished.";
+  ASSERT_TRUE(fs::exists(dumpFileName));
+  std::remove(dumpFileName);
   ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
 }
 

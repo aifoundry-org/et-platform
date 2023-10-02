@@ -151,4 +151,3 @@ inline void run_stress_mem(rt::IRuntime* runtime, size_t bytes, uint32_t transac
     t.join();
   }
 }
-

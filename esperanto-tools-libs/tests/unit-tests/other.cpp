@@ -14,7 +14,7 @@
 using namespace rt;
 
 TEST_F(RuntimeFixture, checkStackTraceException) {
-  //run a kernelLaunch with bad parameters to check for the exception
+  // run a kernelLaunch with bad parameters to check for the exception
   try {
     runtime_->kernelLaunch(StreamId{7}, KernelId{8}, nullptr, 0, 0);
   } catch (const rt::Exception& e) {

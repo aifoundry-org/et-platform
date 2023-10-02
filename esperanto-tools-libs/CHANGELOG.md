@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+## [0.12.2]
+### Fixed
+- [SW-18582] Fixed core dumps generation when kernel aborts.
+
+## [0.12.1]
 ### Fixed
 - [SW-18212] Fix missing hostUtils::actionList in package_info components
-### Security
 
 ## [0.12.0]
 ### Added

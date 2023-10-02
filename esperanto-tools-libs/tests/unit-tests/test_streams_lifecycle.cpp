@@ -18,10 +18,10 @@
 #endif
 #define private public
 #pragma GCC diagnostic pop
-#include "runtime/IRuntime.h"
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include "common/Constants.h"
+#include "runtime/IRuntime.h"
 #include <chrono>
 #include <cstdio>
 #include <experimental/filesystem>
@@ -72,4 +72,3 @@ int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
- 

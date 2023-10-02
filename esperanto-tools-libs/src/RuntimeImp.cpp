@@ -372,6 +372,7 @@ void RuntimeImp::doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& 
 
 void RuntimeImp::processResponseError(DeviceId device, const ResponseError& responseError) {
   EASY_FUNCTION()
+  using namespace std::chrono_literals;
   threadPools_.at(device)->pushTask([this, device, responseError] {
     bool dispatchNow = true;
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
@@ -382,49 +383,61 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
     if (stInfo) {
       streamError.stream_ = stInfo->id_;
     }
+    if (kernelExtra) {
+      streamError.cmShireMask_ = kernelExtra->cm_shire_mask;
+    }
+
     if (executionContextCache_) {
       if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
-
-        // TODO remove this when ticket https://esperantotech.atlassian.net/browse/SW-9617 is fixed
-        if (errorCode != DeviceErrorCode::KernelLaunchHostAborted) {
-          // do the copy
-          auto st = doCreateStream(buffer->device_);
-          auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
-          auto e = memcpyDeviceToHost(st, buffer->getExceptionContextPtr(),
-                                      reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
-          doWaitForEvent(e);
-
-          streamError.errorContext_.emplace(std::move(errorContexts));
-          executionContextCache_->releaseBuffer(event);
-        } else {
-          SpinLock lock(mutex_);
+        if (errorCode == DeviceErrorCode::KernelAbortHostAborted) {
+          RT_LOG(INFO) << "Error code is a KernelAbortHostAborted";
           if (kernelAbortedCallback_) {
+            RT_LOG(INFO) << "Executing kernel abort callback";
             dispatchNow = false;
             auto th = std::thread([cb = this->kernelAbortedCallback_, evt = responseError.event_, buffer, this] {
               cb(evt, buffer->getExceptionContextPtr(), kExceptionBufferSize,
                  [this, evt] { executionContextCache_->releaseBuffer(evt); });
+              RT_LOG(INFO) << "Dispatching event " << int(evt);
               dispatch(evt);
             });
             th.detach();
-          } else {
-            executionContextCache_->releaseBuffer(event);
+          } else if (streamError.stream_) {
+            RT_LOG(INFO) << "stream found";
+            auto st = *streamError.stream_;
+            auto evts = streamManager_.getLiveEvents(st);
+            for (auto e : evts) {
+              RT_LOG(INFO) << "Waiting for event " << int(e);
+              if (e != event && !doWaitForEvent(e, 1s)) { // if some event is not yet finished, we will try later
+                RT_LOG(INFO) << "Event was not ready, requeue";
+                threadPools_.at(device)->pushTask(
+                  [this, device, responseError] { processResponseError(device, responseError); });
+                return;
+              }
+            }
           }
         }
+        if (auto st = streamError.stream_; st.has_value()) {
+          // if we reach here, there are no more events in associated stream so we can do the copy
+          auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
+          auto e = memcpyDeviceToHost(*st, buffer->getExceptionContextPtr(),
+                                      reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
+          doWaitForEvent(e);
+          streamError.errorContext_.emplace(std::move(errorContexts));
+          SpinLock mmlock(mutex_);
+          auto allocs = memoryManagers_.at(device).getAllocations();
+          mmlock.unlock();
+          coreDumper_.dump(event, allocs, streamError, *this);
+          executionContextCache_->releaseBuffer(event);
+        } else {
+          executionContextCache_->releaseBuffer(event);
+        }
       }
-    }
-    if (kernelExtra) {
-      streamError.cmShireMask_ = kernelExtra->cm_shire_mask;
     }
     auto afterCb = [this, evt = event, dispatchNow] {
       if (dispatchNow) {
         dispatch(evt);
       }
     };
-
-    SpinLock lock(mutex_);
-    auto allocs = memoryManagers_.at(device).getAllocations();
-    lock.unlock();
-    coreDumper_.dump(event, allocs, streamError, *this);
 
     if (!streamManager_.executeCallback(event, streamError, afterCb)) {
       // the callback was not set, so add the error to the error list

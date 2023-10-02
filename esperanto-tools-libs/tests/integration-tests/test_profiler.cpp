@@ -25,9 +25,9 @@
 #include <experimental/filesystem>
 #include <fstream>
 #include <ios>
+#include <random>
 #include <sstream>
 #include <thread>
-#include <random>
 
 namespace fs = std::experimental::filesystem;
 
@@ -48,7 +48,6 @@ TEST(Profiler, add_2_vectors_profiling) {
 
   auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(::getSysemuDefaultOptions());
   auto runtime = rt::IRuntime::create(deviceLayer.get());
-  
 
   // setup the profiler
   auto profiler = runtime->getProfiler();
@@ -123,20 +122,22 @@ protected:
     SerializeToBinary(oss_binary);
     trace_contents_binary = oss_binary.str();
   }
+
 private:
   void CreateProfileEvent() {
-      rt::profiling::ProfileEvent evt(rt::profiling::Type::Start, rt::profiling::Class::GetDevices);
-      // etc..
-      reference_evt = evt;
+    rt::profiling::ProfileEvent evt(rt::profiling::Type::Start, rt::profiling::Class::GetDevices);
+    // etc..
+    reference_evt = evt;
   }
   void SerializeToJson(std::ostringstream& oss_json) {
-      cereal::JSONOutputArchive archive_json(oss_json);
-      archive_json(reference_evt);
+    cereal::JSONOutputArchive archive_json(oss_json);
+    archive_json(reference_evt);
   }
   void SerializeToBinary(std::ostringstream& oss_binary) {
     cereal::BinaryOutputArchive archive_binary(oss_binary);
     archive_binary(reference_evt);
   }
+
 protected:
   rt::profiling::ProfileEvent reference_evt;
 

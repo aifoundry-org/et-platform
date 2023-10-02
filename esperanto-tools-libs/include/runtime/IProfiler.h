@@ -23,7 +23,6 @@ namespace rt {
 ///
 class IProfiler {
 public:
-
   /// \brief Profiler user can choose what profiling output generate, Json format or Binary format
   enum class OutputType { Json, Binary };
 

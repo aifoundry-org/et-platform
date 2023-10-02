@@ -70,7 +70,7 @@ TEST(CommandSender, checkConsistency) {
 
   // if we enable all (except first and last one since they were already enabled) we should expect all tag_ids following
   for (auto i = 1U; i < numCommands - 1; ++i) {
-    cs.enable(EventId(i+1));
+    cs.enable(EventId(i + 1));
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   for (auto i = 1; i < numCommands; ++i) {

@@ -22,11 +22,11 @@ inline void runBenchmarker(rt::IRuntime* runtime, rt::IBenchmarker::Options opti
                             << "\n\tBytes sent per second: " << res.bytesSentPerSecond
                             << "\n\tBytes received per second: " << res.bytesReceivedPerSecond;
 
-#if 0 //not enabled because useDmaBuffers is not supported yet
+#if 0 // not enabled because useDmaBuffers is not supported yet
   options.useDmaBuffers = true;
   res = benchmarker->run(options);
   ET_LOG(BENCHMARKER, INFO) << "Results using DMA Buffers (zero copy): "
                             << "\n\tBytes sent per second: " << res.bytesSentPerSecond
                             << "\n\tBytes received per second: " << res.bytesReceivedPerSecond;
-#endif                            
+#endif
 }

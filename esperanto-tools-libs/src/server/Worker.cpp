@@ -103,7 +103,7 @@ Worker::~Worker() {
 
 void Worker::requestProcessor() {
   using namespace std::string_literals;
-  auto threadName = "Server::Worker"s + std::to_string(workerId_++);
+  auto threadName = "Server::Worker" + std::to_string(workerId_++);
   EASY_THREAD_SCOPE(threadName.c_str())
   constexpr size_t kMaxRequestSize = req::kMaxKernelSize + 4096; // 4096 is for all metadata
   auto requestBuffer = std::vector<char>(kMaxRequestSize);

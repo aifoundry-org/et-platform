@@ -66,7 +66,7 @@ public:
   struct WorkerResult {
     std::vector<OpStats> opStats_; // this is optionally filled with detailed start and end timestamps for each
                                    // operation
-    DeviceId device; // device corresponding to these results
+    DeviceId device;               // device corresponding to these results
     float bytesSentPerSecond;
     float bytesReceivedPerSecond;
     float workloadsPerSecond;

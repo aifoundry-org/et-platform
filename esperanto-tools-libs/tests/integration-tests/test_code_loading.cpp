@@ -16,10 +16,10 @@
 #include "runtime/IRuntime.h"
 #include "sw-sysemu/SysEmuOptions.h"
 
-#include <hostUtils/logging/Logger.h>
 #include <experimental/filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <hostUtils/logging/Logger.h>
 #include <ios>
 
 namespace fs = std::experimental::filesystem;
