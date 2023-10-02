@@ -274,10 +274,9 @@ Canvas setupCanvas(std::vector<std::shared_ptr<PerfMeasure>>& items, int low, in
  * performance measure items.
  * @param items Vector of pointers to performance measure items.
  * @param unit Unit of the performance measurement.
- * @param width Width of the Y-axis box.
  * @return The constructed Y-axis element.
  */
-Element setupYAxis(std::vector<std::shared_ptr<PerfMeasure>>& items, std::string unit, int width) {
+Element setupYAxis(std::vector<std::shared_ptr<PerfMeasure>>& items, std::string unit) {
   auto vboxElements = std::vector<ftxui::Element>{};
   int i = 0;
   vboxElements.push_back(hbox({
@@ -317,48 +316,56 @@ Element plotGraph(Canvas& c, std::string title, Element& yAxis) {
   return hbox({graphModule | flex}) | flex;
 }
 
-void getAllData(const struct mm_stats_t& mmStats_,const struct sp_stats_t& spStats_,
-const device_mgmt_api::asic_frequencies_t& freqStats_,const device_mgmt_api::module_voltage_t& moduleVoltStats_,int cWIDTH) {
-    struct op_stats_t op=spStats_.op;
-    pwrEtsoc->setData(cWIDTH,
-                      POWER_MW_TO_W((op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + kOtherPower)));
-    pwrMinion->setData(cWIDTH, POWER_MW_TO_W(op.minion.power.avg));
-    pwrSram->setData(cWIDTH, POWER_MW_TO_W(op.sram.power.avg));
-    pwrNoc->setData(cWIDTH, POWER_MW_TO_W(op.noc.power.avg));
+/**
+ * @brief Populates individual performance metric queues with the most recent values
+ * Fills individual queue with performance metric values so that they can be plotted
+ * on the graph
+ * @param mmStats_ Master minion statistics
+ * @param spStats_ Service processor statistics
+ * @param freqStats_ frequency related statistics
+ * @param moduleVoltStats_ voltage related statistics.
+ * @param cWIDTH Canvas on which the graph will be plotted.
+ */
+void getAllData(const struct mm_stats_t& mmStats_, const struct sp_stats_t& spStats_,
+                const device_mgmt_api::asic_frequencies_t& freqStats_,
+                const device_mgmt_api::module_voltage_t& moduleVoltStats_, int cWIDTH) {
+  struct op_stats_t op = spStats_.op;
+  pwrEtsoc->setData(cWIDTH, POWER_MW_TO_W((op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + kOtherPower)));
+  pwrMinion->setData(cWIDTH, POWER_MW_TO_W(op.minion.power.avg));
+  pwrSram->setData(cWIDTH, POWER_MW_TO_W(op.sram.power.avg));
+  pwrNoc->setData(cWIDTH, POWER_MW_TO_W(op.noc.power.avg));
 
+  ddrR->setData(cWIDTH, mmStats_.computeResources.ddr_read_bw.avg);
+  ddrW->setData(cWIDTH, mmStats_.computeResources.ddr_write_bw.avg);
+  scbR->setData(cWIDTH, mmStats_.computeResources.l2_l3_read_bw.avg);
+  scbW->setData(cWIDTH, mmStats_.computeResources.l2_l3_write_bw.avg);
+  pciR->setData(cWIDTH, mmStats_.computeResources.pcie_dma_read_bw.avg);
+  pciW->setData(cWIDTH, mmStats_.computeResources.pcie_dma_write_bw.avg);
 
-    ddrR->setData(cWIDTH, mmStats_.computeResources.ddr_read_bw.avg);
-    ddrW->setData(cWIDTH, mmStats_.computeResources.ddr_write_bw.avg);
-    scbR->setData(cWIDTH, mmStats_.computeResources.l2_l3_read_bw.avg);
-    scbW->setData(cWIDTH, mmStats_.computeResources.l2_l3_write_bw.avg);
-    pciR->setData(cWIDTH, mmStats_.computeResources.pcie_dma_read_bw.avg);
-    pciW->setData(cWIDTH, mmStats_.computeResources.pcie_dma_write_bw.avg);
+  tpt->setData((cWIDTH / 2), mmStats_.computeResources.cm_bw.avg);
 
+  uMinion->setData(cWIDTH / 2, mmStats_.computeResources.cm_utilization.avg);
+  uDmaR->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_read_utilization.avg);
+  uDmaW->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_write_utilization.avg);
 
-    tpt->setData((cWIDTH / 2), mmStats_.computeResources.cm_bw.avg);
+  tempMinion->setData(cWIDTH, spStats_.op.minion.temperature.avg);
 
-    uMinion->setData(cWIDTH / 2, mmStats_.computeResources.cm_utilization.avg);
-    uDmaR->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_read_utilization.avg);
-    uDmaW->setData(cWIDTH / 2, mmStats_.computeResources.pcie_dma_write_utilization.avg);
+  freqMinion->setData(cWIDTH, freqStats_.minion_shire_mhz);
+  freqNoc->setData(cWIDTH, freqStats_.noc_mhz);
+  freqDdr->setData(cWIDTH, freqStats_.ddr_mhz);
+  freqIoShire->setData(cWIDTH, freqStats_.io_shire_mhz);
+  freqMemShire->setData(cWIDTH, freqStats_.mem_shire_mhz);
+  freqPcieShire->setData(cWIDTH, freqStats_.pcie_shire_mhz);
 
-    tempMinion->setData(cWIDTH, spStats_.op.minion.temperature.avg);
-
-    freqMinion->setData(cWIDTH, freqStats_.minion_shire_mhz);
-    freqNoc->setData(cWIDTH, freqStats_.noc_mhz);
-    freqDdr->setData(cWIDTH, freqStats_.ddr_mhz);
-    freqIoShire->setData(cWIDTH, freqStats_.io_shire_mhz);
-    freqMemShire->setData(cWIDTH, freqStats_.mem_shire_mhz);
-    freqPcieShire->setData(cWIDTH, freqStats_.pcie_shire_mhz);
-
-    voltMaxion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1));
-    voltMinion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1));
-    voltNoc->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1));
-    voltL2Cache->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1));
-    voltPShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
-    voltIoShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
-    voltVddq->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 5, 1));
-    voltVddqlp->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 5, 1));
-    voltDdr->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1));
+  voltMaxion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.maxion, 250, 5, 1));
+  voltMinion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1));
+  voltNoc->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1));
+  voltL2Cache->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1));
+  voltPShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
+  voltIoShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
+  voltVddq->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 5, 1));
+  voltVddqlp->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 5, 1));
+  voltDdr->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1));
 }
 
 /**
@@ -375,7 +382,7 @@ Component powerViewRenderer() {
       return hbox();
     }
     auto c = setupCanvas(powerItems, CANVAS_POWER_MIN, CANVAS_POWER_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(powerItems, "Watts:", cWIDTH);
+    auto yAxis = setupYAxis(powerItems, "Watts:");
     return plotGraph(c, "Power Measurements", yAxis);
   });
   return powerView;
@@ -395,7 +402,7 @@ Component computeViewRenderer() {
       return hbox();
     }
     auto c = setupCanvas(computeItems, CANVAS_COMPUTE_MIN, CANVAS_COMPUTE_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(computeItems, "MB/sec:", cWIDTH);
+    auto yAxis = setupYAxis(computeItems, "MB/sec:");
     return plotGraph(c, "Compute Measurements", yAxis);
   });
   return computeView;
@@ -410,7 +417,7 @@ Component computeViewRenderer() {
 Component throughputViewRenderer() {
   auto throughputView = Renderer([&] {
     auto c = setupCanvas(throughputItems, CANVAS_THROUGHPUT_MIN, CANVAS_THROUGHPUT_MAX, cHEIGHT, (cWIDTH / 2));
-    auto yAxis = setupYAxis(throughputItems, "Kernel/sec:", (cWIDTH / 2));
+    auto yAxis = setupYAxis(throughputItems, "Kernel/sec:");
     return plotGraph(c, "Throughput Measurements", yAxis);
   });
   return throughputView;
@@ -425,7 +432,7 @@ Component throughputViewRenderer() {
 Component utilizationViewRenderer() {
   auto utilizationView = Renderer([&] {
     auto c = setupCanvas(utilizationItems, CANVAS_UTILIZATION_MIN, CANVAS_UTILIZATION_MAX, cHEIGHT, (cWIDTH / 2));
-    auto yAxis = setupYAxis(utilizationItems, "Percent (%):", (cWIDTH / 2));
+    auto yAxis = setupYAxis(utilizationItems, "Percent (%):");
     return plotGraph(c, "Utilization Measurements", yAxis);
   });
   return utilizationView;
@@ -439,7 +446,7 @@ Component utilizationViewRenderer() {
 Component tempViewRenderer() {
   auto tempView = Renderer([&] {
     auto c = setupCanvas(tempItems, CANVAS_TEMPERATURE_MIN, CANVAS_TEMPERATURE_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(tempItems, "Celsius:", cWIDTH);
+    auto yAxis = setupYAxis(tempItems, "Celsius:");
     return plotGraph(c, "Temperature Measurements", yAxis);
   });
   return tempView;
@@ -459,7 +466,7 @@ Component freqViewRenderer() {
       return hbox();
     }
     auto c = setupCanvas(freqItems, CANVAS_FREQUENCY_MIN, CANVAS_FREQUENCY_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(freqItems, "MHz:", cWIDTH);
+    auto yAxis = setupYAxis(freqItems, "MHz:");
     return plotGraph(c, "Frequency Measurements", yAxis);
   });
   return freqView;
@@ -474,7 +481,7 @@ Component freqViewRenderer() {
 Component voltViewRenderer() {
   auto voltView = Renderer([&] {
     auto c = setupCanvas(voltItems, CANVAS_VOLTAGE_MIN, CANVAS_VOLTAGE_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(freqItems, "mV:", cWIDTH);
+    auto yAxis = setupYAxis(freqItems, "mV:");
     return plotGraph(c, "Voltage Measurements", yAxis);
   });
   return voltView;
@@ -551,7 +558,7 @@ void renderMainDisplay(Component powerView, Component computeView, Component tem
       using namespace std::chrono_literals;
       std::this_thread::sleep_for(0.03s);
       etTop->collectStats();
-      getAllData(etTop->getMmStats(),etTop->getSpStats(),etTop->getFreqStats(),etTop->getModuleVoltStats(),cWIDTH);
+      getAllData(etTop->getMmStats(), etTop->getSpStats(), etTop->getFreqStats(), etTop->getModuleVoltStats(), cWIDTH);
       // The |shift| variable belong to the main thread. `screen.Post(task)`
       // will execute the update on the thread where |screen| lives (e.g. the
       // main thread). Using `screen.Post(task)` is threadsafe.

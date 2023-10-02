@@ -739,7 +739,7 @@ void EtTop::displayStatsGraph(void) {
   auto voltView = voltViewRenderer();
   auto utilizationView = utilizationViewRenderer();
   auto throughputView = throughputViewRenderer();
-  
+
   renderMainDisplay(powerView, computeView, tempView, freqView, voltView, utilizationView, throughputView, this);
 
   displayFreqDetails_ = false;
