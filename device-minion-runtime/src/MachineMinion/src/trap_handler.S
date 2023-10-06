@@ -35,7 +35,6 @@
 .endm
 
 .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
-.func
 .option push
 .option norelax
 .global trap_handler
@@ -221,4 +220,3 @@ done_fast_path:
 
     mret
 .option pop
-.endfunc

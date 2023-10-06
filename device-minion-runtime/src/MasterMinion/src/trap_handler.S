@@ -6,7 +6,7 @@
 
 /* We only execute in S-mode in Master FW, and *never* in U-mode */
 /* Note that software, external and timer should *never* trap as they are handled in the wfi main loop */
-.func
+
 .global trap_handler
 trap_handler:
     csrrw t0, sscratch, t0              /* Save t0 to sscratch */
@@ -127,4 +127,3 @@ as_yet_unhandled:
     ebreak
     j     as_yet_unhandled
 
-.endfunc

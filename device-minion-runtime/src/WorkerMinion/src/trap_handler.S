@@ -4,7 +4,6 @@
 .global trap_handler
 
 .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
-.func
 
 /* S-mode traps are not reentrant, but may come from S-mode or U-mode */
 trap_handler:
@@ -155,4 +154,3 @@ processed_source:
     ld    x2,   2 * 8(sp)
 
     sret
-.endfunc
