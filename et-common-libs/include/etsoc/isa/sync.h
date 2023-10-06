@@ -8,7 +8,7 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *
-************************************************************************
+************************************************************************/
 
 /***********************************************************************/
 /*! \file sync.h

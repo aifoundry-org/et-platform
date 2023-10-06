@@ -1,8 +1,11 @@
 #include "etsoc/common/utils.h"
 #include "etsoc/isa/syscall.h"
 
-#define inhibit_loop_to_libcall \
-    __attribute__ ((__optimize__ ("-fno-tree-loop-distribute-patterns")))
+#ifdef __clang__
+#define inhibit_loop_to_libcall
+#else
+#define inhibit_loop_to_libcall __attribute__((__optimize__("-fno-tree-loop-distribute-patterns")))
+#endif
 
 void*
 inhibit_loop_to_libcall
