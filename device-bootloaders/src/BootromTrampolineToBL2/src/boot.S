@@ -87,11 +87,6 @@ _boot:
     fcvt.s.w f31, x0
 #endif
 
-.option push
-.option norelax
-    # BL2's entry point is located @ 0x40400000
-    la ra, 0x40400000
-.option pop
-
     # Jump to BL2
+    li ra, 0x40400000
     jr ra

@@ -10,7 +10,7 @@
 *
 ************************************************************************/
 #ifndef __BL2_PCIE__
-#define __BL2_PICE__
+#define __BL2_PCIE__
 
 #include <stdint.h>
 #include "dm_event_def.h"
