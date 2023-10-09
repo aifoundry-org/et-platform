@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Increased the FW update service timeout to facilitate PMIC firmware update.
 -  Enabled parallel collection of all performance metrics irrespective of the view being displayed
+- [SW-18309] Removed TDP level check from DM service
 ### Deprecated
 ### Removed
 ### Fixed
