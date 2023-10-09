@@ -2474,15 +2474,15 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     {
         return status;
     }
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) git hash: %c%c%c%c\n",
-              active_slot, EXTRACT_BYTE(0, current_hash), EXTRACT_BYTE(1, current_hash),
-              EXTRACT_BYTE(2, current_hash), EXTRACT_BYTE(3, current_hash));
+    char curr_hash[4] = { (char)EXTRACT_BYTE(0, current_hash), (char)EXTRACT_BYTE(1, current_hash),
+                          (char)EXTRACT_BYTE(2, current_hash),
+                          (char)EXTRACT_BYTE(3, current_hash) };
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) git hash: %s\n", active_slot,
+              curr_hash);
 
     /* Check the hash */
-    if ((image_meta.hash[0] == (char)EXTRACT_BYTE(0, current_hash)) &&
-        (image_meta.hash[1] == (char)EXTRACT_BYTE(1, current_hash)) &&
-        (image_meta.hash[2] == (char)EXTRACT_BYTE(2, current_hash)) &&
-        (image_meta.hash[3] == (char)EXTRACT_BYTE(3, current_hash)))
+    if ((image_meta.hash[0] == curr_hash[0]) && (image_meta.hash[1] == curr_hash[1]) &&
+        (image_meta.hash[2] == curr_hash[2]) && (image_meta.hash[3] == curr_hash[3]))
     {
         hash_matched = true;
         Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image hash matched!\n");
@@ -2507,27 +2507,27 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     if (image_meta.version == current_version)
     {
         version_matched = true;
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW current and new image version matched!\n");
+        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image version matched!\n");
     }
     else
     {
         version_matched = false;
-        Log_Write(LOG_LEVEL_CRITICAL,
-                  "[ETFP] PMIC FW current and new image version not matched!\n");
+        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image version not matched!\n");
     }
 
     /* Check if image matches */
     if (version_matched && hash_matched)
     {
         Log_Write(LOG_LEVEL_CRITICAL,
-                  "[ETFP] PMIC FW current and new image same, no need to update\n");
+                  "[ETFP] PMIC FW current and new image same, skipping PMIC update.\n");
         return ERROR_PMIC_FW_UPDATE_NOT_REQUIRED;
     }
     else
     {
         Log_Write(
             LOG_LEVEL_CRITICAL,
-            "[ETFP] PMIC FW current and new image do not match, proceeding to update to new image\n");
+            "[ETFP] PMIC FW current (%s) and new image (%s) do not match, updating to new image.\n",
+            curr_hash, image_meta.hash);
         return STATUS_SUCCESS;
     }
 }
