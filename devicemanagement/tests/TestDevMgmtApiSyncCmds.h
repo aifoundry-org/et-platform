@@ -250,8 +250,22 @@ protected:
   void writeMem_privileged(uint64_t testInputData, uint64_t writeAddr);
 
   /* DM test service APIs*/
-  void initDMTestFramework();
-  void CleanupDMTestFramework();
+  void inline initDMTestFramework() {
+    handle_ = dlopen("libDM.so", RTLD_LAZY);
+    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
+    initTestTrace();
+    controlTraceLogging();
+    initEventProcessor();
+    initDevErrorEvent({DevErrorEvent::EventType::SpTraceBufferFullCeEvent});
+  }
+  void inline cleanupDMTestFramework() {
+    eventProcessorRunning_ = false;
+    checkDevErrorEvent();
+    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
+    if (handle_ != nullptr) {
+      dlclose(handle_);
+    }
+  }
 
   inline Target getTestTarget(void) const {
     auto envTarget = getenv("TARGET");
@@ -288,6 +302,22 @@ protected:
     return false;
   }
 
+  void inline setDevErrorEventCheckList(const std::vector<DevErrorEvent::EventType>& checkList) {
+    static std::remove_const_t<std::remove_reference_t<decltype(checkList)>> fullList;
+    static std::once_flag listOnceFlag;
+    std::call_once(listOnceFlag, []() {
+      for (auto typeIdx = 0U; typeIdx < static_cast<uint8_t>(DevErrorEvent::EventType::TotalEvents); typeIdx++) {
+        fullList.push_back(static_cast<DevErrorEvent::EventType>(typeIdx));
+      }
+      assert(fullList.size() == static_cast<int>(DevErrorEvent::EventType::TotalEvents));
+    });
+    std::remove_const_t<std::remove_reference_t<decltype(checkList)>> sortedCheckList = checkList;
+    std::sort(sortedCheckList.begin(), sortedCheckList.end(), [this](auto a, auto b) { return a < b; });
+    devErrorEventSkipList_.clear();
+    std::set_difference(fullList.begin(), fullList.end(), sortedCheckList.begin(), sortedCheckList.end(),
+                        std::back_inserter(devErrorEventSkipList_), [this](auto a, auto b) { return a < b; });
+  }
+
   void inline setDevErrorEventSkipList(const std::vector<DevErrorEvent::EventType>& list) {
     devErrorEventSkipList_.clear();
     std::copy(list.begin(), list.end(), std::back_inserter(devErrorEventSkipList_));
@@ -313,7 +343,6 @@ protected:
   logging::LoggerDefault logger_;
   std::unordered_map<int, DevErrorEvent> eventsAtStartMap_;
   std::vector<DevErrorEvent::EventType> devErrorEventSkipList_;
-  std::thread eventHandler_;
   std::vector<std::thread> eventThreads_;
   bool eventProcessorRunning_ = true;
 };

@@ -22,14 +22,14 @@ class IntegrationTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds 
     handle_ = dlopen("libDM.so", RTLD_LAZY);
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     initTestTrace();
-    initEventProcessor();
     controlTraceLogging();
-    initDevErrorEvent();
-  }
-  void TearDown() override {
-    cleanupEventProcessor();
+    // NOTE: DM Event processor cannot run during ETSOC reset
+    // TODO: SW-18858: Add support to stop and restart event processor for ETSOC
+    // reset keeping the option to run the event processor threads in detach mode
     // NOTE: Skip checking of device error events in ETSOC reset tests because error counters
     // are also reset during the reset
+  }
+  void TearDown() override {
     extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
     if (handle_ != nullptr) {
       dlclose(handle_);

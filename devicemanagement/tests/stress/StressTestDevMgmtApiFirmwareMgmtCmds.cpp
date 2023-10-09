@@ -24,11 +24,12 @@ class StressTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
     devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
     ASSERT_NE(devLayer_, nullptr);
     initTestTrace();
-    initEventProcessor();
     controlTraceLogging();
+    // NOTE: DM Event processor cannot run during ETSOC reset
+    // TODO: SW-18858: Add support to stop and restart event processor for ETSOC
+    // reset keeping the option to run the event processor threads in detach mode
   }
   void TearDown() override {
-    cleanupEventProcessor();
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
@@ -42,10 +43,12 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageSingleDevice) {
       FLAGS_enable_trace_dump = false;
       return;
     }
+    initEventProcessor();
     int iteration = 5;
     for (int i = 0; i < iteration; i++) {
       setFirmwareUpdateImage(true /* Single Device */, false);
     }
+    cleanupEventProcessor();
     extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -60,11 +63,13 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageMultiDevice) {
       FLAGS_enable_trace_dump = false;
       return;
     }
+    initEventProcessor();
     int iteration = 5 / devLayer_->getDevicesCount();
     iteration = iteration ? iteration : 1;
     for (int i = 0; i < iteration; i++) {
       setFirmwareUpdateImage(false /* Multiple Devices */, false);
     }
+    cleanupEventProcessor();
     extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";

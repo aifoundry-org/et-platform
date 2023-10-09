@@ -20,18 +20,10 @@ using namespace device_management;
 
 class StateInspectionApiTestcmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
-    handle_ = dlopen("libDM.so", RTLD_LAZY);
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    initTestTrace();
-    initEventProcessor();
-    controlTraceLogging();
+    initDMTestFramework();
   }
   void TearDown() override {
-    cleanupEventProcessor();
-    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
-    if (handle_ != nullptr) {
-      dlclose(handle_);
-    }
+    cleanupDMTestFramework();
   }
 };
 
@@ -46,6 +38,7 @@ TEST_F(StateInspectionApiTestcmds, readMem_unprivileged) {
 
 TEST_F(StateInspectionApiTestcmds, readMem_privileged) {
   if (targetInList({Target::Silicon, Target::SysEMU})) {
+    addToDevErrorEventSkipList({DevErrorEvent::EventType::SpCeEvent});
     readMem_privileged(MM_FW_MASTER_SDATA_BASE);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";
@@ -64,6 +57,7 @@ TEST_F(StateInspectionApiTestcmds, writeMem_unprivileged) {
 
 TEST_F(StateInspectionApiTestcmds, writeMem_privileged) {
   if (targetInList({Target::Silicon, Target::SysEMU})) {
+    addToDevErrorEventSkipList({DevErrorEvent::EventType::SpCeEvent});
     writeMem_privileged(MDI_TEST_WRITE_MEM_TEST_DATA, MM_FW_MASTER_SDATA_BASE);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";

@@ -19,20 +19,10 @@ using namespace device_management;
 
 class FunctionalTestDevMgmtApiPerfMgmtCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
-    handle_ = dlopen("libDM.so", RTLD_LAZY);
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    initTestTrace();
-    initEventProcessor();
-    controlTraceLogging();
-    initDevErrorEvent();
+    initDMTestFramework();
   }
   void TearDown() override {
-    cleanupEventProcessor();
-    checkDevErrorEvent();
-    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
-    if (handle_ != nullptr) {
-      dlclose(handle_);
-    }
+    cleanupDMTestFramework();
   }
 };
 

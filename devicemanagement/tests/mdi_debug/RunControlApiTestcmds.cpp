@@ -20,18 +20,10 @@ using namespace device_management;
 
 class RunControlApiTestcmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
-    handle_ = dlopen("libDM.so", RTLD_LAZY);
-    devLayer_ = IDeviceLayer::createPcieDeviceLayer(false, true);
-    initTestTrace();
-    initEventProcessor();
-    controlTraceLogging();
+    initDMTestFramework();
   }
   void TearDown() override {
-    cleanupEventProcessor();
-    extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP);
-    if (handle_ != nullptr) {
-      dlclose(handle_);
-    }
+    cleanupDMTestFramework();
   }
 };
 

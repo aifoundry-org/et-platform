@@ -92,31 +92,26 @@ struct lockable_ {
 
   bool popMDIEvent(std::vector<std::byte>& event, uint32_t timeout) {
     std::unique_lock lk(eventsMtx);
-    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !mdiEvents.empty(); })) {
-      event = std::move(mdiEvents.front());
-      mdiEvents.pop();
-      return true;
-    }
-    return false;
-  }
-
-  /* TODO: SW-18541 - This API will be deprecated */
-  bool popEvent(std::vector<std::byte>& event, uint32_t timeout) {
-    std::unique_lock lk(eventsMtx);
-    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !mdiEvents.empty(); })) {
-      event = std::move(mdiEvents.front());
-      mdiEvents.pop();
-      return true;
+    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout),
+                          [this]() { return !receiverRunning || !mdiEvents.empty(); })) {
+      if (!mdiEvents.empty()) {
+        event = std::move(mdiEvents.front());
+        mdiEvents.pop();
+        return true;
+      }
     }
     return false;
   }
 
   bool popDMEvent(std::vector<std::byte>& event, uint32_t timeout) {
     std::unique_lock lk(eventsMtx);
-    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !dmEvents.empty(); })) {
-      event = std::move(dmEvents.front());
-      dmEvents.pop();
-      return true;
+    if (eventsCv.wait_for(lk, std::chrono::milliseconds(timeout),
+                          [this]() { return !receiverRunning || !dmEvents.empty(); })) {
+      if (!dmEvents.empty()) {
+        event = std::move(dmEvents.front());
+        dmEvents.pop();
+        return true;
+      }
     }
     return false;
   }
@@ -157,18 +152,13 @@ bool DeviceManagement::handleEvent(const uint32_t device_node, std::vector<std::
 }
 
 bool DeviceManagement::getMDIEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
-  /* Make sure device is available */
-  if (auto& ptr = deviceMap_[device_node]; !ptr) {
-    auto lockable = getDeviceInstance(device_node);
-    return lockable->popEvent(event, timeout);
-  }
-  return false;
+  auto lockable = getDeviceInstance(device_node);
+  return lockable->popMDIEvent(event, timeout);
 }
 
-/* TODO: SW-18541 - This API will be deprecated */
+/* TODO: SW-18541 - This API is deprecated, use getMDIEvent() instead */
 bool DeviceManagement::getEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
-  auto lockable = getDeviceInstance(device_node);
-  return lockable->popEvent(event, timeout);
+  return getMDIEvent(device_node, event, timeout);
 }
 
 bool DeviceManagement::getDMEvent(const uint32_t device_node, std::vector<std::byte>& event, uint32_t timeout) {
@@ -195,7 +185,7 @@ void DeviceManagement::receiver(std::shared_ptr<lockable_> lockable) {
       try {
         devLayer_->waitForEpollEventsServiceProcessor(lockable->idx, sqAvail, cqAvail, std::chrono::seconds(1));
       } catch (const dev::Exception& ex) {
-        if (std::string(ex.what()).find("Interrupted system call") != std::string::npos) {
+        if (std::string(ex.what()).find(std::strerror(EINTR)) != std::string::npos) {
           // Ignore 'Interrupted system call' error since this thread is running
           // in detach mode and epoll call can be interrupted during tear-down.
           continue;

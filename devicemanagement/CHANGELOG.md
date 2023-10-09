@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adding DM event processing thread for each device
 ### Changed
 - [SW-18398b] Update DevErrorEvent implementation for the skipList usage to add/remove EventType entry from the default skipList without requiring to replace the complete skipList.
+[SW-18797] Improvements for event processor
+  * Do not run event processor during ETSOC reset
+  * Run the thread in detach mode to exit immediately when test completes
+  * Add {init|cleanup}DMTestFramework() calls to reduce code duplication
 ### Deprecated
 - [SW-15748] Marked getEvent() API as deprecated, will be replaced with getMDIEvents()
 ### Removed
