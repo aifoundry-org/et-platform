@@ -116,7 +116,7 @@ static inline void mm_setup_default_pmcs(uint32_t shire_id, uint32_t hart_id)
     reset_ms_pmcs_all();
 }
 
-void __attribute__((noreturn)) main(void)
+int main(void)
 {
     uint64_t temp;
     uint32_t hart_id = get_hart_id();

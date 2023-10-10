@@ -55,9 +55,7 @@
 */
 spinlock_t Launch_Wait = { 0 };
 
-void main(void);
-
-__attribute__((noreturn)) void main(void)
+int main(void)
 {
     uint64_t temp;
 

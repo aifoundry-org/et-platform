@@ -292,6 +292,8 @@ static inline void kernel_info_set_attributes(
     atomic_store_local_64(&kernel_launch_info[shire_id].exception_buffer, kernel->exception_buffer);
 }
 
+#if 0
+/* SW-11250: Enable once Glow models are fixed to remove tensor errors */
 static inline void kernel_check_tensor_errors(uint32_t shire_id, uint32_t hart_id)
 {
     uint64_t tensor_error;
@@ -308,6 +310,7 @@ static inline void kernel_check_tensor_errors(uint32_t shire_id, uint32_t hart_i
             shire_id, hart_id, CM_CONTEXT_TYPE_TENSOR_ERROR, (int64_t)tensor_error)
     }
 }
+#endif
 
 int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
 {
@@ -696,8 +699,8 @@ static void kernel_launch_post_cleanup(
     WAIT_FOR_MEM_AND_TENSOR_OPS
 
     /* Check for tensor errors - must be after tensor ops wait */
-    /* TODO: SW-11250: Enable once Glow models are fixed to remove tensor errors */
-    //kernel_check_tensor_errors(shire_id, hart_id);
+    /* SW-11250: Enable once Glow models are fixed to remove tensor errors */
+    // kernel_check_tensor_errors(shire_id, hart_id);
 
     /* Empty all FCCs before blocking on FCC barrier */
     init_fcc(FCC_0);

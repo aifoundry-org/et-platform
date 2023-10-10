@@ -50,7 +50,7 @@ static spinlock_t CM_Thread_Boot_Counter[NUM_SHIRES] = { 0 };
 
 extern void trap_handler(void);
 
-void __attribute__((noreturn)) main(void)
+int main(void)
 {
     const uint32_t shire_id = get_shire_id();
     const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
