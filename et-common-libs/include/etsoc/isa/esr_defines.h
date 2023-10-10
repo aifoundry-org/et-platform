@@ -35,10 +35,21 @@ typedef uint64_t esr_address_t;
 
 #endif /* __ASSEMBLER__ */
 
+#ifndef PRV_U
 #define PRV_U 0
+#endif
+
+#ifndef PRV_S
 #define PRV_S 1ull
+#endif
+
+#ifndef PRV_D
 #define PRV_D 2ull
+#endif
+
+#ifndef PRV_M
 #define PRV_M 3ull
+#endif
 
 // ESR region 'base address' field in bits [39:32]
 #define ESR_REGION 0x0100000000ULL // ESR Region bit [32] == 1
