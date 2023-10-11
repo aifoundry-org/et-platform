@@ -36,19 +36,35 @@ typedef uint64_t esr_address_t;
 #endif /* __ASSEMBLER__ */
 
 #ifndef PRV_U
+#ifdef __ASSEMBLER__
 #define PRV_U 0
+#else
+#define PRV_U 0ull
+#endif
 #endif
 
 #ifndef PRV_S
+#ifdef __ASSEMBLER__
+#define PRV_S 1
+#else
 #define PRV_S 1ull
+#endif
 #endif
 
 #ifndef PRV_D
+#ifdef __ASSEMBLER__
+#define PRV_D 2
+#else
 #define PRV_D 2ull
+#endif
 #endif
 
 #ifndef PRV_M
+#ifdef __ASSEMBLER__
+#define PRV_M 3
+#else
 #define PRV_M 3ull
+#endif
 #endif
 
 // ESR region 'base address' field in bits [39:32]
