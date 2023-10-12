@@ -20,7 +20,7 @@
 /*
  * Trace packet types.
  */
-enum trace_type { TRACE_TYPE_EXCEPTION = 10 };
+enum trace_type { TRACE_TYPE_EXCEPTION = 12 };
 
 /*
  * This Trace packet entry header is a generic implementation. In general,
