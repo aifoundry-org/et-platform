@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Fix bug in getting the inactive PMIC slot info
+- [SW-18720] Fix bogus value in SP trace header type
 ### Security
 
 ## [0.14.0] - 2023-09-01

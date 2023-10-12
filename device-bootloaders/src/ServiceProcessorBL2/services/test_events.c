@@ -31,6 +31,8 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
     /* Log the execution stack event to trace */
     trace_buf = Trace_Execution_Stack(Trace_Get_SP_CB(), &context);
 
+    Trace_Update_SP_Buffer_Header();
+
     /* Generate SP Runtime Exception */
     FILL_EVENT_HEADER(&message.header, SP_RUNTIME_EXCEPT, sizeof(struct event_message_t))
     FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, 0, 0, SP_TRACE_GET_ENTRY_OFFSET(trace_buf))
