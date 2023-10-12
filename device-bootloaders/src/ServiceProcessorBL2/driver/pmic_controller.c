@@ -2474,9 +2474,9 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     {
         return status;
     }
-    char curr_hash[4] = { (char)EXTRACT_BYTE(0, current_hash), (char)EXTRACT_BYTE(1, current_hash),
-                          (char)EXTRACT_BYTE(2, current_hash),
-                          (char)EXTRACT_BYTE(3, current_hash) };
+    char curr_hash[5] = { (char)EXTRACT_BYTE(0, current_hash), (char)EXTRACT_BYTE(1, current_hash),
+                          (char)EXTRACT_BYTE(2, current_hash), (char)EXTRACT_BYTE(3, current_hash),
+                          '\0' };
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW (active slot 0x%u) git hash: %s\n", active_slot,
               curr_hash);
 
