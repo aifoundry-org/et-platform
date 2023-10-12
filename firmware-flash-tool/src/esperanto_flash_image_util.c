@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <sys/stat.h>
 #include "esperanto_flash_image_util.h"
 
 static const uint32_t crc32Table[256] = {
@@ -128,6 +128,18 @@ FAILED2:
 
 FAILED1:
     return rval;
+}
+
+size_t get_filesize(const char *file_path)
+{
+    struct stat st;
+    if (stat(file_path, &st) == 0) {
+        return (size_t)st.st_size;
+    } else {
+        fprintf(stderr, "Error in getting file size \n");
+    }
+
+    return 0;
 }
 
 int save_image(const char * filename, const uint8_t * image_data, uint32_t image_size) {

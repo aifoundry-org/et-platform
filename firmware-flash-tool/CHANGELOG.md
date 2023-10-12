@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-15807]: Verify flash image to detect corrouption
 ### Changed
 ### Deprecated
 ### Removed

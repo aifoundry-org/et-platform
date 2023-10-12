@@ -12,6 +12,10 @@
 #include "esperanto_flash_image_view.h"
 #include "esperanto_flash_image_util.h"
 
+#define SIZE_IN_MB (1024 * 1024)
+
+static int verify_flash_image(TEMPLATE_INFO_t *template, const uint8_t * file_data, uint32_t file_size);
+
 static ESPERANATO_REGION_INFO_t regions_map[ESPERANTO_MAX_REGIONS_COUNT];
 
 static int reserve_region_index(uint32_t * next_available_region_index, ESPERANTO_FLASH_REGION_ID_t id) {
@@ -334,7 +338,19 @@ int create_image(const ARGUMENTS_t * arguments) {
         }
     }
 
-    view_image_or_partition(image_data, template.image_type ? image_size : partition_size, arguments->silent, arguments->verbose);
+    if (0 != view_image_or_partition(image_data, template.image_type ? image_size : partition_size, arguments->silent, arguments->verbose))
+    {
+        fprintf(stderr, "Error in create_image: view_image_or_partition() failed!\n");
+        rv = -1;
+        goto DONE;
+    }
+
+    if(verify_flash_image(&template, image_data, template.image_type ? image_size : partition_size) != 0)
+    {
+        fprintf(stderr, "Error in create_image: verify_flash_image() failed!\n");
+        rv = -1;
+        goto DONE;
+    }
 
     if (0 != save_image(arguments->args[CREATE_IMAGE_ARGS_PARTITION_FILE_PATH], image_data, template.image_type ? image_size : partition_size)) {
         fprintf(stderr, "Error in create_image: save_image() failed!\n");
@@ -343,8 +359,9 @@ int create_image(const ARGUMENTS_t * arguments) {
     }
 
     if (!arguments->silent) {
-    	printf("Saved image to file.\n");
+    	printf("Saved image to file: %s\n", arguments->args[CREATE_IMAGE_ARGS_PARTITION_FILE_PATH]);
     }
+
     rv = 0;
 
 DONE:
@@ -355,3 +372,138 @@ DONE:
     return rv;
 }
 
+static int verify_flash_image(TEMPLATE_INFO_t *template, const uint8_t * image_data, uint32_t image_file_size) {
+
+    const ESPERANTO_FLASH_PARTITION_HEADER_t * partition_header;
+    const ESPERANATO_REGION_INFO_t * regions;
+    const ESPERANATO_FILE_INFO_t * file_info;
+    const PARTITION_INFO_t * partition_info;
+
+    uint8_t partition_count = 0;
+    const uint8_t * partition_data = NULL;
+    uint32_t partition_size_in_blocks, next_offset, region_start_offset, image_size, partition_size=0;
+    uint32_t total_image_size=0;
+
+    partition_header = (const ESPERANTO_FLASH_PARTITION_HEADER_t *)(image_data);
+    if (image_file_size == (FLASH_PAGE_SIZE * partition_header->partition_size)) {
+        partition_count=1;
+    } else if (image_file_size == (2 * FLASH_PAGE_SIZE * partition_header->partition_size)) {
+        partition_count=2;
+    } else {
+        fprintf(stderr,"Error verify_flash_image: Invalid image size");
+        return -1;
+    }
+
+    for (uint8_t p_idx=0; p_idx < partition_count; p_idx++)
+    {
+        partition_header = (const ESPERANTO_FLASH_PARTITION_HEADER_t*)(image_data + (p_idx * (image_file_size / 2)));
+        partition_data = (const uint8_t*)partition_header;
+        regions = (const ESPERANATO_REGION_INFO_t*)(partition_header + 1);
+
+        if (0 != verify_partition_header(partition_header)) {
+            fprintf(stderr, "Error verify_flash_image: verify_partition_header() failed!\n");
+            return -1;
+        }
+
+        partition_size_in_blocks = (uint32_t)(image_file_size / 2) / FLASH_PAGE_SIZE;
+        if (partition_size_in_blocks != partition_header->partition_size) {
+            fprintf(stderr, "Error verify_flash_image: Partition size mismatch (header value %u, actual size %u)\n", partition_header->partition_size, partition_size_in_blocks);
+            return -1;
+        }
+
+        if (template->image_type) {
+            partition_info = &(template->image->partitions[p_idx]);
+            if (0 != template->image->image_size) {
+                image_size = template->image->image_size;
+            } else {
+                image_size = template->image->partitions[0].partition_size + template->image->partitions[1].partition_size;
+            }
+        } else {
+            partition_info = template->partition;
+            image_size = template->partition->partition_size;
+        }
+
+        for (uint32_t n = 0; n < partition_header->regions_count; n++) {
+            
+            const ESPERANATO_REGION_INFO_t*region = (const ESPERANATO_REGION_INFO_t*)(regions + n);
+
+            if (region->region_id <= ESPERANTO_FLASH_REGION_ID_INVALID || region->region_id > ESPERANTO_FLASH_REGION_ID_AFTER_LAST_SUPPORTED_VALUE)
+            {
+                fprintf(stderr, "Error verify_flash_image: Invalid region[%d] ID %X\n",n, region->region_id );
+                return -1;
+            }
+            
+            /* Check region size alignment */
+            if ((region->region_reserved_size * FLASH_PAGE_SIZE) % 4 != 0)
+            {
+                fprintf(stderr, "Error verify_flash_image: Region size if not multiple of 4KB\n");
+                return -1;
+            }
+
+            /* Verify region offset*/
+            if ( n > 0 &&  (region->region_offset != next_offset))
+            {
+                fprintf(stderr, "Error verify_flash_image: Region[%d] offset is not contigeous\n", n);
+                return -1;
+            }
+
+            /* Calculate next region offset*/
+            next_offset = region->region_offset + region->region_reserved_size;
+
+            /* Calculate partition size*/
+            partition_size += region->region_reserved_size * FLASH_PAGE_SIZE;
+
+            switch (region->region_id) {
+                case ESPERANTO_FLASH_REGION_ID_PRIORITY_DESIGNATOR:
+                case ESPERANTO_FLASH_REGION_ID_BOOT_COUNTERS:
+                case ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA:
+                    if (region->region_reserved_size != 1) {
+                        fprintf(stderr, "Error verify_flash_image:  invalid region reserved size! Expected 1, got %u\n", region->region_reserved_size);
+                        return -1;
+                    }
+                    break;
+                default:
+                    region_start_offset = region->region_offset * FLASH_PAGE_SIZE;
+                    file_info = (const ESPERANATO_FILE_INFO_t*)(partition_data + region_start_offset);
+                    
+                    if (ESPERANTO_FILE_TAG != file_info->file_header_tag) {
+                        fprintf(stderr, "Error verify_flash_image: invalid file header tag!\n");
+                        return -1;
+                    }
+
+                    for(uint8_t r_idx=0; r_idx < partition_info->regions_count; r_idx++)
+                    {
+                        if (partition_info->regions[r_idx].id == region->region_id)
+                        {
+                            if (NULL != partition_info->regions[r_idx].file_path) {
+                                if (get_filesize(partition_info->regions[r_idx].file_path) != file_info->file_size)
+                                {
+                                    fprintf(stderr, "Error verify_flash_image: Invalid region[%d] file size\n", n);
+                                    return -1;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                    break;
+            }
+        }
+        if (partition_size > (partition_size_in_blocks * FLASH_PAGE_SIZE))
+        {
+            fprintf(stderr, "Error verify_flash_image: Invalid total image size\n");
+            return -1;
+        }
+        total_image_size += partition_size;
+        partition_size = 0;
+    }
+
+    if (total_image_size > (image_size * 1024))
+    {
+        fprintf(stderr, "Error verify_flash_image: Invalid total image size\n");
+        return -1;
+    }
+
+    printf("Image verification complete. \n");
+
+    return 0;
+}
