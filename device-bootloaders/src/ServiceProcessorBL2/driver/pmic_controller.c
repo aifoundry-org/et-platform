@@ -2445,10 +2445,7 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     bool hash_matched = false;
     uint32_t current_hash = 0;
     uint32_t current_version = 0;
-    uint8_t board_type = 0;
-    uint8_t board_design_rev = 0;
-    uint8_t board_modification_rev = 0;
-    uint8_t board_id = 0;
+    uint32_t board_type_encoded_version = 0;
     int32_t status;
     imageMetadata_t image_meta;
 
@@ -2469,42 +2466,31 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image version: %u.%u.%u\n",
               EXTRACT_BYTE(2, image_meta.version), EXTRACT_BYTE(1, image_meta.version),
               EXTRACT_BYTE(0, image_meta.version));
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image board_type: Type: 0x%x: Rev:0x%x\n",
-              EXTRACT_BYTE(0, image_meta.board_type), EXTRACT_BYTE(1, image_meta.board_type));
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "[ETFP] PMIC FW new image suported board types (mask of encoded versions): 0x%x\n",
+              image_meta.supported_board_types);
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image hash: %s\n", image_meta.hash);
 
-    /* Get the PMC board info. */
-    status =
-        pmic_get_board_type(&board_type, &board_design_rev, &board_modification_rev, &board_id);
+    /* Get the PMIC board type encoded value. */
+    status = pmic_fw_update_subcommand(active_slot, PMIC_I2C_FW_MGMTCMD_BOARDTYPE,
+                                       &board_type_encoded_version);
     if (status != STATUS_SUCCESS)
     {
         return status;
     }
-    Log_Write(
-        LOG_LEVEL_CRITICAL,
-        "[ETFP] PMIC board type: %d, board design revision: %d, board modification revision: %d, board id: %d\n",
-        board_type, board_design_rev, board_modification_rev, board_id);
 
-    /* Check the board type */
-    if ((char)EXTRACT_BYTE(0, image_meta.board_type) == board_type)
+    /* Check the board type compatibility */
+    if ((image_meta.supported_board_types & board_type_encoded_version) ==
+        board_type_encoded_version)
     {
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC board type matched!\n");
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board type is compatible!\n");
     }
     else
     {
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC board type not matched!\n");
-        return ERROR_PMIC_FW_UPDATE_WRONG_BOARD_IMG;
-    }
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Error - PMIC board type is not compatible!\n");
+        /* Print the PMIC board info. */
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board hw encoded version: 0x%x\n", board_type_encoded_version);
 
-    /* Check the board design revision */
-    if ((char)EXTRACT_BYTE(1, image_meta.board_type) <= board_design_rev)
-    {
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW is compatible with board design revision!\n");
-    }
-    else
-    {
-        Log_Write(LOG_LEVEL_DEBUG,
-                  "[ETFP] PMIC FW is not compatible with board design revision!\n");
         return ERROR_PMIC_FW_UPDATE_WRONG_BOARD_IMG;
     }
 

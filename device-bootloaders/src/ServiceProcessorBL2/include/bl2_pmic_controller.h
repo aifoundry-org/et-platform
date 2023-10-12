@@ -119,7 +119,7 @@ typedef struct imageMetadata_
 {
     uint32_t start_addr;
     uint32_t version;
-    uint32_t board_type;
+    uint32_t supported_board_types;
     char hash[16];
     uint32_t checksum;
     uint32_t image_size;

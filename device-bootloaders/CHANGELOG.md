@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improving the logging of PMIC FW update.
 - Increased BL2 code size to 251K.
 - Removing unnecessary inlines and increased the time out for PMIC ready.
+- [SW-18592] Update board type checking in PMIC FOTA according to the changed protocol.
 ### Deprecated
 ### Removed
 - Workaround delays in I2C APIs.
