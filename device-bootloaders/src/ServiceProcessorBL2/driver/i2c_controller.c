@@ -15,7 +15,10 @@
         i2c_init
         i2c_write
         i2c_read
+        i2c_abort
+        i2c_enable
         i2c_disable
+        i2c_soft_reset
 */
 /***********************************************************************/
 #include <stdint.h>
@@ -37,6 +40,36 @@
 #define ET_IC_CLK_MHZ          25
 
 #define I2C_MAX_TIMEOUT_MS 1000
+#define I2C_IRQ_ALL        0xFFF
+#define MAX_T_POLL_COUNT   10
+
+static void i2c_enable_module(ET_I2C_DEV_t *dev)
+{
+    dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
+                           I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_ENABLED);
+    dev->isInitialized = true;
+}
+
+static int i2c_disable_module(ET_I2C_DEV_t *dev)
+{
+    dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
+                           I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
+    dev->isInitialized = false;
+
+    int poll_count = 0;
+    /* Poll wait for the disable operation to complete */
+    while (I2C_IC_ENABLE_STATUS_IC_EN_GET(dev->regs->IC_ENABLE_STATUS))
+    {
+        /* This delay comes from spec */
+        US_DELAY_GENERIC(25)
+
+        if (poll_count++ > MAX_T_POLL_COUNT)
+        {
+            return ET_I2C_ERROR_DISABLE_FAILED;
+        }
+    }
+    return ET_I2C_OK;
+}
 
 static void i2c_clock_init(ET_I2C_DEV_t *dev)
 {
@@ -100,8 +133,6 @@ int i2c_init(ET_I2C_DEV_t *dev, ET_I2C_SPEED_t speed, uint8_t addr_slave)
     /* disable */
     dev->regs->IC_ENABLE = I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
 
-#define I2C_IRQ_ALL 0xFFF
-
     /* mask all interrupts */
     dev->regs->IC_INTR_MASK = I2C_IRQ_ALL;
 
@@ -127,10 +158,8 @@ int i2c_init(ET_I2C_DEV_t *dev, ET_I2C_SPEED_t speed, uint8_t addr_slave)
     dev->regs->IC_TAR = I2C_IC_TAR_SPECIAL_SET(I2C_IC_TAR_SPECIAL_SPECIAL_DISABLED) |
                         I2C_IC_TAR_IC_TAR_SET(addr_slave);
 
-    dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
-                           I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_ENABLED);
-
-    dev->isInitialized = true;
+    /* Enable the I2C module */
+    i2c_enable_module(dev);
 
     return ET_I2C_OK;
 }
@@ -162,8 +191,6 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
         dev->regs->IC_DATA_CMD = (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                                             I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
                                             I2C_IC_DATA_CMD_DAT_SET(regAddr));
-        /* SW-18055: Remove the delay once the issue is resolved */
-        US_DELAY_GENERIC(250)
 
         /* write all but last byte, since it contains the stop condition generation request */
         for (uint8_t n = 0; n < txDataCount - 1; n++)
@@ -185,8 +212,6 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
                 (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
                            I2C_IC_DATA_CMD_DAT_SET(txDataBuff[n]));
-            /* SW-18055: Remove the delay once the issue is resolved */
-            US_DELAY_GENERIC(250)
         }
 
         status = wait_pmic_ready();
@@ -200,8 +225,6 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
             I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE) |
             I2C_IC_DATA_CMD_DAT_SET(txDataBuff[txDataCount - 1]));
-        /* SW-18055: Remove the delay once the issue is resolved */
-        US_DELAY_GENERIC(250)
 
         /* wait for transfer to finish */
         uint64_t start_ticks = timer_get_ticks_count();
@@ -250,8 +273,6 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_WRITE) |
             I2C_IC_DATA_CMD_RESTART_SET(I2C_IC_DATA_CMD_RESTART_RESTART_ENABLE) |
             I2C_IC_DATA_CMD_DAT_SET(regAddr));
-        /* SW-18055: Remove the delay once the issue is resolved */
-        US_DELAY_GENERIC(200)
 
         /* this is where the actual read request(s) happens */
         for (uint8_t n = 0; n < rxDataCount - 1; n++)
@@ -266,8 +287,6 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
             dev->regs->IC_DATA_CMD =
                 (uint32_t)(I2C_IC_DATA_CMD_RESET_VALUE |
                            I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ));
-            /* SW-18055: Remove the delay once the issue is resolved */
-            US_DELAY_GENERIC(200)
         }
 
         status = wait_pmic_ready();
@@ -280,8 +299,6 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
         dev->regs->IC_DATA_CMD = (uint32_t)(
             I2C_IC_DATA_CMD_RESET_VALUE | I2C_IC_DATA_CMD_CMD_SET(I2C_IC_DATA_CMD_CMD_CMD_READ) |
             I2C_IC_DATA_CMD_STOP_SET(I2C_IC_DATA_CMD_STOP_STOP_ENABLE));
-        /* SW-18055: Remove the delay once the issue is resolved */
-        US_DELAY_GENERIC(200)
 
         /* check RX fifo for received bytes */
         /* wait until we get the bytes we want in the RX fifo. */
@@ -316,18 +333,46 @@ int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rx
     return ET_I2C_OK;
 }
 
-int i2c_disable(ET_I2C_DEV_t *dev)
+int i2c_abort(ET_I2C_DEV_t *dev)
 {
+    int poll_count = 0;
+
     if (dev->isInitialized == false)
+    {
         return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
+    }
+
+    /* Abort the transactions */
+    dev->regs->IC_ENABLE = dev->regs->IC_ENABLE |
+                           I2C_IC_ENABLE_ABORT_SET(I2C_IC_ENABLE_ABORT_ABORT_ENABLED);
+
+    while (I2C_IC_ENABLE_ABORT_GET(dev->regs->IC_ENABLE))
+    {
+        /* This delay comes from spec */
+        US_DELAY_GENERIC(25)
+
+        if (poll_count++ > MAX_T_POLL_COUNT)
+        {
+            return ET_I2C_ERROR_ABORT_FAILED;
+        }
+    }
+
+    return ET_I2C_OK;
+}
+
+int i2c_enable(ET_I2C_DEV_t *dev)
+{
+    if (dev->isInitialized)
+    {
+        return ET_I2C_ERROR_DEV_ALREADY_INITIALIZED;
+    }
 
     if (!INT_Is_Trap_Context() &&
         xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
     {
-        dev->regs->IC_ENABLE = I2C_IC_ENABLE_RESET_VALUE |
-                               I2C_IC_ENABLE_ENABLE_SET(I2C_IC_ENABLE_ENABLE_ENABLE_DISABLED);
+        /* Enable the I2C module */
+        i2c_enable_module(dev);
 
-        dev->isInitialized = false;
         xSemaphoreGive(dev->bus_lock_handle);
     }
     else
@@ -336,4 +381,59 @@ int i2c_disable(ET_I2C_DEV_t *dev)
     }
 
     return ET_I2C_OK;
+}
+
+int i2c_disable(ET_I2C_DEV_t *dev)
+{
+    if (dev->isInitialized == false)
+    {
+        return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
+    }
+
+    int status = ET_I2C_OK;
+
+    if (!INT_Is_Trap_Context() &&
+        xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
+    {
+        /* Disable the module */
+        status = i2c_disable_module(dev);
+
+        xSemaphoreGive(dev->bus_lock_handle);
+    }
+    else
+    {
+        status = ET_I2C_ERROR_BUS_LOCK;
+    }
+
+    return status;
+}
+
+int i2c_soft_reset(ET_I2C_DEV_t *dev)
+{
+    if (dev->isInitialized == false)
+    {
+        return ET_I2C_ERROR_DEV_NOT_INITIALIZED;
+    }
+
+    int status = ET_I2C_OK;
+
+    if (!INT_Is_Trap_Context() &&
+        xSemaphoreTake(dev->bus_lock_handle, pdMS_TO_TICKS(I2C_MAX_TIMEOUT_MS)) == pdTRUE)
+    {
+        /* Disable the module */
+        status = i2c_disable_module(dev);
+        if (status == ET_I2C_OK)
+        {
+            /* Enable the I2C module */
+            i2c_enable_module(dev);
+        }
+
+        xSemaphoreGive(dev->bus_lock_handle);
+    }
+    else
+    {
+        status = ET_I2C_ERROR_BUS_LOCK;
+    }
+
+    return status;
 }

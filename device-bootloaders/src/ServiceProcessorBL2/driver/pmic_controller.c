@@ -271,18 +271,38 @@ int wait_pmic_ready(void)
 
 inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
 {
+    int retries = 3;
+    int status = STATUS_SUCCESS;
+
     /* Enter critical section - Prevents the calling task to not to schedule out.
     Context switching messes the PMIC communication, hence this is required for now. */
     portENTER_CRITICAL();
 
-    int status = i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size);
+    /* TODO: If the I2C interface hangs, reset it for now */
+    do
+    {
+        status = i2c_read(&g_pmic_i2c_dev_reg, reg, reg_value, reg_size);
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(
+                LOG_LEVEL_DEBUG,
+                "get_pmic_reg: PMIC read reg: %d failed, status: %d! Resetting I2C and retrying.\r\n",
+                reg, status);
+            status = i2c_soft_reset(&g_pmic_i2c_dev_reg);
+        }
+        else
+        {
+            break;
+        }
+    } while ((status == STATUS_SUCCESS) && (--retries));
 
     /* Exit critical section */
     portEXIT_CRITICAL();
 
-    if (0 != status)
+    if (STATUS_SUCCESS != status)
     {
-        MESSAGE_ERROR("get_pmic_reg: PMIC read reg: %d failed, status: %d!\n", reg, status);
+        Log_Write(LOG_LEVEL_ERROR, "get_pmic_reg: PMIC read reg: %d failed, status: %d!\n", reg,
+                  status);
         return ERROR_PMIC_I2C_READ_FAILED;
     }
 
@@ -313,18 +333,38 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 
 inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
 {
+    int retries = 3;
+    int status = STATUS_SUCCESS;
+
     /* Enter critical section - Prevents the calling task to not to schedule out.
     Context switching messes the PMIC communication, hence this is required for now. */
     portENTER_CRITICAL();
 
-    int status = i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size);
+    /* TODO: If the I2C interface hangs, reset it for now */
+    do
+    {
+        status = i2c_write(&g_pmic_i2c_dev_reg, reg, value, reg_size);
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(
+                LOG_LEVEL_DEBUG,
+                "set_pmic_reg: PMIC write reg: %d failed, status: %d! Resetting I2C and retrying.\r\n",
+                reg, status);
+            status = i2c_soft_reset(&g_pmic_i2c_dev_reg);
+        }
+        else
+        {
+            break;
+        }
+    } while ((status == STATUS_SUCCESS) && (--retries));
 
     /* Exit critical section */
     portEXIT_CRITICAL();
 
-    if (0 != status)
+    if (STATUS_SUCCESS != status)
     {
-        MESSAGE_ERROR("set_pmic_reg: PMIC write reg: %d failed, status: %d!", reg, status);
+        Log_Write(LOG_LEVEL_ERROR, "set_pmic_reg: PMIC write reg: %d failed, status: %d!", reg,
+                  status);
         return ERROR_PMIC_I2C_WRITE_FAILED;
     }
 
@@ -1859,7 +1899,7 @@ int pmic_enable_wdog_timeout_reset(void)
 
 int pmic_disable_wdog_timeout_reset(void)
 {
-    uint8_t reg_value;
+    uint8_t reg_value = 0;
     uint8_t val;
 
     if (0 != get_pmic_reg(PMIC_I2C_WDOG_TIMER_CONFIG_ADDRESS, &reg_value, 1))
@@ -2280,7 +2320,7 @@ static int pmic_fw_update_subcommand(uint8_t slot, uint8_t subcommand, uint32_t 
 static int pmic_wait_for_flash_ready(uint64_t timeout_ms)
 {
     bool busy;
-    uint8_t value;
+    uint8_t value = 0;
     uint64_t elapsed_ms;
     uint64_t start_ticks;
 

@@ -68,6 +68,8 @@ enum ET_I2C_ERROR_CODES
     ET_I2C_ERROR_BUS_LOCK_INIT = -700,
     ET_I2C_ERROR_BUS_LOCK = -600,
     ET_I2C_ERROR_TIMEOUT = -500,
+    ET_I2C_ERROR_DISABLE_FAILED = -400,
+    ET_I2C_ERROR_ABORT_FAILED = -300,
     ET_I2C_OK = 0
 };
 
@@ -100,9 +102,30 @@ int i2c_write(ET_I2C_DEV_t *dev, uint8_t regAddr, const uint8_t *txDataBuff, uin
 */
 int i2c_read(ET_I2C_DEV_t *dev, uint8_t regAddr, uint8_t *rxDataBuff, uint8_t rxDataCount);
 
+/*! \fn int i2c_abort(ET_I2C_DEV_t *dev)
+    \brief this function abort the transactions on I2C bus
+    \param dev pointer to I2C device control block
+    \return Status indicating success or negative error
+*/
+int i2c_abort(ET_I2C_DEV_t *dev);
+
+/*! \fn int i2c_enable(ET_I2C_DEV_t *dev)
+    \brief this function enables I2C controller
+    \param dev pointer to I2C device control block
+    \return Status indicating success or negative error
+*/
+int i2c_enable(ET_I2C_DEV_t *dev);
+
 /*! \fn int i2c_disable(ET_I2C_DEV_t* dev)
     \brief this function disables I2C controller
     \param dev pointer to I2C device control block
     \return Status indicating success or negative error
 */
 int i2c_disable(ET_I2C_DEV_t *dev);
+
+/*! \fn i2c_soft_reset(ET_I2C_DEV_t *dev)
+    \brief this function does a soft reset of I2C controller
+    \param dev pointer to I2C device control block
+    \return Status indicating success or negative error
+*/
+int i2c_soft_reset(ET_I2C_DEV_t *dev);
