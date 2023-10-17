@@ -294,7 +294,7 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
         {
             break;
         }
-    } while ((status == STATUS_SUCCESS) && (--retries));
+    } while ((--retries) && (status == STATUS_SUCCESS));
 
     /* Exit critical section */
     portEXIT_CRITICAL();
@@ -356,7 +356,7 @@ inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_si
         {
             break;
         }
-    } while ((status == STATUS_SUCCESS) && (--retries));
+    } while ((--retries) && (status == STATUS_SUCCESS));
 
     /* Exit critical section */
     portEXIT_CRITICAL();
