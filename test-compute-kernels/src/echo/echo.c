@@ -13,7 +13,7 @@ static inline int min(int a, int b)
 }
 
 /* Echo's the data back sent as input in kernel arguments */
-int main(const EchoParams* const params)
+int entry_point(const EchoParams* const params)
 {
     if (get_thread_id() == 0)
     {

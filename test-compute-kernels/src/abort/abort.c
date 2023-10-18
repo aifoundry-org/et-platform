@@ -2,7 +2,7 @@
 #include "etsoc/common/utils.h"
 
 /* Self abort kernel */
-int64_t main(void)
+int64_t entry_point(void)
 {
     /* Dummy execution */
     int temp = 0;

@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <string.h>
 
-int64_t main(void)
+int64_t entry_point(void)
 {
     const char alphabet = 'A';
     const size_t string_event_header_size = offsetof(struct trace_string_t, msg);

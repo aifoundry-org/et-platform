@@ -9,7 +9,7 @@ typedef struct {
   uint64_t length;
   uint32_t* crc_ptr;
 }  Parameters;
-int64_t main(const Parameters* const kernel_params_ptr)
+int64_t entry_point(const Parameters* const kernel_params_ptr)
 {
     uint32_t crc = 0;
 

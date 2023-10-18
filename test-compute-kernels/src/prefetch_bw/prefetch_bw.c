@@ -32,7 +32,7 @@ typedef struct {
 } Parameters;
 // Prefetch test
 // Tries to reach max BW in the memshire
-int64_t main(const Parameters *const kernel_params_ptr) {
+int64_t entry_point(const Parameters *const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->base_addr == 0 ||
       kernel_params_ptr->array_size == 0 ||
       kernel_params_ptr->num_minions == 0 ||

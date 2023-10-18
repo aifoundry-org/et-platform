@@ -9,7 +9,7 @@ typedef struct {
 } MyVectors;
 
 // Writes BEEF
-int64_t main(const MyVectors* const vectors) {
+int64_t entry_point(const MyVectors* const vectors) {
     // Only run on one minion
     if (get_hart_id() != 0) {
         return 0;

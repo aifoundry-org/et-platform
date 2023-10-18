@@ -32,7 +32,7 @@
 #include "test_sync.cc"
 
 // This is the entry point for the test
-int64_t main(void)
+int64_t entry_point(void)
 {
     // Gets hart id and other ids
     uint32_t hart = get_hart_id();

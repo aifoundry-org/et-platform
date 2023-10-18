@@ -12,7 +12,7 @@ typedef struct {
 } MyVectors;
 
 // use only one shire to exec this simple test
-int main(const MyVectors* const vectors) {
+int entry_point(const MyVectors* const vectors) {
 
     /**************************/
     /* Shire services testing */

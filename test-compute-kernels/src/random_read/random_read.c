@@ -25,7 +25,7 @@ void fast_scsp_tensor_loads(uint64_t cycles);
 
 static inline uint64_t generate_l2_address(uint64_t minion_id, uint64_t tensor_load_id) __attribute((always_inline));
 
-int64_t main(uint64_t* cycles) {
+int64_t entry_point(uint64_t* cycles) {
   if (cycles == NULL || *cycles == 0 || *cycles % 2 != 0) {
     // Bad arguments
     return -1;

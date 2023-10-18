@@ -3,7 +3,7 @@
 #include "etsoc/common/utils.h"
 
 /* Combine kernel - Generates multiple kernel execution error from different threads */
-int64_t main(void)
+int64_t entry_point(void)
 {
     const uint64_t hart_id = get_hart_id() & ((SOC_MINIONS_PER_SHIRE * 2) - 1);
     int64_t ret = 0;

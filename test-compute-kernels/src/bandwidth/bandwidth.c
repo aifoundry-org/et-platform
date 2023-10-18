@@ -21,7 +21,7 @@ typedef struct {
   uint64_t num_cache_lines;
 } Parameters;
 
-int64_t main(const Parameters *const kernel_params_ptr)
+int64_t entry_point(const Parameters *const kernel_params_ptr)
 {
   uint64_t start_ts = et_get_timestamp();
   et_printf("Kernel start TS: %ld", start_ts);

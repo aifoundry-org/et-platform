@@ -30,10 +30,10 @@ uint64_t (*sc_pv_local_scp)[SC_PV_SCP_LINES_PER_HART][SC_PV_ELEMS_CACHE] = (uint
 
 uint64_t sc_pv_lcg(uint64_t seed) {
    uint64_t x;
-   __asm__ __volatile__ ("li %[x], 164603309694725029ul" : [x] "=r" (x) : : );
+   __asm__ __volatile__ ("li %[x], 164603309694725029" : [x] "=r" (x) : : );
 
    uint64_t y;
-   __asm__ __volatile__ ("li %[y], 14738995463583502973ul" : [y] "=r" (y) : : );
+   __asm__ __volatile__ ("li %[y], 14738995463583502973" : [y] "=r" (y) : : );
 
    return (x * seed) % y;
 }

@@ -204,7 +204,7 @@ static int64_t start_uberkernel_compute(uint64_t shire_id, uint32_t minion_id,
     return 0;
 }
 
-int64_t main(const layer_parameters_t* kernel_params_ptr)
+int64_t entry_point(const layer_parameters_t* kernel_params_ptr)
 {
     uint32_t hart_id = get_hart_id();
     uint32_t shire_id = hart_id >> 6;

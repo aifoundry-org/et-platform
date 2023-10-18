@@ -32,7 +32,7 @@ typedef struct {
   uint64_t lsfr_init2;
   uint64_t lsfr_init3;
 } Parameters;
-int64_t main(const Parameters* const kernel_params_ptr) {
+int64_t entry_point(const Parameters* const kernel_params_ptr) {
   if ((kernel_params_ptr == NULL)) {
     // Bad arguments
     et_printf("Programming returing due to error\n");

@@ -10,7 +10,7 @@ typedef struct {
 } MyVectors;
 
 // use only one shire to exec this simple test
-int main(const MyVectors* const vectors) {
+int entry_point(const MyVectors* const vectors) {
   int tid = (int)get_thread_id();
   if (tid == 0) return 0;
   int mid = (int)get_minion_id();

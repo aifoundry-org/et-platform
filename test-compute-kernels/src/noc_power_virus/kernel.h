@@ -32,10 +32,10 @@ uint64_t noc_power_virus(uint64_t loop_size);
 
 uint64_t noc_pv_lcg(uint64_t seed) {
    uint64_t x;
-   __asm__ __volatile__ ("li %[x], 164603309694725029ul" : [x] "=r" (x) : : );
+   __asm__ __volatile__ ("li %[x], 164603309694725029" : [x] "=r" (x) : : );
 
    uint64_t y;
-   __asm__ __volatile__ ("li %[y], 14738995463583502973ul" : [y] "=r" (y) : : );
+   __asm__ __volatile__ ("li %[y], 14738995463583502973" : [y] "=r" (y) : : );
 
    return (x * seed) % y;
 }

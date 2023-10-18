@@ -120,7 +120,11 @@ void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
     fcc(FCC_0);
 }
 
-void test_compute(uint32_t shire_id, uint32_t minion_id)
+void 
+#ifdef __clang__
+__attribute__ ((noinline))
+#endif
+test_compute(uint32_t shire_id, uint32_t minion_id)
 {
     __asm__ __volatile__ ("mov.m.x m0, zero, 0xff /*255*/  \n");
 

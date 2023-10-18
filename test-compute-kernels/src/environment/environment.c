@@ -8,7 +8,7 @@ typedef struct {
   uint64_t shire_mask;
 } kernel_args_t;
 
-int64_t main(const kernel_args_t *kernel_args, const kernel_environment_t *kernel_env)
+int64_t entry_point(const kernel_args_t *kernel_args, const kernel_environment_t *kernel_env)
 {
     /* Print the args and env */
     et_printf("Kernel Args:shire_mask: 0x%lx\r\n", kernel_args->shire_mask);

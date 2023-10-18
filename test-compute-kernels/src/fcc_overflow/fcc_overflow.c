@@ -8,7 +8,7 @@
 // This test checks to see if tensor error is set when each of the four fcc registers 
 // in the minion overflow
 
-int64_t main(void)
+int64_t entry_point(void)
 {
       // Note that this is a directed test, it is sufficient to run each test once
       uint64_t i = 0;

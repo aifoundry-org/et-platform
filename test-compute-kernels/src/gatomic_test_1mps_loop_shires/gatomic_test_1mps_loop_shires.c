@@ -18,7 +18,7 @@ static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_
 typedef struct {
   uint64_t lfsr_init;
 } Parameters;
-int64_t main(const Parameters* const kernel_params_ptr) {
+int64_t entry_point(const Parameters* const kernel_params_ptr) {
   if ((kernel_params_ptr == NULL)) {
     // Bad arguments
     et_printf("Programming returing due to error\n");

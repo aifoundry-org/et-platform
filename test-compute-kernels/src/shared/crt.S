@@ -11,7 +11,7 @@ _start:
 .option pop
     # Firmware sets stack pointer before launch
     # bss not allowed, no init
-    call  main
+    call  entry_point
 
     li    a2, KERNEL_RETURN_SUCCESS
     mv    a1, a0

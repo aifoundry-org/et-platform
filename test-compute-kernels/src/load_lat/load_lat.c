@@ -45,7 +45,7 @@ typedef struct {
   uint64_t open_page;
   uint64_t* out_data;
 } Parameters;
-int64_t main(const Parameters *const kernel_params_ptr) {
+int64_t entry_point(const Parameters *const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->base_addr == 0 ||
       kernel_params_ptr->num_iter == 0 || kernel_params_ptr->out_data == NULL) {
     // Bad arguments

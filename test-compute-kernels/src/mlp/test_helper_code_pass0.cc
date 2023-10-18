@@ -2,7 +2,11 @@
 #include "test_helper_code.h"
 #include "test_helper_code_pass0.h"
 
-void test_helper_code_pass0(uint32_t shire_id, uint32_t minion_id)
+void 
+#ifdef __clang__
+__attribute__ ((noinline))
+#endif
+test_helper_code_pass0(uint32_t shire_id, uint32_t minion_id)
 {
     (void) shire_id;
     (void) minion_id;

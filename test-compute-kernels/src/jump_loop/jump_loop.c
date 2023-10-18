@@ -25,7 +25,7 @@ inline __attribute__((always_inline)) void dummyLoop(uint64_t num_iters) {
       : "r"(num_iters), "r"(0));
 }
 
-int main(const Parameters* const params) {
+int entry_point(const Parameters* const params) {
   dummyLoop(params->num_iters);
   return 0;
 }

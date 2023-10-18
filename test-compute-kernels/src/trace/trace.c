@@ -3,7 +3,7 @@
 #include <etsoc/common/utils.h>
 #include <trace/trace_umode.h>
 
-int64_t main(void)
+int64_t entry_point(void)
 {
     char str[] = "Message";
 

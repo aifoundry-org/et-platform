@@ -78,7 +78,7 @@ typedef struct {
   uint64_t tensor_h;
 } Parameters;
 
-int64_t main(const Parameters *const kernel_params_ptr) {
+int64_t entry_point(const Parameters *const kernel_params_ptr) {
   if ((kernel_params_ptr == NULL) ||
       ((uint64_t *)kernel_params_ptr->tensor_a == NULL) ||
       (kernel_params_ptr->tensor_b == 0) ||

@@ -28,7 +28,7 @@ void sc_pv_clear_l2_scratchpad(uint64_t sid) {
    int flb_enc;
    __asm__ __volatile__(
       "li %[flb_enc], -8326528131590895620\n"
-      "csrrw %[flb_enc], flb0, %[flb_enc]\n"
+      "csrrw %[flb_enc], flb, %[flb_enc]\n"
       : [flb_enc] "=r" (flb_enc)
       :
       :
