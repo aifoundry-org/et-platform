@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18499] Masking out bad Minion Shire PVT sampling.
 - Improving the logging of PMIC FW update.
 - Increased BL2 code size to 251K.
+- Removing unnecessary inlines and increased the time out for PMIC ready.
 ### Deprecated
 ### Removed
 - Workaround delays in I2C APIs.

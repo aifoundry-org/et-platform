@@ -171,7 +171,7 @@ typedef struct imageMetadata_
 /*! \def PMIC_BUSY_WAIT_TIMEOUT_MS
     \brief Macro definition for PMIC wait timeout when busy flag is set
 */
-#define PMIC_BUSY_WAIT_TIMEOUT_MS 100
+#define PMIC_BUSY_WAIT_TIMEOUT_MS 500
 
 /*! \def POWER_THRESHOLD_HW_CATASTROPHIC
     \brief A macro that provides power threshold value.

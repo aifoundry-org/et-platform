@@ -269,7 +269,7 @@ int wait_pmic_ready(void)
 *
 ***********************************************************************/
 
-inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
+static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size)
 {
     int retries = 3;
     int status = STATUS_SUCCESS;
@@ -331,7 +331,7 @@ inline static int get_pmic_reg(uint8_t reg, uint8_t *reg_value, uint8_t reg_size
 *
 ***********************************************************************/
 
-inline static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
+static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
 {
     int retries = 3;
     int status = STATUS_SUCCESS;
