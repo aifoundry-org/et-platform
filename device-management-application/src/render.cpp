@@ -15,7 +15,7 @@ std::vector<Color> colors{ftxui::Color::Red,          ftxui::Color::Green,      
                           ftxui::Color::MagentaLight, ftxui::Color::CyanLight,   ftxui::Color::White};
 
 // Power
-std::shared_ptr<PerfMeasure> pwrEtsoc;
+std::shared_ptr<PerfMeasure> pwrCard;
 std::shared_ptr<PerfMeasure> pwrMinion;
 std::shared_ptr<PerfMeasure> pwrSram;
 std::shared_ptr<PerfMeasure> pwrNoc;
@@ -189,11 +189,11 @@ void PerfMeasure::setData(int width, int v) {
  */
 void graph_init() {
   // Power
-  pwrEtsoc = std::make_shared<PerfMeasure>("ETSOC");
+  pwrCard = std::make_shared<PerfMeasure>("CARD");
   pwrMinion = std::make_shared<PerfMeasure>("MINION");
   pwrSram = std::make_shared<PerfMeasure>("SRAM");
   pwrNoc = std::make_shared<PerfMeasure>("NOC");
-  powerItems = {pwrEtsoc, pwrMinion, pwrSram, pwrNoc};
+  powerItems = {pwrCard, pwrMinion, pwrSram, pwrNoc};
 
   // Compute
   ddrR = std::make_shared<PerfMeasure>("DDR BW Read");
@@ -330,7 +330,7 @@ void getAllData(const struct mm_stats_t& mmStats_, const struct sp_stats_t& spSt
                 const device_mgmt_api::asic_frequencies_t& freqStats_,
                 const device_mgmt_api::module_voltage_t& moduleVoltStats_, int cWIDTH) {
   struct op_stats_t op = spStats_.op;
-  pwrEtsoc->setData(cWIDTH, POWER_MW_TO_W((op.minion.power.avg + op.sram.power.avg + op.noc.power.avg + kOtherPower)));
+  pwrCard->setData(cWIDTH, POWER_10MW_TO_W(op.system.power.avg));
   pwrMinion->setData(cWIDTH, POWER_MW_TO_W(op.minion.power.avg));
   pwrSram->setData(cWIDTH, POWER_MW_TO_W(op.sram.power.avg));
   pwrNoc->setData(cWIDTH, POWER_MW_TO_W(op.noc.power.avg));
@@ -487,6 +487,10 @@ Component voltViewRenderer() {
   return voltView;
 }
 
+Component exitComponent(ScreenInteractive& screen) {
+  return Make<ExitComponent>(screen);
+}
+
 /**
  * @brief Signal handler for window resize events.
  * This function is invoked in response to the SIGWINCH signal,
@@ -518,7 +522,8 @@ void renderMainDisplay(Component powerView, Component computeView, Component tem
   int shift = 0;
 
   int tabIndex = 0;
-  std::vector<std::string> tabEntries = {"Power/Temp View", "Compute/Throughput/Utilization View", "Freq/Volt View"};
+  std::vector<std::string> tabEntries = {"Power/Temp View", "Compute/Throughput/Utilization View", "Freq/Volt View",
+                                         "Exit"};
   auto tabSelection = Menu(&tabEntries, &tabIndex, MenuOption::HorizontalAnimated());
 
   auto powerTempView = Container::Vertical({powerView, tempView});
@@ -526,12 +531,14 @@ void renderMainDisplay(Component powerView, Component computeView, Component tem
 
   auto throughputUtilizationView = Container::Horizontal({throughputView, utilizationView}) | flex;
   auto throughputUtilizationComputeView = Container::Vertical({computeView, throughputUtilizationView});
+  auto exitView = exitComponent(screen);
 
   auto tabContent = Container::Tab(
     {
       powerTempView,
       throughputUtilizationComputeView,
       freqVoltView,
+      exitView,
     },
     &tabIndex);
 

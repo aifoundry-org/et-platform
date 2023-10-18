@@ -739,7 +739,6 @@ void EtTop::displayStatsGraph(void) {
   auto voltView = voltViewRenderer();
   auto utilizationView = utilizationViewRenderer();
   auto throughputView = throughputViewRenderer();
-
   renderMainDisplay(powerView, computeView, tempView, freqView, voltView, utilizationView, throughputView, this);
 
   displayFreqDetails_ = false;
@@ -928,6 +927,7 @@ int main(int argc, char** argv) {
               << "\tDELAY is an optional update delay in milliseconds (default " << kUpdateDelayMS << ")\n"
               << "\tOPTION is one or more of the following:\n"
               << "\t  -b operate in batch mode (accept no input and run until -n limit or killed)\n"
+              << "\t  -g operate in graph mode\n"
               << "\t  -n [NUM] display stats a maximum of NUM times before ending (NUM > 0)\n"
               << "\t  -r reset statistics at start\n";
     exit(1);

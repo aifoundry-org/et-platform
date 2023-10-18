@@ -32,7 +32,7 @@ using namespace ftxui;
  */
 
 #define CANVAS_POWER_MIN 0
-#define CANVAS_POWER_MAX 45
+#define CANVAS_POWER_MAX 75
 
 #define CANVAS_COMPUTE_MIN 0
 #define CANVAS_COMPUTE_MAX 15000
@@ -44,7 +44,7 @@ using namespace ftxui;
 #define CANVAS_UTILIZATION_MAX 100
 
 #define CANVAS_TEMPERATURE_MIN 0
-#define CANVAS_TEMPERATURE_MAX 60
+#define CANVAS_TEMPERATURE_MAX 75
 
 #define CANVAS_FREQUENCY_MIN 150
 #define CANVAS_FREQUENCY_MAX 1100
@@ -111,6 +111,20 @@ public:
   std::deque<int> getData();
 };
 
+class ExitComponent : public ComponentBase {
+public:
+  ExitComponent(ScreenInteractive& screen)
+    : screen_(screen) {
+  }
+  Element Render() override {
+    screen_.ExitLoopClosure()();
+    return text("");
+  }
+
+private:
+  ScreenInteractive& screen_;
+};
+
 float adjustValue(float value, float l, float h, float height);
 Component powerViewRenderer();
 Component computeViewRenderer();
@@ -119,6 +133,7 @@ Component throughputViewRenderer();
 Component tempViewRenderer();
 Component freqViewRenderer();
 Component voltViewRenderer();
+Component exitComponent();
 void renderMainDisplay(Component powerView, Component computeView, Component tempView, Component freqView,
                        Component voltView, Component utilizationView, Component throughputView, EtTop* etTop);
 
