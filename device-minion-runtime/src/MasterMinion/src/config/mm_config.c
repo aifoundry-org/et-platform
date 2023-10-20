@@ -70,7 +70,7 @@ static mm_config_t MM_Config_CB __attribute__((aligned(64))) = { 0 };
 ***********************************************************************/
 int32_t MM_Config_Init(void)
 {
-    uint64_t ddr_mem_size;
+    uint64_t ddr_mem_size = 0;
     uint64_t shire_mask = 0;
     uint32_t min_freq_mhz = 0;
     int32_t status = DMA_DRIVER_ERROR_INVALID_ADDRESS;
