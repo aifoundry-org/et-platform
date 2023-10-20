@@ -2489,7 +2489,8 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     {
         Log_Write(LOG_LEVEL_ERROR, "[ETFP] Error - PMIC board type is not compatible!\n");
         /* Print the PMIC board info. */
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board hw encoded version: 0x%x\n", board_type_encoded_version);
+        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board hw encoded version: 0x%x\n",
+                  board_type_encoded_version);
 
         return ERROR_PMIC_FW_UPDATE_WRONG_BOARD_IMG;
     }
@@ -2767,6 +2768,18 @@ int pmic_firmware_update(void)
     {
         Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum failure %u\n", cksum_result);
         return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
+    }
+
+    /* Inactive PMIC image slot becomes active after reboot */
+    status = pmic_fw_update_subcommand(inactive_slot, PMIC_I2C_FW_MGMTCMD_BOOT_SLOT, NULL);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, &inactive_slot, 4);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
     }
 
     /* Set the global to indicate that PMIC Firmware was successful */
