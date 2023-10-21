@@ -2479,8 +2479,13 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
         return status;
     }
 
+    //Print the PMIC board info.
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board hw encoded version: 0x%x\n",
+              board_type_encoded_version);
+
     /* Check the board type compatibility */
-    if ((image_meta.supported_board_types & board_type_encoded_version) ==
+    //TODO: This break compatibility with older PMIC, will revert once PMIC have been updated on CI machine
+    /*if ((image_meta.supported_board_types & board_type_encoded_version) ==
         board_type_encoded_version)
     {
         Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board type is compatible!\n");
@@ -2488,12 +2493,8 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     else
     {
         Log_Write(LOG_LEVEL_ERROR, "[ETFP] Error - PMIC board type is not compatible!\n");
-        /* Print the PMIC board info. */
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board hw encoded version: 0x%x\n",
-                  board_type_encoded_version);
-
         return ERROR_PMIC_FW_UPDATE_WRONG_BOARD_IMG;
-    }
+    } */
 
     /* Get the git hash of image in active slot */
     status = pmic_fw_update_subcommand(active_slot, PMIC_I2C_FW_MGMTCMD_HASHREAD, &current_hash);
@@ -2517,7 +2518,7 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     else
     {
         hash_matched = false;
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new hash version not matched!\n");
+        Log_Write(LOG_LEVEL_WARNING, "[ETFP] PMIC FW current and new hash version not matched!\n");
     }
 
     /* Get the version of image in active slot */
@@ -2539,7 +2540,7 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
     else
     {
         version_matched = false;
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image version not matched!\n");
+        Log_Write(LOG_LEVEL_WARNING, "[ETFP] PMIC FW current and new image version not matched!\n");
     }
 
     /* Check if image matches */
