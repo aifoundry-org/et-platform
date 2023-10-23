@@ -35,6 +35,8 @@ variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
   SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: et-common-libs
+  TRIG_ON_TAGS_PUSH: 'true'
+  EXTRA_OPTION_SUBPROJECT: $CI_PIPELINE_SOURCE
 
 # Only run job in these cases:
 # - if it's a tag pipeline
@@ -100,10 +102,12 @@ create-sw-platform-branch:
   extends: .create-sw-platform-branch
   stage: generate_build
   needs:
-    - verify_project_changes
-    - clang-format
+    - job: verify_project_changes
+      optional: true
+    - job: clang-format
+      optional: true
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
 
 generate_build:conan:
   extends:
@@ -140,7 +144,7 @@ create-sw-platform-trigger:
   needs:
     - create-sw-platform-branch
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
 
 build:conan:
   extends:
@@ -167,7 +171,7 @@ tests:integration-repo:
     - create-sw-platform-trigger
     - build:conan
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
   trigger:
     strategy: depend
     include:

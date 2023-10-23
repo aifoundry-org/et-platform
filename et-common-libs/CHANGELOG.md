@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-17491] Run integration-tests on tag push and pass-on related options for docs generation
 ### Deprecated
 ### Removed
 ### Fixed
