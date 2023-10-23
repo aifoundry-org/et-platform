@@ -52,6 +52,9 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_SHIRE_CACHE_BANK_OP:
             ret = syscall(SYSCALL_SHIRE_CACHE_BANK_OP_INT, arg1, arg2, arg3);
             break;
+        case SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT:
+            ret = syscall(SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT, arg1, arg2, arg3);
+            break;
         case SYSCALL_RETURN_FROM_KERNEL:
             /* Dump U-mode context in case of kernel self abort */
             if (arg2 == KERNEL_RETURN_SELF_ABORT)

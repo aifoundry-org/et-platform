@@ -57,6 +57,7 @@ static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level);
 static int64_t evict_l2(void);
 static int64_t flush_l3(void);
 static int64_t evict_l3(void);
+static int64_t evict_l1_l2_all(void);
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
 
@@ -139,6 +140,9 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             break;
         case SYSCALL_PMC_MS_SAMPLE_ALL_INT:
             ret = sample_ms_pmcs_all(arg1, (shire_pmc_cnt_t *)arg2);
+            break;
+        case SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT:
+            ret = evict_l1_l2_all();
             break;
 
         default:
@@ -499,6 +503,14 @@ static int64_t evict_l2(void)
     sc_idx_cop_sm_ctl_all_banks_go(THIS_SHIRE, SC_CACHEOP_OPCODE_L2_EVICT); // Evict all L2 indexes
     sc_idx_cop_sm_ctl_all_banks_wait_idle(THIS_SHIRE);
 
+    return SYSCALL_INTERNAL_SUCCESS;
+}
+
+static int64_t evict_l1_l2_all(void)
+{
+    evict_l1(0, to_L2);	
+    evict_l2();
+     
     return SYSCALL_INTERNAL_SUCCESS;
 }
 

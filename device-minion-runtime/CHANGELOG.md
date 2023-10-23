@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Added a new SysCall to fliush all L1 and L2 with a single thread
 ### Changed
 - [SW-18472] Reduced log message length for bus error
 ### Deprecated
