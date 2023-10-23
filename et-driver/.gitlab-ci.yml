@@ -15,7 +15,7 @@ include:
   - project: 'esperantotech/software/sw-platform'
     ref: develop/system-sw
     file:
-      -                           gitlab-ci/system-sw/misc/verify-merge-request.yaml
+      - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
 stages:
   - generate_build
@@ -104,7 +104,7 @@ create-sw-platform-branch:
     - verify_project_changes
     - check-on-top-of-master
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
 
 ###############################################################################
 ###############################################################################
@@ -145,7 +145,7 @@ create-sw-platform-trigger:
   needs:
     - create-sw-platform-branch
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
 
 ###############################################################################
 ###############################################################################
@@ -174,7 +174,7 @@ tests:integration-repo:
     - create-sw-platform-trigger
     - build:conan
   rules:
-    - *development_job_rule
+    - *release_or_development_job_rule
   trigger:
     strategy: depend
     include:
