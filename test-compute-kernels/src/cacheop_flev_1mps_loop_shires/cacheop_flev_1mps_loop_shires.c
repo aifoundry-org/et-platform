@@ -36,6 +36,8 @@ typedef struct {
   uint64_t* out_data;
 } Parameters;
 
+int64_t entry_point(const Parameters*);
+
 int64_t entry_point(const Parameters* const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->out_data == NULL) {
     // Bad arguments

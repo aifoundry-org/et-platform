@@ -22,6 +22,7 @@
 
 void random_dram_tensor_loads(uint64_t cycles);
 void fast_scsp_tensor_loads(uint64_t cycles);
+int64_t entry_point(uint64_t*);
 
 static inline uint64_t generate_l2_address(uint64_t minion_id, uint64_t tensor_load_id) __attribute((always_inline));
 

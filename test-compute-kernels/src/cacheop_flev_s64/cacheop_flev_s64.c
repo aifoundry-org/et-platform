@@ -17,6 +17,8 @@ typedef struct {
   uint64_t op;
 } Parameters;
 
+int64_t entry_point(const Parameters*);
+
 int64_t entry_point(const Parameters* const kernel_params_ptr)
 {
 

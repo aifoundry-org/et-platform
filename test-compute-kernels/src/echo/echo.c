@@ -12,6 +12,8 @@ static inline int min(int a, int b)
     return a < b ? a : b;
 }
 
+int entry_point(const EchoParams*);
+
 /* Echo's the data back sent as input in kernel arguments */
 int entry_point(const EchoParams* const params)
 {

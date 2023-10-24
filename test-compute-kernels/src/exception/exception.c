@@ -1,5 +1,7 @@
 #include <stdint.h>
 
+int64_t entry_point(void);
+
 /* Exception - useful for testing kernel exception handling of firmware */
 int64_t entry_point(void)
 {

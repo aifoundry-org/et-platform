@@ -13,6 +13,8 @@ typedef struct {
     uint64_t loop_size;
 } Parameters;
 
+int entry_point(const Parameters*);
+
 int entry_point(const Parameters* const kernel_params_ptr) {
     uint64_t sid = get_shire_id();
     /* Limit SCW test to only Shire0..Shire31 */

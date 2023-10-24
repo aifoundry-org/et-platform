@@ -9,6 +9,8 @@ typedef struct {
   int numElements;
 } MyVectors;
 
+int entry_point(const MyVectors*);
+
 // use only one shire to exec this simple test
 int entry_point(const MyVectors* const vectors) {
   int tid = (int)get_thread_id();

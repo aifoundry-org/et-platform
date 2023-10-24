@@ -100,6 +100,9 @@ typedef struct {
   uint64_t *out_data;
   uint64_t not_used2;
 } Parameters;
+
+int64_t entry_point(const Parameters*);
+
 int64_t entry_point(const Parameters *const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->in_data == NULL ||
       kernel_params_ptr->not_used1 == 0 ||
@@ -272,7 +275,7 @@ int64_t entry_point(const Parameters *const kernel_params_ptr) {
   unsigned long functional_error = get_tensor_error();
 
   if (functional_error != 0) {
-    et_printf("Tensor error, shire %lu, minion %lu , error value: %x\n",
+    et_printf("Tensor error, shire %lu, minion %lu , error value: %lx\n",
               shire_id, minion_id, functional_error);
     return -1;
   }

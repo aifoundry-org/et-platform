@@ -8,6 +8,8 @@ typedef struct {
   uint64_t numElements;
 } MyVectors;
 
+int64_t entry_point(const MyVectors*);
+
 // Writes BEEF
 int64_t entry_point(const MyVectors* const vectors) {
     // Only run on one minion

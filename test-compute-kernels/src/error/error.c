@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <etsoc/isa/hart.h>
 
+int64_t entry_point(void);
+
 /* User error - useful for testing kernel user error handling of firmware */
 int64_t entry_point(void)
 {   

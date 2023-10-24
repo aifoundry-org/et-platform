@@ -2,6 +2,8 @@
 #include "etsoc/isa/hart.h"
 #include "etsoc/common/utils.h"
 
+int64_t entry_point(void);
+
 /* Combine kernel - Generates multiple kernel execution error from different threads */
 int64_t entry_point(void)
 {

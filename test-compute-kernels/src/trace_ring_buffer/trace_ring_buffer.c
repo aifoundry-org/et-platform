@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <string.h>
 
+int64_t entry_point(void);
+
 int64_t entry_point(void)
 {
     const char alphabet = 'A';

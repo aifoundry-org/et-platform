@@ -7,6 +7,8 @@
 #define ESR_NEIGH_DUMMY_MPROT_PROT   PRV_U
 #define ESR_NEIGH_DUMMY_MPROT_ACCESS esr_access_RW
 
+int entry_point(void);
+
 /* Generates bus error */
 int entry_point(void)
 {

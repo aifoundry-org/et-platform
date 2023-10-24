@@ -10,6 +10,8 @@ typedef struct {
 
 static inline int min(int a, int b) { return a < b ? a : b; }
 
+int entry_point(const Parameters*);
+
 int entry_point(const Parameters* const params) {
   int hart = (int)get_hart_id();
   int numWorkers = params->numShires * SOC_MINIONS_PER_SHIRE * 2;

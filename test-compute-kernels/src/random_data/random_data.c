@@ -10,6 +10,8 @@ typedef struct {
   uint64_t lfsr;
 } Parameters;
 
+int64_t entry_point(const Parameters*);
+
 int64_t entry_point(const Parameters* const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->data_ptr == NULL ||
       kernel_params_ptr->length % 8 != 0 || kernel_params_ptr->lfsr == 0) {

@@ -13,6 +13,8 @@ typedef struct {
   uint64_t num_iters;
 } Parameters;
 
+int entry_point(const Parameters*);
+
 // Function that returns shire id
 inline __attribute__((always_inline)) void dummyLoop(uint64_t num_iters) {
   __asm__ __volatile__(

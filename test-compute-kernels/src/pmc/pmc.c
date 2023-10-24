@@ -19,6 +19,8 @@
 
 #define GET_NEIGH_BASE(base, neigh_index)     (void *)(base + (neigh_index * TEST_DATA_SIZE))
 
+int64_t entry_point(void);
+
 int64_t entry_point(void)
 {
     uint64_t hart_id = get_hart_id();

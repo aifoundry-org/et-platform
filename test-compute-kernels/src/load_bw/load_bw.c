@@ -40,6 +40,9 @@ typedef struct {
   uint64_t num_minions;
   uint64_t* out_data;
 } Parameters;
+
+int64_t entry_point(const Parameters*);
+
 int64_t entry_point(const Parameters *const kernel_params_ptr) {
   if (kernel_params_ptr == NULL || kernel_params_ptr->offset_addr == 0 ||
       kernel_params_ptr->array_size == 0 ||

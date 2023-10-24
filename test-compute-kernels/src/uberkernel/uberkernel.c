@@ -15,6 +15,8 @@ typedef struct {
   uint32_t shire_count;
 } layer_parameters_t;
 
+int64_t entry_point(const layer_parameters_t*);
+
 static void send_init_credit_to_act_pref(uint32_t minion_id, uint32_t shire_id)
 {
     if (minion_id < N_CREDITS_TO_ACT_PREF)

@@ -30,6 +30,9 @@ typedef struct {
   uint64_t num_columns;
   uint64_t* out_data;
 } Parameters;
+
+int64_t entry_point(const Parameters*);
+
 // Prefetch test
 // Tries to reach max BW in the memshire
 int64_t entry_point(const Parameters *const kernel_params_ptr) {

@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+int64_t entry_point(void);
+
 int64_t entry_point(void)
 {
     if (get_hart_id() == 42)

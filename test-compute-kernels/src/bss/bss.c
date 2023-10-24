@@ -9,6 +9,8 @@ typedef struct {
   int numElements;
 } MyVectors;
 
+int entry_point(const MyVectors*);
+
 // int global[4000];
 volatile int global[1000];
 

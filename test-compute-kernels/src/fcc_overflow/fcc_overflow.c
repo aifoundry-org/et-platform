@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+int64_t entry_point(void);
+
 // This test checks to see if tensor error is set when each of the four fcc registers 
 // in the minion overflow
 

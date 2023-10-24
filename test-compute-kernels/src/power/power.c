@@ -8,6 +8,7 @@
 
 static void prefetch_thread(uint64_t cycles);
 static void compute_thread(uint64_t cycles);
+int64_t entry_point(uint64_t*);
 
 int64_t entry_point(uint64_t* tensor_a) {
   if (tensor_a == NULL || *tensor_a == 0 || *tensor_a % 2 != 0) {

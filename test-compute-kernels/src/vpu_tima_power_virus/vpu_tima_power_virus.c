@@ -11,6 +11,8 @@ typedef struct {
     uint64_t loop_size;
 } Parameters;
 
+int entry_point(const Parameters*);
+
 int entry_point(const Parameters* const kernel_params_ptr)
 {
     int ret = SUCCESS;

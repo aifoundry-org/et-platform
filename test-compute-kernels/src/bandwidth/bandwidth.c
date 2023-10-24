@@ -20,6 +20,7 @@ typedef struct {
   uint64_t num_minions;
   uint64_t num_cache_lines;
 } Parameters;
+int64_t entry_point(const Parameters*);
 
 int64_t entry_point(const Parameters *const kernel_params_ptr)
 {

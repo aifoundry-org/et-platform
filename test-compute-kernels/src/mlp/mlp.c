@@ -31,6 +31,8 @@
 #include "test_helper_code_pass2.cc"
 #include "test_sync.cc"
 
+int64_t entry_point(void);
+
 // This is the entry point for the test
 int64_t entry_point(void)
 {
