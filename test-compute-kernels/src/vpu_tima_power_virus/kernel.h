@@ -100,7 +100,7 @@ int selfcheck(uint64_t mask_tima_gold_ref) {
       );
 
       if (mask_regs != mask_tima_gold_ref) {
-         et_printf("Expected Reg: 0x%1X Vs Golden Ref: 0x%1X", mask_regs, mask_tima_gold_ref);
+         et_printf("Expected Reg: 0x%1lX Vs Golden Ref: 0x%1lX", mask_regs, mask_tima_gold_ref);
          return ERROR_SELF_CHECK_MASK_MISMATCH;
       }
 

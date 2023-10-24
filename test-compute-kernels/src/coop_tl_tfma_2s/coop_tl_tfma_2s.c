@@ -281,7 +281,7 @@ int64_t entry_point(const Parameters *const kernel_params_ptr) {
   unsigned long functional_error = get_tensor_error();
 
   if (functional_error != 0) {
-    et_printf("Tensor error, shire %lu, minion %lu , error value: %x\n",
+    et_printf("Tensor error, shire %lu, minion %lu , error value: %lx\n",
               shire_id, minion_id, functional_error);
     return -1;
   }

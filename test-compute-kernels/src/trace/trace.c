@@ -11,7 +11,7 @@ int64_t entry_point(void)
 
     et_printf("Hello from CM UMode.\n\r");
     et_printf("Now you can Debug me using Trace (~_^).\n\r");
-    et_printf("Test: String \"%s\" has length %d.\n\r", str, et_strlen(str));
+    et_printf("Test: String \"%s\" has length %lu.\n\r", str, et_strlen(str));
 
     /* Get some data bytes from U-mode range address */
     et_trace_memory((uint8_t*)0x8102000000, 128);
