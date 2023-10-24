@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-18876] Fix the clang reported errors to make the kernels clang ready
+- [SW-18876] Fix compiler generated warnings
 ### Security
 
 ## [1.8.0] - 2023-09-01
