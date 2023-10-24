@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+### Fixed
+- [SW-18922] Fix missing thread 0 in coredumps
+
 ## [0.12.2]
 ### Fixed
 - [SW-18582] Fixed core dumps generation when kernel aborts.

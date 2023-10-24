@@ -85,8 +85,7 @@ std::vector<size_t> getValidErrorContextIndices(const rt::StreamError& error) {
   std::vector<size_t> result;
 
   auto& contexts = error.errorContext_.value();
-  // it starts with 1 because all older logic was done that way ... but 0 should be valid as well
-  for (size_t i = 1; i < contexts.size(); i++) {
+  for (size_t i = 0; i < contexts.size(); i++) {
     if (contexts[i].type_ <= kMaxValidContextType) {
       result.push_back(i);
     }
