@@ -8,8 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-/* WARNING: this file is auto-generated do not edit directly */
-
 #include "esperanto/device-apis/device_apis_build_configuration.h"
 #include <stdint.h>
 
@@ -19,9 +17,9 @@
 /* High level API specifications */
 
 /*! \def DEVICE_MGMT_API_HASH
-    \brief 8 LSB bytes MD5 checksum of the device-mgmt-api spec
+    \brief Git hash of the device-mgmt-api spec
 */
-#define DEVICE_MGMT_API_HASH  0x3796a94be58956beULL
+#define DEVICE_MGMT_API_HASH ESPERANTO_DEVICE_APIS_GIT_HASH
 
 /*! \def DEVICE_MGMT_API_MAJOR
     \brief API Major

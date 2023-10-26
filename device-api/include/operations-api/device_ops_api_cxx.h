@@ -8,8 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-/* WARNING: this file is auto-generated do not edit directly */
-
 #ifndef ET_DEVICE_OPS_API_CXX_H
 #define ET_DEVICE_OPS_API_CXX_H
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-15748] Adding SP trace buffer full event for DM lib
+- [SW-18547] Added kernel U-mode stack configuration structure.
+- Generated proper git hash and embedded to device-api headers.
 ### Changed
 ### Deprecated
 ### Removed

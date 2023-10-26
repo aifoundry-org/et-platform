@@ -8,8 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-/* WARNING: this file is auto-generated do not edit directly */
-
 #include "esperanto/device-apis/device_apis_build_configuration.h"
 #include <stdint.h>
 
@@ -19,9 +17,9 @@
 /* High level API specifications */
 
 /*! \def DEVICE_OPS_API_HASH
-    \brief 8 LSB bytes MD5 checksum of the device-ops-api spec
+    \brief Git hash of the device-ops-api spec
 */
-#define DEVICE_OPS_API_HASH  0x12174efea0dbdc46ULL
+#define DEVICE_OPS_API_HASH ESPERANTO_DEVICE_APIS_GIT_HASH
 
 /*! \def DEVICE_OPS_API_MAJOR
     \brief API Major
@@ -53,7 +51,7 @@
 typedef uint32_t trace_rt_type_e;
 
 /*! \enum TRACE_RT_TYPE
-    \brief 
+    \brief
 */
 enum TRACE_RT_TYPE {
   TRACE_RT_TYPE_MM = 1, /**< Master Minion Trace */
@@ -63,7 +61,7 @@ enum TRACE_RT_TYPE {
 typedef uint32_t trace_rt_control_e;
 
 /*! \enum TRACE_RT_CONTROL
-    \brief 
+    \brief
 */
 enum TRACE_RT_CONTROL {
   TRACE_RT_CONTROL_DISABLE_TRACE = 0, /**< Disable Trace */
@@ -76,24 +74,25 @@ enum TRACE_RT_CONTROL {
 typedef uint16_t cmd_flags_e;
 
 /*! \enum CMD_FLAGS
-    \brief 
+    \brief
 */
 enum CMD_FLAGS {
-  CMD_FLAGS_BARRIER_DISABLE = 0, /**<  */
-  CMD_FLAGS_BARRIER_ENABLE = 1, /**<  */
-  CMD_FLAGS_COMPUTE_KERNEL_TRACE_DISABLE = 0, /**<  */
-  CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE = 2, /**<  */
-  CMD_FLAGS_HOST_MANAGED_UBUF = 0, /**<  */
-  CMD_FLAGS_MMFW_TRACEBUF = 4, /**<  */
-  CMD_FLAGS_CMFW_TRACEBUF = 8, /**<  */
-  CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 = 16, /**<  */
-  CMD_FLAGS_KERNEL_LAUNCH_ARGS_EMBEDDED = 32, /**<  */
+  CMD_FLAGS_BARRIER_DISABLE = 0, /**< bit[0]: Clears the bit flag for barrier in command */
+  CMD_FLAGS_BARRIER_ENABLE = 1, /**< bit[0]: If set, indicates that command barrier needs to be enabled in the command */
+  CMD_FLAGS_COMPUTE_KERNEL_TRACE_DISABLE = 0, /**< bit[1]: Clears the bit flag for user trace configuration */
+  CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE = 2, /**< bit[1]: If set, indicates that user trace configuration is present in the kernel launch optional arguments */
+  CMD_FLAGS_HOST_MANAGED_UBUF = 0, /**< Deprecated, to be removed */
+  CMD_FLAGS_MMFW_TRACEBUF = 4, /**< bit[2]: If set, indicates that Master Minion trace buffer needs to be extracted */
+  CMD_FLAGS_CMFW_TRACEBUF = 8, /**< bit[3]: If set, indicates that Compute Minion trace buffer needs to be extracted */
+  CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3 = 16, /**< bit[4]: If set, indicates that the L3-cache needs to be flushed before kernel launch */
+  CMD_FLAGS_KERNEL_LAUNCH_ARGS_EMBEDDED = 32, /**< bit[5]: If set, indicates that user kernel arguments are present in the kernel launch optional arguments */
+  CMD_FLAGS_KERNEL_LAUNCH_USER_STACK_CFG = 64, /**< bit[6]: If set, indicates that user stack configuration is present in the kernel launch optional arguments */
 };
 
 typedef uint32_t dev_ops_api_abort_response_e;
 
 /*! \enum DEV_OPS_API_ABORT_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_ABORT_RESPONSE {
   DEV_OPS_API_ABORT_RESPONSE_SUCCESS = 0, /**<  */
@@ -105,7 +104,7 @@ enum DEV_OPS_API_ABORT_RESPONSE {
 typedef uint32_t dev_ops_api_cm_reset_response_e;
 
 /*! \enum DEV_OPS_API_CM_RESET_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_CM_RESET_RESPONSE {
   DEV_OPS_API_CM_RESET_RESPONSE_SUCCESS = 0, /**<  */
@@ -117,7 +116,7 @@ enum DEV_OPS_API_CM_RESET_RESPONSE {
 typedef uint32_t dev_ops_api_kernel_launch_response_e;
 
 /*! \enum DEV_OPS_API_KERNEL_LAUNCH_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_KERNEL_LAUNCH_RESPONSE {
   DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED = 0, /**<  */
@@ -135,12 +134,13 @@ enum DEV_OPS_API_KERNEL_LAUNCH_RESPONSE {
   DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CW_MINIONS_BOOT_FAILED = 11, /**<  */
   DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_SHIRE_MASK = 12, /**<  */
   DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_USER_ERROR = 13, /**<  */
+  DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_STACK_CFG = 14, /**<  */
 };
 
 typedef uint32_t dev_ops_api_kernel_abort_response_e;
 
 /*! \enum DEV_OPS_API_KERNEL_ABORT_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_KERNEL_ABORT_RESPONSE {
   DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS = 0, /**<  */
@@ -153,7 +153,7 @@ enum DEV_OPS_API_KERNEL_ABORT_RESPONSE {
 typedef uint32_t dev_ops_api_dma_response_e;
 
 /*! \enum DEV_OPS_API_DMA_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_DMA_RESPONSE {
   DEV_OPS_API_DMA_RESPONSE_COMPLETE = 0, /**<  */
@@ -175,7 +175,7 @@ enum DEV_OPS_API_DMA_RESPONSE {
 typedef uint32_t dev_ops_api_echo_response_e;
 
 /*! \enum DEV_OPS_API_ECHO_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_ECHO_RESPONSE {
   DEV_OPS_API_ECHO_RESPONSE_SUCCESS = 0, /**<  */
@@ -185,7 +185,7 @@ enum DEV_OPS_API_ECHO_RESPONSE {
 typedef uint32_t dev_ops_api_fw_version_response_e;
 
 /*! \enum DEV_OPS_API_FW_VERSION_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_FW_VERSION_RESPONSE {
   DEV_OPS_API_FW_VERSION_RESPONSE_SUCCESS = 0, /**<  */
@@ -198,7 +198,7 @@ enum DEV_OPS_API_FW_VERSION_RESPONSE {
 typedef uint32_t dev_ops_api_compatibility_response_e;
 
 /*! \enum DEV_OPS_API_COMPATIBILITY_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_COMPATIBILITY_RESPONSE {
   DEV_OPS_API_COMPATIBILITY_RESPONSE_SUCCESS = 0, /**<  */
@@ -209,7 +209,7 @@ enum DEV_OPS_API_COMPATIBILITY_RESPONSE {
 typedef uint32_t dev_ops_api_error_type_e;
 
 /*! \enum DEV_OPS_API_ERROR_TYPE
-    \brief 
+    \brief
 */
 enum DEV_OPS_API_ERROR_TYPE {
   DEV_OPS_API_ERROR_TYPE_UNSUPPORTED_COMMAND = 0, /**<  */
@@ -220,7 +220,7 @@ enum DEV_OPS_API_ERROR_TYPE {
 typedef uint8_t dev_ops_fw_type_e;
 
 /*! \enum DEV_OPS_FW_TYPE
-    \brief 
+    \brief
 */
 enum DEV_OPS_FW_TYPE {
   DEV_OPS_FW_TYPE_MASTER_MINION_FW = 0, /**<  */
@@ -231,7 +231,7 @@ enum DEV_OPS_FW_TYPE {
 typedef uint32_t dev_ops_trace_rt_config_response_e;
 
 /*! \enum DEV_OPS_TRACE_RT_CONFIG_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_TRACE_RT_CONFIG_RESPONSE {
   DEV_OPS_TRACE_RT_CONFIG_RESPONSE_SUCCESS = 0, /**<  */
@@ -250,7 +250,7 @@ enum DEV_OPS_TRACE_RT_CONFIG_RESPONSE {
 typedef uint32_t dev_ops_trace_rt_control_response_e;
 
 /*! \enum DEV_OPS_TRACE_RT_CONTROL_RESPONSE
-    \brief 
+    \brief
 */
 enum DEV_OPS_TRACE_RT_CONTROL_RESPONSE {
   DEV_OPS_TRACE_RT_CONTROL_RESPONSE_SUCCESS = 0, /**<  */

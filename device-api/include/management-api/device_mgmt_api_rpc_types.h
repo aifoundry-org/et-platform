@@ -8,8 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-/* WARNING: this file is auto-generated do not edit directly */
-
 #ifndef ET_DEVICE_MGMT_API_RPC_TYPES_H
 #define ET_DEVICE_MGMT_API_RPC_TYPES_H
 
@@ -24,7 +22,7 @@
 */
 struct asset_info_t {
   char  asset[24]; /**<  */
-  
+
 } __attribute__((packed));
 
 /*! \struct fused_public_keys_t
@@ -32,7 +30,7 @@ struct asset_info_t {
 */
 struct fused_public_keys_t {
   uint8_t  keys[32]; /**<  */
-  
+
 } __attribute__((packed));
 
 /*! \struct firmware_version_t
@@ -47,7 +45,7 @@ struct firmware_version_t {
   uint32_t  fw_release_rev; /**< Firmware release revision */
   uint32_t  pmic_v; /**< PMIC Firmware version */
   uint32_t  pad; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct fw_image_path_t
@@ -55,7 +53,7 @@ struct firmware_version_t {
 */
 struct fw_image_path_t {
   char  path[64]; /**<  */
-  
+
 } __attribute__((packed));
 
 /*! \struct certificate_hash_t
@@ -64,20 +62,20 @@ struct fw_image_path_t {
 struct certificate_hash_t {
   char  key_blob[48]; /**<  */
   char  associated_data[48]; /**<  */
-  
+
 } __attribute__((packed));
 
 /*! \struct temperature_threshold_t
-    \brief 
+    \brief
 */
 struct temperature_threshold_t {
   uint8_t  sw_temperature_c; /**< Low temperature threshold */
   uint8_t  pad[7]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct current_temperature_t
-    \brief 
+    \brief
 */
 struct current_temperature_t {
   int16_t  ioshire_current; /**< IOSHIRE current temperature (in C) */
@@ -88,104 +86,104 @@ struct current_temperature_t {
   int16_t  minshire_high; /**< Mionion Shire highest temperature (in C) */
   uint8_t  pmic_sys; /**< PMIC SYS temperature (in C) */
   uint8_t  pad[3]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct residency_t
-    \brief 
+    \brief
 */
 struct residency_t {
   uint64_t  cumulative; /**< Time(in usecs) */
   uint64_t  average; /**< Time(in usecs) */
   uint64_t  maximum; /**< Time(in usecs) */
   uint64_t  minimum; /**< Time(in usecs) */
-  
+
 } __attribute__((packed));
 
 /*! \struct module_power_t
-    \brief 
+    \brief
 */
 struct module_power_t {
   uint16_t  power; /**< binary encoded */
   uint8_t  pad[6]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct module_uptime_t
-    \brief 
+    \brief
 */
 struct module_uptime_t {
   uint16_t  day; /**< time day */
   uint8_t  hours; /**< time hour */
   uint8_t  mins; /**< time minutes */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct max_temperature_t
-    \brief 
+    \brief
 */
 struct max_temperature_t {
   uint8_t  max_temperature_c; /**< Max temperature (in C) */
   uint8_t  pad[7]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct max_ecc_count_t
-    \brief 
+    \brief
 */
 struct max_ecc_count_t {
   uint32_t  count; /**< Max ECC count */
   uint32_t  pad; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct max_dram_bw_t
-    \brief 
+    \brief
 */
 struct max_dram_bw_t {
   uint32_t  max_bw_rd_req_sec; /**< Max BW Read Req Secs */
   uint32_t  max_bw_wr_req_sec; /**< Max BW Write Req Secs */
-  
+
 } __attribute__((packed));
 
 /*! \struct max_throttle_time_t
-    \brief 
+    \brief
 */
 struct max_throttle_time_t {
   uint64_t  time_usec; /**< Time(in usecs) */
-  
+
 } __attribute__((packed));
 
 /*! \struct ecc_error_count_t
-    \brief 
+    \brief
 */
 struct ecc_error_count_t {
   uint8_t  count; /**< ECC Error count */
   uint8_t  pad[7]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct errors_count_t
-    \brief 
+    \brief
 */
 struct errors_count_t {
   uint32_t  ecc; /**< ECC Count */
   uint32_t  uecc; /**< UECC Count */
-  
+
 } __attribute__((packed));
 
 /*! \struct dram_bw_counter_t
-    \brief 
+    \brief
 */
 struct dram_bw_counter_t {
   uint32_t  bw_rd_req_sec; /**< BW Read Req Secs */
   uint32_t  bw_wr_req_sec; /**< BW Write Req Secs */
-  
+
 } __attribute__((packed));
 
 /*! \struct asic_frequencies_t
-    \brief 
+    \brief
 */
 struct asic_frequencies_t {
   uint32_t  minion_shire_mhz; /**< Minion Shire frequency in MHz */
@@ -194,38 +192,38 @@ struct asic_frequencies_t {
   uint32_t  ddr_mhz; /**< DDR frequency in MHz */
   uint32_t  pcie_shire_mhz; /**< PCIe Shire frequency in MHz */
   uint32_t  io_shire_mhz; /**< IO Shire frequency in MHz */
-  
+
 } __attribute__((packed));
 
 /*! \struct dram_bw_t
-    \brief 
+    \brief
 */
 struct dram_bw_t {
   uint32_t  read_req_sec; /**< Read Req Secs */
   uint32_t  write_req_sec; /**< Write Req Secs */
-  
+
 } __attribute__((packed));
 
 /*! \struct percentage_cap_t
-    \brief 
+    \brief
 */
 struct percentage_cap_t {
   uint32_t  pct_cap; /**< PCT cap */
   uint32_t  pad; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mm_error_count_t
-    \brief 
+    \brief
 */
 struct mm_error_count_t {
   uint32_t  hang_count; /**< MM Hang count */
   uint32_t  exception_count; /**< MM Exception count */
-  
+
 } __attribute__((packed));
 
 /*! \struct asic_voltage_t
-    \brief 
+    \brief
 */
 struct asic_voltage_t {
   uint16_t  ddr; /**< DDR Voltage */
@@ -238,11 +236,11 @@ struct asic_voltage_t {
   uint16_t  vddqlp; /**< Vddlp Voltage */
   uint16_t  vddq; /**< Vddq Voltage */
   uint8_t  pad[6]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct module_voltage_t
-    \brief 
+    \brief
 */
 struct module_voltage_t {
   uint8_t  ddr; /**< DDR Voltage */
@@ -255,30 +253,30 @@ struct module_voltage_t {
   uint8_t  vddqlp; /**< Vddlp Voltage */
   uint8_t  vddq; /**< Vddq Voltage */
   uint8_t  pad[7]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_hart_selection_t
-    \brief 
+    \brief
 */
 struct mdi_hart_selection_t {
   uint64_t  shire_id; /**< Shire ID */
   uint64_t  thread_mask; /**< Thread Mask */
   uint64_t  flags; /**< Flags that indicate, select/unselect/etc function */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_hart_control_t
-    \brief 
+    \brief
 */
 struct mdi_hart_control_t {
   uint64_t  hart_id; /**< Hart ID */
   uint64_t  flags; /**< Flags that indicate action to perform, reset/halt/resume/status/etc */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_bp_control_t
-    \brief 
+    \brief
 */
 struct mdi_bp_control_t {
   uint64_t  hart_id; /**< Hart ID */
@@ -286,71 +284,71 @@ struct mdi_bp_control_t {
   uint64_t  mode; /**< Minion mode */
   uint64_t  bp_event_wait_timeout; /**< Wait time(in ms) for BP to be hit */
   uint64_t  flags; /**< Flags that indicate BP action, set/unset/etc */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_ss_control_t
-    \brief 
+    \brief
 */
 struct mdi_ss_control_t {
   uint64_t  shire_mask; /**< Shire Mask */
   uint64_t  thread_mask; /**< Thread Mask */
   uint64_t  flags; /**< Flags that indicate ss actions, TBD */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_gpr_read_t
-    \brief 
+    \brief
 */
 struct mdi_gpr_read_t {
   uint64_t  hart_id; /**< HART ID */
   uint32_t  gpr_index; /**< GPR Index */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_dump_gpr_t
-    \brief 
+    \brief
 */
 struct mdi_dump_gpr_t {
   uint64_t  gpr[32]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_gpr_write_t
-    \brief 
+    \brief
 */
 struct mdi_gpr_write_t {
   uint64_t  hart_id; /**< HART ID */
   uint64_t  data; /**< Data to be written to GPR */
   uint32_t  gpr_index; /**< GPR Index */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_csr_read_t
-    \brief 
+    \brief
 */
 struct mdi_csr_read_t {
   uint64_t  hart_id; /**< HART ID */
   uint32_t  csr_name; /**< CSR Name */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_csr_write_t
-    \brief 
+    \brief
 */
 struct mdi_csr_write_t {
   uint64_t  hart_id; /**< HART ID */
   uint64_t  data; /**< Data to be written to CSR */
   uint32_t  csr_name; /**< CSR Name */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_mem_read_t
-    \brief 
+    \brief
 */
 struct mdi_mem_read_t {
   uint64_t  address; /**< Memory address to be read from */
@@ -358,22 +356,22 @@ struct mdi_mem_read_t {
   uint32_t  size; /**< Size of memory region */
   uint8_t  access_type; /**< Memory access type */
   uint8_t  pad[3]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct mdi_mem_write_t
-    \brief 
+    \brief
 */
 struct mdi_mem_write_t {
   uint64_t  address; /**< Memory address to be written to */
   uint64_t  data; /**< Data to be written */
   uint32_t  size; /**< Size of memory region */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct get_sp_stats_t
-    \brief 
+    \brief
 */
 struct get_sp_stats_t {
   uint16_t system_power_avg;       /**< System power average */
@@ -422,7 +420,7 @@ struct get_sp_stats_t {
 } __attribute__((packed));
 
 /*! \struct get_mm_stats_t
-    \brief 
+    \brief
 */
 struct get_mm_stats_t {
   uint64_t  cm_utilization_avg; /**< Compute minion utilization average */
@@ -455,7 +453,7 @@ struct get_mm_stats_t {
   uint64_t  l2_l3_write_bw_avg; /**< L2/L3 write bandwidth average */
   uint64_t  l2_l3_write_bw_min; /**< L2/L3 write bandwidth minimum */
   uint64_t  l2_l3_write_bw_max; /**< L2/L3 write bandwidth maximum */
-  
+
 } __attribute__((packed));
 
 struct shire_cache_config_t {

@@ -8,8 +8,6 @@
  * agreement/contract under which the program(s) have been supplied.
  ------------------------------------------------------------------------------ */
 
-/* WARNING: this file is auto-generated do not edit directly */
-
 #ifndef ET_DEVICE_OPS_API_RPC_TYPES_H
 #define ET_DEVICE_OPS_API_RPC_TYPES_H
 
@@ -30,7 +28,7 @@ struct dma_read_node {
   uint64_t  src_device_phy_addr; /**< Device Address */
   uint32_t  size; /**< Size */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct dma_write_node
@@ -44,7 +42,7 @@ struct dma_write_node {
   uint64_t  dst_device_phy_addr; /**< Device Address */
   uint32_t  size; /**< Size */
   uint8_t  pad[4]; /**< Padding for alignment */
-  
+
 } __attribute__((packed));
 
 /*! \struct p2pdma_read_node
@@ -84,10 +82,17 @@ struct kernel_rsp_error_ptr_t {
   uint64_t  umode_exception_buffer_ptr; /**< Pointer to the U-mode exception buffer */
   uint64_t  umode_trace_buffer_ptr; /**< Pointer to the U-mode trace buffer */
   uint64_t  cm_shire_mask; /**< Bit mask showing in which CM shire exception OR hang occurred */
-  
+
 } __attribute__((packed));
 
+/*! \struct kernel_user_stack_cfg_t
+    \brief This structure contains U-mode kernel stack configuration information.
+*/
+struct kernel_user_stack_cfg_t {
+  uint32_t  stack_base_offset; /**< Base offset of the stack from the Host Managed DRAM address. Units: number of naturally aligned blocks of 4096 bytes */
+  uint32_t  stack_size; /**< Total stack size. Units: number of naturally aligned blocks of 4096 bytes */
 
+} __attribute__((packed));
 
 /* The real Device Ops API RPC messages that we exchange */
 
@@ -178,7 +183,14 @@ struct device_ops_kernel_launch_cmd_t {
   uint64_t  pointer_to_args; /**< Pointer to kernel arguments */
   uint64_t  exception_buffer; /**< Pointer to the exception buffer */
   uint64_t  shire_mask; /**< BitMask indicating Compute Shires that is used to execute a given Kernel */
-  uint64_t  argument_payload[]; /**< These are optional payload that can go up to 128 bytes */
+  uint64_t  argument_payload[]; /**< These are optional arguments payload that can go up to size defined in device-api
+  Layout:
+  Bytes[0:39]        : U-mode trace configuration structure
+  Bytes[40:47]       : U-mode stack configuration structure
+  Bytes[48:max_size] : Kernel arguments
+  Note: The layout above states the placement of the arguments when all are available.
+  If any of the optional argument is not present, the layout simply shift up.
+  The presence of an optional argument is controlled by CMD_FLAGS in command header. */
 } __attribute__((packed, aligned(8)));
 
 /*! \struct device_ops_kernel_launch_rsp_t
