@@ -93,12 +93,15 @@ typedef enum {
 
 #define KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH      (1u << 0)
 #define KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE (1u << 1)
+#define KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_STACK_CONFIG (1u << 2)
 
 typedef struct {
     uint64_t code_start_address;
     uint64_t pointer_to_args;
     uint64_t shire_mask;
     uint64_t exception_buffer;
+    uint32_t stack_offset;
+    uint32_t stack_size;
     uint8_t kw_base_id;
     uint8_t slot_index;
     uint8_t flags;
