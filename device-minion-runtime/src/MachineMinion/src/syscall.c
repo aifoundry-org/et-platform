@@ -508,9 +508,9 @@ static int64_t evict_l2(void)
 
 static int64_t evict_l1_l2_all(void)
 {
-    evict_l1(0, to_L2);	
+    evict_l1(0, to_L2);
     evict_l2();
-     
+
     return SYSCALL_INTERNAL_SUCCESS;
 }
 
