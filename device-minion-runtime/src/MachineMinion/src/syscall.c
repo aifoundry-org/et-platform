@@ -508,10 +508,15 @@ static int64_t evict_l2(void)
 
 static int64_t evict_l1_l2_all(void)
 {
-    evict_l1(0, to_L2);
-    evict_l2();
+    int64_t rv;
 
-    return SYSCALL_INTERNAL_SUCCESS;
+    rv = evict_l1(0, to_L2);
+    if (rv == SYSCALL_INTERNAL_SUCCESS)
+    {
+        rv = evict_l2();
+    }
+
+    return rv;
 }
 
 static int64_t flush_l3(void)
