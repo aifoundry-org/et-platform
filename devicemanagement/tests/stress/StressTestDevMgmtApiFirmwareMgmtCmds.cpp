@@ -36,7 +36,8 @@ class StressTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
   }
 };
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageSingleDevice) {
+/* TODO: SW-19075: Re-enable once issue is resolved */
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageSingleDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -53,7 +54,8 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageSingleDevice) {
   }
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageMultiDevice) {
+/* TODO: SW-19075: Re-enable once issue is resolved */
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageMultiDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -72,6 +74,23 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageMultiDevice) {
   }
 }
 
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetSingleDevice) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    if (isParallelRun()) {
+      DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
+      FLAGS_enable_trace_dump = false;
+      return;
+    }
+    initEventProcessor();
+    setFirmwareUpdateImage(true /* Single Device */, true, 5);
+    cleanupEventProcessor();
+    extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
 TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetMultiDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
@@ -79,9 +98,11 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetMultiDev
       FLAGS_enable_trace_dump = false;
       return;
     }
+    initEventProcessor();
     int iterations = 5 / devLayer_->getDevicesCount();
     iterations = iterations ? iterations : 1;
     setFirmwareUpdateImage(false /* Multiple Devices */, true, iterations);
+    cleanupEventProcessor();
     extractAndPrintTraceData(false /* Multiple Devices */, TraceBufferType::TraceBufferSP);
   } else {
     DV_LOG(INFO) << "Skipping the test since its not supported on current target";

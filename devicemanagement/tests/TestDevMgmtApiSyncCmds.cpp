@@ -67,15 +67,19 @@ DEFINE_uint32(exec_timeout_ms, 30000, "Internal execution timeout in millisecond
 static constexpr const int kPmicFlashImageMetadataOffset = 256;
 static constexpr const int kFlashImageRawFileHeaderSize = 2816;
 
-// PMIC Image metadata header - must be synced with device
-typedef struct imageMetadata_ {
+// PMIC Runtime Image metadata header - must be synced with device
+typedef struct pmicRtMetadata_ {
   uint32_t start_addr;
   uint32_t version;
-  uint32_t board_type;
+  uint32_t supported_board_types;
   char hash[16];
   uint32_t checksum;
   uint32_t image_size;
-} pmicImageMetadata_t;
+  uint32_t bl_fw_version;
+  uint32_t sp_pmic_interface_version;
+  uint32_t metadata_version;
+  uint32_t build_type;
+} pmicRuntimeMetadata_t;
 
 getDM_t TestDevMgmtApiSyncCmds::getInstance() {
   const char* error;
@@ -349,32 +353,32 @@ static inline uint32_t updatePmicFwMetaVersion(std::string pmicSlotImgPath, uint
   if (pmicImage.is_open() && (pmicImage.tellp() <= 0)) {
     int pmicMetaStartOffset = kFlashImageRawFileHeaderSize + kPmicFlashImageMetadataOffset;
     // Seek to the start of the PMIC FW version in metadata
-    pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, version), std::fstream::beg);
+    pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicRuntimeMetadata_t, version), std::fstream::beg);
     // Read the PMIC FW version
     pmicImage.read(templ::bit_cast<char*>(&oldVersion), sizeof(oldVersion));
     DV_LOG(INFO) << "PMIC current version: " << EXTRACT_BYTE(2, oldVersion) << "." << EXTRACT_BYTE(1, oldVersion) << "."
                  << EXTRACT_BYTE(0, oldVersion);
 
-    // Increment the major version for testing
-    uint8_t newMajor = EXTRACT_BYTE(2, oldVersion) + 1;
-    newVersion = PMIC_FORMAT_VERSION(newMajor, EXTRACT_BYTE(1, oldVersion), EXTRACT_BYTE(0, oldVersion));
+    // Increment the patch version for testing
+    uint8_t newPatch = EXTRACT_BYTE(0, oldVersion) + 1;
+    newVersion = PMIC_FORMAT_VERSION(EXTRACT_BYTE(2, oldVersion), EXTRACT_BYTE(1, oldVersion), newPatch);
     DV_LOG(INFO) << "PMIC new version: " << EXTRACT_BYTE(2, newVersion) << "." << EXTRACT_BYTE(1, newVersion) << "."
                  << EXTRACT_BYTE(0, newVersion);
 
     // Seek to the start of the PMIC FW version in metadata
-    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, version), std::fstream::beg);
+    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicRuntimeMetadata_t, version), std::fstream::beg);
     // Write the new PMIC FW version
     pmicImage.write(templ::bit_cast<char*>(&newVersion), sizeof(newVersion));
 
     // Re-compute the checksum
     uint32_t checksum = 0;
     // Write zero initially to checksum
-    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, checksum), std::fstream::beg);
+    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicRuntimeMetadata_t, checksum), std::fstream::beg);
     // Write the new PMIC FW version
     pmicImage.write(templ::bit_cast<char*>(&checksum), sizeof(checksum));
     // Get the total size of PMIC image
     uint32_t fileSize;
-    pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, image_size), std::fstream::beg);
+    pmicImage.seekg(pmicMetaStartOffset + offsetof(pmicRuntimeMetadata_t, image_size), std::fstream::beg);
     // Read the PMIC FW version
     pmicImage.read(templ::bit_cast<char*>(&fileSize), sizeof(fileSize));
 
@@ -389,7 +393,7 @@ static inline uint32_t updatePmicFwMetaVersion(std::string pmicSlotImgPath, uint
     DV_LOG(INFO) << "PMIC new checksum: " << checksum;
 
     // Seek to the start of the PMIC checksum in metadata
-    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicImageMetadata_t, checksum), std::fstream::beg);
+    pmicImage.seekp(pmicMetaStartOffset + offsetof(pmicRuntimeMetadata_t, checksum), std::fstream::beg);
     // Write the new PMIC checksum
     pmicImage.write(templ::bit_cast<char*>(&checksum), sizeof(checksum));
 
