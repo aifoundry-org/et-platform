@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18547] Extending kernel launch message to add stack base and size.
 ### Changed
 - [SW-17491] Run integration-tests on tag push and pass-on related options for docs generation
+- [SW-18547] Change kernel launch msg args to hold stack base address and per hart stack size.
 ### Deprecated
 ### Removed
 ### Fixed
