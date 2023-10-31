@@ -2419,6 +2419,54 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *
 *   FUNCTION
 *
+*       pmic_update_boot_slot
+*
+*   DESCRIPTION
+*
+*       This function sends a command to PMIC to update a boot slot
+        and waits for PMIC to finish writing to flash.
+*
+*   INPUTS
+*
+*       slot          Number of PMIC slot which will become active
+*
+*   OUTPUTS
+*
+*       status        Success or error code.
+*
+***********************************************************************/
+
+static int pmic_update_boot_slot(uint8_t slot)
+{
+    int status = STATUS_SUCCESS;
+    uint32_t val = (uint32_t)slot;
+
+    /* Inactive PMIC image slot becomes active after reboot */
+    status = pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_BOOT_SLOT, NULL);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&val, 4);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* Wait until the boot slot is updated in PMIC */
+    status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "pmic flash slot update wait error\n");
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_check_fw_update_required
 *
 *   DESCRIPTION
@@ -2771,15 +2819,11 @@ int pmic_firmware_update(void)
         return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
     }
 
-    /* Inactive PMIC image slot becomes active after reboot */
-    status = pmic_fw_update_subcommand(inactive_slot, PMIC_I2C_FW_MGMTCMD_BOOT_SLOT, NULL);
+    /* Update PMIC boot slot */
+    status = pmic_update_boot_slot(inactive_slot);
     if (status != STATUS_SUCCESS)
     {
-        return status;
-    }
-    status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, &inactive_slot, 4);
-    if (status != STATUS_SUCCESS)
-    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Updating PMIC boot slot failed.\n");
         return status;
     }
 
