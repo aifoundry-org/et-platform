@@ -175,6 +175,8 @@ static void mm_to_cm_iface_handle_message(
                 kernel.pointer_to_args = launch->kernel.pointer_to_args;
                 kernel.shire_mask = launch->kernel.shire_mask;
                 kernel.exception_buffer = launch->kernel.exception_buffer;
+                kernel.stack_base_address = launch->kernel.stack_base_address;
+                kernel.stack_size = launch->kernel.stack_size;
 
                 /* Notify MM after copying the msg locally */
                 MM_NOTIFY_ASYNC_MSG(shire, msg_header)

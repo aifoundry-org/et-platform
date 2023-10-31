@@ -77,6 +77,8 @@
         }                                                                                  \
     }
 
+#define GET_CM_INDEX(hart_id) ((hart_id < 2048U) ? hart_id : (hart_id - 32U))
+
 /*******************/
 /* Data structures */
 /*******************/
@@ -318,7 +320,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
     uint64_t return_type;
     int64_t return_value;
     uint64_t hart_id = get_hart_id();
-    uint64_t kernel_stack_addr = KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE);
+    uint64_t kernel_stack_addr;
     uint64_t kernel_env_addr =
         CM_KERNEL_ENVS_BASEADDR + ((uint32_t)kernel.slot_index * KERNEL_ENV_SIZE);
     bool kernel_last_thread;
@@ -328,6 +330,19 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
                  : "=r"(firmware_sp));
 
     pre_kernel_setup(&kernel);
+
+    /* Setup the kernel stack */
+    if (kernel.flags & KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_STACK_CONFIG)
+    {
+        /* Custom config */
+        kernel_stack_addr = kernel.stack_base_address - (GET_CM_INDEX(hart_id) * kernel.stack_size);
+    }
+    else
+    {
+        /* Default config */
+        kernel_stack_addr =
+            KERNEL_UMODE_STACK_BASE - (GET_CM_INDEX(hart_id) * KERNEL_UMODE_STACK_SIZE);
+    }
 
     /* Wait until all the Shires involved in the kernel launch reach this sync point */
     kernel_last_thread = pre_launch_synchronize_shires(&pre_launch_global_barrier,

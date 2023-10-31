@@ -573,6 +573,105 @@ static void kw_unreserve_kernel_shires(uint64_t shire_mask)
 *
 *   FUNCTION
 *
+*       process_kernel_launch_stack_config
+*
+*   DESCRIPTION
+*
+*       This function processes the optional stack config present in kernel
+*       launch command
+*
+*   INPUTS
+*
+*       sqw_idx      Submission queue index
+*       cmd          Kernel launch command
+*       stack_config Pointer to U-mode stack config
+*       launch_args  Pointer to kernel launch args
+*
+*   OUTPUTS
+*
+*       int32_t      status success or error
+*
+***********************************************************************/
+static inline int32_t process_kernel_launch_stack_config(uint8_t sqw_idx,
+    const struct device_ops_kernel_launch_cmd_t *cmd,
+    const struct kernel_user_stack_cfg_t *stack_config,
+    mm_to_cm_message_kernel_launch_t *launch_args)
+{
+    int32_t status = STATUS_SUCCESS;
+
+    /* Get the total enable harts in kernel launch */
+    uint32_t harts = get_enabled_umode_harts(cmd->shire_mask, CM_HART_MASK);
+
+    if (harts == 0)
+    {
+        status = KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG;
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:KW:ERROR:No kernel launch harts enabled:Shire mask:0x%lx\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask);
+    }
+    /* Stack size must be atleast 4KB per hart */
+    else if (stack_config->stack_size < harts)
+    {
+        status = KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG;
+        Log_Write(LOG_LEVEL_ERROR,
+            "TID[%u]:SQW[%d]:KW:ERROR:U-mode stack size not enough:Size(4KB):0x%x:enabled harts:0x%x\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx, stack_config->stack_size, harts);
+    }
+    /* Per hart stack size calculation and checks */
+    else
+    {
+        uint32_t hart_stack_size = (stack_config->stack_size * SIZE_4KB) / harts;
+
+        /* Per hart size must be a aligned to cache-line size */
+        if (!IS_ALIGNED(hart_stack_size, CACHE_LINE_SIZE))
+        {
+            status = KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG;
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:KW:ERROR:U-mode stack size not aligned to cache-line size:Size(4KB):0x%x:enabled harts:0x%x:per-hart-size(bytes):0x%x\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, stack_config->stack_size, harts,
+                hart_stack_size);
+        }
+        else
+        {
+            /* Save the per hart stack size */
+            launch_args->kernel.stack_size = hart_stack_size;
+        }
+    }
+
+    /* Verify limits of stack start and end */
+    if (status == STATUS_SUCCESS)
+    {
+        /* Compute the start and end address */
+        uint64_t start_address =
+            HOST_MANAGED_DRAM_START + (stack_config->stack_base_offset * SIZE_4KB);
+        uint64_t end_address = start_address + (stack_config->stack_size * SIZE_4KB);
+
+        /* Check limits of addresses */
+        if (!kw_check_address_bounds(start_address, false) ||
+            !kw_check_address_bounds(end_address, false))
+        {
+            status = KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG;
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:KW:ERROR:U-mode stack params not within limits:Offset(4KB):0x%d:Size(4KB):0x%x:start_add:0x%lx:end_add:0x%lx\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, stack_config->stack_base_offset,
+                stack_config->stack_size, start_address, end_address);
+        }
+        else
+        {
+            /* Save the launch args for kernel worker */
+            launch_args->kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_STACK_CONFIG;
+            /* Save the stack base. Stacks go bottom up, hence the end address will be the base */
+            launch_args->kernel.stack_base_address = end_address;
+        }
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       process_kernel_launch_cmd_payload
 *
 *   DESCRIPTION
@@ -584,14 +683,15 @@ static void kw_unreserve_kernel_shires(uint64_t shire_mask)
 *
 *       sqw_idx     Submission queue index
 *       cmd         Kernel launch command
+*       launch_args Pointer to kernel launch args
 *
 *   OUTPUTS
 *
 *       int32_t      status success or error
 *
 ***********************************************************************/
-static inline int32_t process_kernel_launch_cmd_payload(
-    uint8_t sqw_idx, struct device_ops_kernel_launch_cmd_t *cmd)
+static inline int32_t process_kernel_launch_cmd_payload(uint8_t sqw_idx,
+    struct device_ops_kernel_launch_cmd_t *cmd, mm_to_cm_message_kernel_launch_t *launch_args)
 {
     /* Calculate the kernel arguments size */
     uint64_t args_size = (cmd->command_info.cmd_hdr.size - sizeof(*cmd));
@@ -664,9 +764,44 @@ static inline int32_t process_kernel_launch_cmd_payload(
                 /* Since the U-mode trace config is per kernel slot, the contents from
                 command to the assigned address in S-mode will be done after reserving the slot */
 
+                /* Set the flag in kernel launch args */
+                launch_args->kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
+
                 /* Just increment the pointer and size */
                 args_size -= sizeof(struct trace_init_info_t);
                 payload += sizeof(struct trace_init_info_t);
+            }
+        }
+    }
+
+    /* Check if Umode stack config is present in optional command payload. */
+    if ((status == STATUS_SUCCESS) &&
+        (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_USER_STACK_CFG))
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:SQW[%d]:KW: kernel U-mode stack config!\r\n",
+            cmd->command_info.cmd_hdr.tag_id, sqw_idx);
+
+        const struct kernel_user_stack_cfg_t *stack_config =
+            (struct kernel_user_stack_cfg_t *)(uintptr_t)payload;
+
+        /* Perform sanity checks on stack config */
+        if (args_size < sizeof(struct kernel_user_stack_cfg_t))
+        {
+            status = KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG;
+            Log_Write(LOG_LEVEL_ERROR,
+                "TID[%u]:SQW[%d]:KW:ERROR:Invalid U-mode stack config size: %ld\r\n",
+                cmd->command_info.cmd_hdr.tag_id, sqw_idx, args_size);
+        }
+        else
+        {
+            /* Process the kernel launch U-mode stack config */
+            status = process_kernel_launch_stack_config(sqw_idx, cmd, stack_config, launch_args);
+
+            /* Increment the pointer and size */
+            if (status == STATUS_SUCCESS)
+            {
+                args_size -= sizeof(struct kernel_user_stack_cfg_t);
+                payload += sizeof(struct kernel_user_stack_cfg_t);
             }
         }
     }
@@ -722,7 +857,7 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
     {
         Log_Write(LOG_LEVEL_ERROR, "TID[%u]:SQW[%d]:KW:ERROR:Invalid Shire Mask:0x%lx\r\n",
             cmd->command_info.cmd_hdr.tag_id, sqw_idx, cmd->shire_mask);
-        return KW_ERROR_KERNEL_INAVLID_SHIRE_MASK;
+        return KW_ERROR_KERNEL_INVALID_SHIRE_MASK;
     }
 
     /* Verify address bounds
@@ -733,7 +868,7 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         kw_check_address_bounds(cmd->exception_buffer, true))
     {
         /* Process the kernel launch cmd optional payload */
-        status = process_kernel_launch_cmd_payload(sqw_idx, cmd);
+        status = process_kernel_launch_cmd_payload(sqw_idx, cmd, &launch_args);
     }
 
     if (status == STATUS_SUCCESS)
@@ -752,11 +887,6 @@ int32_t KW_Dispatch_Kernel_Launch_Cmd(
         if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3)
         {
             launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_EVICT_L3_BEFORE_LAUNCH;
-        }
-        /* Check if U-mode trace is enabled */
-        if (cmd->command_info.cmd_hdr.flags & CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE)
-        {
-            launch_args.kernel.flags |= KERNEL_LAUNCH_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
         }
 
         /* First we allocate resources needed for the kernel launch */

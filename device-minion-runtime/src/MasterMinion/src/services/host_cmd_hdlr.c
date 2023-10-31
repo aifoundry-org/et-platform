@@ -861,7 +861,7 @@ static inline int32_t kernel_launch_cmd_handler(
         rsp->device_cmd_execute_dur = 0U;
 
         /* Map device internal errors onto device api errors */
-        if (status == KW_ERROR_KERNEL_INAVLID_SHIRE_MASK)
+        if (status == KW_ERROR_KERNEL_INVALID_SHIRE_MASK)
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_SHIRE_MASK;
         }
@@ -886,6 +886,10 @@ static inline int32_t kernel_launch_cmd_handler(
         else if (status == KW_ERROR_CM_IFACE_MULTICAST_FAILED)
         {
             rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_CM_IFACE_MULTICAST_FAILED;
+        }
+        else if (status == KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG)
+        {
+            rsp->status = DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_INVALID_ARGS_INVALID_STACK_CFG;
         }
         else
         {

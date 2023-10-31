@@ -196,10 +196,10 @@ RESERVED
 */
 #define KW_ERROR_TIMEDOUT_ABORT_WAIT -1008
 
-/*! \def KW_ERROR_KERNEL_INAVLID_SHIRE_MASK
+/*! \def KW_ERROR_KERNEL_INVALID_SHIRE_MASK
     \brief Kernel Worker - Inavlid kernel shire mask
 */
-#define KW_ERROR_KERNEL_INAVLID_SHIRE_MASK -1009
+#define KW_ERROR_KERNEL_INVALID_SHIRE_MASK -1009
 
 /*! \def KW_ABORTED_KERNEL_SHIRES_SEARCH
     \brief Kernel Worker - Kernel shires search aborted
@@ -230,6 +230,11 @@ RESERVED
     \brief Kernel Worker - Trace config not valid for kernel
 */
 #define KW_ERROR_KERNEL_TRACE_INVALID_CONFIG -1015
+
+/*! \def KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG
+    \brief Kernel Worker - U-mode stack config not valid for kernel
+*/
+#define KW_ERROR_KERNEL_UMODE_STACK_INVALID_CONFIG -1016
 
 /**************************************
  * Define Compute Worker error codes. *
