@@ -112,21 +112,6 @@ static bool g_pmic_fw_update_done = false;
 static int pmic_fw_update_subcommand(uint8_t slot, uint8_t subcommand, uint32_t *data);
 static int pmic_get_active_boot_slot(uint8_t *slot);
 
-/* Inline functions */
-static inline int pmic_get_inactive_boot_slot(uint8_t *slot)
-{
-    int status;
-
-    status = pmic_get_active_boot_slot(slot);
-    if (status == STATUS_SUCCESS)
-    {
-        /* Invert it to inactive slot */
-        *slot = !(*slot);
-    }
-
-    return status;
-}
-
 /************************************************************************
 *
 *   FUNCTION
@@ -2447,18 +2432,17 @@ static int pmic_fw_update_verify_metadata_version(uint8_t slot, uint32_t new_met
     {
         return status;
     }
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC current metadata version: %u.%u.%u\n",
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "[ETFP] PMIC current metadata version (active slot %d): %u.%u.%u\n", slot,
               EXTRACT_BYTE(2, current_metadata_version), EXTRACT_BYTE(1, current_metadata_version),
               EXTRACT_BYTE(0, current_metadata_version));
 
     if (EXTRACT_BYTE(2, current_metadata_version) == EXTRACT_BYTE(2, new_metadata_ver))
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC metadata version is compatible!\n");
         status = STATUS_SUCCESS;
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Error - PMIC metadata version is not compatible!\n");
         status = ERROR_PMIC_FW_UPDATE_WRONG_METADATA_VER;
     }
 
@@ -2502,12 +2486,10 @@ static int pmic_fw_update_verify_bl_version(uint8_t slot, uint32_t new_bl_compat
 
     if (EXTRACT_BYTE(2, current_bl_version) == EXTRACT_BYTE(2, new_bl_compatible_ver))
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC bootloader version is compatible!\n");
         status = STATUS_SUCCESS;
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Error - PMIC bootloader version is not compatible!\n");
         status = ERROR_PMIC_FW_UPDATE_WRONG_BL_VER;
     }
 
@@ -2537,10 +2519,10 @@ static int pmic_fw_update_verify_bl_version(uint8_t slot, uint32_t new_bl_compat
 *
 ***********************************************************************/
 
-static int pmic_fw_update_verify_image_version(uint8_t slot, uint32_t new_image_version,
-                                               bool *match)
+static int pmic_fw_update_verify_image_version(uint8_t slot, uint32_t new_image_version)
 {
     uint32_t current_version = 0;
+
     int status = pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_VERSION, &current_version);
     if (status != STATUS_SUCCESS)
     {
@@ -2556,16 +2538,6 @@ static int pmic_fw_update_verify_image_version(uint8_t slot, uint32_t new_image_
         Log_Write(LOG_LEVEL_CRITICAL,
                   "[ETFP] PMIC FW downgrade of major version is not allowed!\n");
         status = ERROR_PMIC_FW_UPDATE_WRONG_IMG_VER;
-    }
-    else if (new_image_version == current_version)
-    {
-        *match = true;
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image version matched!\n");
-    }
-    else
-    {
-        *match = false;
-        Log_Write(LOG_LEVEL_WARNING, "[ETFP] PMIC FW current and new image version not matched!\n");
     }
 
     return status;
@@ -2611,12 +2583,10 @@ static int pmic_fw_update_verify_board_type(uint8_t slot, uint32_t new_image_sup
     if ((new_image_supported_board_types & board_type_encoded_version) ==
         board_type_encoded_version)
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC board type is compatible!\n");
         status = STATUS_SUCCESS;
     }
     else
     {
-        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Error - PMIC board type is not compatible!\n");
         status = ERROR_PMIC_FW_UPDATE_WRONG_BOARD_IMG;
     }
     return status;
@@ -2648,8 +2618,13 @@ static int pmic_fw_update_verify_board_type(uint8_t slot, uint32_t new_image_sup
 static int pmic_fw_update_check_image_hash(uint8_t slot, const char *new_image_hash, bool *match)
 {
     uint32_t current_hash = 0;
-    int status =
-        pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_HASHREAD, &current_hash);
+
+    if (new_image_hash == NULL || match == NULL)
+    {
+        return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
+    }
+
+    int status = pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_HASHREAD, &current_hash);
     if (status != STATUS_SUCCESS)
     {
         return status;
@@ -2665,13 +2640,12 @@ static int pmic_fw_update_check_image_hash(uint8_t slot, const char *new_image_h
         (new_image_hash[2] == curr_hash[2]) && (new_image_hash[3] == curr_hash[3]))
     {
         *match = true;
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC FW current and new image hash matched!\n");
     }
     else
     {
         *match = false;
-        Log_Write(LOG_LEVEL_WARNING, "[ETFP] PMIC FW current (%s) and new hash (%s) not matched!\n", curr_hash, new_image_hash);
     }
+
     return STATUS_SUCCESS;
 }
 
@@ -2702,7 +2676,6 @@ static int pmic_fw_update_check_image_hash(uint8_t slot, const char *new_image_h
 
 static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_slot)
 {
-    bool version_matched = false;
     bool hash_matched = false;
     int32_t status;
     imageMetadata_t new_image_metadata;
@@ -2734,7 +2707,8 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
               EXTRACT_BYTE(2, new_image_metadata.bl_fw_version),
               EXTRACT_BYTE(1, new_image_metadata.bl_fw_version),
               EXTRACT_BYTE(0, new_image_metadata.bl_fw_version));
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image SP-PMIC comm protocol version: %u.%u.%u\n",
+    Log_Write(LOG_LEVEL_CRITICAL,
+              "[ETFP] PMIC FW new image SP-PMIC comm protocol version: %u.%u.%u\n",
               EXTRACT_BYTE(2, new_image_metadata.sp_comm_protocol_version),
               EXTRACT_BYTE(1, new_image_metadata.sp_comm_protocol_version),
               EXTRACT_BYTE(0, new_image_metadata.sp_comm_protocol_version));
@@ -2743,37 +2717,6 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
               EXTRACT_BYTE(1, new_image_metadata.metadata_version),
               EXTRACT_BYTE(0, new_image_metadata.metadata_version));
 
-    /* Check if metadata versions are compatible */
-    status =
-        pmic_fw_update_verify_metadata_version(active_slot, new_image_metadata.metadata_version);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
-    /* Check for image downgrade and if image versions are the same */
-    status = pmic_fw_update_verify_image_version(active_slot, new_image_metadata.version,
-                                                 &version_matched);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
-    /* Check if new image is compatible with the bootloader */
-    status = pmic_fw_update_verify_bl_version(active_slot, new_image_metadata.bl_fw_version);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
-    /* Check if new image is supported by the PMIC board type */
-    status =
-        pmic_fw_update_verify_board_type(active_slot, new_image_metadata.supported_board_types);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
     /* Check if new image hash is the same as current */
     status = pmic_fw_update_check_image_hash(active_slot, new_image_metadata.hash, &hash_matched);
     if (status != STATUS_SUCCESS)
@@ -2781,20 +2724,50 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
         return status;
     }
 
-    /* Check if image matches */
-    if (version_matched && hash_matched)
+    if (hash_matched)
     {
         Log_Write(LOG_LEVEL_CRITICAL,
                   "[ETFP] PMIC FW current and new image same, skipping PMIC update.\n");
-        return ERROR_PMIC_FW_UPDATE_NOT_REQUIRED;
+        status = ERROR_PMIC_FW_UPDATE_NOT_REQUIRED;
     }
     else
     {
-        Log_Write(
-            LOG_LEVEL_CRITICAL,
-            "[ETFP] PMIC FW current and new image do not match, updating to new image.\n");
-        return STATUS_SUCCESS;
+        /* Check if metadata versions are compatible */
+        status = pmic_fw_update_verify_metadata_version(active_slot,
+                                                        new_image_metadata.metadata_version);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        /* Check for image downgrade and if image versions are the same */
+        status = pmic_fw_update_verify_image_version(active_slot, new_image_metadata.version);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        /* Check if new image is compatible with the bootloader */
+        status = pmic_fw_update_verify_bl_version(active_slot, new_image_metadata.bl_fw_version);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        /* Check if new image is supported by the PMIC board type */
+        status =
+            pmic_fw_update_verify_board_type(active_slot, new_image_metadata.supported_board_types);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "[ETFP] PMIC FW current and new image do not match, updating to new image.\n");
+        status = STATUS_SUCCESS;
     }
+
+    return status;
 }
 
 /************************************************************************
@@ -2958,13 +2931,13 @@ int pmic_firmware_update(void)
 
     start = timer_get_ticks_count();
 
-    /* Read the passive slot number */
-    status = pmic_get_inactive_boot_slot(&inactive_slot);
+    /* Get active and passive slot numbers */
+    status = pmic_get_active_boot_slot(&active_slot);
     if (status != STATUS_SUCCESS)
     {
         return status;
     }
-    active_slot = !inactive_slot;
+    inactive_slot = !active_slot;
 
     /* Select the PMIC FW slot image to read */
     slot_region_id = active_slot ? ESPERANTO_FLASH_REGION_ID_PMIC_FW_S0 :

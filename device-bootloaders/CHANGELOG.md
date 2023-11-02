@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added new APIs for enable, disable and abort of I2C interface.
   - Added a workaround to reset the I2C module if it hangs.
 - [SW-18674] Send update image slot to PMIC after successful fw update. 
+- [SW-19089] Add major versions check in pmic fw update. 
 ### Changed
 - [SW-18208] Enabling PMIC Firmware update.
 - [SW-18499] Masking out bad Minion Shire PVT sampling.
