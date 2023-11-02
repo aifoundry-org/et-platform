@@ -2419,54 +2419,6 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 *
 *   FUNCTION
 *
-*       pmic_update_boot_slot
-*
-*   DESCRIPTION
-*
-*       This function sends a command to PMIC to update a boot slot
-        and waits for PMIC to finish writing to flash.
-*
-*   INPUTS
-*
-*       slot          Number of PMIC slot which will become active
-*
-*   OUTPUTS
-*
-*       status        Success or error code.
-*
-***********************************************************************/
-
-static int pmic_update_boot_slot(uint8_t slot)
-{
-    int status = STATUS_SUCCESS;
-    uint32_t val = (uint32_t)slot;
-
-    /* Inactive PMIC image slot becomes active after reboot */
-    status = pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_BOOT_SLOT, NULL);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-    status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&val, 4);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
-    /* Wait until the boot slot is updated in PMIC */
-    status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "pmic flash slot update wait error\n");
-    }
-
-    return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       pmic_fw_update_verify_metadata_version
 *
 *   DESCRIPTION
@@ -2849,6 +2801,113 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
 *
 *   FUNCTION
 *
+*       pmic_update_verify_checksum
+*
+*   DESCRIPTION
+*
+*       This function compares the current and new image to check if:
+*           - update is allowed due to compatibility issues,
+*           - images are the same and update is not required.
+*
+*   INPUTS
+*
+*       sp_partition  partition ID of the SP flash
+*       active_slot   Current active pmic slot
+*
+*   OUTPUTS
+*
+*       status        Success or error code.
+*
+***********************************************************************/
+
+static int pmic_update_verify_checksum(uint8_t slot)
+{
+    uint32_t cksum_result = 0;
+    int status = pmic_fw_update_subcommand(slot, PMIC_I2C_FW_MGMTCMD_CKSUMREAD, NULL);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* Wait until the checksum is calculated by PMIC */
+    status = pmic_wait_for_flash_ready(FW_UPDATE_CKSUM_TIMEOUT_MS);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* Checksum is validated on PMIC side and "1" (true) is set for the correct value */
+    status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
+    if (status != STATUS_SUCCESS || cksum_result != 1)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum failure %u\n", cksum_result);
+        status = ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
+    }
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       pmic_update_set_config_value
+*
+*   DESCRIPTION
+*
+*       This function sends a command to PMIC to update a config value
+*       (boot slot or fail boot counter), waits for PMIC to finish writing
+*       to flash, and check if it was properly updated.
+*
+*   INPUTS
+*
+*       slot          Number of PMIC slot which will become active
+*
+*   OUTPUTS
+*
+*       status        Success or error code.
+*
+***********************************************************************/
+
+static int pmic_update_set_config_value(uint32_t data, uint8_t cmd)
+{
+    int status = STATUS_SUCCESS;
+    uint32_t val = data;
+
+    /* Note: slot argumet in commands is not relevant since config data
+    is unique and not slot dependant */
+
+    status = pmic_fw_update_subcommand(0, cmd, NULL);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    status = set_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&val, 4);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* Wait until the flash is updated in PMIC */
+    status = pmic_wait_for_flash_ready(FW_UPDATE_TIMEOUT_MS);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* Check if value is correctly updated */
+    status = pmic_fw_update_subcommand(0, cmd, &val);
+    if ((status != STATUS_SUCCESS) || (val != data))
+    {
+        return ERROR_PMIC_FW_UPDATE_CONFIG_FAIL;
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_firmware_update
 *
 *   DESCRIPTION
@@ -2873,7 +2932,6 @@ int pmic_firmware_update(void)
     int status;
     uint8_t active_slot;
     uint8_t inactive_slot;
-    uint32_t cksum_result = 0;
     uint32_t flash_addr = 0;
     uint64_t start;
     uint64_t end;
@@ -3034,33 +3092,25 @@ int pmic_firmware_update(void)
     verify_start = timer_get_ticks_count();
 
     /* Issue checksum calculation command to PMIC */
-    status = pmic_fw_update_subcommand(inactive_slot, PMIC_I2C_FW_MGMTCMD_CKSUMREAD, NULL);
+    status = pmic_update_verify_checksum(inactive_slot);
     if (status != STATUS_SUCCESS)
     {
         return status;
-    }
-
-    /* Wait until the checksum is calculated by PMIC */
-    status = pmic_wait_for_flash_ready(FW_UPDATE_CKSUM_TIMEOUT_MS);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum wait error\n");
-        return status;
-    }
-
-    /* Checksum is validated on PMIC side and "1" (true) is set for the correct value */
-    status = get_pmic_reg(PMIC_I2C_FW_MGMTDATA_ADDRESS, (uint8_t *)&cksum_result, 4);
-    if (status != STATUS_SUCCESS || cksum_result != 1)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "pmic flash cksum failure %u\n", cksum_result);
-        return ERROR_PMIC_I2C_FW_MGMTCMD_CKSUM;
     }
 
     /* Update PMIC boot slot */
-    status = pmic_update_boot_slot(inactive_slot);
+    status = pmic_update_set_config_value((uint32_t)inactive_slot, PMIC_I2C_FW_MGMTCMD_BOOT_SLOT);
     if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "[ETFP] Updating PMIC boot slot failed.\n");
+        return status;
+    }
+
+    /* Reset PMIC fail boot counter */
+    status = pmic_update_set_config_value(0, PMIC_I2C_FW_MGMTCMD_BOOT_COUNTER);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "[ETFP] Resetting PMIC failed boot counter failed.\n");
         return status;
     }
 

@@ -109,6 +109,7 @@
 #define ERROR_PMIC_FW_UPDATE_WRONG_BL_VER            -6016
 #define ERROR_PMIC_FW_UPDATE_WRONG_COMM_PROTOCOL_VER -6017
 #define ERROR_PMIC_FW_UPDATE_WRONG_IMG_VER           -6018
+#define ERROR_PMIC_FW_UPDATE_CONFIG_FAIL             -6019
 
 /*! \def eMMC Error Codes */
 #define ERROR_EMMC_OK                              -6100
