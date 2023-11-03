@@ -26,6 +26,7 @@
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
 #include "bl2_pvt_controller.h"
+#include "bl2_emmc_controller.h"
 
 #include "noc_configuration.h"
 #include "minion_configuration.h"
@@ -246,6 +247,31 @@ static void taskMain(void *pvParameters)
     status = configure_memshire();
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
+
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+
+    // Setup eMMC
+    Log_Write(LOG_LEVEL_DEBUG, "MAIN:[txt] Probing whether eMMC flash is present\r\n");
+    if (Emmc_Probe(EMMC_MODE_HS200, EMMC_PROBE_VERBOSITY_OFF) == STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "MAIN:[txt] eMMC flash present, executing setup\r\n");
+        status = Emmc_Setup(EMMC_MODE_HS200);
+        if (status == STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_WARNING, "MAIN:[txt] eMMC device ready.\r\n");
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_WARNING,
+                      "MAIN:[txt] eMMC device not correctly setup, booting further ...\r\n");
+        }
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt] eMMC flash is not present\r\n");
+    }
+
+#endif
 
     /* Setup Compute Minions Shire Clocks and bring them out of Reset */
     uint8_t lvdpll_strap_pins;

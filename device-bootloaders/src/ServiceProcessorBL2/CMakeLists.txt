@@ -75,6 +75,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_otp.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/spio_sram.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_pu.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver/emmc_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/command_dispatcher.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/flash_fs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/vaultip.c

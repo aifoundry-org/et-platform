@@ -68,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-17456] Adding PMIC slot 0 and slot 1 image support.
 - [SW-17457] Added basic error handling for the firmware update process.
 - [SW-17819] Added logs to throttling algorithm
+- [SW-17367] First version of eMMC controller.
 ### Changed
 - (CI) Update gitlab-ci-common pointer for Gitlab v15 compatibility
 - [SW-17717] Reading the PMIC Firmware image from the flash passive slot.
