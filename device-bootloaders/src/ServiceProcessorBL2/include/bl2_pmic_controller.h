@@ -124,7 +124,7 @@ typedef struct imageMetadata_
     uint32_t checksum;
     uint32_t image_size;
     uint32_t bl_fw_version;
-    uint32_t sp_comm_protocol_version;
+    uint32_t sp_pmic_interface_version;
     uint32_t metadata_version;
     uint32_t build_type;
 } imageMetadata_t;

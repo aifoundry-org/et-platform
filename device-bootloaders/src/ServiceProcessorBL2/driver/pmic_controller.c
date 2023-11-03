@@ -2505,7 +2505,7 @@ static int pmic_fw_update_verify_bl_version(uint8_t slot, uint32_t new_bl_compat
 *   DESCRIPTION
 *
 *       This function sends a command to PMIC to get version
-*       of image in selected slot and verifies if update is required.
+*       of image in selected slot and verifies if update is allowed.
 *
 *   INPUTS
 *
@@ -2532,7 +2532,7 @@ static int pmic_fw_update_verify_image_version(uint8_t slot, uint32_t new_image_
               EXTRACT_BYTE(2, current_version), EXTRACT_BYTE(1, current_version),
               EXTRACT_BYTE(0, current_version));
 
-    /* Compare the current and new PMIC FW image metadata and see if update is allowed and required */
+    /* Compare the current and new PMIC FW image metadata and see if update is allowed */
     if (EXTRACT_BYTE(2, current_version) > EXTRACT_BYTE(2, new_image_version))
     {
         Log_Write(LOG_LEVEL_CRITICAL,
@@ -2653,6 +2653,33 @@ static int pmic_fw_update_check_image_hash(uint8_t slot, const char *new_image_h
 *
 *   FUNCTION
 *
+*       pmic_fw_update_verify_sp_interface_version
+*
+*   DESCRIPTION
+*
+*    TODO
+*
+*   INPUTS
+*
+*    TODO
+*
+*   OUTPUTS
+*
+*       status        Success or error code.
+*
+***********************************************************************/
+
+static int pmic_fw_update_verify_sp_interface_version(uint32_t new_pmic_image_sp_interface_ver)
+{
+    //TODO: SW-19027 to be implemented
+    (void)new_pmic_image_sp_interface_ver;
+    return STATUS_SUCCESS;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_check_fw_update_required
 *
 *   DESCRIPTION
@@ -2709,10 +2736,10 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
               EXTRACT_BYTE(0, new_image_metadata.bl_fw_version));
     Log_Write(LOG_LEVEL_CRITICAL,
               "[ETFP] PMIC FW new image SP-PMIC comm protocol version: %u.%u.%u\n",
-              EXTRACT_BYTE(2, new_image_metadata.sp_comm_protocol_version),
-              EXTRACT_BYTE(1, new_image_metadata.sp_comm_protocol_version),
-              EXTRACT_BYTE(0, new_image_metadata.sp_comm_protocol_version));
-    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image metadata image: %u.%u.%u\n",
+              EXTRACT_BYTE(2, new_image_metadata.sp_pmic_interface_version),
+              EXTRACT_BYTE(1, new_image_metadata.sp_pmic_interface_version),
+              EXTRACT_BYTE(0, new_image_metadata.sp_pmic_interface_version));
+    Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] PMIC FW new image metadata version: %u.%u.%u\n",
               EXTRACT_BYTE(2, new_image_metadata.metadata_version),
               EXTRACT_BYTE(1, new_image_metadata.metadata_version),
               EXTRACT_BYTE(0, new_image_metadata.metadata_version));
@@ -2740,7 +2767,16 @@ static int pmic_check_fw_update_required(uint32_t sp_partition, uint8_t active_s
             return status;
         }
 
-        /* Check for image downgrade and if image versions are the same */
+        /* Check if sp-pmic interface versions of new PMIC and new SP images are compatible */
+        //TODO: SW-19027 to be implemented
+        status = pmic_fw_update_verify_sp_interface_version(
+            new_image_metadata.sp_pmic_interface_version);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        /* Check for image downgrade */
         status = pmic_fw_update_verify_image_version(active_slot, new_image_metadata.version);
         if (status != STATUS_SUCCESS)
         {
