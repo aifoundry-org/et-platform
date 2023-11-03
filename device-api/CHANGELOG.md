@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+- [SW-18926] Removed POWER_THROTTLE_STATE_THERMAL_IDLE state 
 ### Fixed
 ### Security
 
