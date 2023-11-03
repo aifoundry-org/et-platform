@@ -36,12 +36,6 @@ static ssize_t reinitiate_store(struct device *dev,
 	if (value != 1)
 		return -EINVAL;
 
-	if (et_dev->mgmt.is_initialized) {
-		dev_info(&et_dev->pdev->dev,
-			 "Mgmt Device is already initialized!");
-		return -EPERM;
-	}
-
 	mutex_lock(&et_dev->mgmt.reset_mutex);
 
 	spin_lock(&et_dev->mgmt.open_lock);
