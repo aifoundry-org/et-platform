@@ -2029,7 +2029,6 @@ void power_throttling(power_throttle_state_e throttle_state)
                 status = reduce_minion_operating_point(&power_status);
                 break;
             }
-            case POWER_THROTTLE_STATE_THERMAL_IDLE:
             case POWER_THROTTLE_STATE_POWER_IDLE: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
@@ -2210,7 +2209,7 @@ void thermal_throttling(power_throttle_state_e throttle_state)
 
     if (g_soc_power_reg.power_throttle_state <= throttle_state)
     {
-        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
+        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
         xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
     }
 

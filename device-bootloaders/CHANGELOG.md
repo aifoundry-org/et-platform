@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the null terminator to the PMIC FW hash.
 - [SW-18522] Fixed minor build issues seen with clang
 - [SW-19086] Add wait loop after PMIC boot slot update cmd 
+- [SW-18926] Fixed handling of thermal idle state
 ### Security
 
 ## [0.14.0] - 2023-09-01
