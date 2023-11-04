@@ -101,8 +101,10 @@ create-sw-platform-branch:
   extends: .create-sw-platform-branch
   stage: generate_build
   needs:
-    - verify_project_changes
-    - check-on-top-of-master
+    - job: verify_project_changes
+      optional: true
+    - job: check-on-top-of-master
+      optional: true
   rules:
     - *release_or_development_job_rule
 

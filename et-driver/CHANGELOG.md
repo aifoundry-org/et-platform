@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Check for device presence in probe() before making any I/O access
 - [SW-18720] Fix the enum value of trace execution stack type
 - [CI] Run integration-tests on tag creation to upload-driver images
+- [CI] Make optional dependencies on development jobs in develop_or_release jobs
 ### Security
 
 ## [0.15.0] - 2023-08-03
