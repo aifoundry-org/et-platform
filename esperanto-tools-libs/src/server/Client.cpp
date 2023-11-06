@@ -384,13 +384,13 @@ void Client::doFreeDevice(DeviceId device, std::byte* ptr) {
 }
 
 EventId Client::doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                               uint64_t shire_mask, bool barrier, bool flushL3,
-                               std::optional<UserTrace> userTraceConfig, const std::string& coreDumpFilePath) {
+                               const KernelLaunchOptionsImp& options) {
   std::vector<std::byte> kernelArgs;
   std::copy(kernel_args, kernel_args + kernel_args_size, std::back_inserter(kernelArgs));
-  auto payload =
-    sendRequestAndWait(req::Type::KERNEL_LAUNCH, req::KernelLaunch{stream, kernel, shire_mask, kernelArgs, barrier,
-                                                                   flushL3, userTraceConfig, coreDumpFilePath});
+  auto payload = sendRequestAndWait(req::Type::KERNEL_LAUNCH,
+                                    req::KernelLaunch{stream, kernel, options.shireMask_, kernelArgs, options.barrier_,
+                                                      options.flushL3_, options.userTraceConfig_,
+                                                      options.coreDumpFilePath_}); // need to add stack config
   return registerEvent(payload, stream);
 }
 

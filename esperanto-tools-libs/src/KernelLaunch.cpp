@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #include "ExecutionContextCache.h"
+#include "KernelLaunchOptionsImp.h"
 #include "MemoryManager.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
@@ -28,13 +29,12 @@ using namespace rt;
 using namespace rt::profiling;
 
 EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const std::byte* kernel_args,
-                                   size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
-                                   std::optional<UserTrace> userTraceConfig, const std::string& coreDumpFilePath) {
+                                   size_t kernel_args_size, const KernelLaunchOptionsImp& options) {
   SpinLock lock(mutex_);
   const auto& kernel = find(kernels_, kernelId)->second;
   auto cfg = deviceLayer_->getDeviceConfig(static_cast<int>(kernel->deviceId_));
   auto validMask = cfg.computeMinionShireMask_;
-  if (~validMask & shire_mask || !(validMask & shire_mask)) {
+  if (~validMask & options.shireMask_ || !(validMask & options.shireMask_)) {
     std::stringstream ss;
     ss << "Shiremask is invalid. Valid selectable values for shire mask are: 0x" << std::hex << validMask;
     throw Exception(ss.str());
@@ -46,7 +46,7 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
     throw Exception(buffer);
   }
   auto maxSizeKernelEmbeddingParameters = static_cast<uint64_t>(DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX);
-  if (userTraceConfig) {
+  if (options.userTraceConfig_) {
     maxSizeKernelEmbeddingParameters -= sizeof(UserTrace);
   }
   RT_LOG_IF(WARNING, kernel_args_size > maxSizeKernelEmbeddingParameters)
@@ -61,7 +61,7 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
 
   bool kernelArgsFit = kernel_args_size <= maxSizeKernelEmbeddingParameters;
   auto optionalArgSize = kernelArgsFit ? kernel_args_size : 0;
-  if (userTraceConfig) {
+  if (options.userTraceConfig_) {
     optionalArgSize += sizeof(UserTrace);
   }
 
@@ -73,14 +73,14 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
 
   auto pBuffer = executionContextCache_->allocBuffer(kernel->deviceId_);
   auto pPayload = reinterpret_cast<std::byte*>(cmdPtr->argument_payload);
-  if (userTraceConfig) {
-    memcpy(pPayload, &*userTraceConfig, sizeof(UserTrace));
+  if (options.userTraceConfig_) {
+    memcpy(pPayload, &*options.userTraceConfig_, sizeof(UserTrace));
     pPayload += sizeof(UserTrace);
   }
   if (kernelArgsFit) {
     std::copy(kernel_args, kernel_args + kernel_args_size, pPayload);
   } else {
-    barrier = true; // we must wait for parameters, so barrier is true if parameters
+    // we must wait for parameters, but we will use kenelArgsFit instead of modified barrier user option.
     // stage parameters in host buffer
     std::copy(kernel_args, kernel_args + kernel_args_size, begin(pBuffer->hostBuffer_));
     doMemcpyHostToDevice(streamId, pBuffer->hostBuffer_.data(), pBuffer->getParametersPtr(), kernel_args_size, false,
@@ -89,8 +89,8 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   auto event = eventManager_.getNextId();
   streamManager_.addEvent(streamId, event);
   executionContextCache_->reserveBuffer(event, pBuffer);
-  if (!coreDumpFilePath.empty()) {
-    coreDumper_.addKernelExecution(coreDumpFilePath, kernelId, event);
+  if (!options.coreDumpFilePath_.empty()) {
+    coreDumper_.addKernelExecution(options.coreDumpFilePath_, kernelId, event);
   }
 
   cmdPtr->command_info.cmd_hdr.tag_id = static_cast<uint16_t>(event);
@@ -101,13 +101,13 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
     cmdPtr->command_info.cmd_hdr.size = static_cast<device_ops_api::msg_size_t>(size);
   }
   cmdPtr->command_info.cmd_hdr.flags = 0;
-  if (barrier) {
+  if (!kernelArgsFit || options.barrier_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_BARRIER_ENABLE;
   }
-  if (flushL3) {
+  if (options.flushL3_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_FLUSH_L3;
   }
-  if (userTraceConfig) {
+  if (options.userTraceConfig_) {
     cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_COMPUTE_KERNEL_TRACE_ENABLE;
   }
   if (kernelArgsFit) {
@@ -118,12 +118,12 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
   cmdPtr->code_start_address = kernel->getEntryAddress();
   cmdPtr->pointer_to_args = reinterpret_cast<uint64_t>(pBuffer->getParametersPtr());
-  cmdPtr->shire_mask = shire_mask;
+  cmdPtr->shire_mask = options.shireMask_;
 
   RT_VLOG(LOW) << "Pushing kernel Launch Command on SQ: " << streamInfo.vq_
                << " EventId: " << cmdPtr->command_info.cmd_hdr.tag_id << std::hex << ", parameters: 0x"
-               << cmdPtr->pointer_to_args << ", PC: 0x" << cmdPtr->code_start_address << ", shire_mask: 0x"
-               << shire_mask;
+               << cmdPtr->pointer_to_args << ", PC: 0x" << cmdPtr->code_start_address << ", shireMask: 0x"
+               << options.shireMask_;
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
   commandSender.send(Command{cmdBase, commandSender, event, event, false, true});
 

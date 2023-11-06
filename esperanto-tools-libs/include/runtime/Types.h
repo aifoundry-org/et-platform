@@ -232,7 +232,7 @@ struct DeviceProperties {
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in
 // a experimental status until everything is properly designed.
-struct UserTrace {
+struct [[deprecated]] UserTrace {
   uint64_t buffer_;      /*!< Base address for Trace buffer. */
   uint32_t buffer_size_; /*!< Total size of the Trace buffer. */
   uint32_t threshold_;   /*!< Threshold for free memory in the buffer for each hart. */
@@ -256,6 +256,53 @@ enum class CmaCopyType { TO_CMA, FROM_CMA }; // type of CMA
 using CmaCopyFunction = std::function<void(const std::byte* src, std::byte* dst, size_t size, CmaCopyType type)>;
 static constexpr auto defaultCmaCopyFunction = [](const std::byte* src, std::byte* dst, size_t size, CmaCopyType) {
   std::copy(src, src + size, dst);
+};
+
+// Forward declaration
+struct KernelLaunchOptionsImp;
+
+class KernelLaunchOptions {
+
+  friend class RuntimeImp;
+
+  void setIfImpIsNull(void);
+
+public:
+  KernelLaunchOptions();
+  virtual ~KernelLaunchOptions();
+
+  /// \brief Set in what shires the kernel will be executed, by default it gets the max shires availables
+  /// depending on device type.
+  void setShireMask(uint64_t shireMask);
+  /// \brief Set if the kernel execution should be postponed till all previous works issued into this stream finish (a
+  /// barrier). Usually the kernel launch must be postponed till some previous memory operations end, hence the default
+  /// value is true.
+  void setBarrier(bool barrier);
+  /// \brief Set if the L3 should be flushed before the kernel execution starts, by default is false.
+  void setFlushL3(bool flushL3);
+
+  /// \brief Set user tracing parameters
+  /// \param buffer Base address for the device trace buffer (previously allocated with \ref mallocDevice). If not null,
+  /// the firmware will use it to store user trace data. Must be 4KB * num_harts (4KB*2080) big
+  /// \param bufferSize Total size of the trace buffer
+  /// \param threshold Threshold for free memory in the buffer for each hart
+  /// \param shireMask Bit Mask of Shire to enable Trace Capture
+  /// \param threadMask Bit Mask of Thread within a Shire to enable Trace Capture
+  /// \param eventMask This is a bit mask, each bit corresponds to a specific Event to trace
+  /// \param filterMask This is a bit mask representing a list of filters for a given event to trace
+  void setUserTracing(uint64_t buffer, uint32_t bufferSize, uint32_t threshold, uint64_t shireMask, uint64_t threadMask,
+                      uint32_t eventMask, uint32_t filterMask);
+
+  /// \brief Set the stack size
+  /// \param baseAddress Device base address of the stacks. Must be aligned to 4KB
+  /// \param size Total size of the stack memory (all minions). Must be a multiple of 4KB
+  /// \note Throws an exception if the alignment or multiplicity constraints are not met
+  void setStackConfig(std::byte* baseAddress, uint64_t size);
+
+  /// \brief Set the path of the file that will contain a core dump if the execution throws an exception
+  void setCoreDumpFilePath(const std::string& coreDumpFilePath);
+
+  std::unique_ptr<KernelLaunchOptionsImp> imp_;
 };
 
 } // namespace rt

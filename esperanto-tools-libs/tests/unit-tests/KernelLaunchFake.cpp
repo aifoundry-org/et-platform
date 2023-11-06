@@ -7,9 +7,11 @@
 // in accordance with the terms and conditions stipulated in the
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
+#include "KernelLaunchOptionsImp.h"
 #include "Utils.h"
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IRuntime.h"
+#include "runtime/Types.h"
 #include <chrono>
 #include <functional>
 #include <gtest/gtest.h>
@@ -61,6 +63,17 @@ struct KernelLaunchF : Test {
     }
     runtime_->waitForStream(stream_);
   }
+
+  void sendH2D_K_D2H_WithOptions(int iterations, size_t args_size, size_t transferSize, KernelLaunchOptions& opts) {
+    dummy_.resize(std::max(args_size, transferSize));
+    for (int i = 0; i < iterations; ++i) {
+      runtime_->memcpyHostToDevice(stream_, dummy_.data(), nullptr, transferSize);
+      runtime_->kernelLaunch(stream_, kernel_, dummy_.data(), args_size, opts);
+      runtime_->memcpyDeviceToHost(stream_, nullptr, dummy_.data(), transferSize);
+    }
+    runtime_->waitForStream(stream_);
+  }
+
   dev::DeviceLayerFake deviceLayer_;
   std::vector<std::byte> dummy_;
   RuntimePtr runtime_;
@@ -99,6 +112,33 @@ TEST_F(KernelLaunchF, onlyKernels10K) {
 
 TEST_F(KernelLaunchF, onlyKernels10K_waitIters) {
   send_K(1e4, 32, true);
+}
+
+TEST_F(KernelLaunchF, simpleOptions) {
+  constexpr size_t kTraceBytesPerHart = 4096;
+  constexpr size_t kNumHarts = 2048;
+  constexpr size_t kTraceBufferSize = kTraceBytesPerHart * kNumHarts;
+  constexpr uint32_t TRACE_EVENT_ENABLE_ALL = 0xFFFFFFFFU;
+  constexpr uint32_t TRACE_FILTER_ENABLE_ALL = 0xFFFFFFFFU;
+
+  KernelLaunchOptions opts;
+  opts.setShireMask(0x3);
+  opts.setBarrier(true);
+  opts.setFlushL3(false);
+
+  std::byte* addrptr = runtime_->mallocDevice(device_, kTraceBufferSize);
+  uint32_t threshold = 0;
+  uint64_t shireMask = 0x3FULL;
+  uint64_t threadMask = 0xFFFFFFFFFFFFFFFFULL;
+  uint32_t eventMask = TRACE_EVENT_ENABLE_ALL;
+  uint32_t filterMask = TRACE_FILTER_ENABLE_ALL;
+
+  opts.setUserTracing(reinterpret_cast<uint64_t>(addrptr), kTraceBufferSize, threshold, shireMask, threadMask,
+                      eventMask, filterMask);
+
+  opts.setCoreDumpFilePath("Tracefile.bin");
+
+  sendH2D_K_D2H_WithOptions(1, 64, 1024, opts);
 }
 
 int main(int argc, char** argv) {

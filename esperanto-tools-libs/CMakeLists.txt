@@ -99,6 +99,7 @@ add_library(etrt_obj OBJECT
     src/server/Server.cpp
     src/server/Worker.cpp
     src/server/Client.cpp
+    src/KernelLaunchOptions.cpp
 )
 
 set_target_properties(etrt_obj PROPERTIES

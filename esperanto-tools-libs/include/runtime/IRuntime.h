@@ -119,6 +119,18 @@ public:
   /// @param[in] kernel_args buffer containing all the parameters to be copied to the device memory prior to the code
   /// execution
   /// @param[in] kernel_args_size size of the kernel_args buffer
+  /// @param[in] kernelLaunchOptions contains all configurable kernel parameters
+  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                       const KernelLaunchOptions& kernelLaunchOptions = KernelLaunchOptions());
+
+  /// \deprecated See kernelLaunch using KernelLaunchOptions
+  ///
+  /// @param[in] stream handler indicating in which stream the kernel will be executed. The kernel code have to be
+  /// registered into the device associated to the stream previously.
+  /// @param[in] kernel handler which indicate what code to execute in the device.
+  /// @param[in] kernel_args buffer containing all the parameters to be copied to the device memory prior to the code
+  /// execution
+  /// @param[in] kernel_args_size size of the kernel_args buffer
   /// @param[in] shire_mask indicates in what shires the kernel will be executed
   /// @param[in] barrier this parameter indicates if the kernel execution should be postponed till all previous works
   /// issued into this stream finish (a barrier). Usually the kernel launch must be postponed till some previous
@@ -135,10 +147,10 @@ public:
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the kernel
   /// ends the execution.
   ///
-  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                       uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-                       std::optional<UserTrace> userTraceConfig = std::nullopt,
-                       const std::string& coreDumpFilePath = "");
+  [[deprecated("use KernelLaunch() with KernelLaunchOptions parameter instead")]] EventId
+  kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+               uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
+               std::optional<UserTrace> userTraceConfig = std::nullopt, const std::string& coreDumpFilePath = "");
 
   /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously
   /// allocated by a mallocDevice.
@@ -416,8 +428,7 @@ private:
   virtual void doDestroyStream(StreamId stream) = 0;
 
   virtual EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args,
-                                 size_t kernel_args_size, uint64_t shire_mask, bool barrier, bool flushL3,
-                                 std::optional<UserTrace> userTraceConfig, const std::string& coreDumpFilePath) = 0;
+                                 size_t kernel_args_size, const KernelLaunchOptionsImp& options) = 0;
 
   virtual EventId doMemcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
                                        const CmaCopyFunction& cmaCopyFunction) = 0;

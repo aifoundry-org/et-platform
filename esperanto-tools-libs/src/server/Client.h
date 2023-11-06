@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+#include "KernelLaunchOptionsImp.h"
 #include "ProfilerImp.h"
 #include "Protocol.h"
 #include "StreamManager.h"
@@ -29,9 +30,9 @@ public:
   void doDestroyStream(StreamId stream) final;
   LoadCodeResult doLoadCode(StreamId stream, const std::byte* elf, size_t elf_size) final;
   void doUnloadCode(KernelId kernel) final;
+
   EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                         uint64_t shire_mask, bool barrier, bool flushL3, std::optional<UserTrace> userTraceConfig,
-                         const std::string& coreDumpFilePath) final;
+                         const KernelLaunchOptionsImp& options) final;
   EventId doMemcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size, bool barrier,
                                const CmaCopyFunction&) final;
 
@@ -148,4 +149,5 @@ private:
   std::atomic<req::Id> nextId_ = 0;
   bool running_ = true;
 };
+
 } // namespace rt

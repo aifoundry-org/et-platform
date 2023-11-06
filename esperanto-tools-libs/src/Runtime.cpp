@@ -8,6 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 
+#include "KernelLaunchOptionsImp.h"
 #include "ProfilerImp.h"
 #include "RuntimeImp.h"
 #include "ScopedProfileEvent.h"
@@ -125,8 +126,35 @@ EventId IRuntime::kernelLaunch(StreamId stream, KernelId kernel, const std::byte
                                std::optional<UserTrace> userTraceConfig, const std::string& coreDumpPath) {
   EASY_FUNCTION()
   ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, stream, kernel, -1ULL);
-  auto evt = doKernelLaunch(stream, kernel, kernel_args, kernel_args_size, shire_mask, barrier, flushL3,
-                            std::move(userTraceConfig), coreDumpPath);
+
+  KernelLaunchOptions kernelLaunchOptions;
+
+  kernelLaunchOptions.setShireMask(shire_mask);
+  kernelLaunchOptions.setBarrier(barrier);
+  kernelLaunchOptions.setFlushL3(flushL3);
+  if (userTraceConfig.has_value()) {
+    kernelLaunchOptions.setUserTracing(
+      userTraceConfig->buffer_, userTraceConfig->buffer_size_, userTraceConfig->threshold_, userTraceConfig->shireMask_,
+      userTraceConfig->threadMask_, userTraceConfig->eventMask_, userTraceConfig->filterMask_);
+  }
+
+  if (!coreDumpPath.empty()) {
+    kernelLaunchOptions.setCoreDumpFilePath(coreDumpPath);
+  }
+
+  auto evt = kernelLaunch(stream, kernel, kernel_args, kernel_args_size, kernelLaunchOptions);
+  profileEvent.setEventId(evt);
+  return evt;
+}
+
+EventId IRuntime::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                               const KernelLaunchOptions& kernelLaunchOptions) {
+  EASY_FUNCTION()
+  ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, stream, kernel, -1ULL);
+
+  KernelLaunchOptionsImp const& kOptionsImp =
+    (kernelLaunchOptions.imp_ == nullptr) ? DefaultKernelOptions::defaultKernelOptions : *kernelLaunchOptions.imp_;
+  auto evt = doKernelLaunch(stream, kernel, kernel_args, kernel_args_size, kOptionsImp);
   profileEvent.setEventId(evt);
   return evt;
 }
@@ -184,6 +212,10 @@ RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer, rt::Options options)
   EASY_FUNCTION()
   auto res = std::make_unique<RuntimeImp>(deviceLayer, options);
   res->setProfiler(std::make_unique<profiling::ProfilerImp>());
+  // Assuming all devices to be handle are having the same type.
+  auto devices = res->getDevices();
+  auto properties = res->getDeviceProperties(devices[0]);
+  DefaultKernelOptions::defaultKernelOptions.shireMask_ = properties.computeMinionShireMask_;
   return res;
 }
 

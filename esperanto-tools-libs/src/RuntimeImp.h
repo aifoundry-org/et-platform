@@ -64,9 +64,7 @@ public:
   void doDestroyStream(StreamId stream) final;
 
   EventId doKernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-                         uint64_t shire_mask, bool barrier, bool flushL3, std::optional<UserTrace> userTraceConfig,
-                         const std::string& coreDumpFilePath) final;
-
+                         const KernelLaunchOptionsImp& options) final;
   EventId doMemcpyHostToDevice(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
                                const CmaCopyFunction& cmaCopyFunction) final;
   EventId doMemcpyDeviceToHost(StreamId stream, const std::byte* src, std::byte* dst, size_t size, bool barrier,
