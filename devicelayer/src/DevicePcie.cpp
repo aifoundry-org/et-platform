@@ -12,7 +12,6 @@
 #include <cassert>
 #include <cstring>
 #include <dirent.h>
-#include <experimental/filesystem>
 #include <fcntl.h>
 #include <fstream>
 #include <iomanip>
@@ -24,9 +23,18 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
+
 using namespace dev;
 using namespace std::string_literals;
-namespace fs = std::experimental::filesystem;
 
 namespace {
 

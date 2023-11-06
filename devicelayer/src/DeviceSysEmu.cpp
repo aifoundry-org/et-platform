@@ -13,13 +13,21 @@
 #include <boost/crc.hpp>
 #include <chrono>
 #include <elfio/elfio.hpp>
-#include <experimental/filesystem>
 #include <future>
 #include <mutex>
 #include <stdio.h>
 #include <thread>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
+
 
 using namespace dev;
 using namespace std::string_literals;

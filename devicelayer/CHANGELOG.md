@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-18867] Fix compilation with GCC 11
 ### Security
 
 ## [2.2.0] - 2023-08-03
