@@ -61,7 +61,7 @@ add_subdirectory(mlp)
 add_subdirectory(multierror)
 add_subdirectory(bus_error)
 add_subdirectory(tensor_error)
-
+add_subdirectory(custom_stack)
 add_subdirectory(vpu_txfma_power_virus)
 add_subdirectory(vpu_tima_power_virus)
 add_subdirectory(scw_power_virus)
