@@ -49,6 +49,9 @@ typedef struct {
   uint64_t *out_data;
 } Parameters;
 
+#ifdef __clang__
+__attribute__((optnone))
+#endif
 int64_t entry_point(const Parameters*);
 
 int64_t entry_point(const Parameters *const kernel_params_ptr) {
