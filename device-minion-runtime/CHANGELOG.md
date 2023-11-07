@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.20.0] - 2023-11-07
+### Added
 - Added a new SysCall to fliush all L1 and L2 with a single thread
 - [SW-18547] Added support for custom U-mode kernel stack configuration.
 ### Changed
