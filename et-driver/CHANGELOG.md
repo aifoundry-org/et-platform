@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.16.0] - 2023-11-07
+### Added
+### Changed
 - [CI] Adapt to conan pre-release versioning
 - conan: remove bundle computation to resolve the conflict
 - [SW-18673] Allow reinitiate of device when device appears to be initialized. The use-case is when device state is changed from the backdoor such as PMIC UART, this can help reinitiate the device
