@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-17491] Run integration-tests on tag push and pass-on related options for docs generation
 - [SW-18547] Change kernel launch msg args to hold stack base address and per hart stack size.
+- Changes setting for SC PMC to make it more accurate
 ### Deprecated
 ### Removed
 ### Fixed

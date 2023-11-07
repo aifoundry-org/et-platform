@@ -193,10 +193,12 @@ typedef struct shire_pmc_cnt_ {
 
 /* SC default config values. These values are Hardware ESRs of PMC component. */
 #define PMU_SC_CTL_STATUS_MASK \
-    0x280144 /* Enables p0 and p1 counters in event mode 0, overflow bits for cycle, p0 and p1. */
-#define PMU_SC_L2_READS  0x7FF0
-#define PMU_SC_L2_WRITES 0xBFF0
-#define PMU_SC_MSG_SEND  0x4
+    0x40280144 /* Enables p0 and p1 counters in event mode 0, overflow bits for cycle, p0 and p1. Also enable all events  */
+#define PMU_SC_L2_READS \
+    0x257F5F17FF3 /* All L2 Read events including Pipeline events as per Shire Cache according to Shire Cache Spec in 4.9 ESR for Performance Monitor */
+#define PMU_SC_L2_WRITES \
+    0x2220881BFF0 /* All L2 Write events including Pipeline events as per Shire Cache according to Shire Cache Spec in 4.9 ESR for Performance Monitor */
+#define PMU_SC_MSG_SEND 0x4
 
 /* MS default config values */
 #define PMU_MS_CTL_STATUS_MASK 0xC80644
@@ -380,7 +382,6 @@ static inline uint64_t pmu_core_counter_read_priv(uint64_t pmc)
     }
     return val;
 }
-
 
 /* implement WAR for RTLMIN-6496:
  * - 4 consecutive reads, les than 11 cycles from first to last read:
@@ -570,16 +571,10 @@ static inline int32_t pmu_shire_cache_counter_sample_all(
         val->cycle_overflow = (sc_bank_perfctrl >> PMU_SC_SO_CYCLE_CNT_BIT) & 1;
         val->pmc0_overflow = (sc_bank_perfctrl >> PMU_SC_SO_P0_BIT) & 1;
         val->pmc1_overflow = (sc_bank_perfctrl >> PMU_SC_SO_P1_BIT) & 1;
-        if (val->cycle_overflow)
+        if (val->cycle_overflow || val->pmc0_overflow || val->pmc1_overflow)
         {
             pmu_shire_cache_counter_reset(shire_id, bank_id, PMU_SC_CYCLE_PMC);
-        }
-        if (val->pmc0_overflow)
-        {
             pmu_shire_cache_counter_reset(shire_id, bank_id, PMU_SC_PMC0);
-        }
-        if (val->pmc1_overflow)
-        {
             pmu_shire_cache_counter_reset(shire_id, bank_id, PMU_SC_PMC1);
         }
         val->cycle = *((uint64_t *)ESR_CACHE(shire_id, bank_id, SC_PERFMON_CYC_CNTR));
