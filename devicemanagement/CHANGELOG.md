@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.14.0] - 2023-11-07
+### Added
 - [SW-18590] Added firmware update functional and stress tests.
 - [SW-15748] Handling DM events in userspace
   - Adding DM event processing thread for each device
