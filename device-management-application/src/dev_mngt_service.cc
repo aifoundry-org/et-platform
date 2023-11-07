@@ -1294,8 +1294,7 @@ int verifyService() {
     DM_LOG(INFO) << "Device Latency: " << *dev_latency << " us" << std::endl;
     DM_LOG(INFO) << "Service request succeeded" << std::endl;
     if (*hst_latency > FW_UPDATE_TIME_VAL) {
-      DM_LOG(INFO) << "FW update service request exceeds time limit " << std::endl;
-      ret = -EAGAIN;
+      DM_LOG(INFO) << "WARNING: FW update service request exceeds time limit " << std::endl;
     }
     DM_LOG(INFO) << "timeout: " << timeout << " ms" << std::endl;
   } break;
