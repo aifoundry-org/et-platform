@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18547] Added support for custom U-mode kernel stack configuration.
 ### Changed
 - [SW-18472] Reduced log message length for bus error
+- Fixed handling of overflow for Stats worker
 ### Deprecated
 ### Removed
 ### Fixed

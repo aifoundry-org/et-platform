@@ -129,6 +129,9 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_CACHE_OPS_EVICT_L1_INT:
             ret = evict_l1(arg1, arg2);
             break;
+        case SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT:
+            ret = evict_l1_l2_all();
+            break;
         case SYSCALL_PMC_SC_SAMPLE_INT:
             ret = (int64_t)sample_sc_pmcs(arg1, arg2, arg3);
             break;
@@ -141,10 +144,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
         case SYSCALL_PMC_MS_SAMPLE_ALL_INT:
             ret = sample_ms_pmcs_all(arg1, (shire_pmc_cnt_t *)arg2);
             break;
-        case SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT:
-            ret = evict_l1_l2_all();
-            break;
-
         default:
             ret = SYSCALL_INTERNAL_INVALID_ID;
             break;

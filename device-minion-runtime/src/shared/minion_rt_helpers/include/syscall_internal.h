@@ -17,14 +17,14 @@
 #define SYSCALL_CACHE_OPS_UNLOCK_SW_INT         14
 #define SYSCALL_CACHE_OPS_INVALIDATE_INT        15
 #define SYSCALL_CACHE_OPS_EVICT_L1_INT          16
-#define SYSCALL_UPDATE_MINION_PLL_FREQUENCY     17
-#define SYSCALL_PMC_SC_SAMPLE_INT               18
-#define SYSCALL_PMC_MS_SAMPLE_INT               19
-#define SYSCALL_DISABLE_NEIGH                   20
-#define SYSCALL_ENABLE_NEIGH                    21
-#define SYSCALL_PMC_SC_SAMPLE_ALL_INT           22
-#define SYSCALL_PMC_MS_SAMPLE_ALL_INT           23
-#define SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT 24
+#define SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT 17
+#define SYSCALL_UPDATE_MINION_PLL_FREQUENCY     18
+#define SYSCALL_PMC_SC_SAMPLE_INT               19
+#define SYSCALL_PMC_MS_SAMPLE_INT               20
+#define SYSCALL_DISABLE_NEIGH                   21
+#define SYSCALL_ENABLE_NEIGH                    22
+#define SYSCALL_PMC_SC_SAMPLE_ALL_INT           23
+#define SYSCALL_PMC_MS_SAMPLE_ALL_INT           24
 
 /* SYSCALL error codes */
 #define SYSCALL_INTERNAL_SUCCESS    0
