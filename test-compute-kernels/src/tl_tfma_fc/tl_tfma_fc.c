@@ -50,7 +50,7 @@ typedef struct {
 } Parameters;
 
 #ifdef __clang__
-__attribute__((optnone))
+__attribute__((optnone))          // SW-19217
 #endif
 int64_t entry_point(const Parameters*);
 
