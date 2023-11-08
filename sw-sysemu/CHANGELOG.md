@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- (Conan) Re-enable linux-ubuntu22.04-x86_64-gcc11-release builds
 ### Deprecated
 ### Removed
 ### Fixed
