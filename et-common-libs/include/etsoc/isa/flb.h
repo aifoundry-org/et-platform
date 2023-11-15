@@ -54,10 +54,10 @@ extern "C" {
     \return FL barrier value
     \syncops Implementation of WAIT_FLB api
 */
-#define WAIT_FLB(threads, barrier, result)                            \
-    do                                                                \
-    {                                                                 \
-        const uint64_t val = ((threads - 1U) << 5U) + barrier;        \
+#define WAIT_FLB(threads, barrier, result)                           \
+    do                                                               \
+    {                                                                \
+        const uint64_t val = ((threads - 1U) << 5U) + barrier;       \
         asm volatile("csrrw %0, flb, %1" : "=r"(result) : "r"(val)); \
     } while (0)
 
