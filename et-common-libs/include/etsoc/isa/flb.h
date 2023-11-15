@@ -58,7 +58,7 @@ extern "C" {
     do                                                                \
     {                                                                 \
         const uint64_t val = ((threads - 1U) << 5U) + barrier;        \
-        asm volatile("csrrw %0, flb0, %1" : "=r"(result) : "r"(val)); \
+        asm volatile("csrrw %0, flb, %1" : "=r"(result) : "r"(val)); \
     } while (0)
 
 /*! \def FLB_COUNT

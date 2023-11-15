@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+[SW-18928] Fix clang compilation issues
 [SW-18522] Stop using non-portable function attributes for clang
 ### Security
 
