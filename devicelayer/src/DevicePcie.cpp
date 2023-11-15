@@ -641,6 +641,8 @@ void DevicePcie::waitForEpollEventsMasterMinion(int device, uint64_t& sq_bitmap,
         if (eventList[i].events & EPOLLIN) {
           cq_available = true;
         }
+      } else if (eventList[i].events & EPOLLHUP) {
+        throw Exception("Epoll connection dropped, device in bad state?");
       } else {
         throw Exception("Unknown epoll event");
       }
@@ -726,6 +728,8 @@ void DevicePcie::waitForEpollEventsServiceProcessor(int device, bool& sq_availab
         if (eventList[i].events & EPOLLIN) {
           cq_available = true;
         }
+      } else if (eventList[i].events & EPOLLHUP) {
+        throw Exception("Epoll connection dropped, device in bad state?");
       } else {
         throw Exception("Unknown epoll event");
       }
