@@ -81,8 +81,6 @@ TEST_F(TestAbort, abortShouldDump) {
   auto dumpFileName = "coredump-temp.dump";
   std::remove(dumpFileName);
   ASSERT_FALSE(fs::exists(dumpFileName));
-  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL, true, false,
-                         std::nullopt, dumpFileName);
 
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   std::once_flag flag;
@@ -92,6 +90,10 @@ TEST_F(TestAbort, abortShouldDump) {
       runtime_->abortStream(defaultStreams_[0]);
     });
   });
+
+  runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL, true, false,
+                         std::nullopt, dumpFileName);
+
   RT_LOG(INFO) << "Waiting for stream to finish.";
   while (!runtime_->waitForStream(defaultStreams_[0], 1s))
     ;
@@ -161,6 +163,9 @@ TEST_F(TestAbort, kernelAbortedCallback) {
 
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   rimp->setSentCommandCallback(devices_[0], [this, rimp](rt::Command const* cmd) {
+    // Remove the callback
+    rimp->setSentCommandCallback(devices_[0], std::function<void(rt::Command const*)>());
+
     RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
     runtime_->abortStream(defaultStreams_[0]);
     RT_LOG(INFO) << "Waiting for stream to finish.";
@@ -168,7 +173,10 @@ TEST_F(TestAbort, kernelAbortedCallback) {
   });
   RT_LOG(INFO) << "Sending kernel launch which will be aborted later";
   runtime_->kernelLaunch(defaultStreams_[0], kernelHang_, fakeArgs_.data(), fakeArgs_.size(), 0x1UL);
-  while (!kernelAbortCalled) {
+  for (int i = 0; i < 200; i++) {
+    if (kernelAbortCalled && errorReported) {
+      break;
+    }
     RT_LOG(INFO) << "Not done yet, waiting. Error reported? " << errorReported
                  << " Kernel aborted error callback called? " << kernelAbortCalled;
     std::this_thread::sleep_for(10ms);
