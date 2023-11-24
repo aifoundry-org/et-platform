@@ -32,15 +32,3 @@ std::unique_ptr<IDeviceLayer> IDeviceLayer::createPcieDeviceLayer(bool enableMas
   return std::make_unique<DevicePcie>(enableMasterMinion, enableServiceProcessor);
 }
 
-void IDeviceSync::reinitDeviceInstance(int, bool, std::chrono::milliseconds) {
-  throw Exception("Not implemented reinitDeviceInstance");
-}
-
-void IDeviceSync::hintInactivity(int) {
-  // do nothing by default
-}
-
-bool IDeviceSync::checkP2pDmaCompatibility(int, int) const {
-  // return false by default
-  return false;
-}

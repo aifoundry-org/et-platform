@@ -776,4 +776,8 @@ int DevicePcie::updateFirmwareImage(int device, std::vector<unsigned char>& fwIm
   return wrap_ioctl(deviceInfo.fdMgmt_, ETSOC1_IOCTL_FW_UPDATE, &fwUpdateInfo);
 }
 
+void DevicePcie::hintInactivity(int) {
+ /* void */
+}
+
 } // namespace dev
