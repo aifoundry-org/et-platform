@@ -283,6 +283,13 @@ public:
     // No implementation
   }
   Parameters params_;
-};
 
+  void reinitDeviceInstance(int, bool, std::chrono::milliseconds) override {
+    throw Exception("Unsupported DeviceLayerFake::reinitDeviceInstance()");
+  }
+
+  bool checkP2pDmaCompatibility(int, int) const override {
+    return false;
+  }
+};
 } // namespace dev
