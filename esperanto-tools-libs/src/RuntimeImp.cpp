@@ -349,15 +349,52 @@ bool RuntimeImp::doWaitForEvent(EventId event, std::chrono::seconds timeout) {
 }
 
 bool RuntimeImp::doWaitForStream(StreamId stream, std::chrono::seconds timeout) {
+  auto start = std::chrono::steady_clock::now();
+
   auto events = streamManager_.getLiveEvents(stream);
+
+#ifdef NDEBUG
   std::stringstream ss;
   for (auto e : events) {
     ss << static_cast<int>(e) << " ";
   }
   RT_VLOG(HIGH) << "WaitForStream: number of events to wait for: " << events.size() << ". Events: " << ss.str();
-  for (auto e : events) {
-    RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(e);
-    if (!doWaitForEvent(e, timeout)) {
+#endif
+
+  decltype(events) remainingEvents;
+
+  if (!events.empty()) {
+    std::sort(events.begin(), events.end());
+
+    auto maxEvent = *events.rbegin();
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+    auto remainingTime = timeout - elapsed;
+
+    // Just wait for the highest numbered event
+    RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(maxEvent) << " for "
+                 << remainingTime.count() << " seconds";
+    if (!doWaitForEvent(maxEvent, remainingTime)) {
+      return false;
+    }
+
+    auto currentEvents = streamManager_.getLiveEvents(stream);
+    std::sort(currentEvents.begin(), currentEvents.end());
+
+    // remainingEvents := intersection between events and currentEvents
+    std::set_intersection(events.begin(), events.end(), currentEvents.begin(), currentEvents.end(),
+                          std::back_inserter(remainingEvents));
+  }
+
+  // If there are still any remaining events from the initial set, wait for them individually
+  for (auto e : remainingEvents) {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+    auto remainingTime = timeout - elapsed;
+
+    RT_VLOG(LOW) << "WaitForStream: Waiting for event " << static_cast<int>(e) << " for " << remainingTime.count()
+                 << " seconds";
+    if (!doWaitForEvent(e, remainingTime)) {
       return false;
     }
   }
