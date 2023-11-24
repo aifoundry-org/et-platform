@@ -130,7 +130,6 @@ void CommandSender::cancel(EventId event) {
 }
 
 void CommandSender::runnerFunc() {
-
   while (running_) {
     try {
       SpinLock lock(mutex_);
@@ -154,7 +153,8 @@ void CommandSender::runnerFunc() {
           profiler_->record(event);
 
           if (callback_) {
-            callback_(&cmd);
+            auto th = std::thread([callback = callback_, cmd] { callback(&cmd); });
+            th.detach();
           }
           commands_.pop_front();
         } else {

@@ -52,7 +52,7 @@ TEST_F(TestAbort, abortCommand) {
   });
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   bool done = false;
-  rimp->setSentCommandCallback(devices_[0], [this, &done](rt::Command* cmd) {
+  rimp->setSentCommandCallback(devices_[0], [this, &done](rt::Command const* cmd) {
     RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
     runtime_->abortStream(defaultStreams_[0]);
     RT_LOG(INFO) << "Waiting for stream to finish.";
@@ -86,7 +86,7 @@ TEST_F(TestAbort, abortShouldDump) {
 
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
   std::once_flag flag;
-  rimp->setSentCommandCallback(devices_[0], [this, &flag](rt::Command* cmd) {
+  rimp->setSentCommandCallback(devices_[0], [this, &flag](rt::Command const* cmd) {
     std::call_once(flag, [this, cmd] {
       RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
       runtime_->abortStream(defaultStreams_[0]);
@@ -118,7 +118,7 @@ TEST_F(TestAbort, abortStream) {
   bool done = false;
   auto commandsSent = 0U;
   auto commandsToSend = 10U;
-  rimp->setSentCommandCallback(devices_[0], [this, &done, &commandsSent, commandsToSend](rt::Command*) {
+  rimp->setSentCommandCallback(devices_[0], [this, &done, &commandsSent, commandsToSend](rt::Command const*) {
     commandsSent++;
     if (commandsSent == commandsToSend) {
       RT_LOG(INFO) << "All commands sent. Now aborting stream.";
@@ -160,7 +160,7 @@ TEST_F(TestAbort, kernelAbortedCallback) {
   });
 
   auto rimp = static_cast<rt::RuntimeImp*>(runtime_.get());
-  rimp->setSentCommandCallback(devices_[0], [this](rt::Command* cmd) {
+  rimp->setSentCommandCallback(devices_[0], [this, rimp](rt::Command const* cmd) {
     RT_LOG(INFO) << "Command sent: " << cmd << ". Now aborting stream.";
     runtime_->abortStream(defaultStreams_[0]);
     RT_LOG(INFO) << "Waiting for stream to finish.";

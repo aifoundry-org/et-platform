@@ -37,7 +37,7 @@ struct Command {
 
 class CommandSender {
 public:
-  using CommandSentCallback = std::function<void(Command*)>;
+  using CommandSentCallback = std::function<void(Command const*)>;
   explicit CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder* profiler, int deviceId,
                          int sqIdx);
   ~CommandSender();

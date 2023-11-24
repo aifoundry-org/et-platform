@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
   runtime->waitForStream(st);
   auto rimp = static_cast<rt::RuntimeImp*>(runtime.get());
   volatile bool done = false;
-  rimp->setSentCommandCallback(devices[0], [&done](rt::Command* cmd) { done = true; });
+  rimp->setSentCommandCallback(devices[0], [&done](rt::Command const* cmd) { done = true; });
   std::array<std::byte, 4> junk;
   runtime->kernelLaunch(st, kernel.kernel_, junk.data(), junk.size(), 0x1FFFFFFFFUL);
   LOG(INFO) << "Waiting for command to be sent...";
