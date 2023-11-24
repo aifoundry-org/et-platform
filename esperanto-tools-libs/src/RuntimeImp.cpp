@@ -21,6 +21,7 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <device-layer/IDeviceLayer.h>
@@ -100,6 +101,8 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
     threadPools_.try_emplace(DeviceId{d}, std::make_unique<threadPool::ThreadPool>(4));
+    errorHandlingThreadPools_.try_emplace(DeviceId{d}, std::make_unique<threadPool::ThreadPool>(1));
+    abortSync_.try_emplace(DeviceId{d});
   }
   auto desiredCma = maxElementCount * totalElementSize * kAllocFactorTotalMaxMemory;
   auto envCma = getenv("ET_CMA_SIZE");
@@ -358,6 +361,7 @@ bool RuntimeImp::doWaitForStream(StreamId stream, std::chrono::seconds timeout) 
       return false;
     }
   }
+
   return true;
 }
 
@@ -370,14 +374,33 @@ void RuntimeImp::doSetOnKernelAbortedErrorCallback(const KernelAbortedCallback& 
   kernelAbortedCallback_ = callback;
 }
 
+void RuntimeImp::handleKernelAbortedCallback(EventId event) {
+  auto buffer = executionContextCache_->getReservedBuffer(event);
+  auto exceptionContext = (buffer != nullptr ? buffer->getExceptionContextPtr() : nullptr);
+
+  RT_LOG(INFO) << "Executing kernel abort callback";
+  auto th = std::thread([event, exceptionContext, this] {
+    kernelAbortedCallback_(event, exceptionContext, kExceptionBufferSize,
+                           [this, event] { executionContextCache_->releaseBuffer(event); });
+    RT_LOG(INFO) << "Dispatching event " << int(event);
+    dispatch(event);
+  });
+  th.detach();
+}
+
 void RuntimeImp::processResponseError(DeviceId device, const ResponseError& responseError) {
   EASY_FUNCTION()
   using namespace std::chrono_literals;
-  threadPools_.at(device)->pushTask([this, device, responseError] {
+  RT_LOG(INFO) << "processResponseError Event: " << int(responseError.event_);
+  errorHandlingThreadPools_.at(device)->pushTask([this, device, responseError] {
+    waitUntilAllowedToProcessResponseErrors(device);
+
     bool dispatchNow = true;
     // here we have to check if there is an associated errorbuffer with the event; if so, copy the buffer from
     // devicebuffer into dmabuffer; then do the callback
     auto [errorCode, event, kernelExtra] = responseError;
+    RT_LOG(INFO) << "processResponseError lambda Event: " << int(responseError.event_)
+                 << " CapturedEvent: " << int(event);
     StreamError streamError(errorCode, device);
     auto stInfo = streamManager_.getStreamInfo(event);
     if (stInfo) {
@@ -391,17 +414,7 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
       if (auto buffer = executionContextCache_->getReservedBuffer(event); buffer != nullptr) {
         if (errorCode == DeviceErrorCode::KernelAbortHostAborted) {
           RT_LOG(INFO) << "Error code is a KernelAbortHostAborted";
-          if (kernelAbortedCallback_) {
-            RT_LOG(INFO) << "Executing kernel abort callback";
-            dispatchNow = false;
-            auto th = std::thread([cb = this->kernelAbortedCallback_, evt = responseError.event_, buffer, this] {
-              cb(evt, buffer->getExceptionContextPtr(), kExceptionBufferSize,
-                 [this, evt] { executionContextCache_->releaseBuffer(evt); });
-              RT_LOG(INFO) << "Dispatching event " << int(evt);
-              dispatch(evt);
-            });
-            th.detach();
-          } else if (streamError.stream_) {
+          if (streamError.stream_) {
             RT_LOG(INFO) << "stream found";
             auto st = *streamError.stream_;
             auto evts = streamManager_.getLiveEvents(st);
@@ -409,17 +422,25 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
               RT_LOG(INFO) << "Waiting for event " << int(e);
               if (e != event && !doWaitForEvent(e, 1s)) { // if some event is not yet finished, we will try later
                 RT_LOG(INFO) << "Event was not ready, requeue";
-                threadPools_.at(device)->pushTask(
+                errorHandlingThreadPools_.at(device)->pushTask(
                   [this, device, responseError] { processResponseError(device, responseError); });
                 return;
               }
             }
           }
         }
+        if (errorCode == DeviceErrorCode::KernelLaunchHostAborted) {
+          RT_LOG(INFO) << "Error code is a KernelLaunchHostAborted";
+          if (kernelAbortedCallback_) {
+            handleKernelAbortedCallback(event);
+            dispatchNow = false;
+          }
+        }
         if (auto st = streamError.stream_; st.has_value()) {
           // if we reach here, there are no more events in associated stream so we can do the copy
           auto errorContexts = std::vector<ErrorContext>(kNumErrorContexts);
-          auto e = memcpyDeviceToHost(*st, buffer->getExceptionContextPtr(),
+          auto copyStream = doCreateStream(buffer->device_);
+          auto e = memcpyDeviceToHost(copyStream, buffer->getExceptionContextPtr(),
                                       reinterpret_cast<std::byte*>(errorContexts.data()), kExceptionBufferSize, false);
           doWaitForEvent(e);
           streamError.errorContext_.emplace(std::move(errorContexts));
@@ -427,8 +448,8 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
           auto allocs = memoryManagers_.at(device).getAllocations();
           mmlock.unlock();
           coreDumper_.dump(event, allocs, streamError, *this);
-          executionContextCache_->releaseBuffer(event);
-        } else {
+        }
+        if (dispatchNow) {
           executionContextCache_->releaseBuffer(event);
         }
       }
@@ -447,6 +468,34 @@ void RuntimeImp::processResponseError(DeviceId device, const ResponseError& resp
       }
     }
   });
+}
+
+void RuntimeImp::lockProcessingResponseErrors(DeviceId device, EventId eventId) {
+  auto& sync = abortSync_[device];
+
+  SpinLock lock(sync.mutex_);
+  RT_LOG(INFO) << "Abort phase begins. Tag id: " << static_cast<int>(eventId);
+  sync.numBlockers_++;
+}
+
+void RuntimeImp::unlockProcessingResponseErrors(DeviceId device, EventId eventId) {
+  auto& sync = abortSync_[device];
+
+  SpinLock lock(sync.mutex_);
+  RT_LOG(INFO) << "Abort phase finished. Tag id: " << static_cast<int>(eventId);
+  sync.numBlockers_--;
+  if (sync.numBlockers_ == 0) {
+    sync.condVar_.notify_one();
+  } else if (sync.numBlockers_ < 0) {
+    RT_LOG(FATAL) << "Unbalanced number of abort unblockers.";
+  }
+}
+
+void RuntimeImp::waitUntilAllowedToProcessResponseErrors(DeviceId device) {
+  auto& sync = abortSync_[device];
+
+  SpinLock lock(sync.mutex_);
+  sync.condVar_.wait(lock, [&sync] { return (sync.numBlockers_ == 0); });
 }
 
 void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte>& response) {
@@ -470,6 +519,7 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
   RT_VLOG(MID) << "Response received eventId: " << static_cast<int>(eventId)
                << " Message Id: " << header->rsp_hdr.msg_id;
   bool responseWasOk = true;
+  bool skipDispatch = false;
   switch (header->rsp_hdr.msg_id) {
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_API_COMPATIBILITY_RSP:
     if (auto r = reinterpret_cast<const device_ops_api::device_ops_api_compatibility_rsp_t*>(response.data());
@@ -486,11 +536,15 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_ABORT_RSP:
+    unlockProcessingResponseErrors(device, eventId);
     if (auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_abort_rsp_t*>(response.data());
         r->status != device_ops_api::DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
       RT_LOG(WARNING) << "Error on kernel abort: " << r->status << ". Tag id: " << static_cast<int>(eventId);
       processResponseError(device, {convert(header->rsp_hdr.msg_id, r->status), eventId});
+    } else if (kernelAbortedCallback_) {
+      handleKernelAbortedCallback(eventId);
+      skipDispatch = true;
     }
     break;
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_RSP: {
@@ -504,6 +558,7 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_ABORT_RSP:
+    unlockProcessingResponseErrors(device, eventId);
     if (auto r = reinterpret_cast<const device_ops_api::device_ops_abort_rsp_t*>(response.data());
         r->status != device_ops_api::DEV_OPS_API_ABORT_RESPONSE_SUCCESS) {
       responseWasOk = false;
@@ -524,6 +579,7 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_KERNEL_LAUNCH_RSP: {
     auto r = reinterpret_cast<const device_ops_api::device_ops_kernel_launch_rsp_t*>(response.data());
     recordEvent(*getProfiler(), *r, eventId, ResponseType::Kernel);
+    RT_LOG(INFO) << "KernelLaunch Reponse Event: " << int(eventId);
     if (r->status !=
         device_ops_api::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE::DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED) {
       responseWasOk = false;
@@ -595,8 +651,9 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
     RT_LOG(WARNING) << "Unknown response msg id: " << header->rsp_hdr.msg_id;
     break;
   }
-  // if response wasn't ok, then processResponseError will clean events
-  if (responseWasOk) {
+  // If response wasn't ok, then processResponseError will clean events.
+  // In addition, abort callbacks delay dispatching to the end of the callback.
+  if (responseWasOk and !skipDispatch) {
     dispatch(eventId);
   }
 }
@@ -655,6 +712,8 @@ EventId RuntimeImp::doAbortCommand(EventId commandId, std::chrono::milliseconds 
     RT_LOG(WARNING) << "Trying to abort a command which was already finished. Runtime won't do anything.";
     dispatch(evt);
   } else {
+    lockProcessingResponseErrors(DeviceId{stInfo->device_}, evt);
+
     device_ops_api::device_ops_abort_cmd_t cmd;
     memset(&cmd, 0, sizeof(cmd));
     cmd.tag_id = static_cast<uint16_t>(commandId);
@@ -690,13 +749,9 @@ EventId RuntimeImp::doAbortStream(StreamId streamId) {
     return evt;
   } else {
     auto lastEvt = EventId{};
-    /* TODO
     for (auto e : events) {
       lastEvt = abortCommand(e);
-    }*/
-    // until this ticket get resolved, we need to abort just one command:
-    // https://esperantotech.atlassian.net/browse/SW-9617
-    lastEvt = abortCommand(events.back());
+    }
     RT_VLOG(LOW) << "Abort command event: " << static_cast<int>(lastEvt);
     Sync(lastEvt);
     return lastEvt;
@@ -736,6 +791,9 @@ void RuntimeImp::checkDevice(DeviceId device) {
 void RuntimeImp::abortDevice(DeviceId device) {
   EASY_FUNCTION()
   using namespace std::chrono_literals;
+
+  lockProcessingResponseErrors(device, EventId{0});
+
   // we need to ensure runtime is in running state to allow dispatch and waitForStream to work properly
   auto oldRunningState = running_;
   running_ = true;
@@ -749,6 +807,8 @@ void RuntimeImp::abortDevice(DeviceId device) {
     doDestroyStream(st);
   }
   running_ = oldRunningState;
+
+  unlockProcessingResponseErrors(device, EventId{0});
 }
 
 void RuntimeImp::checkList(int device, const MemcpyList& list) const {

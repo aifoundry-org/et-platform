@@ -180,6 +180,18 @@ private:
 #endif
   }
 
+  void lockProcessingResponseErrors(DeviceId device, EventId eventId);
+  void unlockProcessingResponseErrors(DeviceId device, EventId eventId);
+  void waitUntilAllowedToProcessResponseErrors(DeviceId device);
+
+  void handleKernelAbortedCallback(EventId event);
+
+  struct AbortSync {
+    std::mutex mutex_;
+    std::condition_variable condVar_;
+    int numBlockers_ = 0;
+  };
+
   mutable std::recursive_mutex mutex_;
   dev::IDeviceLayer* deviceLayer_;
   std::unordered_map<DeviceId, std::unique_ptr<CmaManager>> cmaManagers_;
@@ -195,6 +207,8 @@ private:
 
   std::unique_ptr<ResponseReceiver> responseReceiver_;
   std::unordered_map<DeviceId, std::unique_ptr<threadPool::ThreadPool>> threadPools_;
+  std::unordered_map<DeviceId, std::unique_ptr<threadPool::ThreadPool>> errorHandlingThreadPools_;
+  std::unordered_map<DeviceId, AbortSync> abortSync_;
   EventManager eventManager_;
   bool running_ = false;
   bool checkMemcpyDeviceAddress_ = false;
