@@ -29,7 +29,7 @@ public:
         RT_LOG(INFO) << "Running tests with PCIE deviceLayer";
         return dev::IDeviceLayer::createPcieDeviceLayer();
       case DeviceLayerImp::SYSEMU: {
-        RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer. Num devices: " << numDevices_;
+        RT_LOG(INFO) << "Running tests with SYSEMU deviceLayer. Num devices: " << static_cast<uint32_t>(numDevices_);
         auto opts = getSysemuDefaultOptions();
         std::vector<decltype(opts)> vopts;
         for (auto i = 0; i < numDevices_; ++i) {

@@ -113,19 +113,18 @@ void Client::responseProcessor() {
           RT_VLOG(HIGH) << "Got response, size: " << res << ". Type: " << static_cast<uint32_t>(response.type_)
                         << " id: " << response.id_;
           bool done = false;
-          for (int i = 0; i < kProcessResponseTries && !done; ++i) {
-            try {
-              processResponse(response);
-              done = true;
-            } catch (const Exception& e) {
-              EASY_EVENT("Response arrived before request, sometimes happens. Will retry.")
-              RT_LOG(WARNING) << "Exception happened (response arrived before request): " << e.what();
-              using namespace std::literals;
-              std::this_thread::sleep_for(1us);
-            }
+          try {
+            processResponse(response);
+            done = true;
+          } catch (const Exception& e) {
+            EASY_EVENT("Response arrived before request ack, delaying its processing.")
+            RT_LOG(WARNING) << "Response for event " << response.id_
+                            << " arrived before request ack, delaying its processing: " << e.what();
+            delayedResponses_.emplace_back(std::move(response));
           }
-          if (!done) {
-            RT_LOG(FATAL) << "Failed to process response after " << kProcessResponseTries << " tries. Aborting.";
+
+          if (done) {
+            processDelayedResponses();
           }
         } else {
           RT_LOG(INFO) << "Socket closed, ending client listener thread.";
@@ -138,6 +137,21 @@ void Client::responseProcessor() {
     running_ = false;
   }
   RT_LOG(INFO) << "End listener thread.";
+}
+
+void Client::processDelayedResponses() {
+  auto it = delayedResponses_.begin();
+  while (it != delayedResponses_.end()) {
+    auto& response = *it;
+    try {
+      processResponse(response);
+      it = delayedResponses_.erase(it);
+    } catch (const Exception& e) {
+      EASY_EVENT("Failed to reprocess delayed response. Will retry.")
+      RT_LOG(WARNING) << "Delayed response for event " << response.id_ << " still not ready: " << e.what();
+      it++;
+    }
+  }
 }
 
 bool Client::doWaitForEvent(EventId event, std::chrono::seconds timeout) {

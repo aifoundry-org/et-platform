@@ -96,6 +96,8 @@ private:
   req::Id getNextId();
   resp::Response::Payload_t waitForResponse(req::Id);
 
+  void processDelayedResponses();
+
   EventId registerEvent(const resp::Response::Payload_t& payload, StreamId stream);
   void registerEvent(EventId evt, StreamId stream);
 
@@ -144,6 +146,9 @@ private:
 
   // these events won't be dispatched instantly because there are callbacks being executed
   std::set<EventId> delayedEvents_;
+
+  // Some responses can arrive before their event id is known. They are delayed here until their event id can be matched
+  std::list<resp::Response> delayedResponses_;
 
   int socket_;
   std::atomic<req::Id> nextId_ = 0;

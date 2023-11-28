@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-18922] Fix missing thread 0 in coredumps
+- [SW-19540] Fix handling of reordered responses in client mode
 
 ## [0.12.3]
 ### Fixed
