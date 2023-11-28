@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-18922] Fix missing thread 0 in coredumps
 
+## [0.12.3]
+### Fixed
+- [SW-19346] Fixed aborting kernels.
+
 ## [0.12.2]
 ### Fixed
 - [SW-18582] Fixed core dumps generation when kernel aborts.
