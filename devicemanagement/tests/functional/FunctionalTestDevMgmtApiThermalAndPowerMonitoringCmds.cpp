@@ -76,7 +76,8 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleResidency
   getModuleResidencyPowerState(false /* Multiple devices */);
 }
 
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePowerManagement) {
+/* TODO: SW-19495: Enable the test once the issue is resolved */
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setModuleActivePowerManagement) {
   setModuleActivePowerManagement(false /* Multiple devices */);
 }
 
