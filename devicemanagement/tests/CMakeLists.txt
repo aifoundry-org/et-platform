@@ -36,6 +36,13 @@ get_property(WORKER_MINION_ELF TARGET EsperantoDeviceMinionRuntime::WorkerMinion
 # End user can use f/w image of choice by passing it as argument to dev_mngt_service.
 set(FLASH_IMG_PATH "${FLASH_INSTALL_DIR}/dev-image/production-signed-with-test-keys-pcie-phy-fw-override/flash_32Mbit.bin")
 
+option(ENABLE_SANITIZER_ADDRESS "" OFF)
+option(ENABLE_SANITIZER_LEAK "" OFF)
+option(ENABLE_SANITIZER_UNDEFINED_BEHAVIOR "" OFF)
+option(ENABLE_SANITIZER_THREAD "" OFF)
+option(ENABLE_SANITIZER_MEMORY "" OFF)
+include(CompilerSanitizers)
+
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 configure_file(Autogen.h.in Autogen.h)
 
@@ -78,6 +85,7 @@ function(create_test)
     add_executable(${TEST_TARGET} ${TEST_SOURCES})
     target_compile_features(${TEST_TARGET} PRIVATE cxx_std_17)
     target_link_libraries(${TEST_TARGET} PRIVATE DMTests)
+    target_add_sanitizers(${TEST_TARGET})
 
     # set internal execution timeout value relative to actual timeout. Internal timeout
     # is smaller for wraping up the execution and printing the test summary
