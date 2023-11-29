@@ -1,0 +1,16 @@
+[requires]
+deviceApi/[>=2.1.0 <3.0.0]
+
+device-minion-runtime/[>=0.20.0 <1.0.0]
+device-bootloaders/[>=0.15.0 <1.0.0]
+esperanto-test-kernels/[>=1.9.0 <2.0.0]
+
+# overrides
+etsoc_hal/[>=1.6.0 <2.0.0]
+et-common-libs/[>=0.20.0 <1.0.0]
+
+[generators]
+CMakeDeps
+
+[layout]
+cmake_layout

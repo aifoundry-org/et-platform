@@ -5,7 +5,6 @@ from conan.tools.build import can_run
 from conan.tools.files import copy, rmdir
 from conan.tools.layout import cmake_layout
 import os
-import re
 
 
 class RuntimeConan(ConanFile):
@@ -21,12 +20,14 @@ class RuntimeConan(ConanFile):
         "with_tests": [True, False],
         "disable_easy_profiler": [True, False],
         "run_tests": [True, False],
+        "run_tests_sdk": ["v1.3.0", "latest"]  # TODO: once newer SDK(S) are released, add them here (with current + next should be enough)
     }
     default_options = {
         "with_tools": False,
         "with_tests": False,
         "disable_easy_profiler": False,
         "run_tests": False,
+        "run_tests_sdk": "v1.3.0",
     }
 
     generators = "CMakeDeps"
@@ -36,17 +37,14 @@ class RuntimeConan(ConanFile):
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
-    
-    @property
-    def _conanfile_device_artifacts(self):
-        return f"conanfile_device_artifacts_current.txt"
-    
+
     def export(self):
         register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
         register_scm_coordinates(self)
-        # This conanfile_device_artifacts_current.txt file is intended to be used by this conanfile.py recipe
+        # This conanfile_device_depends_sw_stack_v1.3.0.txt file is intended to be used by this conanfile.py recipe
         # to download device FW artifacts needed to build with tests.
-        copy(self, self._conanfile_device_artifacts, self.recipe_folder, self.export_folder)
+        copy(self, "conanfile_device_depends_sw_stack_latest.txt", self.recipe_folder, self.export_folder)
+        copy(self, "conanfile_device_depends_sw_stack_v1.3.0.txt", self.recipe_folder, self.export_folder)
     
     def export_sources(self):
         copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
@@ -63,13 +61,12 @@ class RuntimeConan(ConanFile):
         self.layouts.source.buildenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', et_runtime_test_kernels_dir)
 
     @property
-    def _min_device_api(self):
-        return {
-            "current": "2.0.0",
-        }.get(str("current"))
+    def _conanfile_device_artifacts(self):
+        sdk_version = f"{self.options.run_tests_sdk}"
+        return f"conanfile_device_depends_sw_stack_{sdk_version}.txt"
 
     def requirements(self):
-        self.requires(f"deviceApi/{self._min_device_api}")
+        self.requires("deviceApi/2.0.0")
         self.requires("deviceLayer/[>=2.99.99 <3.99.99, include_prerelease=True]")
         self.requires("hostUtils/[>=0.3.0 <1.0.0]")
 

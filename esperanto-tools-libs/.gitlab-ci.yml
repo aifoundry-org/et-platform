@@ -199,6 +199,7 @@ tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
+        SDK: [ "v1.3.0", "latest" ]
   variables:
     KUBERNETES_MEMORY_LIMIT: 32Gi
     TIMEOUT: 1h
@@ -206,7 +207,7 @@ tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -247,13 +248,14 @@ nightly_torture_tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
+        SDK: [ "v1.3.0", "latest" ]
   variables:
     TIMEOUT: 3h
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
