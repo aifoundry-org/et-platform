@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-19324] Fixed nullptr dereference issue in dumpRawTraceBuffer function causing exception when SP trace buffer full event is processed 
 ### Security
 
 ## [0.14.0] - 2023-11-07

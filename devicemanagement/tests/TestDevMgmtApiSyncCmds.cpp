@@ -375,7 +375,12 @@ void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector
     return;
   }
 
-  fileName += std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".bin";
+  /* check if it is invoked from text context*/
+  if (::testing::UnitTest::GetInstance() && ::testing::UnitTest::GetInstance()->current_test_info()) {
+    fileName += std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()) + ".bin";
+  } else {
+    fileName += std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) + ".bin";
+  }
 
   if (dataSize < sizeof(trace_buffer_std_header_t)) {
     return;
