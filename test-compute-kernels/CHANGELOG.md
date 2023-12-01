@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-19534] Align the global array in the BSS test to cache line size
 ### Security
 
 ## [1.9.0] - 2023-11-07

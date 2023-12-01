@@ -12,7 +12,7 @@ typedef struct {
 int entry_point(const MyVectors*);
 
 // int global[4000];
-volatile int global[1000];
+__attribute__((aligned(64))) volatile int global[1000];
 
 // use only one shire to exec this simple test
 int entry_point(const MyVectors* const vectors) {
