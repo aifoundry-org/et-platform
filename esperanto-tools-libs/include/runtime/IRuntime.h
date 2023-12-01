@@ -147,10 +147,10 @@ public:
   /// @returns EventId is a handler of an event which can be waited for (waitForEventId) to synchronize when the kernel
   /// ends the execution.
   ///
-  [[deprecated("use KernelLaunch() with KernelLaunchOptions parameter instead")]] EventId
-  kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
-               uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
-               std::optional<UserTrace> userTraceConfig = std::nullopt, const std::string& coreDumpFilePath = "");
+  EventId kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
+                       uint64_t shire_mask, bool barrier = true, bool flushL3 = false,
+                       std::optional<UserTrace> userTraceConfig = std::nullopt,
+                       const std::string& coreDumpFilePath = "");
 
   /// \brief Queues a memcpy operation from host memory to device memory. The device memory must be previously
   /// allocated by a mallocDevice.

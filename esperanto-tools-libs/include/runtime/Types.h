@@ -232,7 +232,7 @@ struct DeviceProperties {
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in
 // a experimental status until everything is properly designed.
-struct [[deprecated]] UserTrace {
+struct UserTrace {
   uint64_t buffer_;      /*!< Base address for Trace buffer. */
   uint32_t buffer_size_; /*!< Total size of the Trace buffer. */
   uint32_t threshold_;   /*!< Threshold for free memory in the buffer for each hart. */
