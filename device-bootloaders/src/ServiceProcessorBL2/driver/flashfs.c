@@ -423,7 +423,12 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
               flash_fs_bl2_info->asset_config_data.persistent_config.module_rev);
     Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.form_factor: 0x%02x\n",
               flash_fs_bl2_info->asset_config_data.persistent_config.form_factor);
-
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.mnn_volt: 0x%02x\n",
+              flash_fs_bl2_info->asset_config_data.persistent_config.mnn_volt);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.sram_volt: 0x%02x\n",
+              flash_fs_bl2_info->asset_config_data.persistent_config.sram_volt);
+    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.noc_volt: 0x%02x\n",
+              flash_fs_bl2_info->asset_config_data.persistent_config.noc_volt);
     return 0;
 }
 

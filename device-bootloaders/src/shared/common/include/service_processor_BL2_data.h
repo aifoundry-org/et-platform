@@ -75,6 +75,9 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
     uint32_t module_rev;
     uint32_t part_num;
     uint8_t form_factor;
+    uint8_t mnn_volt;
+    uint8_t sram_volt;
+    uint8_t noc_volt;
 } ESPERANTO_CONFIG_PERSISTENT_DATA_t;
 
 /* Esperanto flash config data */
@@ -82,7 +85,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
     ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
     ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
-    uint8_t padding[21];
+    uint8_t padding[18];
 } ESPERANTO_CONFIG_DATA_t;
 
 static_assert(64 == sizeof(ESPERANTO_CONFIG_DATA_t), "sizeof(ESPERANTO_CONFIG_DATA_t) is not 64!");

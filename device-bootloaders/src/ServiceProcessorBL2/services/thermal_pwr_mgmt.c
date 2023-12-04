@@ -2422,30 +2422,32 @@ void dump_power_globals(void)
 *
 *   INPUTS
 *
-*       None
+*       mnn_v       Minion Voltage value
+*       sram_v      SRAM Voltage value
+*       noc_v       NOC Voltage value
 *
 *   OUTPUTS
 *
 *       None
 *
 ***********************************************************************/
-void set_system_voltages(void)
+void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v)
 {
     uint8_t voltage = 0;
     /* Setting the Neigh voltages */
-    pmic_set_voltage(MODULE_MINION, MINION_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_MINION, mnn_v);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_MINION, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 500mV(0x%X)\n", voltage);
 
     /* Setting the L2 cache voltages */
-    pmic_set_voltage(MODULE_L2CACHE, SRAM_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_L2CACHE, sram_v);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_L2CACHE, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 750mV(0x%X)\n", voltage);
 
     /* Setting the NOC voltages */
-    pmic_set_voltage(MODULE_NOC, NOC_BOOT_VOLTAGE);
+    pmic_set_voltage(MODULE_NOC, noc_v);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_NOC, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 450mV(0x%X)\n", voltage);
