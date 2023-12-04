@@ -66,9 +66,9 @@ class RuntimeConan(ConanFile):
         return f"conanfile_device_depends_sw_stack_{sdk_version}.txt"
 
     def requirements(self):
-        self.requires("deviceApi/2.0.0")
-        self.requires("deviceLayer/[>=2.99.99 <3.99.99, include_prerelease=True]")
-        self.requires("hostUtils/[>=0.3.0 <1.0.0]")
+        self.requires("deviceApi/2.1.0")
+        self.requires("deviceLayer/3.0.0-alpha")
+        self.requires("hostUtils/0.3.0")
 
         self.requires("cereal/1.3.1")
         self.requires("elfio/3.8")
@@ -78,7 +78,7 @@ class RuntimeConan(ConanFile):
         self.requires("easy_profiler/2.1.0")            #need this nevertheless for the include files
 
         self.requires("cmake-modules/[>=0.4.1 <1.0.0]")
-
+        
         if self.options.with_tests:
             self.requires("gtest/1.10.0")
             self.requires("sw-sysemu/[>=0.5.0 <1.0.0]")

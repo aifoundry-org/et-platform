@@ -401,10 +401,7 @@ EventId Client::doKernelLaunch(StreamId stream, KernelId kernel, const std::byte
                                const KernelLaunchOptionsImp& options) {
   std::vector<std::byte> kernelArgs;
   std::copy(kernel_args, kernel_args + kernel_args_size, std::back_inserter(kernelArgs));
-  auto payload = sendRequestAndWait(req::Type::KERNEL_LAUNCH,
-                                    req::KernelLaunch{stream, kernel, options.shireMask_, kernelArgs, options.barrier_,
-                                                      options.flushL3_, options.userTraceConfig_,
-                                                      options.coreDumpFilePath_}); // need to add stack config
+  auto payload = sendRequestAndWait(req::Type::KERNEL_LAUNCH, req::KernelLaunch{stream, kernel, kernelArgs, options});
   return registerEvent(payload, stream);
 }
 

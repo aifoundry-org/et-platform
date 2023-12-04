@@ -18,8 +18,8 @@ set(TEST_LIST
   KernelLaunchFake.cpp:""
   TestCommandSender.cpp:""
   initRuntime.cpp:""
-  test_spinlock.cpp:"" 
-  
+  test_spinlock.cpp:""
+  test_KernelLaunchOptionsAPI.cpp:""  
 )
 
 set(TEST_LIST_MP

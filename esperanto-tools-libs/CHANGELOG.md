@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [unreleased]
 ### Added
+- [SW-19325] Use new kernelLaunchOptionsImp struct on call client/server
+- [SW-19289] Implement mechanism for a configurable stack
+- [SW-19169] Implement more flexible API for launching kernel
 ### Changed
 ### Deprecated
 ### Removed

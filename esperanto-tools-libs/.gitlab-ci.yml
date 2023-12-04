@@ -30,7 +30,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: develop/runtime
+  SW_PLATFORM_BRANCH: master
   PIPELINE_CI_SUBPROJECT: esperanto-tools-libs
 
 # Only run job in these cases:
@@ -199,7 +199,7 @@ tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
-        SDK: [ "v1.3.0", "latest" ]
+        SDK: [ "latest" ]
   variables:
     KUBERNETES_MEMORY_LIMIT: 32Gi
     TIMEOUT: 1h

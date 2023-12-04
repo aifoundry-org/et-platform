@@ -9,6 +9,7 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+#include "KernelLaunchOptionsImp.h"
 #include "runtime/Types.h"
 #include <cereal/cereal.hpp>
 #include <cereal/types/array.hpp>
@@ -108,14 +109,10 @@ struct MemcpyP2P {
 struct KernelLaunch {
   StreamId stream_;
   KernelId kernel_;
-  uint64_t shireMask_;
   std::vector<std::byte> kernelArgs_;
-  bool barrier_;
-  bool flushL3_;
-  std::optional<UserTrace> userTrace_;
-  std::string coreDumpFilePath_;
+  KernelLaunchOptionsImp kernelOptionsImp_;
   template <class Archive> void serialize(Archive& archive) {
-    archive(stream_, kernel_, kernelArgs_, shireMask_, barrier_, flushL3_, userTrace_, coreDumpFilePath_);
+    archive(stream_, kernel_, kernelArgs_, kernelOptionsImp_);
   }
 };
 

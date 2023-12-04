@@ -97,6 +97,10 @@ public:
 
   ~RuntimeImp() final;
 
+  KernelLaunchOptions createKernelLaunchOptions(const rt::KernelLaunchOptionsImp& kOptImp) {
+    return KernelLaunchOptions(kOptImp);
+  }
+
   // IResponseServices
   bool areEventsOnFly(DeviceId device) const final;
   void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) final;

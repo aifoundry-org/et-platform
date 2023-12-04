@@ -16,6 +16,7 @@
 #include "Utils.h"
 #include "runtime/Types.h"
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <device-layer/IDeviceLayer.h>
 #include <elfio/elfio.hpp>
@@ -49,6 +50,9 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   if (options.userTraceConfig_) {
     maxSizeKernelEmbeddingParameters -= sizeof(UserTrace);
   }
+  if (options.stackConfig_) {
+    maxSizeKernelEmbeddingParameters -= sizeof(StackConfiguration);
+  }
   RT_LOG_IF(WARNING, kernel_args_size > maxSizeKernelEmbeddingParameters)
     << "Kernel args size larger than " << maxSizeKernelEmbeddingParameters
     << " implies an extra DMA transfer; try to send less parameters to achieve maximum performance.";
@@ -64,6 +68,9 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   if (options.userTraceConfig_) {
     optionalArgSize += sizeof(UserTrace);
   }
+  if (options.stackConfig_) {
+    optionalArgSize += sizeof(StackConfiguration);
+  }
 
   std::vector<std::byte> cmdBase(sizeof(device_ops_api::device_ops_kernel_launch_cmd_t) + optionalArgSize);
 
@@ -76,6 +83,17 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   if (options.userTraceConfig_) {
     memcpy(pPayload, &*options.userTraceConfig_, sizeof(UserTrace));
     pPayload += sizeof(UserTrace);
+  }
+  if (options.stackConfig_) {
+    device_ops_api::kernel_user_stack_cfg_t stackCfg;
+
+    auto memManager = memoryManagers_.at(kernel->deviceId_);
+    auto rawStackBase = reinterpret_cast<std::byte*>(options.stackConfig_->baseAddress_);
+    stackCfg.stack_base_offset = memManager.compressPointer(rawStackBase, std::log2(SIZE_4K));
+    stackCfg.stack_size = static_cast<uint32_t>(options.stackConfig_->totalSize_ / SIZE_4K);
+
+    memcpy(pPayload, &stackCfg, sizeof(device_ops_api::kernel_user_stack_cfg_t));
+    pPayload += sizeof(device_ops_api::kernel_user_stack_cfg_t);
   }
   if (kernelArgsFit) {
     std::copy(kernel_args, kernel_args + kernel_args_size, pPayload);
@@ -113,6 +131,9 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   if (kernelArgsFit) {
     // This should replaced with-> device_ops_api::EMBED_KERNEL_ARGS_IN_OPT_PAYLOAD
     cmdPtr->command_info.cmd_hdr.flags |= (1 << 5);
+  }
+  if (options.stackConfig_) {
+    cmdPtr->command_info.cmd_hdr.flags |= device_ops_api::CMD_FLAGS_KERNEL_LAUNCH_USER_STACK_CFG;
   }
 
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());

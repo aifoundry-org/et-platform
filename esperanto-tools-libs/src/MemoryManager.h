@@ -54,6 +54,17 @@ public:
 
   std::vector<AllocationInfo> getAllocations() const;
 
+  uint32_t compressPointer(const std::byte* ptr, size_t alignedTo) const {
+    auto tmp = reinterpret_cast<uint64_t>(ptr);
+    tmp -= dramBaseAddr_;
+    tmp >>= alignedTo;
+    if (tmp >= std::numeric_limits<uint32_t>::max()) {
+      RT_LOG(WARNING) << "Bad address: " << ptr;
+      throw Exception("Bad address");
+    }
+    return static_cast<uint32_t>(tmp);
+  }
+
 private:
   struct FreeChunk {
     uint32_t startAddress_;
@@ -70,15 +81,9 @@ private:
   };
 
   uint32_t compressPointer(const std::byte* ptr) const {
-    auto tmp = reinterpret_cast<uint64_t>(ptr);
-    tmp -= dramBaseAddr_;
-    tmp >>= blockSizeLog2_;
-    if (tmp >= std::numeric_limits<uint32_t>::max()) {
-      RT_LOG(WARNING) << "Bad address: " << ptr;
-      throw Exception("Bad address");
-    }
-    return static_cast<uint32_t>(tmp);
+    return compressPointer(ptr, blockSizeLog2_);
   }
+
   std::byte* uncompressPointer(uint32_t ptr) const {
     auto tmp = static_cast<uint64_t>(ptr);
     tmp <<= blockSizeLog2_;

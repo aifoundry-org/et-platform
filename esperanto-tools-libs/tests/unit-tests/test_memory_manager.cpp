@@ -52,6 +52,21 @@ TEST(MemoryManager, compress_and_uncompress) {
   }
 }
 
+TEST(MemoryManager, publicCompress_and_uncompress) {
+  for (auto baseAddr : {0UL, 1UL << 13, 1UL << 20}) {
+    for (auto minAllocation : {1U << 10, 1U << 11, 1U << 13}) {
+      for (auto size : {1UL, 3UL, 12UL, 15UL}) {
+        auto ptr = size * minAllocation + baseAddr;
+        auto mm = MemoryManager(baseAddr, 1UL << 40, minAllocation);
+        auto compressed = mm.compressPointer(reinterpret_cast<std::byte*>(ptr), std::log2(minAllocation));
+        EXPECT_LE(compressed, ptr);
+        auto uncompressed = mm.uncompressPointer(compressed);
+        EXPECT_EQ(reinterpret_cast<decltype(ptr)>(uncompressed), ptr);
+      }
+    }
+  }
+}
+
 TEST(MemoryManager, SW8240) {
   auto size = (1 << 20) + 1UL;
   // shouldn't be possible to allocate a non multiple of alignment

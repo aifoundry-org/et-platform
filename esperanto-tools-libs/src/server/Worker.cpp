@@ -272,9 +272,13 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::KERNEL_LAUNCH: {
     auto& req = std::get<req::KernelLaunch>(request.payload_);
+
+    KernelLaunchOptions kernelLaunchOptions = runtime_.createKernelLaunchOptions(req.kernelOptionsImp_);
+
     auto evt = runtime_.kernelLaunch(req.stream_, req.kernel_, req.kernelArgs_.data(), req.kernelArgs_.size(),
-                                     req.shireMask_, req.barrier_, req.flushL3_, req.userTrace_, req.coreDumpFilePath_);
+                                     kernelLaunchOptions);
     events_.emplace(evt);
+
     RT_DLOG(INFO) << "Registered at worker event " << static_cast<int>(evt);
     sendResponse({resp::Type::KERNEL_LAUNCH, request.id_, resp::Event{evt}});
     break;

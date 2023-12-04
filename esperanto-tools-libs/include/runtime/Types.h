@@ -267,6 +267,8 @@ class KernelLaunchOptions {
 
   void setIfImpIsNull(void);
 
+  KernelLaunchOptions(const rt::KernelLaunchOptionsImp& kOptImp);
+
 public:
   KernelLaunchOptions();
   virtual ~KernelLaunchOptions();
@@ -294,8 +296,8 @@ public:
                       uint32_t eventMask, uint32_t filterMask);
 
   /// \brief Set the stack size
-  /// \param baseAddress Device base address of the stacks. Must be aligned to 4KB
-  /// \param size Total size of the stack memory (all minions). Must be a multiple of 4KB
+  /// \param baseAddress Device base address of the stacks. Must be aligned to 4KB.
+  /// \param size Size of desired stack to be distribute between the all harts. Must be a multiple of 4KB.
   /// \note Throws an exception if the alignment or multiplicity constraints are not met
   void setStackConfig(std::byte* baseAddress, uint64_t size);
 
