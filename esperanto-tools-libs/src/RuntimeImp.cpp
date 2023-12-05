@@ -829,8 +829,6 @@ void RuntimeImp::abortDevice(DeviceId device) {
   EASY_FUNCTION()
   using namespace std::chrono_literals;
 
-  lockProcessingResponseErrors(device, EventId{0});
-
   // we need to ensure runtime is in running state to allow dispatch and waitForStream to work properly
   auto oldRunningState = running_;
   running_ = true;
@@ -844,8 +842,6 @@ void RuntimeImp::abortDevice(DeviceId device) {
     doDestroyStream(st);
   }
   running_ = oldRunningState;
-
-  unlockProcessingResponseErrors(device, EventId{0});
 }
 
 void RuntimeImp::checkList(int device, const MemcpyList& list) const {

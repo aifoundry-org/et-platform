@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-18922] Fix missing thread 0 in coredumps
 - [SW-19540] Fix handling of reordered responses in client mode
+- [SW-19575] Fix hang during initialization with binary mode sysemu2
 
 ## [0.12.3]
 ### Fixed
