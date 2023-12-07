@@ -300,7 +300,7 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
     if (status == STATUS_SUCCESS)                                                                              \
     {                                                                                                          \
         Log_Write(                                                                                             \
-            LOG_LEVEL_INFO,                                                                                    \
+            LOG_LEVEL_DEBUG,                                                                                   \
             "PVT voltage validation: %ld cycles consumed stabilizing voltage of module: %d\n",                 \
             (timer_get_ticks_count() - (time_out - pdMS_TO_TICKS(SET_VOLTAGE_TIMEOUT))), module);              \
     }                                                                                                          \
@@ -590,6 +590,11 @@ int update_module_current_temperature(void)
             (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN) &&
             (g_soc_power_reg.active_power_management))
         {
+            /* Add a log to indicate thermal throttling event */
+            Log_Write(LOG_LEVEL_CRITICAL,
+                      "Thermal throttle down event, current temperature: %u, threshold: %d\n",
+                      temperature, g_soc_power_reg.temperature_threshold.sw_temperature_c);
+
             // Do the thermal throttling
             g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_THERMAL_DOWN;
             xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
@@ -755,7 +760,10 @@ int update_module_soc_power(void)
     update_module_power_state(GET_POWER_STATE(POWER_10MW_TO_MW(soc_pwr_10mW), tdp_level_mW));
 
     /* Check if the power management is enabled */
-    if (g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON)
+    /* Thermal throttling has priority over power throttling */
+    /* TODO: Unify thermal and power throttling condiitons in a separate function */
+    if ((g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON) &&
+        (g_soc_power_reg.power_throttle_state < POWER_THROTTLE_STATE_THERMAL_DOWN))
     {
         /* Switch to idle power state */
         if (mm_state == MM_STATE_IDLE)
@@ -827,15 +835,15 @@ int update_module_frequencies(void)
     int32_t temp_freq = Get_Minion_Frequency();
 
     CALC_MIN_MAX(g_soc_power_reg.op_stats.minion.freq, (uint16_t)temp_freq)
-    CMA(g_soc_power_reg.op_stats.minion.freq, (uint16_t)temp_freq, CMA_FREQ_SAMPLE_COUNT)
+    g_soc_power_reg.op_stats.minion.freq.avg = (uint16_t)temp_freq;
 
     temp_freq = Get_L2cache_Frequency();
     CALC_MIN_MAX(g_soc_power_reg.op_stats.sram.freq, (uint16_t)temp_freq)
-    CMA(g_soc_power_reg.op_stats.sram.freq, (uint16_t)temp_freq, CMA_FREQ_SAMPLE_COUNT)
+    g_soc_power_reg.op_stats.sram.freq.avg = (uint16_t)temp_freq;
 
     temp_freq = Get_NOC_Frequency();
     CALC_MIN_MAX(g_soc_power_reg.op_stats.noc.freq, (uint16_t)temp_freq)
-    CMA(g_soc_power_reg.op_stats.noc.freq, (uint16_t)temp_freq, CMA_FREQ_SAMPLE_COUNT)
+    g_soc_power_reg.op_stats.noc.freq.avg = (uint16_t)temp_freq;
 
     return SUCCESS;
 }
@@ -2029,6 +2037,7 @@ void power_throttling(power_throttle_state_e throttle_state)
                 status = reduce_minion_operating_point(&power_status);
                 break;
             }
+            case POWER_THROTTLE_STATE_THERMAL_IDLE:
             case POWER_THROTTLE_STATE_POWER_IDLE: {
                 FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
                                   POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
@@ -2084,6 +2093,7 @@ void power_throttling(power_throttle_state_e throttle_state)
                     throttle_condition_met = 1;
                 }
                 break;
+            case POWER_THROTTLE_STATE_THERMAL_IDLE:
             case POWER_THROTTLE_STATE_POWER_IDLE:
                 throttle_condition_met = 1;
                 break;
@@ -2158,12 +2168,6 @@ void thermal_throttling(power_throttle_state_e throttle_state)
         switch (throttle_state)
         {
             case POWER_THROTTLE_STATE_THERMAL_DOWN: {
-                /* Add a log to indicate thermal */
-                Log_Write(LOG_LEVEL_CRITICAL,
-                          "Thermal throttle down event, current temprature: %u, threshold: %d\n",
-                          current_temperature,
-                          g_soc_power_reg.temperature_threshold.sw_temperature_c);
-
                 /* Get the current power */
                 status = pmic_read_average_soc_power(&avg_pwr_10mW);
                 if (status != SUCCESS)
@@ -2207,10 +2211,15 @@ void thermal_throttling(power_throttle_state_e throttle_state)
 
     end_time = timer_get_ticks_count();
 
+    /* System has to be in idle state after thermal thorttling */
     if (g_soc_power_reg.power_throttle_state <= throttle_state)
     {
-        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
-        xTaskNotify(g_pm_handle, 0, eSetValueWithOverwrite);
+        g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_THERMAL_IDLE;
+
+        /* Log the event */
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "Thermal idle state event, current temperature %u, threshold %u\n",
+                  current_temperature, g_soc_power_reg.temperature_threshold.sw_temperature_c);
     }
 
     if (throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
@@ -2283,6 +2292,7 @@ void thermal_power_task_entry(void *pvParameter)
                 power_throttling(POWER_THROTTLE_STATE_POWER_UP);
                 break;
             }
+            case POWER_THROTTLE_STATE_THERMAL_IDLE:
             case POWER_THROTTLE_STATE_POWER_IDLE: {
                 power_throttling(POWER_THROTTLE_STATE_POWER_IDLE);
                 break;
