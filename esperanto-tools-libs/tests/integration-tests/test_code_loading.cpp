@@ -45,7 +45,7 @@ TEST_F(TestCodeLoading, LoadKernel) {
 
 // Test loading a kernel with bss
 // flaky test don't execute wait [SW-19304]
-TEST_F(TestCodeLoading, DISABLED_KernelWithBss) {
+TEST_F(TestCodeLoading, KernelWithBss) {
   auto kernel = loadKernel("bss.elf");
   auto numElems = 150U;
   auto hSrc1 = std::vector<int>(numElems);
