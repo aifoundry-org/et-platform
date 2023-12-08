@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-19470] Added memory sanitizers support
+- [SW-18613] Added support to change the PMIC FW metadata in the flash image and re-generate it for testing.
+- Adding updateFirmwareImageAndResetMultiDevice test.
 ### Changed
 - Disabling setModuleActivePowerManagement since the DVFS is not stable.
+- [SW-18613] Change the test to modify PMIC FW hash instead of PMIC FW version.
 ### Deprecated
 ### Removed
 ### Fixed
-- [SW-19324] Fixed nullptr dereference issue in dumpRawTraceBuffer function causing exception when SP trace buffer full event is processed 
+- [SW-19324] Fixed nullptr dereference issue in dumpRawTraceBuffer function causing exception when SP trace buffer full event is processed
 ### Security
 
 ## [0.14.0] - 2023-11-07
@@ -22,8 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18590] Added firmware update functional and stress tests.
 - [SW-15748] Handling DM events in userspace
   - Adding DM event processing thread for each device
-- [SW-18613] Added support to change the PMIC FW metadata in the flash image and re-generate it for testing.
-- Adding updateFirmwareImageAndResetMultiDevice test.
 ### Changed
 - [SW-18398b] Update DevErrorEvent implementation for the skipList usage to add/remove EventType entry from the default skipList without requiring to replace the complete skipList.
 [SW-18797] Improvements for event processor

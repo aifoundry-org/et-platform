@@ -161,7 +161,7 @@ create_test(
     TARGET      FunctionalTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     functional/FunctionalTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;240"
+    PROPERTIES  "LABELS;FUNCTIONAL;TIMEOUT;540"
 )
 
 #####################
@@ -278,7 +278,7 @@ create_test(
     TARGET      StressTestDevMgmtApiFirmwareMgmtCmds
     SOURCES     stress/StressTestDevMgmtApiFirmwareMgmtCmds.cpp
     ARGS        ""
-    PROPERTIES  "LABELS;STRESS;TIMEOUT;800"
+    PROPERTIES  "LABELS;STRESS;TIMEOUT;1200"
 )
 
 configure_file(

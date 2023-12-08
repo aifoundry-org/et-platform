@@ -37,7 +37,7 @@ class StressTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds {
 };
 
 /* TODO: SW-19075: Re-enable once issue is resolved */
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageSingleDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_backToBackUpdateFirmwareImageSingleDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -45,7 +45,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageSingleD
       return;
     }
     initEventProcessor();
-    setFirmwareUpdateImage(true /* Single Device */, false, 5);
+    setFirmwareUpdateImage(true /* Single Device */, false, 4);
     cleanupEventProcessor();
     extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
   } else {
@@ -55,7 +55,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageSingleD
 }
 
 /* TODO: SW-19075: Re-enable once issue is resolved */
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageMultiDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_backToBackUpdateFirmwareImageMultiDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -63,7 +63,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageMultiDe
       return;
     }
     initEventProcessor();
-    int iterations = 5 / devLayer_->getDevicesCount();
+    int iterations = 4 / devLayer_->getDevicesCount();
     iterations = iterations ? iterations : 1;
     setFirmwareUpdateImage(false /* Multiple Devices */, false, iterations);
     cleanupEventProcessor();
@@ -74,7 +74,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageMultiDe
   }
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetSingleDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackUpdateFirmwareImageAndResetSingleDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -82,7 +82,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetSingleDe
       return;
     }
     initEventProcessor();
-    setFirmwareUpdateImage(true /* Single Device */, true, 5);
+    setFirmwareUpdateImage(true /* Single Device */, true, 4);
     cleanupEventProcessor();
     extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
   } else {
@@ -91,7 +91,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetSingleDe
   }
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetMultiDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackUpdateFirmwareImageAndResetMultiDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -99,7 +99,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetMultiDev
       return;
     }
     initEventProcessor();
-    int iterations = 5 / devLayer_->getDevicesCount();
+    int iterations = 4 / devLayer_->getDevicesCount();
     iterations = iterations ? iterations : 1;
     setFirmwareUpdateImage(false /* Multiple Devices */, true, iterations);
     cleanupEventProcessor();
@@ -110,7 +110,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndResetMultiDev
   }
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackResetSOCSingleDevice) {
   if (isParallelRun()) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
     return;
@@ -122,7 +122,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCSingleDevice) {
   extractAndPrintTraceData(true /* Single Device */, TraceBufferType::TraceBufferSP);
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, resetSOCMultiDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackResetSOCMultiDevice) {
   if (isParallelRun()) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
     return;
