@@ -26,7 +26,9 @@
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
 #include "bl2_pvt_controller.h"
+#if LINUX_MODE
 #include "bl2_emmc_controller.h"
+#endif
 
 #include "noc_configuration.h"
 #include "minion_configuration.h"
@@ -248,7 +250,10 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "configure_memshire() failed!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DDR_INITIALIZED);
 
-#if !(FAST_BOOT || TEST_FRAMEWORK)
+    // In order not to consume eMMC device in SysEmu, we skip initialization
+    // when building for test framework.
+
+#if ((LINUX_MODE) && !(TEST_FRAMEWORK))
 
     // Setup eMMC
     Log_Write(LOG_LEVEL_DEBUG, "MAIN:[txt] Probing whether eMMC flash is present\r\n");

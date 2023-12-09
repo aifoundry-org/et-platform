@@ -19,26 +19,44 @@ set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/bl_layout.ld)
 set(ZEBU_TARGET SP_RAM)
 
 # BL2 build variants
-foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enabled)
+foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enabled linux)
     set(TARGET_NAME ServiceProcessorBL2_${BL2_BUILD_VARIANT})
 
     if (BL2_BUILD_VARIANT STREQUAL "fast-boot")
         # Fast Boot version
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
+        set(LINUX_MODE 0)
     elseif (BL2_BUILD_VARIANT STREQUAL "testframework")
         # Test Frame work version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 1)
+        set(LINUX_MODE 1) #this must be enabled in testframework because of maxion tests
     elseif (BL2_BUILD_VARIANT STREQUAL "production")
         # Production version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
+        set(LINUX_MODE 0)
+    elseif (BL2_BUILD_VARIANT STREQUAL "linux")
+        #Linux version
+        set(FAST_BOOT 0)
+        set(TEST_FRAMEWORK 0)
+        set(LINUX_MODE 1)
     else()
         # Debug enabled
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
+        set(LINUX_MODE 0)
     endif()
+
+
+    if (LINUX_MODE STREQUAL "1")
+        set(MAXION_SOURCES 
+           ${CMAKE_CURRENT_SOURCE_DIR}/driver/maxion_configuration.c
+           ${CMAKE_CURRENT_SOURCE_DIR}/driver/emmc_controller.c
+           )
+    endif()
+                
 
     add_riscv_executable(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/common/entry.S
@@ -54,7 +72,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/delays.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/io_pll.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/minion_configuration.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/maxion_configuration.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/noc_configuration.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/mem_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/i2c_controller.c
@@ -75,7 +92,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_otp.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/spio_sram.c
         ${CMAKE_CURRENT_SOURCE_DIR}/driver/bl2_pu.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/driver/emmc_controller.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/command_dispatcher.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/flash_fs.c
         ${CMAKE_CURRENT_SOURCE_DIR}/rtos_task/vaultip.c
@@ -102,6 +118,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_exception.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_scratch_buffer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/minion_debug.c
+        ${MAXION_SOURCES}
     )
     target_include_directories(${TARGET_NAME}.elf
         PRIVATE
@@ -114,6 +131,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
             -DBL2_VARIANT="${BL2_BUILD_VARIANT}"
             -DFAST_BOOT=${FAST_BOOT}
             -DTEST_FRAMEWORK=${TEST_FRAMEWORK}
+            -DLINUX_MODE=${LINUX_MODE}
     )
     target_link_libraries(${TARGET_NAME}.elf
         PRIVATE
