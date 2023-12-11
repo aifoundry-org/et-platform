@@ -5,14 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-## [unreleased]
+## [0.13.0]
 ### Added
 - [SW-19325] Use new kernelLaunchOptionsImp struct on call client/server
 - [SW-19289] Implement mechanism for a configurable stack
 - [SW-19169] Implement more flexible API for launching kernel
-### Changed
-### Deprecated
-### Removed
 ### Fixed
 - [SW-18922] Fix missing thread 0 in coredumps
 - [SW-19540] Fix handling of reordered responses in client mode
