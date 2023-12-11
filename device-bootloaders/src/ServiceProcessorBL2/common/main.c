@@ -638,11 +638,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t *bl1_data)
     SERIAL_init(PU_UART0);
     SERIAL_init(PU_UART1);
 
-#if FAST_BOOT
     Log_Init(LOG_LEVEL_WARNING);
-#else
-    Log_Init(LOG_LEVEL_INFO);
-#endif
 
     /* Initialize and start continuous sampling on PVT sensors */
     pvt_init();
