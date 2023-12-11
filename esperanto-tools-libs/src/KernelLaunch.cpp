@@ -46,6 +46,15 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
     std::snprintf(buffer, sizeof buffer, "Maximum kernel arg size is %d", kBlockSize);
     throw Exception(buffer);
   }
+
+  constexpr auto ETSOC_THREADS_PER_SHIRE = 64;
+  auto activeThreads = (size_t)__builtin_popcountll(options.shireMask_) * ETSOC_THREADS_PER_SHIRE;
+  if (options.stackConfig_ && (options.stackConfig_->totalSize_ / activeThreads) < SIZE_4K) {
+    std::stringstream ss;
+    ss << "Stack size is too small, at least 4096 bytes per active thread (" << activeThreads << ") are needed";
+    throw Exception(ss.str());
+  }
+
   auto maxSizeKernelEmbeddingParameters = static_cast<uint64_t>(DEVICE_OPS_KERNEL_LAUNCH_ARGS_PAYLOAD_MAX);
   if (options.userTraceConfig_) {
     maxSizeKernelEmbeddingParameters -= sizeof(UserTrace);
