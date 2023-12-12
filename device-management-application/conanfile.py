@@ -50,6 +50,7 @@ class DeviceManagementApplicationConan(ConanFile):
 
         self.requires("fmt/7.1.3")
         self.requires("glog/0.4.0")
+        self.requires("ftxui/3.0.0")
 
     def export_sources(self):
         copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
@@ -62,6 +63,7 @@ class DeviceManagementApplicationConan(ConanFile):
     def generate(self):
         tc = CMakeToolchain(self)
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
+        tc.variables["ftxui_PROVIDER"] = "find_package"
         tc.generate()
 
         deps = CMakeDeps(self)

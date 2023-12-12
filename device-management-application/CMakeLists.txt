@@ -24,19 +24,26 @@ find_package(esperantoTrace REQUIRED)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 
-include(FetchContent)
-
-FetchContent_Declare(ftxui
-  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-  GIT_TAG v3.0.0
-)
-
-FetchContent_GetProperties(ftxui)
-if(NOT ftxui_POPULATED)
-  FetchContent_Populate(ftxui)
-  add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
+if (NOT DEFINED ftxui_PROVIDER)
+  message(STATUS "ftxui_PROVIDER not defined. Setting default to 'sources'.")
+  set(ftxui_PROVIDER "sources" CACHE STRING "Find ftxui dependency using 'find_package' or forcing a build it from 'sources'")
 endif()
-
+if ("${ftxui_PROVIDER}" STREQUAL "find_package")
+    find_package(ftxui REQUIRED)
+else()
+  include(FetchContent)
+  
+  FetchContent_Declare(ftxui
+    GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+    GIT_TAG v3.0.0
+  )
+  
+  FetchContent_GetProperties(ftxui)
+  if(NOT ftxui_POPULATED)
+    FetchContent_Populate(ftxui)
+    add_subdirectory(${ftxui_SOURCE_DIR} ${ftxui_BINARY_DIR} EXCLUDE_FROM_ALL)
+  endif()
+endif()
 
 add_executable(dev_mngt_service
     src/dev_mngt_service.cc
