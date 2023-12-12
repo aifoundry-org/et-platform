@@ -24,7 +24,6 @@
 #include "etsoc/isa/etsoc_memory.h"
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/hart.h"
-#include "etsoc/isa/macros.h"
 #include "etsoc/isa/utils.h"
 
 /*! \def CACHE_LINE_SIZE

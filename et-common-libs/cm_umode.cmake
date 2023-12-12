@@ -21,6 +21,7 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/fcc.h
     include/etsoc/isa/flb.h
     include/etsoc/isa/hart.h
+    include/etsoc/isa/sync.h
     include/etsoc/isa/syscall.h
     include/etsoc/isa/tensors.h
     include/etsoc/isa/utils.h

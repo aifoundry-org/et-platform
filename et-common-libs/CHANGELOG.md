@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-19066] Add system calls for flushing entire L1 and L2
+- [SW-19606] released sync.h
 ### Changed
 ### Deprecated
 ### Removed
