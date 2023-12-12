@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-15748] Marked getEvent() API as deprecated, will be replaced with getMDIEvents()
 ### Removed
 ### Fixed
+- [SW-18926] Fixed trace filter mask in DM tests
 ### Security
 
 ## [0.13.0] - 2023-09-01

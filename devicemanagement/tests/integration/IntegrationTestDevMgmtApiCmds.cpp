@@ -63,7 +63,7 @@ TEST_F(IntegrationTestDevMgmtApiCmds, setTraceConfigure) {
 
   /* Restore the logging level back */
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_INFO);
+                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
   checkDevErrorEvent();
 }
 

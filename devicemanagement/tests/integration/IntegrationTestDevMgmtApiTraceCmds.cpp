@@ -44,11 +44,11 @@ TEST_F(IntegrationTestDevMgmtApiTraceCmds, getSpTraceBuffer) {
                     device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_DEBUG);
   setAndGetModuleStaticTDPLevel(false /* Multiple devices */);
 
-  ASSERT_TRUE(extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP));
-
   /* Restore the logging level back */
   setTraceConfigure(false /* Multiple devices */, device_mgmt_api::TRACE_CONFIGURE_EVENT_STRING,
-                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_INFO);
+                    device_mgmt_api::TRACE_CONFIGURE_FILTER_MASK_EVENT_STRING_WARNING);
+
+  ASSERT_TRUE(extractAndPrintTraceData(false /* multiple devices */, TraceBufferType::TraceBufferSP));
 }
 
 TEST_F(IntegrationTestDevMgmtApiTraceCmds, getMmTraceBuffer) {
