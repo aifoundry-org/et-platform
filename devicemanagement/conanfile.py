@@ -1,8 +1,8 @@
 from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain
 from conan.tools.layout import cmake_layout
-from conans import tools
-from conans.errors import ConanInvalidConfiguration
+from conan.tools.files import rmdir
 import os
 
 
@@ -74,7 +74,7 @@ class DeviceManagementConan(ConanFile):
     def package(self):
         cmake = CMake(self)
         cmake.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib", "cmake"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
 
     def package_info(self):
         # library components

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Disabling setModuleActivePowerManagement since the DVFS is not stable.
 - [SW-18613] Change the test to modify PMIC FW hash instead of PMIC FW version.
+- (Conan) Use Conan 2.0 imports
 ### Deprecated
 ### Removed
 ### Fixed
