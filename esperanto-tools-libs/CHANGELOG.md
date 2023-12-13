@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 
+## [0.13.1]
+### Fixed
+- [SW-19289] Fail early if stack size is too small
+
 ## [0.13.0]
 ### Added
 - [SW-19325] Use new kernelLaunchOptionsImp struct on call client/server
