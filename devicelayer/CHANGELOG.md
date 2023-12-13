@@ -5,16 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-## [Unreleased]
+## [3.0.0] - 2023-12-13
 ### Added
 - [SW-19096] Add exception message for EPOLLHUP event
-### Changed
-### Deprecated
-### Removed
 ### Fixed
 - [SW-18867] Fix compilation with GCC 11
 - [SW-19102] Make IDeviceSYnc a pure interface (breaking change)
-### Security
 
 ## [2.2.0] - 2023-08-03
 ### Added
