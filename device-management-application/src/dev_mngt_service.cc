@@ -21,7 +21,18 @@
 #include <device-layer/IDeviceLayer.h>
 #include <dlfcn.h>
 #include <exception>
+
+#if __has_include(<filesystem>)
+#include <filesystem>
+#elif __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>
+namespace std {
+namespace filesystem = std::experimental::filesystem;
+}
+#else
+#error "cannot include the filesystem library"
+#endif
+
 #include <fcntl.h>
 #include <fmt/format.h>
 #include <fstream>
@@ -46,7 +57,7 @@
 #define FW_UPDATE_TIME_VAL 90000                       /* Time value of normal FW update command completion */
 #define FW_UPDATE_CMD_TIMEOUT (FW_UPDATE_TIME_VAL * 2) /* Timeout value in seconds */
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 using namespace dev;
 using namespace device_mgmt_api;
@@ -1576,7 +1587,7 @@ bool validTimeout() {
 }
 
 bool validPath() {
-  if (!std::experimental::filesystem::exists(std::string(optarg))) {
+  if (!fs::exists(std::string(optarg))) {
     DM_VLOG(LOW) << "The file doesn't exist" << std::string(optarg) << std::endl;
     return false;
   }

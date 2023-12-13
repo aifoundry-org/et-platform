@@ -45,10 +45,10 @@ class DeviceManagementApplicationConan(ConanFile):
     def requirements(self):
         self.requires("deviceManagement/0.14.0")
         self.requires("esperantoTrace/2.0.0")
-        self.requires("deviceLayer/2.2.0")
+        self.requires("deviceLayer/3.0.0")
         self.requires("hostUtils/0.3.0")
 
-        self.requires("fmt/7.1.3")
+        self.requires("fmt/8.0.1")
         self.requires("glog/0.4.0")
         self.requires("ftxui/3.0.0")
 

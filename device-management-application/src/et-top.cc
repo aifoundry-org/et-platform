@@ -558,7 +558,10 @@ void EtTop::processInput(void) {
     } else if (ch == 'f') {
       displayFreqDetails_ = !displayFreqDetails_;
     } else if (ch == 's' && dl_->getDevicesCount() > 1) {
-      system("clear");
+      if (system("clear") == -1) {
+        std::cerr << "error calling system\n";
+        exit(EXIT_FAILURE);
+      }
       std::cout << "Switch to device [0-" << dl_->getDevicesCount() - 1 << "] (<ENTER> to continue): ";
       while (true) {
         auto str = getLineFromStdin(2 /* 2-digit string */, true);
@@ -581,7 +584,10 @@ void EtTop::processInput(void) {
       displayVoltDetails_ = !displayVoltDetails_;
     } else if (ch == 'h') {
       help = true;
-      system("clear");
+      if (system("clear") == -1) {
+        std::cerr << "error calling system\n";
+        exit(EXIT_FAILURE);
+      }
       std::cout << "d\tDump next trace stats buffers to mm_stats.bin and sp_stats.bin files\n"
                 << "e\tToggle display of error details\n"
                 << "f\tToggle display of frequency details\n"
@@ -754,7 +760,10 @@ void EtTop::displayStats(void) {
   if (batchMode_) {
     std::cout << std::endl;
   } else {
-    system("clear");
+    if (system("clear") == -1) {
+      std::cerr << "error calling system\n";
+      exit(EXIT_FAILURE);
+    }
   }
   time_t now;
   char nowbuf[30];

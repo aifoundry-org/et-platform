@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- Generate packages with linux-ubuntu22.04-x86_64-gcc11-release and fix gcc11 build errors
 ### Deprecated
 ### Removed
 ### Fixed
