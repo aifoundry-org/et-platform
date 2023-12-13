@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-19470] Added memory sanitizers support
 - [SW-18613] Added support to change the PMIC FW metadata in the flash image and re-generate it for testing.
 - Adding updateFirmwareImageAndResetMultiDevice test.
+- Generate packages with linux-ubuntu22.04-x86_64-gcc11-release
 ### Changed
 - Disabling setModuleActivePowerManagement since the DVFS is not stable.
 - [SW-18613] Change the test to modify PMIC FW hash instead of PMIC FW version.
