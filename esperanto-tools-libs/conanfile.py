@@ -67,7 +67,7 @@ class RuntimeConan(ConanFile):
 
     def requirements(self):
         self.requires("deviceApi/2.1.0")
-        self.requires("deviceLayer/3.0.0-alpha")
+        self.requires("deviceLayer/3.0.0")
         self.requires("hostUtils/0.3.0")
 
         self.requires("cereal/1.3.1")
