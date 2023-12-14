@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /*-----------------------------------------------------------------------------
  * Copyright (C) 2022, Esperanto Technologies Inc.
@@ -16,24 +16,24 @@
 #include "et_pci_dev.h"
 #include "et_sysfs_vq_stats.h"
 
-/*
- * Virtual queue statistics for Ops Devices
+/**
+ * msg_count_show() - Show function for SysFS attribute msg_count
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
  *
- * ops_vq_stats
- * |- msg_count
- * |- byte_count
- * |- msg_rate
- * |- byte_rate
- * `- utilization_percent
+ * Number of messages sent/received over ops device VQs
+ * ops_vq_stats/msg_count
+ * For example:
+ * cat /sys/bus/pci/devices/<bus:function:device>/ops_vq_stats/msg_count
+ * HpSQ0:                  0
+ * SQ0:                    0
+ * CQ0:                    0
  *
- * e.g.:
- * cat /sys/bus/pci/devices/<bus:function:device>/ops_vq_stats/byte_count
- * HpSQ0:                    0 B
- * SQ0:                      0 B
- * CQ0:                      0 B
+ * Return: number of bytes written in buf, negative value on failure
  */
-static ssize_t
-msg_count_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t msg_count_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	unsigned int i;
 	ssize_t bytes = 0;
@@ -44,9 +44,7 @@ msg_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
 		stats = &vq_data->hp_sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"HpSQ%u: %20llu msg(s)\n",
+			buf, bytes, "HpSQ%u: %20llu msg(s)\n",
 			vq_data->hp_sqs[i].index,
 			atomic64_read(
 				&stats->counters[ET_VQ_COUNTER_STATS_MSG_COUNT]));
@@ -55,9 +53,7 @@ msg_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
 		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"SQ%u:   %20llu msg(s)\n",
+			buf, bytes, "SQ%u:   %20llu msg(s)\n",
 			vq_data->sqs[i].index,
 			atomic64_read(
 				&stats->counters[ET_VQ_COUNTER_STATS_MSG_COUNT]));
@@ -66,9 +62,7 @@ msg_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"CQ%u:   %20llu msg(s)\n",
+			buf, bytes, "CQ%u:   %20llu msg(s)\n",
 			vq_data->cqs[i].index,
 			atomic64_read(
 				&stats->counters[ET_VQ_COUNTER_STATS_MSG_COUNT]));
@@ -77,8 +71,19 @@ msg_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return bytes;
 }
 
-static ssize_t
-byte_count_show(struct device *dev, struct device_attribute *attr, char *buf)
+/**
+ * byte_count_show() - Show function for SysFS attribute byte_count
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
+ * Number of bytes sent/received over ops device VQs
+ * ops_vq_stats/byte_count
+ *
+ * Return: number of bytes written in buf, negative value on failure
+ */
+static ssize_t byte_count_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	unsigned int i;
 	ssize_t bytes = 0;
@@ -89,9 +94,7 @@ byte_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
 		stats = &vq_data->hp_sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"HpSQ%u: %20llu B\n",
+			buf, bytes, "HpSQ%u: %20llu B\n",
 			vq_data->hp_sqs[i].index,
 			atomic64_read(
 				&stats->counters
@@ -101,10 +104,7 @@ byte_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
 		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"SQ%u:   %20llu B\n",
-			vq_data->sqs[i].index,
+			buf, bytes, "SQ%u:   %20llu B\n", vq_data->sqs[i].index,
 			atomic64_read(
 				&stats->counters
 					 [ET_VQ_COUNTER_STATS_BYTE_COUNT]));
@@ -113,10 +113,7 @@ byte_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"CQ%u:   %20llu B\n",
-			vq_data->cqs[i].index,
+			buf, bytes, "CQ%u:   %20llu B\n", vq_data->cqs[i].index,
 			atomic64_read(
 				&stats->counters
 					 [ET_VQ_COUNTER_STATS_BYTE_COUNT]));
@@ -125,8 +122,19 @@ byte_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return bytes;
 }
 
-static ssize_t
-msg_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
+/**
+ * msg_rate_show() - Show function for SysFS attribute msg_rate
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
+ * Number of messages sent/received per second over ops device VQs
+ * ops_vq_stats/msg_rate
+ *
+ * Return: number of bytes written in buf, negative value on failure
+ */
+static ssize_t msg_rate_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	unsigned int i;
 	ssize_t bytes = 0;
@@ -137,9 +145,7 @@ msg_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
 		stats = &vq_data->hp_sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"HpSQ%u: %20llu msg(s)/sec\n",
+			buf, bytes, "HpSQ%u: %20llu msg(s)/sec\n",
 			vq_data->hp_sqs[i].index,
 			et_rate_entry_calculate(
 				&stats->rates[ET_VQ_RATE_STATS_MSG_RATE]));
@@ -148,9 +154,7 @@ msg_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
 		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"SQ%u:   %20llu msg(s)/sec\n",
+			buf, bytes, "SQ%u:   %20llu msg(s)/sec\n",
 			vq_data->sqs[i].index,
 			et_rate_entry_calculate(
 				&stats->rates[ET_VQ_RATE_STATS_MSG_RATE]));
@@ -159,9 +163,7 @@ msg_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"CQ%u:   %20llu msg(s)/sec\n",
+			buf, bytes, "CQ%u:   %20llu msg(s)/sec\n",
 			vq_data->cqs[i].index,
 			et_rate_entry_calculate(
 				&stats->rates[ET_VQ_RATE_STATS_MSG_RATE]));
@@ -170,8 +172,19 @@ msg_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return bytes;
 }
 
-static ssize_t
-byte_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
+/**
+ * byte_rate_show() - Show function for SysFS attribute byte_rate
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
+ * Number of bytes sent/received per second over ops device VQs
+ * ops_vq_stats/byte_rate
+ *
+ * Return: number of bytes written in buf, negative value on failure
+ */
+static ssize_t byte_rate_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	unsigned int i;
 	ssize_t bytes = 0;
@@ -182,9 +195,7 @@ byte_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
 		stats = &vq_data->hp_sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"HpSQ%u: %20llu B/sec\n",
+			buf, bytes, "HpSQ%u: %20llu B/sec\n",
 			vq_data->hp_sqs[i].index,
 			et_rate_entry_calculate(
 				&stats->rates[ET_VQ_RATE_STATS_BYTE_RATE]));
@@ -193,9 +204,7 @@ byte_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
 		stats = &vq_data->sqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"SQ%u:   %20llu B/sec\n",
+			buf, bytes, "SQ%u:   %20llu B/sec\n",
 			vq_data->sqs[i].index,
 			et_rate_entry_calculate(
 				&stats->rates[ET_VQ_RATE_STATS_BYTE_RATE]));
@@ -204,9 +213,7 @@ byte_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		stats = &vq_data->cqs[i].stats;
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"CQ%u:   %20llu B/sec\n",
+			buf, bytes, "CQ%u:   %20llu B/sec\n",
 			vq_data->cqs[i].index,
 			et_rate_entry_calculate(
 				&stats->rates[ET_VQ_RATE_STATS_BYTE_RATE]));
@@ -215,6 +222,17 @@ byte_rate_show(struct device *dev, struct device_attribute *attr, char *buf)
 	return bytes;
 }
 
+/**
+ * utilization_percent_show() - Show function for attribute utilization_percent
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
+ * Utilization percent of ops device VQs
+ * ops_vq_stats/utilization_percent
+ *
+ * Return: number of bytes written in buf, negative value on failure
+ */
 static ssize_t utilization_percent_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -227,9 +245,7 @@ static ssize_t utilization_percent_show(struct device *dev,
 	for (i = 0; i < vq_data->vq_common.hp_sq_count; i++) {
 		et_squeue_sync_cb_for_host(&vq_data->hp_sqs[i]);
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"HpSQ%u: %3llu %%\n",
+			buf, bytes, "HpSQ%u: %3llu %%\n",
 			vq_data->hp_sqs[i].index,
 			100 * et_circbuffer_used(&vq_data->hp_sqs[i].cb) /
 				vq_data->hp_sqs[i].cb.len);
@@ -238,10 +254,7 @@ static ssize_t utilization_percent_show(struct device *dev,
 	for (i = 0; i < vq_data->vq_common.sq_count; i++) {
 		et_squeue_sync_cb_for_host(&vq_data->sqs[i]);
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"SQ%u:   %3llu %%\n",
-			vq_data->sqs[i].index,
+			buf, bytes, "SQ%u:   %3llu %%\n", vq_data->sqs[i].index,
 			100 * et_circbuffer_used(&vq_data->sqs[i].cb) /
 				vq_data->sqs[i].cb.len);
 	}
@@ -249,10 +262,7 @@ static ssize_t utilization_percent_show(struct device *dev,
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		et_cqueue_sync_cb_for_host(&vq_data->cqs[i]);
 		bytes += sysfs_emit_at(
-			buf,
-			bytes,
-			"CQ%u:   %3llu %%\n",
-			vq_data->cqs[i].index,
+			buf, bytes, "CQ%u:   %3llu %%\n", vq_data->cqs[i].index,
 			100 * et_circbuffer_used(&vq_data->cqs[i].cb) /
 				vq_data->cqs[i].cb.len);
 	}
@@ -260,10 +270,20 @@ static ssize_t utilization_percent_show(struct device *dev,
 	return bytes;
 }
 
-static ssize_t clear_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf,
-			   size_t count)
+/**
+ * clear_store() - Store function for SysFS attribute clear
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: Buffer memory for the attribute
+ * @count: Number of bytes received in buf
+ *
+ * When 1 is written in attribute file ops_vq_stats/clear, this clears the VQs
+ * statistics
+ *
+ * Return: number of bytes read/processed from buf, negative value on failure
+ */
+static ssize_t clear_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	int i;
 	ssize_t rv;
@@ -290,6 +310,7 @@ static ssize_t clear_store(struct device *dev,
 	return count;
 }
 
+/* SysFS attributes in group ops_vq_stats */
 static DEVICE_ATTR_RO(msg_count);
 static DEVICE_ATTR_RO(byte_count);
 static DEVICE_ATTR_RO(msg_rate);

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /*-----------------------------------------------------------------------------
  * Copyright (C) 2022, Esperanto Technologies Inc.
@@ -20,10 +20,14 @@
 
 // clang-format on
 
-/*
- * ET Specific Correctable Error statistics
+/**
+ * ce_count_show() - Show function for SysFS attribute ce_count
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
  *
- * ce_count
+ * ET Specific Correctable Error statistics
+ * err_stats/ce_count
  * |- DramCeEvent               DRAM correctable errors count
  * |- MinionCeEvent             Minion errors count
  * |- PcieCeEvent               PCIe correctable errors count
@@ -34,9 +38,11 @@
  * |- ThermOvershootCeEvent     Thermal overshoots count
  * |- ThermThrottleCeEvent      Thermal throttles count
  * |- SpTraceBufferFullCeEvent  SP trace buffer full events count
+ *
+ * Return: number of bytes written in buf, negative value on failure
  */
-static ssize_t
-ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t ce_count_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 	struct et_err_stats *stats;
@@ -80,18 +86,25 @@ ce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 				 [ET_ERR_COUNTER_STATS_SP_TRACE_FULL_CE_COUNT]));
 }
 
-/*
+/**
+ * uce_count_show() - Show function for SysFS attribute uce_count
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
  * ET Specific Uncorrectable Error statistics
- * uce_count
+ * err_stats/uce_count
  * |- DramUceEvent              DDR un-correctable errors count
  * |- MinionHangUceEvent        Minion hangs count
  * |- PcieUceEvent              PCIe un-correctable errors count
  * |- SpHangUceEvent            SP hangs count
  * |- SpWdogResetUceEvent       SP WDog reset count
  * `- SramUceEvent              SRAM un-correctable errors count
+ *
+ * Return: number of bytes written in buf, negative value on failure
  */
-static ssize_t
-uce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t uce_count_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 	struct et_err_stats *stats;
@@ -120,10 +133,20 @@ uce_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 			&stats->counters[ET_ERR_COUNTER_STATS_SRAM_UCE_COUNT]));
 }
 
-static ssize_t clear_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf,
-			   size_t count)
+/**
+ * clear_store() - Store function for SysFS attribute clear
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: Buffer memory for the attribute
+ * @count: Number of bytes received in buf
+ *
+ * When 1 is written in attribute file err_stats/clear, this clears the error
+ * statistics
+ *
+ * Return: number of bytes read/processed from buf, negative value on failure
+ */
+static ssize_t clear_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	ssize_t rv;
 	unsigned long value;
@@ -141,6 +164,7 @@ static ssize_t clear_store(struct device *dev,
 	return count;
 }
 
+/* SysFS attributes in group err_stats */
 static DEVICE_ATTR_RO(ce_count);
 static DEVICE_ATTR_RO(uce_count);
 static DEVICE_ATTR_WO(clear);

@@ -53,8 +53,8 @@
  * result of addition of new attributes. For backward compatibility, device
  * firmware will make sure to add new attributes after the already available
  * attributes. The driver will support only the known attributes and known
- * region types. If any new attributes/regions are detected, dmesg warnings
- * will be generated to update the driver.
+ * region types. If any new attributes/regions are detected, dmesg warnings will
+ * be generated to update the driver.
  */
 
 /* Mgmt and Ops DIR Versions */
@@ -77,7 +77,7 @@
 #define MEM_REGION_DMA_ALIGNMENT_32BIT (0x2)
 #define MEM_REGION_DMA_ALIGNMENT_64BIT (0x3)
 
-/*
+/**
  * Macro to define increment size for DMA element. Size is provided in the
  * increment of 32 MBytes.
  */
@@ -87,86 +87,63 @@
 #define MEM_REGION_P2PACCESS_DISABLED (0x0)
 #define MEM_REGION_P2PACCESS_ENABLED  (0x1)
 
-/*
- * Holds the information memory region access attributes
+/**
+ * struct et_dir_reg_access - Device interface memory region access attributes
+ * @io_access: Indicates whether the region needs to be mapped by host
+ *	Bit 0
+ *	Region not to be mapped for IO accesses	0x0
+ *	Region to be mapped for IO accesses	0x1
+ * @node_access: Indicates which device nodes can access this region
+ *	Bit 1-2
+ *	None:			0x0
+ *	Mgmt only:		0x1
+ *	Ops Only:		0x2
+ *	Both Mgmt & Ops:	0x3
+ * @dma_align: Indicates the DMA alignment to be followed for this region
+ *	Bit 3-4
+ *	None:			0x0
+ *	8-bit:			0x1
+ *	32-bit:			0x2
+ *	64-bit:			0x3
+ * @dma_elem_count: Indicates number of elements in DMA list
+ *	Bit 5-8
+ *	Not applicable:		0x0
+ *	1 element:		0x1
+ *	2 elements:		0x2
+ *	...
+ *	15 elements		0xf
+ * @dma_elem_size: Indicates DMA element size in steps of 32MB
+ *	Bit 9-16
+ *	Not applicable:		0x00
+ *	32MB			0x01
+ *	64MB			0x02
+ *	96MB			0x03
+ *	...
+ *	4096MB			0x80
+ *	NOTE: 4GB is maximum size that can be transferred per element
+ * @p2p_access: Indicates whether the region needs to be used as P2P resource
+ *	Bit 17
+ *	Region not to be mapped for P2P accesses: 0x0
+ *	Region to be mapped for P2P accesses:	  0x1
  */
 struct et_dir_reg_access {
-	/* Description:
-	 *
-	 *	io_access: Indicates whether the region needs to be mapped by host
-	 *
-	 *      Region not to be mapped for IO accesses    0x0
-	 *      Region to be mapped for IO accesses        0x1
-	 */
-	u32 io_access : 1; /* bit 0 */
-
-	/* Description:
-	 *
-	 *	node_access: Indicates which device nodes can access this
-	 *	region.
-	 *
-	 *	None:			0x0
-	 *	Mgmt only:		0x1
-	 *	Ops Only:		0x2
-	 *	Both Mgmt & Ops:	0x3
-	 */
-	u32 node_access : 2; /* bit 1-2 */
-
-	/* Description:
-	 *
-	 *	dma_align: Indicates the DMA alignment to be followed for this
-	 *	region.
-	 *
-	 *	None:			0x0
-	 *	8-bit:			0x1
-	 *	32-bit:			0x2
-	 *	64-bit:			0x3
-	 */
-	u32 dma_align : 2; /* bit 3-4 */
-
-	/*
-	 * Description:
-	 *
-	 *	dma_elem_count: Indicates number of elements in DMA list
-	 *
-	 * 	Not applicable:		0x0
-	 *	1 element:		0x1
-	 *	2 elements:		0x2
-	 *	...
-	 *	15 elements		0xf
-	 */
-	u32 dma_elem_count : 4; /* bit 5-8 */
-
-	/*
-	 * Description:
-	 *
-	 * 	dma_elem_size: Indicates DMA element size in steps of 32MB
-	 *
-	 * 	Not applicable:		0x00
-	 *	32MB			0x01
-	 *	64MB			0x02
-	 *	96MB			0x03
-	 *	...
-	 *	4096MB			0x80
-	 *
-	 *	NOTE: 4GB is maximum size that can be transferred per element
-	 */
-	u32 dma_elem_size : 8; /* bit 9-16 */
-
-	/* Description:
-	 *
-	 *	p2p_access: Indicates whether the region needs to be used as P2P
-	 *	resource
-	 *
-	 *	Region not to be mapped for P2P accesses:	0x0
-	 *	Region to be mapped for P2P accesses:		0x1
-	 */
-	u32 p2p_access : 1; /* bit 17 */
+	u32 io_access : 1;
+	u32 node_access : 2;
+	u32 dma_align : 2;
+	u32 dma_elem_count : 4;
+	u32 dma_elem_size : 8;
+	u32 p2p_access : 1;
 	u32 reserved : 14;
 } __packed;
 
-/*
- * Holds the information of Device interface memory region.
+/**
+ * struct et_dir_mem_region - Device interface memory region
+ * @attributes_size: Attributes size
+ * @type: Memory region unique type
+ * @bar: BAR region index of the memory region
+ * @access: Region accessibility attributes
+ * @bar_offset: Offset in BAR region
+ * @dev_address: SOC address of the start of the region (if valid otherwise 0)
  */
 struct et_dir_mem_region {
 	u16 attributes_size;
@@ -178,8 +155,8 @@ struct et_dir_mem_region {
 	u64 dev_address;
 } __packed __aligned(8);
 
-/*
- * Values representing Mgmt Device Boot status.
+/**
+ * enum et_mgmt_boot_status - Mgmt device Boot status
  */
 enum et_mgmt_boot_status {
 	MGMT_BOOT_STATUS_BOOT_ERROR = -1,
@@ -198,8 +175,8 @@ enum et_mgmt_boot_status {
 	MGMT_BOOT_STATUS_DEV_READY
 };
 
-/*
- * Values representing the available types of architecture revisions of device.
+/**
+ * enum et_mgmt_arch_revision - Mgmt device architecture revision types
  */
 enum et_mgmt_arch_revision {
 	MGMT_ARCH_REVISION_ETSOC1 = 0,
@@ -207,14 +184,13 @@ enum et_mgmt_arch_revision {
 	MGMT_ARCH_REVISION_GEPARDO
 };
 
-/*
- * Values representing the available types of form factor.
-*/
+/**
+ * enum et_mgmt_form_factor - Mgmt device form factor types
+ */
 enum et_mgmt_form_factor { MGMT_FORM_FACTOR_PCIE = 1, MGMT_FORM_FACTOR_M_2 };
 
-/*
- * Values representing the available types of memory regions supported by the
- * Mgmt Device. All region types are unique.
+/**
+ * enum et_mgmt_mem_region_type - Mgmt device unique memory region types
  */
 enum et_mgmt_mem_region_type {
 	MGMT_MEM_REGION_TYPE_VQ_BUFFER = 0,
@@ -228,8 +204,17 @@ enum et_mgmt_mem_region_type {
 	MGMT_MEM_REGION_TYPE_NUM
 };
 
-/*
- * Holds the information of Mgmt Device Virtual Queues.
+/**
+ * struct et_mgmt_dir_vqueue - Mgmt device virtual queues information
+ * @attributes_size: Attributes size
+ * @intrpt_trg_size: Size of interrupt trigger region
+ * @intrpt_id: Interrupt ID for mgmt device
+ * @sq_offset: Offset of SQs in BAR region
+ * @sq_count: SQs count
+ * @sq_size: SQ size in bytes
+ * @cq_offset: Offset of CQs in BAR region
+ * @cq_count: CQs count
+ * @cq_size: CQ size in bytes
  */
 struct et_mgmt_dir_vqueue {
 	u16 attributes_size;
@@ -244,8 +229,30 @@ struct et_mgmt_dir_vqueue {
 	u16 cq_size;
 } __packed __aligned(8);
 
-/*
- * Holds the general information of Mgmt Device Interface Registers.
+/**
+ * struct et_mgmt_dir_header - Mgmt device general information attributes
+ * @attributes_size: Attributes size
+ * @version: Montonically increasing version of DIRs for breaking changes
+ * @total_size: Total size of DIRs in bytes
+ * @num_regions: Total number of memory regions in DIRs
+ * @reserved0: Reserved bytes
+ * @crc32: CRC32 of mgmt DIRs
+ * @ddr_bandwidth: DDR bandwidth
+ * @cm_shire_mask: Compute minion shires mask
+ * @minion_boot_freq: Minion boot frequency
+ * @scp_size: Scratchpad size
+ * @l2_size: L2 cache size
+ * @l3_size: L3 cache size
+ * @status: DIRs readiness status
+ * @l2_shire_banks: L2 shire banks
+ * @sync_min_shire_id: Sync minion shire ID
+ * @arch_revision: Architecture revision
+ * @form_factor: Form factor
+ * @device_tdp: Device TDP
+ * @cache_line_size: Cache line size
+ * @reserved1: Reserved bytes
+ * @bar0_size: BAR0 total size
+ * @bar2_size: BAR2 total size
  */
 struct et_mgmt_dir_header {
 	u16 attributes_size;
@@ -272,18 +279,32 @@ struct et_mgmt_dir_header {
 	u64 bar2_size;
 } __packed __aligned(8);
 
+/**
+ * struct et_mgmt_dir - Mgmt device interface registers
+ * @header: Mgmt DIR header
+ * @vqueue: Mgmt DIR virtual queue information
+ * @mem_region: Mgmt DIR flexible array of memory regions
+ */
 struct et_mgmt_dir {
 	struct et_mgmt_dir_header header;
 	struct et_mgmt_dir_vqueue vqueue;
 	struct et_dir_mem_region mem_region[];
 } __packed __aligned(8);
 
+/**
+ * struct et_mapped_region - Mapped information of memory region for driver use
+ * @is_valid: The mapping has completed and is valid. The compulsory regions
+ *	must be valid, non-compulsory regions may or may not be valid
+ * @access: DIR region accessibility information
+ * @io: DIR region mapped as IO-region with kernel IOMEM base and physical base
+ *	addresses
+ * @p2p: DIR region mapped as P2P-region with device-resource ID, kernel
+ *	virtual base address and PCI bus address (DMAable)
+ * @dev_phys_addr: Device physical/SOC base address
+ * @size: Total size of the mapped region
+ */
 struct et_mapped_region {
-	bool is_valid; /*
-					 * compulsory regions must be valid,
-					 * non-compulsory regions may or may
-					 * not be valid
-					 */
+	bool is_valid;
 	struct et_dir_reg_access access;
 	union {
 		struct {
@@ -300,10 +321,17 @@ struct et_mapped_region {
 	u64 size;
 };
 
+/* Serializes access to Mgmt and Ops DIRs for printing */
 static DEFINE_MUTEX(dir_print_mutex);
 
-static inline void et_print_mgmt_dir(struct device *dev,
-				     u8 *dir_data,
+/**
+ * et_print_mgmt_dir() - Print mgmt device interface registers
+ * @dev : pointer to device structure
+ * @dir_data : Base address of DIRs copy in kernel virtual address space
+ * @dir_size : Total size of DIRs
+ * @region : pointer to et_mapped_region structure array first element
+ */
+static inline void et_print_mgmt_dir(struct device *dev, u8 *dir_data,
 				     size_t dir_size,
 				     struct et_mapped_region *region)
 {
@@ -318,116 +346,81 @@ static inline void et_print_mgmt_dir(struct device *dev,
 
 	mutex_lock(&dir_print_mutex);
 	dev_dbg(dev, "Mgmt DIRs Header\n");
-	dev_dbg(dev,
-		"Version                 : 0x%x\n",
+	dev_dbg(dev, "Version                 : 0x%x\n",
 		mgmt_dir->header.version);
-	dev_dbg(dev,
-		"Total Size              : 0x%x\n",
+	dev_dbg(dev, "Total Size              : 0x%x\n",
 		mgmt_dir->header.total_size);
-	dev_dbg(dev,
-		"Attributes Size         : 0x%x\n",
+	dev_dbg(dev, "Attributes Size         : 0x%x\n",
 		mgmt_dir->header.attributes_size);
-	dev_dbg(dev,
-		"Number of Regions       : 0x%x\n",
+	dev_dbg(dev, "Number of Regions       : 0x%x\n",
 		mgmt_dir->header.num_regions);
-	dev_dbg(dev,
-		"BAR0 Size               : 0x%llx\n",
+	dev_dbg(dev, "BAR0 Size               : 0x%llx\n",
 		mgmt_dir->header.bar0_size);
-	dev_dbg(dev,
-		"BAR2 Size               : 0x%llx\n",
+	dev_dbg(dev, "BAR2 Size               : 0x%llx\n",
 		mgmt_dir->header.bar2_size);
-	dev_dbg(dev,
-		"CRC32                   : 0x%x\n",
+	dev_dbg(dev, "CRC32                   : 0x%x\n",
 		mgmt_dir->header.crc32);
-	dev_dbg(dev,
-		"DDR Bandwidth           : 0x%x\n",
+	dev_dbg(dev, "DDR Bandwidth           : 0x%x\n",
 		mgmt_dir->header.ddr_bandwidth);
-	dev_dbg(dev,
-		"CM Shire Mask           : 0x%x\n",
+	dev_dbg(dev, "CM Shire Mask           : 0x%x\n",
 		mgmt_dir->header.cm_shires_mask);
-	dev_dbg(dev,
-		"Minion Boot Frequency   : 0x%x\n",
+	dev_dbg(dev, "Minion Boot Frequency   : 0x%x\n",
 		mgmt_dir->header.minion_boot_freq);
-	dev_dbg(dev,
-		"SCP Size (KB)           : 0x%x\n",
+	dev_dbg(dev, "SCP Size (KB)           : 0x%x\n",
 		mgmt_dir->header.scp_size);
-	dev_dbg(dev,
-		"L2 Size (KB)            : 0x%x\n",
+	dev_dbg(dev, "L2 Size (KB)            : 0x%x\n",
 		mgmt_dir->header.l2_size);
-	dev_dbg(dev,
-		"L3 Size (KB)            : 0x%x\n",
+	dev_dbg(dev, "L3 Size (KB)            : 0x%x\n",
 		mgmt_dir->header.l3_size);
-	dev_dbg(dev,
-		"Status                  : 0x%x\n",
+	dev_dbg(dev, "Status                  : 0x%x\n",
 		mgmt_dir->header.status);
-	dev_dbg(dev,
-		"L2 Shire Banks          : 0x%x\n",
+	dev_dbg(dev, "L2 Shire Banks          : 0x%x\n",
 		mgmt_dir->header.l2_shire_banks);
-	dev_dbg(dev,
-		"Sync Minion Shire ID    : 0x%x\n",
+	dev_dbg(dev, "Sync Minion Shire ID    : 0x%x\n",
 		mgmt_dir->header.sync_min_shire_id);
-	dev_dbg(dev,
-		"Architecture Revision   : 0x%x\n",
+	dev_dbg(dev, "Architecture Revision   : 0x%x\n",
 		mgmt_dir->header.arch_revision);
-	dev_dbg(dev,
-		"PCIe Form Factor        : 0x%x\n",
+	dev_dbg(dev, "PCIe Form Factor        : 0x%x\n",
 		mgmt_dir->header.form_factor);
-	dev_dbg(dev,
-		"Device TDP              : 0x%x\n",
+	dev_dbg(dev, "Device TDP              : 0x%x\n",
 		mgmt_dir->header.device_tdp);
-	dev_dbg(dev,
-		"Cache Line Size         : 0x%x\n\n",
+	dev_dbg(dev, "Cache Line Size         : 0x%x\n\n",
 		mgmt_dir->header.cache_line_size);
 	dev_dbg(dev, "Mgmt DIRs Vqueue\n");
-	dev_dbg(dev,
-		"SQ Offset               : 0x%x\n",
+	dev_dbg(dev, "SQ Offset               : 0x%x\n",
 		mgmt_dir->vqueue.sq_offset);
-	dev_dbg(dev,
-		"SQ Count                : 0x%x\n",
+	dev_dbg(dev, "SQ Count                : 0x%x\n",
 		mgmt_dir->vqueue.sq_count);
-	dev_dbg(dev,
-		"SQ Size                 : 0x%x\n",
+	dev_dbg(dev, "SQ Size                 : 0x%x\n",
 		mgmt_dir->vqueue.sq_size);
-	dev_dbg(dev,
-		"CQ Offset               : 0x%x\n",
+	dev_dbg(dev, "CQ Offset               : 0x%x\n",
 		mgmt_dir->vqueue.cq_offset);
-	dev_dbg(dev,
-		"CQ Count                : 0x%x\n",
+	dev_dbg(dev, "CQ Count                : 0x%x\n",
 		mgmt_dir->vqueue.cq_count);
-	dev_dbg(dev,
-		"CQ Size                 : 0x%x\n",
+	dev_dbg(dev, "CQ Size                 : 0x%x\n",
 		mgmt_dir->vqueue.cq_size);
-	dev_dbg(dev,
-		"Interrupt Trigger Offset: 0x%x\n",
+	dev_dbg(dev, "Interrupt Trigger Offset: 0x%x\n",
 		mgmt_dir->vqueue.intrpt_trg_offset);
-	dev_dbg(dev,
-		"Interrupt Trigger Size  : 0x%x\n",
+	dev_dbg(dev, "Interrupt Trigger Size  : 0x%x\n",
 		mgmt_dir->vqueue.intrpt_trg_size);
-	dev_dbg(dev,
-		"Interrupt ID            : 0x%x\n",
+	dev_dbg(dev, "Interrupt ID            : 0x%x\n",
 		mgmt_dir->vqueue.intrpt_id);
-	dev_dbg(dev,
-		"Attributes Size         : 0x%x\n\n",
+	dev_dbg(dev, "Attributes Size         : 0x%x\n\n",
 		mgmt_dir->vqueue.attributes_size);
 
 	remaining_size = dir_size - sizeof(struct et_mgmt_dir_header) -
 			 sizeof(struct et_mgmt_dir_vqueue);
 	while (remaining_size >= sizeof(struct et_dir_mem_region)) {
 		dev_dbg(dev, "Mgmt DIRs Memory Region[%d]\n", i);
-		dev_dbg(dev,
-			"Attributes Size         : 0x%x\n",
+		dev_dbg(dev, "Attributes Size         : 0x%x\n",
 			mgmt_dir->mem_region[i].attributes_size);
-		dev_dbg(dev,
-			"I/O Access              : 0x%x\n",
+		dev_dbg(dev, "I/O Access              : 0x%x\n",
 			mgmt_dir->mem_region[i].access.io_access);
-		dev_dbg(dev,
-			"Access (Node access)    : 0x%x\n",
+		dev_dbg(dev, "Access (Node access)    : 0x%x\n",
 			mgmt_dir->mem_region[i].access.node_access);
-		dev_dbg(dev,
-			"Access (DMA Alignment)  : 0x%x\n",
+		dev_dbg(dev, "Access (DMA Alignment)  : 0x%x\n",
 			mgmt_dir->mem_region[i].access.dma_align);
-		dev_dbg(dev,
-			"Access (Reserved)       : 0x%x\n",
+		dev_dbg(dev, "Access (Reserved)       : 0x%x\n",
 			mgmt_dir->mem_region[i].access.reserved);
 		switch (mgmt_dir->mem_region[i].type) {
 		case MGMT_MEM_REGION_TYPE_VQ_BUFFER:
@@ -441,8 +434,7 @@ static inline void et_print_mgmt_dir(struct device *dev,
 				MGMT_MEM_REGION_TYPE_VQ_INTRPT_TRG);
 			break;
 		case MGMT_MEM_REGION_TYPE_SCRATCH:
-			dev_dbg(dev,
-				"Type                    : %d - Scratch\n",
+			dev_dbg(dev, "Type                    : %d - Scratch\n",
 				MGMT_MEM_REGION_TYPE_SCRATCH);
 			break;
 		case MGMT_MEM_REGION_TYPE_SPFW_TRACE:
@@ -474,18 +466,14 @@ static inline void et_print_mgmt_dir(struct device *dev,
 			dev_dbg(dev,
 				"Type                    : Unknown region\n");
 		}
-		dev_dbg(dev,
-			"BAR                     : 0x%x\n",
+		dev_dbg(dev, "BAR                     : 0x%x\n",
 			mgmt_dir->mem_region[i].bar);
-		dev_dbg(dev,
-			"BAR Offset              : 0x%llx\n",
+		dev_dbg(dev, "BAR Offset              : 0x%llx\n",
 			mgmt_dir->mem_region[i].bar_offset);
-		dev_dbg(dev,
-			"BAR Size                : 0x%llx (%lld)",
+		dev_dbg(dev, "BAR Size                : 0x%llx (%lld)",
 			mgmt_dir->mem_region[i].bar_size,
 			mgmt_dir->mem_region[i].bar_size);
-		dev_dbg(dev,
-			"BAR Region PhysAddr     : 0x%llx\n",
+		dev_dbg(dev, "BAR Region PhysAddr     : 0x%llx\n",
 			region[mgmt_dir->mem_region[i].type].access.p2p_access ?
 				region[mgmt_dir->mem_region[i].type]
 					.p2p.pci_bus_addr :
@@ -494,15 +482,18 @@ static inline void et_print_mgmt_dir(struct device *dev,
 		if (!region[mgmt_dir->mem_region[i].type].io.mapped_baseaddr)
 			dev_dbg(dev, "BAR Region Kern VirtAddr: N/A\n");
 		else
-			dev_dbg(dev,
-				"BAR Region Kern VirtAddr: 0x%px\n",
-				region[mgmt_dir->mem_region[i].type]
+			// NOTE: It is not allowed to expose kernel virtual
+			// address through prints. Such code should be removed
+			// before upstreaming the driver
+			// Suppressed the checkpatch.pl warning by replacing
+			// %px usage with %llx
+			dev_dbg(dev, "BAR Region Kern VirtAddr: 0x%llx\n",
+				(u64 __force)region[mgmt_dir->mem_region[i].type]
 					.io.mapped_baseaddr);
 		if (mgmt_dir->mem_region[i].dev_address == 0)
 			dev_dbg(dev, "Dev Address             : N/A\n\n");
 		else
-			dev_dbg(dev,
-				"Dev Address             : 0x%llx\n\n",
+			dev_dbg(dev, "Dev Address             : 0x%llx\n\n",
 				mgmt_dir->mem_region[i].dev_address);
 		remaining_size -= sizeof(struct et_dir_mem_region);
 		i++;
@@ -510,8 +501,8 @@ static inline void et_print_mgmt_dir(struct device *dev,
 	mutex_unlock(&dir_print_mutex);
 }
 
-/*
- * Values representing Ops Device Boot status.
+/**
+ * enum et_ops_boot_status - Ops device Boot status
  */
 enum et_ops_boot_status {
 	OPS_BOOT_STATUS_MM_FW_ERROR = -1,
@@ -526,9 +517,8 @@ enum et_ops_boot_status {
 	OPS_BOOT_STATUS_MM_READY
 };
 
-/*
- * Values representing the available types of memory regions supported by the
- * Ops Device. All region types are unique.
+/**
+ * enum et_ops_mem_region_type - Ops device unique memory region types
  */
 enum et_ops_mem_region_type {
 	OPS_MEM_REGION_TYPE_VQ_BUFFER = 0,
@@ -536,8 +526,21 @@ enum et_ops_mem_region_type {
 	OPS_MEM_REGION_TYPE_NUM
 };
 
-/*
- * Holds the information of Ops Device Virtual Queues.
+/**
+ * struct et_ops_dir_vqueue - Ops device virtual queues information
+ * @attributes_size: Attributes size
+ * @intrpt_trg_size: Size of interrupt trigger region
+ * @intrpt_id: Interrupt ID for mgmt device
+ * @intrpt_trg_offset: Offset in interrupt trigger region
+ * @sq_offset: Offset of SQs in BAR region
+ * @sq_count: SQs count
+ * @sq_size: SQ size in bytes
+ * @cq_offset: Offset of CQs in BAR region
+ * @cq_count: CQs count
+ * @cq_size: CQ size in bytes
+ * @hp_sq_offset: Offset of HPSQs in BAR region
+ * @hp_sq_count: HPSQs count
+ * @hp_sq_size: HPSQ size in bytes
  */
 struct et_ops_dir_vqueue {
 	u16 attributes_size;
@@ -555,8 +558,15 @@ struct et_ops_dir_vqueue {
 	u16 hp_sq_size;
 } __packed __aligned(8);
 
-/*
- * Holds the general information of Ops Device Interface Registers.
+/**
+ * struct et_ops_dir_header - Ops device general information attributes
+ * @attributes_size: Attributes size
+ * @version: Montonically increasing version of DIRs for breaking changes
+ * @total_size: Total size of DIRs in bytes
+ * @num_regions: Total number of memory regions in DIRs
+ * @status: DIRs readiness status
+ * @crc32: CRC32 of ops DIRs
+ * @reserved: Reserved bytes
  */
 struct et_ops_dir_header {
 	u16 attributes_size;
@@ -568,14 +578,26 @@ struct et_ops_dir_header {
 	u8 reserved[2];
 } __packed __aligned(8);
 
+/**
+ * struct et_ops_dir - Ops device interface registers
+ * @header: Ops DIR header
+ * @vqueue: Ops DIR virtual queue information
+ * @mem_region: Ops DIR flexible array of memory regions
+ */
 struct et_ops_dir {
 	struct et_ops_dir_header header;
 	struct et_ops_dir_vqueue vqueue;
 	struct et_dir_mem_region mem_region[];
 } __packed __aligned(8);
 
-static inline void et_print_ops_dir(struct device *dev,
-				    u8 *dir_data,
+/**
+ * et_print_ops_dir() - Print ops device interface registers
+ * @dev : pointer to device structure
+ * @dir_data : Base address of DIRs copy in kernel virtual address space
+ * @dir_size : Total size of DIRs
+ * @region : pointer to et_mapped_region structure array first element
+ */
+static inline void et_print_ops_dir(struct device *dev, u8 *dir_data,
 				    size_t dir_size,
 				    struct et_mapped_region *region)
 {
@@ -590,89 +612,63 @@ static inline void et_print_ops_dir(struct device *dev,
 
 	mutex_lock(&dir_print_mutex);
 	dev_dbg(dev, "Ops DIRs Header\n");
-	dev_dbg(dev,
-		"Version                 : 0x%x\n",
+	dev_dbg(dev, "Version                 : 0x%x\n",
 		ops_dir->header.version);
-	dev_dbg(dev,
-		"Total Size              : 0x%x\n",
+	dev_dbg(dev, "Total Size              : 0x%x\n",
 		ops_dir->header.total_size);
-	dev_dbg(dev,
-		"Attributes Size         : 0x%x\n",
+	dev_dbg(dev, "Attributes Size         : 0x%x\n",
 		ops_dir->header.attributes_size);
-	dev_dbg(dev,
-		"Number of Regions       : 0x%x\n",
+	dev_dbg(dev, "Number of Regions       : 0x%x\n",
 		ops_dir->header.num_regions);
-	dev_dbg(dev,
-		"Reserved[0]             : 0x%x\n",
+	dev_dbg(dev, "Reserved[0]             : 0x%x\n",
 		ops_dir->header.reserved[0]);
-	dev_dbg(dev,
-		"Reserved[1]             : 0x%x\n",
+	dev_dbg(dev, "Reserved[1]             : 0x%x\n",
 		ops_dir->header.reserved[1]);
-	dev_dbg(dev,
-		"Status                  : 0x%x\n",
+	dev_dbg(dev, "Status                  : 0x%x\n",
 		ops_dir->header.status);
-	dev_dbg(dev,
-		"CRC32                   : 0x%x\n\n",
+	dev_dbg(dev, "CRC32                   : 0x%x\n\n",
 		ops_dir->header.crc32);
 	dev_dbg(dev, "Ops DIRs Vqueue\n");
-	dev_dbg(dev,
-		"SQ Offset               : 0x%x\n",
+	dev_dbg(dev, "SQ Offset               : 0x%x\n",
 		ops_dir->vqueue.sq_offset);
-	dev_dbg(dev,
-		"SQ Count                : 0x%x\n",
+	dev_dbg(dev, "SQ Count                : 0x%x\n",
 		ops_dir->vqueue.sq_count);
-	dev_dbg(dev,
-		"SQ Size                 : 0x%x\n",
+	dev_dbg(dev, "SQ Size                 : 0x%x\n",
 		ops_dir->vqueue.sq_size);
-	dev_dbg(dev,
-		"CQ Offset               : 0x%x\n",
+	dev_dbg(dev, "CQ Offset               : 0x%x\n",
 		ops_dir->vqueue.cq_offset);
-	dev_dbg(dev,
-		"CQ Count                : 0x%x\n",
+	dev_dbg(dev, "CQ Count                : 0x%x\n",
 		ops_dir->vqueue.cq_count);
-	dev_dbg(dev,
-		"CQ Size                 : 0x%x\n",
+	dev_dbg(dev, "CQ Size                 : 0x%x\n",
 		ops_dir->vqueue.cq_size);
-	dev_dbg(dev,
-		"Interrupt Trigger Offset: 0x%x\n",
+	dev_dbg(dev, "Interrupt Trigger Offset: 0x%x\n",
 		ops_dir->vqueue.intrpt_trg_offset);
-	dev_dbg(dev,
-		"Interrupt Trigger Size  : 0x%x\n",
+	dev_dbg(dev, "Interrupt Trigger Size  : 0x%x\n",
 		ops_dir->vqueue.intrpt_trg_size);
-	dev_dbg(dev,
-		"Interrupt ID            : 0x%x\n",
+	dev_dbg(dev, "Interrupt ID            : 0x%x\n",
 		ops_dir->vqueue.intrpt_id);
-	dev_dbg(dev,
-		"Attributes Size         : 0x%x\n",
+	dev_dbg(dev, "Attributes Size         : 0x%x\n",
 		ops_dir->vqueue.attributes_size);
-	dev_dbg(dev,
-		"HP SQ Offset            : 0x%x\n",
+	dev_dbg(dev, "HP SQ Offset            : 0x%x\n",
 		ops_dir->vqueue.hp_sq_offset);
-	dev_dbg(dev,
-		"HP SQ Count             : 0x%x\n",
+	dev_dbg(dev, "HP SQ Count             : 0x%x\n",
 		ops_dir->vqueue.hp_sq_count);
-	dev_dbg(dev,
-		"HP SQ Size              : 0x%x\n\n",
+	dev_dbg(dev, "HP SQ Size              : 0x%x\n\n",
 		ops_dir->vqueue.hp_sq_size);
 
 	remaining_size = dir_size - sizeof(struct et_ops_dir_header) -
 			 sizeof(struct et_ops_dir_vqueue);
 	while (remaining_size > 0) {
 		dev_dbg(dev, "Ops DIRs Memory Region[%d]\n", i);
-		dev_dbg(dev,
-			"Attributes Size         : 0x%x\n",
+		dev_dbg(dev, "Attributes Size         : 0x%x\n",
 			ops_dir->mem_region[i].attributes_size);
-		dev_dbg(dev,
-			"I/O Access              : 0x%x\n",
+		dev_dbg(dev, "I/O Access              : 0x%x\n",
 			ops_dir->mem_region[i].access.io_access);
-		dev_dbg(dev,
-			"Access (Node access)    : 0x%x\n",
+		dev_dbg(dev, "Access (Node access)    : 0x%x\n",
 			ops_dir->mem_region[i].access.node_access);
-		dev_dbg(dev,
-			"Access (DMA Alignment)  : 0x%x\n",
+		dev_dbg(dev, "Access (DMA Alignment)  : 0x%x\n",
 			ops_dir->mem_region[i].access.dma_align);
-		dev_dbg(dev,
-			"Access (Reserved)       : 0x%x\n",
+		dev_dbg(dev, "Access (Reserved)       : 0x%x\n",
 			ops_dir->mem_region[i].access.reserved);
 		switch (ops_dir->mem_region[i].type) {
 		case OPS_MEM_REGION_TYPE_VQ_BUFFER:
@@ -689,18 +685,14 @@ static inline void et_print_ops_dir(struct device *dev,
 			dev_dbg(dev,
 				"Type                    : Unknown region\n");
 		}
-		dev_dbg(dev,
-			"BAR                     : 0x%x\n",
+		dev_dbg(dev, "BAR                     : 0x%x\n",
 			ops_dir->mem_region[i].bar);
-		dev_dbg(dev,
-			"BAR Offset              : 0x%llx\n",
+		dev_dbg(dev, "BAR Offset              : 0x%llx\n",
 			ops_dir->mem_region[i].bar_offset);
-		dev_dbg(dev,
-			"BAR Size                : 0x%llx (%lld)",
+		dev_dbg(dev, "BAR Size                : 0x%llx (%lld)",
 			ops_dir->mem_region[i].bar_size,
 			ops_dir->mem_region[i].bar_size);
-		dev_dbg(dev,
-			"BAR Region PhysAddr     : 0x%llx\n",
+		dev_dbg(dev, "BAR Region PhysAddr     : 0x%llx\n",
 			region[ops_dir->mem_region[i].type].access.p2p_access ?
 				region[ops_dir->mem_region[i].type]
 					.p2p.pci_bus_addr :
@@ -709,15 +701,18 @@ static inline void et_print_ops_dir(struct device *dev,
 		if (!region[ops_dir->mem_region[i].type].io.mapped_baseaddr)
 			dev_dbg(dev, "BAR Region Kern VirtAddr: N/A\n");
 		else
-			dev_dbg(dev,
-				"BAR Region Kern VirtAddr: 0x%px\n",
-				region[ops_dir->mem_region[i].type]
+			// NOTE: It is not allowed to expose kernel virtual
+			// address through prints. Such code should be removed
+			// before upstreaming the driver
+			// Suppressed the checkpatch.pl warning by replacing
+			// %px usage with %llx
+			dev_dbg(dev, "BAR Region Kern VirtAddr: 0x%llx\n",
+				(u64 __force)region[ops_dir->mem_region[i].type]
 					.io.mapped_baseaddr);
 		if (ops_dir->mem_region[i].dev_address == 0)
 			dev_dbg(dev, "Dev Address             : N/A\n\n");
 		else
-			dev_dbg(dev,
-				"Dev Address             : 0x%llx\n\n",
+			dev_dbg(dev, "Dev Address             : 0x%llx\n\n",
 				ops_dir->mem_region[i].dev_address);
 		remaining_size -= sizeof(struct et_dir_mem_region);
 		i++;
@@ -725,9 +720,16 @@ static inline void et_print_ops_dir(struct device *dev,
 	mutex_unlock(&dir_print_mutex);
 }
 
+/**
+ * valid_mgmt_vq_region() - Checks validity of mgmt virtual queue region
+ * @vq_region : pointer to et_mgmt_dir_vqueue structure
+ * @err_str : Placeholder for error string to be returned
+ * @len : Length of the error string
+ *
+ * Return: True on success, otherwise false
+ */
 static inline bool valid_mgmt_vq_region(struct et_mgmt_dir_vqueue *vq_region,
-					char *err_str,
-					size_t len)
+					char *err_str, size_t len)
 {
 	bool rv = true;
 
@@ -777,9 +779,16 @@ static inline bool valid_mgmt_vq_region(struct et_mgmt_dir_vqueue *vq_region,
 	return rv;
 }
 
+/**
+ * valid_ops_vq_region() - Checks validity of ops virtual queue region
+ * @vq_region : pointer to et_ops_dir_vqueue structure
+ * @err_str : Placeholder for error string to be returned
+ * @len : Length of the error string
+ *
+ * Return: True on success, otherwise false
+ */
 static inline bool valid_ops_vq_region(struct et_ops_dir_vqueue *vq_region,
-				       char *err_str,
-				       size_t len)
+				       char *err_str, size_t len)
 {
 	bool rv = true;
 
@@ -839,10 +848,17 @@ static inline bool valid_ops_vq_region(struct et_ops_dir_vqueue *vq_region,
 	return rv;
 }
 
+/**
+ * valid_mem_region() - Checks validity of memory region
+ * @region : Pointer to et_dir_mem_region structure
+ * @is_mgmt : Indicates if memory region belongs to mgmt/ops device
+ * @err_str : Placeholder for error string to be returned
+ * @len : Length of the error string
+ *
+ * Return: True on success, otherwise false
+ */
 static inline bool valid_mem_region(struct et_dir_mem_region *region,
-				    bool is_mgmt,
-				    char *err_str,
-				    size_t len)
+				    bool is_mgmt, char *err_str, size_t len)
 {
 	char reg_type_str[8];
 	bool rv = true;
@@ -883,8 +899,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strlcat(err_str,
-					"Incorrect access for region: ",
-					len);
+					"Incorrect access for region: ", len);
 				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
@@ -901,8 +916,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strlcat(err_str,
-					"Incorrect access for region: ",
-					len);
+					"Incorrect access for region: ", len);
 				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
@@ -917,8 +931,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strlcat(err_str,
-					"Incorrect access for region: ",
-					len);
+					"Incorrect access for region: ", len);
 				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
@@ -941,8 +954,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			    region->access.dma_align !=
 				    MEM_REGION_DMA_ALIGNMENT_NONE) {
 				strlcat(err_str,
-					"Incorrect access for region: ",
-					len);
+					"Incorrect access for region: ", len);
 				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
@@ -955,8 +967,7 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 			    region->access.node_access &
 				    MEM_REGION_NODE_ACCESSIBLE_MGMT) {
 				strlcat(err_str,
-					"Incorrect access for region: ",
-					len);
+					"Incorrect access for region: ", len);
 				strlcat(err_str, reg_type_str, len);
 				rv = false;
 			}
@@ -983,6 +994,13 @@ static inline bool valid_mem_region(struct et_dir_mem_region *region,
 	return rv;
 }
 
+/**
+ * compulsory_region_type() - Checks if given region type is compulsory region
+ * @type : integer value from et_mgmt/ops_mem_region_type enums
+ * @is_mgmt : Indicates if memory region belongs to mgmt/ops device
+ *
+ * Return: True on success, otherwise false
+ */
 static inline bool compulsory_region_type(int type, bool is_mgmt)
 {
 	if (is_mgmt) {

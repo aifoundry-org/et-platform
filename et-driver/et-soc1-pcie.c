@@ -1,9 +1,16 @@
-/*-------------------------------------------------------------------------
- * Copyright (C) 2018, Esperanto Technologies Inc.
+// SPDX-License-Identifier: GPL-2.0
+
+/***********************************************************************
+ *
+ * Copyright (C) 2023 Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
- *-------------------------------------------------------------------------
- */
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *
+ **********************************************************************/
 
 #include <linux/aer.h>
 #include <linux/crc32.h>
@@ -60,7 +67,7 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
-/*
+/**
  * DIR discovery timeout in seconds for mgmt/ops nodes, if set to 0, checks
  * DIR status only once and returns immediately if not ready.
  *
@@ -72,8 +79,14 @@ module_param(mgmt_discovery_timeout, uint, 0);
 static uint ops_discovery_timeout = 100;
 module_param(ops_discovery_timeout, uint, 0);
 
+/* Device bitmap representing initialized device nodes */
 DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS) = { 0 };
 
+/**
+ * get_next_devnum() - Returns next available device number
+ *
+ * Return: Positive devnum value on success, negative error on failure
+ */
 static int get_next_devnum(void)
 {
 	int devnum = -ENODEV;
@@ -86,20 +99,30 @@ static int get_next_devnum(void)
 	return devnum;
 }
 
+/**
+ * esperanto_pcie_ops_poll() - Ops device poll operation
+ *
+ * EPOLLHUP: If ops device is not initialized
+ * EPOLLOUT: If any SQ of ops device is available
+ * EPOLLIN: If any CQ of ops device is available
+ *
+ * Return: Positive devnum value on success, negative error on failure
+ */
 static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 {
-	__poll_t mask = 0;
+	__poll_t mask = EPOLLHUP;
 	struct et_ops_dev *ops;
 
 	ops = container_of(fp->private_data, struct et_ops_dev, misc_dev);
 	if (!ops->is_initialized)
-		return EPOLLHUP;
+		return mask;
 
 	poll_wait(fp, &ops->vq_data.vq_common.waitqueue, wait);
 
 	mutex_lock(&ops->vq_data.vq_common.sq_bitmap_mutex);
 	mutex_lock(&ops->vq_data.vq_common.cq_bitmap_mutex);
 
+	mask = 0;
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(ops->vq_data.vq_common.sq_bitmap,
 			  ops->vq_data.vq_common.sq_count))
@@ -117,8 +140,36 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	return mask;
 }
 
-static long
-esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+/**
+ * esperanto_pcie_ops_ioctl() - Ops device IOCTLs
+ * @cmd: IOCTL commands
+ * @arg: Argument passed from user-space
+ *
+ * This implements following IOCTLs for ops device:
+ * - ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME: Provides the PCI bus name of device.
+ *   This IOCTL is functional regardless of the state of device
+ * - ETSOC1_IOCTL_GET_DEVICE_STATE: Returns the current device state. This
+ *   IOCTL is functional regardless of the state of device
+ * - ETSOC1_IOCTL_GET_USER_DRAM_INFO: Provides DRAM information received from
+ *   the device in DIRs
+ * - ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE: Provies size trace buffer regions
+ *   {MM, CM, MM_STATS} if regions defined by device
+ * - ETSOC1_IOCTL_GET_SQ_COUNT: Provides ops device SQ count
+ * - ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: Provides ops device SQ size
+ * - ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION: Provides general device
+ *   configuration received from the device in DIRs
+ * - ETSOC1_IOCTL_PUSH_SQ: Forwards user command on SQ
+ * - ETSOC1_IOCTL_POP_CQ: Pops out the response message from CQ to user
+ * - ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: Provides SQ availability bitmap
+ * - ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: Provides CQ availability bitmap
+ * - ETSOC1_IOCTL_SET_SQ_THRESHOLD: Sets SQ threshold for SQ availability
+ * - ETSOC1_IOCTL_GET_P2PDMA_DEVICE_COMPAT_BITMAP: P2PDMA bitmap for its
+ *   compatibility with other devices
+ *
+ * Return: Non-negative value on success, negative error on failure
+ */
+static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
+				     unsigned long arg)
 {
 	long rv = 0;
 	struct et_pci_dev *et_dev;
@@ -146,8 +197,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -ENOMEM;
 		}
 
-		if (copy_to_user(usr_arg,
-				 dev_name(&et_dev->pdev->dev),
+		if (copy_to_user(usr_arg, dev_name(&et_dev->pdev->dev),
 				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -169,9 +219,10 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
 		// popped out of SQ by device and SQ will appear empty here.
-		for (sq_idx = 0; ops_state == DEV_STATE_READY &&
-				 sq_idx < ops->vq_data.vq_common.sq_count;
+		for (sq_idx = 0; sq_idx < ops->vq_data.vq_common.sq_count;
 		     sq_idx++) {
+			if (ops_state != DEV_STATE_READY)
+				break;
 			// Check if SQ has pending command(s)
 			if (!et_squeue_empty(&ops->vq_data.sqs[sq_idx]))
 				ops_state = DEV_STATE_PENDING_COMMANDS;
@@ -275,8 +326,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user(usr_arg,
-				 &ops->vq_data.vq_common.sq_count,
+		if (copy_to_user(usr_arg, &ops->vq_data.vq_common.sq_count,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -330,10 +380,8 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				return -EINVAL;
 
 			rv = et_squeue_copy_from_user(
-				et_dev,
-				false /* ops_dev */,
-				true /* high priority SQ */,
-				cmd_info.sq_index,
+				et_dev, false /* ops_dev */,
+				true /* high priority SQ */, cmd_info.sq_index,
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 		} else {
@@ -343,20 +391,17 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 			if (cmd_info.flags & CMD_DESC_FLAG_P2PDMA)
 				rv = et_p2pdma_move_data(
-					et_dev,
-					cmd_info.sq_index,
+					et_dev, cmd_info.sq_index,
 					(char __user __force *)cmd_info.cmd,
 					cmd_info.size);
 			else if (cmd_info.flags & CMD_DESC_FLAG_DMA)
 				rv = et_dma_move_data(
-					et_dev,
-					cmd_info.sq_index,
+					et_dev, cmd_info.sq_index,
 					(char __user __force *)cmd_info.cmd,
 					cmd_info.size);
 			else
 				rv = et_squeue_copy_from_user(
-					et_dev,
-					false /* ops_dev */,
+					et_dev, false /* ops_dev */,
 					false /* normal SQ */,
 					cmd_info.sq_index,
 					(char __user __force *)cmd_info.cmd,
@@ -377,16 +422,14 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
-		rv = et_cqueue_copy_to_user(et_dev,
-					    false /* ops_dev */,
+		rv = et_cqueue_copy_to_user(et_dev, false /* ops_dev */,
 					    rsp_info.cq_index,
 					    (char __user __force *)rsp_info.rsp,
 					    rsp_info.size);
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 ops->vq_data.vq_common.sq_bitmap,
+		if (copy_to_user(usr_arg, ops->vq_data.vq_common.sq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -397,8 +440,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 ops->vq_data.vq_common.cq_bitmap,
+		if (copy_to_user(usr_arg, ops->vq_data.vq_common.cq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -409,8 +451,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_SET_SQ_THRESHOLD:
-		if (copy_from_user(&sq_threshold_info,
-				   usr_arg,
+		if (copy_from_user(&sq_threshold_info, usr_arg,
 				   _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy from user!\n",
@@ -448,8 +489,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl: unknown cmd: 0x%x\n",
+		dev_err(&et_dev->pdev->dev, "ops_ioctl: unknown cmd: 0x%x\n",
 			cmd);
 		return -EINVAL;
 	}
@@ -457,20 +497,30 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	return rv;
 }
 
+/**
+ * esperanto_pcie_mgmt_poll() - Mgmt device poll operation
+ *
+ * EPOLLHUP: If mgmt device is not initialized
+ * EPOLLOUT: If any SQ of mgmt device is available
+ * EPOLLIN: If any CQ of mgmt device is available
+ *
+ * Return: Positive devnum value on success, negative error on failure
+ */
 static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 {
-	__poll_t mask = 0;
+	__poll_t mask = EPOLLHUP;
 	struct et_mgmt_dev *mgmt;
 
 	mgmt = container_of(fp->private_data, struct et_mgmt_dev, misc_dev);
 	if (!mgmt->is_initialized)
-		return EPOLLHUP;
+		return mask;
 
 	poll_wait(fp, &mgmt->vq_data.vq_common.waitqueue, wait);
 
 	mutex_lock(&mgmt->vq_data.vq_common.sq_bitmap_mutex);
 	mutex_lock(&mgmt->vq_data.vq_common.cq_bitmap_mutex);
 
+	mask = 0;
 	// Generate EPOLLOUT event if any SQ has space more than its threshold
 	if (!bitmap_empty(mgmt->vq_data.vq_common.sq_bitmap,
 			  mgmt->vq_data.vq_common.sq_count))
@@ -488,6 +538,9 @@ static __poll_t esperanto_pcie_mgmt_poll(struct file *fp, poll_table *wait)
 	return mask;
 }
 
+/**
+ * esperanto_pcie_vm_open() - VM open function for setting-up VMA mapping
+ */
 static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
@@ -496,12 +549,8 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 	if (!map)
 		return;
 
-	dev_dbg(&map->pdev->dev,
-		"vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
-		map,
-		map->size,
-		vma->vm_start,
-		vma->vm_end);
+	dev_dbg(&map->pdev->dev, "vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map, map->size, vma->vm_start, vma->vm_end);
 
 	map->ref_count++;
 	if (map->ref_count == 1) {
@@ -517,6 +566,9 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 	}
 }
 
+/**
+ * esperanto_pcie_vm_close() - VM close function for tearing-down VMA mapping
+ */
 static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 {
 	struct et_dma_mapping *map = vma->vm_private_data;
@@ -525,18 +577,12 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 	if (!map)
 		return;
 
-	dev_dbg(&map->pdev->dev,
-		"vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
-		map,
-		map->size,
-		vma->vm_start,
-		vma->vm_end);
+	dev_dbg(&map->pdev->dev, "vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map, map->size, vma->vm_start, vma->vm_end);
 
 	map->ref_count--;
 	if (map->ref_count == 0) {
-		dma_free_coherent(&map->pdev->dev,
-				  map->size,
-				  map->kern_vaddr,
+		dma_free_coherent(&map->pdev->dev, map->size, map->kern_vaddr,
 				  map->dma_addr);
 		et_dev = pci_get_drvdata(map->pdev);
 		atomic64_sub(
@@ -553,8 +599,17 @@ static const struct vm_operations_struct esperanto_pcie_vm_ops = {
 	.open	= esperanto_pcie_vm_open,
 	.close	= esperanto_pcie_vm_close,
 };
+
 // clang-format on
 
+/**
+ * et_find_vma() - Find VMA that provides mapping for the virtual address
+ * @et_dev: Pointer to struct et_pci_dev
+ * @vaddr: User virtual address mapped by VMA
+ *
+ * Return: Pointer to struct vm_area_struct containing mapping for virtual
+ * address
+ */
 struct vm_area_struct *et_find_vma(struct et_pci_dev *et_dev,
 				   unsigned long vaddr)
 {
@@ -573,6 +628,14 @@ struct vm_area_struct *et_find_vma(struct et_pci_dev *et_dev,
 	return vma;
 }
 
+/**
+ * esperanto_pcie_ops_mmap() - Esperanto PCIe mmap operation
+ *
+ * Allocates CMA buffer for the et_dev and mmap it into user virtual address
+ * space
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 {
 	struct et_ops_dev *ops;
@@ -594,26 +657,21 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
 	vma->vm_ops = &esperanto_pcie_vm_ops;
 
-	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev,
-					size,
-					&dma_addr,
+	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev, size, &dma_addr,
 					GFP_USER | GFP_NOWAIT | __GFP_NOWARN);
 	if (!kern_vaddr) {
 		dev_err(&et_dev->pdev->dev, "dma_alloc_coherent() failed!\n");
 		return -ENOMEM;
 	}
 
-	rv = dma_mmap_coherent(&et_dev->pdev->dev,
-			       vma,
-			       kern_vaddr,
-			       dma_addr,
+	rv = dma_mmap_coherent(&et_dev->pdev->dev, vma, kern_vaddr, dma_addr,
 			       size);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "dma_mmap_coherent() failed!");
 		goto error_dma_free_coherent;
 	}
 
-	map = kzalloc(sizeof(struct et_dma_mapping), GFP_KERNEL);
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map) {
 		rv = -ENOMEM;
 		goto error_dma_free_coherent;
@@ -637,8 +695,36 @@ error_dma_free_coherent:
 	return rv;
 }
 
-static long
-esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+/**
+ * esperanto_pcie_mgmt_ioctl() - Mgmt device IOCTLs
+ * @cmd: IOCTL commands
+ * @arg: Argument passed from user-space
+ *
+ * This implements following IOCTLs for mgmt device:
+ * - ETSOC1_IOCTL_GET_PCIBUS_DEVICE_NAME: Provides the PCI bus name of device.
+ *   This IOCTL is functional regardless of the state of device
+ * - ETSOC1_IOCTL_GET_DEVICE_STATE: Returns the current device state. This
+ *   IOCTL is functional regardless of the state of device
+ * - ETSOC1_IOCTL_FW_UPDATE: Writes the FW image on FW update scratch region
+ *   with MMIOs
+ * - ETSOC1_IOCTL_GET_SQ_COUNT: Provides mgmt device SQ count
+ * - ETSOC1_IOCTL_GET_SQ_MAX_MSG_SIZE: Provides mgmt device SQ size
+ * - ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION: Provides general device
+ *   configuration received from the device in DIRs
+ * - ETSOC1_IOCTL_PUSH_SQ: Forwards user command on SQ
+ * - ETSOC1_IOCTL_POP_CQ: Pops out the response message from CQ to user
+ * - ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP: Provides SQ availability bitmap
+ * - ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP: Provides CQ availability bitmap
+ * - ETSOC1_IOCTL_SET_SQ_THRESHOLD: Sets SQ threshold for SQ availability
+ * - ETSOC1_IOCTL_GET_TRACE_BUFFER_SIZE: Provies size trace buffer regions
+ *   {SP, MM, CM, SP_STATS, MM_STATS} if region is defined by device
+ * - ETSOC1_IOCTL_EXTRACT_TRACE_BUFFER: Extracts trace buffer regions using
+ *   MMIOs for {SP, MM, CM, SP_STATS, MM_STATS} if region is defined by device
+ *
+ * Return: Non-negative value on success, negative error on failure
+ */
+static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
+				      unsigned long arg)
 {
 	long rv = 0;
 	struct et_pci_dev *et_dev;
@@ -667,8 +753,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -ENOMEM;
 		}
 
-		if (copy_to_user(usr_arg,
-				 dev_name(&et_dev->pdev->dev),
+		if (copy_to_user(usr_arg, dev_name(&et_dev->pdev->dev),
 				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -690,9 +775,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
 		// popped out of SQ by device and SQ will appear empty here.
-		for (sq_idx = 0; mgmt_state == DEV_STATE_READY &&
-				 sq_idx < mgmt->vq_data.vq_common.sq_count;
+		for (sq_idx = 0; sq_idx < mgmt->vq_data.vq_common.sq_count;
 		     sq_idx++) {
+			if (mgmt_state != DEV_STATE_READY)
+				break;
 			// Check if SQ has pending command(s)
 			if (!et_squeue_empty(&mgmt->vq_data.sqs[sq_idx]))
 				mgmt_state = DEV_STATE_PENDING_COMMANDS;
@@ -733,14 +819,12 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		rv = et_mmio_write_fw_image(
-			et_dev,
-			(char __user __force *)fw_update_info.ubuf,
+			et_dev, (char __user __force *)fw_update_info.ubuf,
 			fw_update_info.size);
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user(usr_arg,
-				 &mgmt->vq_data.vq_common.sq_count,
+		if (copy_to_user(usr_arg, &mgmt->vq_data.vq_common.sq_count,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -808,10 +892,8 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 		if (rv == 0)
 			rv = et_squeue_copy_from_user(
-				et_dev,
-				true /* mgmt_dev */,
-				false /* normal SQ */,
-				cmd_info.sq_index,
+				et_dev, true /* mgmt_dev */,
+				false /* normal SQ */, cmd_info.sq_index,
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 
@@ -842,16 +924,14 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
-		rv = et_cqueue_copy_to_user(et_dev,
-					    true /* mgmt_dev */,
+		rv = et_cqueue_copy_to_user(et_dev, true /* mgmt_dev */,
 					    rsp_info.cq_index,
 					    (char __user __force *)rsp_info.rsp,
 					    rsp_info.size);
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 mgmt->vq_data.vq_common.sq_bitmap,
+		if (copy_to_user(usr_arg, mgmt->vq_data.vq_common.sq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -862,8 +942,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 mgmt->vq_data.vq_common.cq_bitmap,
+		if (copy_to_user(usr_arg, mgmt->vq_data.vq_common.cq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -874,8 +953,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_SET_SQ_THRESHOLD:
-		if (copy_from_user(&sq_threshold_info,
-				   usr_arg,
+		if (copy_from_user(&sq_threshold_info, usr_arg,
 				   _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy from user!\n",
@@ -986,13 +1064,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		if (!trace_buf)
 			return -ENOMEM;
 
-		et_ioread(region->io.mapped_baseaddr,
-			  0,
-			  trace_buf,
+		et_ioread(region->io.mapped_baseaddr, 0, trace_buf,
 			  region->size);
 		if (copy_to_user((char __user __force *)trace_info.buf,
-				 trace_buf,
-				 region->size)) {
+				 trace_buf, region->size)) {
 			kvfree(trace_buf);
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -1004,8 +1079,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl: unknown cmd: 0x%x\n",
+		dev_err(&et_dev->pdev->dev, "ops_ioctl: unknown cmd: 0x%x\n",
 			cmd);
 		return -EINVAL;
 	}
@@ -1013,6 +1087,16 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	return rv;
 }
 
+/**
+ * esperanto_pcie_ops_open() - Ops device open operation
+ *
+ * The ops device node can only be accessed/opened by one process at a time. If
+ * device is under reset, the user will not be allowed to access it and EPERM
+ * error will be returned. For reset to be triggered, the device node must be
+ * released first
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int esperanto_pcie_ops_open(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
@@ -1042,6 +1126,16 @@ spin_unlock:
 	return rv;
 }
 
+/**
+ * esperanto_pcie_mgmt_open() - Mgmt device open operation
+ *
+ * The mgmt device node can only be accessed/opened by one process at a time. If
+ * device is under reset, the user will not be allowed to access it and EPERM
+ * error will be returned. For reset to be triggered, the device node must be
+ * released first
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int esperanto_pcie_mgmt_open(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
@@ -1079,6 +1173,11 @@ spin_unlock:
 	return rv;
 }
 
+/**
+ * esperanto_pcie_ops_release() - Ops device release operation
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
 {
 	struct et_ops_dev *ops;
@@ -1091,6 +1190,14 @@ static int esperanto_pcie_ops_release(struct inode *inode, struct file *fp)
 	return 0;
 }
 
+/**
+ * esperanto_pcie_mgmt_release() - Mgmt device open operation
+ *
+ * If reset was requested before closing the mgmt device, then it will queue
+ * work for reset ISR here
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 {
 	struct et_mgmt_dev *mgmt;
@@ -1112,6 +1219,7 @@ static int esperanto_pcie_mgmt_release(struct inode *inode, struct file *fp)
 }
 
 // clang-format off
+/* File operation for ops device */
 static const struct file_operations et_pcie_ops_fops = {
 	.owner			= THIS_MODULE,
 	.poll			= esperanto_pcie_ops_poll,
@@ -1121,6 +1229,7 @@ static const struct file_operations et_pcie_ops_fops = {
 	.release		= esperanto_pcie_ops_release,
 };
 
+/* File operation for mgmt device */
 static const struct file_operations et_pcie_mgmt_fops = {
 	.owner			= THIS_MODULE,
 	.poll			= esperanto_pcie_mgmt_poll,
@@ -1131,14 +1240,23 @@ static const struct file_operations et_pcie_mgmt_fops = {
 
 // clang-format on
 
+/**
+ * esperanto_pcie_error_detected() - Esperanto PCIe AER error detected callback
+ * @pdev: Pointer to struct pci_dev
+ * @state: value of enum pci_channel_state_t type received here
+ *
+ * Detects uncorrectable AER errors and uninitializes the device in case of
+ * failure
+ *
+ * Return: pci_ers_result_t status code
+ */
 static pci_ers_result_t esperanto_pcie_error_detected(struct pci_dev *pdev,
 						      pci_channel_state_t state)
 {
 	pci_ers_result_t rv;
 	struct et_pci_dev *et_dev;
 
-	dev_info(&pdev->dev,
-		 "PCI error: detected callback, state(%d)!\n",
+	dev_info(&pdev->dev, "PCI error: detected callback, state(%d)!\n",
 		 state);
 
 	switch (state) {
@@ -1164,6 +1282,16 @@ static pci_ers_result_t esperanto_pcie_error_detected(struct pci_dev *pdev,
 	return rv;
 }
 
+/**
+ * esperanto_pcie_mmio_enabled() - Esperanto PCIe AER MMIO enabled callback
+ * @pdev: Pointer to struct pci_dev
+ *
+ * This is called only if esperanto_pcie_error_detected returns
+ * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still works, no need to
+ * reset slot.
+ *
+ * Return: pci_ers_result_t status code
+ */
 static pci_ers_result_t esperanto_pcie_mmio_enabled(struct pci_dev *pdev)
 {
 	dev_info(&pdev->dev, "PCI error: mmio enabled callback!\n");
@@ -1172,33 +1300,41 @@ static pci_ers_result_t esperanto_pcie_mmio_enabled(struct pci_dev *pdev)
 	 * here but not DMA.
 	 */
 
-	/* This is called only if esperanto_pcie_error_detected returns
-	 * PCI_ERS_RESULT_CAN_RECOVER. Read/write to the device still works, no
-	 * need to reset slot.
-	 */
-
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
+/**
+ * esperanto_pcie_slot_reset() - Esperanto PCIe AER slot reset callback
+ * @pdev: Pointer to struct pci_dev
+ *
+ * This is called only if esperanto_pcie_error_detected returns
+ * PCI_ERS_RESULT_NEED_RESET and slot is successfully reset
+ *
+ * Return: pci_ers_result_t status code
+ */
 static pci_ers_result_t esperanto_pcie_slot_reset(struct pci_dev *pdev)
 {
 	dev_info(&pdev->dev, "PCI error: slot reset callback!\n");
 
-	/* TODO: SW-16311: This is called if slot is successfully reset,
-	 * perform the re-initialization of device here. Hot-reset can be done
-	 * here which can recover from fatal errors with
-	 * state: `pci_channel_io_frozen`.
-	 */
-
 	return PCI_ERS_RESULT_DISCONNECT;
 }
 
+/**
+ * esperanto_pcie_resume() - Esperanto PCIe AER resume callback
+ * @pdev: Pointer to struct pci_dev
+ *
+ * A callback to resume the functionality. If all previous steps completed
+ * successfully then this callback can be used to resume the normal operations
+ *
+ * Return: pci_ers_result_t status code
+ */
 static void esperanto_pcie_resume(struct pci_dev *pdev)
 {
 	dev_info(&pdev->dev, "PCI error: resume callback!\n");
 }
 
 // clang-format off
+/* PCIe advanced error recovery callbacks */
 static const struct pci_error_handlers et_pcie_err_handler = {
 	.error_detected	= esperanto_pcie_error_detected,
 	.mmio_enabled	= esperanto_pcie_mmio_enabled,
@@ -1208,6 +1344,13 @@ static const struct pci_error_handlers et_pcie_err_handler = {
 
 // clang-format on
 
+/**
+ * create_et_pci_dev() - Create struct et_pci_dev and initialize the fields
+ * @new_dev: Created device pointer to be returned here
+ * @pdev: Pointer to struct pci_dev
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
@@ -1244,6 +1387,11 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	return 0;
 }
 
+/**
+ * et_destroy_region_list() - Destroy/Free the nodes of region list
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ */
 static void et_destroy_region_list(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	struct et_bar_region *pos, *tmp;
@@ -1256,6 +1404,11 @@ static void et_destroy_region_list(struct et_pci_dev *et_dev, bool is_mgmt)
 	}
 }
 
+/**
+ * et_unmap_discovered_regions() - Unmap all the discovered BAR regions
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ */
 static void et_unmap_discovered_regions(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	struct et_mapped_region *regions;
@@ -1284,11 +1437,19 @@ static void et_unmap_discovered_regions(struct et_pci_dev *et_dev, bool is_mgmt)
 	et_destroy_region_list(et_dev, is_mgmt);
 }
 
+/**
+ * et_map_discovered_regions() - Discover and map the discovered BAR regions
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ * @regs_data: DIRs data copy
+ * @regs_size: DIRs data size in bytes
+ * @regs_count: DIRs memory regions count
+ *
+ * Return: Number of bytes parsed on success, negative error on failure
+ */
 static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
-					 bool is_mgmt,
-					 u8 *regs_data,
-					 size_t regs_size,
-					 int regs_count)
+					 bool is_mgmt, u8 *regs_data,
+					 size_t regs_size, int regs_count)
 {
 	u8 *reg_pos = regs_data;
 	size_t section_size;
@@ -1325,7 +1486,9 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			dbg_msg.level = LEVEL_FATAL;
 			dbg_msg.desc = "DIR region exceeded DIR total size!";
 			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\nRegion end - DIR end: %zd)\n",
+				"\nDevice: %s\n"
+				"Region type: %d\n"
+				"Region end - DIR end: %zd)\n",
 				(is_mgmt) ? "Mgmt" : "Ops",
 				dir_mem_region->type,
 				reg_pos + section_size -
@@ -1340,7 +1503,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			dbg_msg.level = LEVEL_WARN;
 			dbg_msg.desc = "Skipping unknown DIR region type!";
 			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\n",
+				"\nDevice: %s\n"
+				"Region type: %d\n",
 				(is_mgmt) ? "Mgmt" : "Ops",
 				dir_mem_region->type);
 			et_print_event(et_dev->pdev, &dbg_msg);
@@ -1353,10 +1517,11 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			dbg_msg.desc =
 				"DIR region has extra attributes, skipping extra attributes";
 			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\nSize: (expected: %zu < discovered: %zu)\n",
+				"\nDevice: %s\n"
+				"Region type: %d\n"
+				"Size: (expected: %zu < discovered: %zu)\n",
 				(is_mgmt) ? "Mgmt" : "Ops",
-				dir_mem_region->type,
-				sizeof(*dir_mem_region),
+				dir_mem_region->type, sizeof(*dir_mem_region),
 				section_size);
 			et_print_event(et_dev->pdev, &dbg_msg);
 		} else if (section_size < sizeof(*dir_mem_region)) {
@@ -1364,10 +1529,11 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			dbg_msg.desc =
 				"DIR region does not have enough attributes!";
 			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\nSize: (expected: %zu > discovered: %zu)\n",
+				"\nDevice: %s\n"
+				"Region type: %d\n"
+				"Size: (expected: %zu > discovered: %zu)\n",
 				(is_mgmt) ? "Mgmt" : "Ops",
-				dir_mem_region->type,
-				sizeof(*dir_mem_region),
+				dir_mem_region->type, sizeof(*dir_mem_region),
 				section_size);
 			et_print_event(et_dev->pdev, &dbg_msg);
 			rv = -EINVAL;
@@ -1375,9 +1541,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		}
 
 		// Region attributes validity check
-		if (!valid_mem_region(dir_mem_region,
-				      is_mgmt,
-				      dbg_msg.syndrome,
+		if (!valid_mem_region(dir_mem_region, is_mgmt, dbg_msg.syndrome,
 				      ET_EVENT_SYNDROME_LEN)) {
 			if (strcmp(dbg_msg.syndrome, "") == 0) {
 				dev_err(&et_dev->pdev->dev,
@@ -1400,7 +1564,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			dbg_msg.level = LEVEL_FATAL;
 			dbg_msg.desc = "DIRs duplicate region type found!";
 			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\n",
+				"\nDevice: %s\n"
+				"Region type: %d\n",
 				(is_mgmt) ? "Mgmt" : "Ops",
 				dir_mem_region->type);
 			et_print_event(et_dev->pdev, &dbg_msg);
@@ -1458,8 +1623,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			goto error_free_new_node;
 		}
 
-		list_for_each_entry (existing_node,
-				     &et_dev->bar_region_list,
+		list_for_each_entry (existing_node, &et_dev->bar_region_list,
 				     list) {
 			if (new_node->region_start >
 				    existing_node->region_end ||
@@ -1471,8 +1635,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				dbg_msg.desc =
 					"Requested BAR region overlaps existing BAR region!";
 				sprintf(dbg_msg.syndrome,
-					"\n"
-					"Existing region info:\n"
+					"\nExisting region info:\n"
 					"\tNode         : %s\n"
 					"\tBAR          : %d\n"
 					"\tRegion Type  : %d\n"
@@ -1490,8 +1653,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 					existing_node->region_start,
 					existing_node->region_end,
 					new_node->is_mgmt ? "Mgmt" : "Ops",
-					new_node->bar,
-					new_node->region_type,
+					new_node->bar, new_node->region_type,
 					new_node->region_start,
 					new_node->region_end);
 				et_print_event(et_dev->pdev, &dbg_msg);
@@ -1504,7 +1666,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 		    dir_mem_region->access.p2p_access) {
 			dbg_msg.level = LEVEL_WARN;
 			dbg_msg.desc =
-				"DIR discovered region has both IO and P2P accesses enabled!, falling back to IO access only!";
+				"DIR discovered region enables both IO and P2P, choosing IO!";
 			sprintf(dbg_msg.syndrome,
 				"\nDevice: %s\nRegion type: %d\n",
 				(is_mgmt) ? "Mgmt" : "Ops",
@@ -1519,8 +1681,7 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 
 		// Prioritize IO access If both IO and P2P accesses are enabled
 		if (dir_mem_region->access.io_access) {
-			rv = et_map_bar(et_dev,
-					&bm_info,
+			rv = et_map_bar(et_dev, &bm_info,
 					&regions[dir_mem_region->type]
 						 .io.mapped_baseaddr);
 			if (rv) {
@@ -1528,7 +1689,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				dbg_msg.desc =
 					"DIR discovered region mapping failed!";
 				sprintf(dbg_msg.syndrome,
-					"\nDevice: %s\nRegion type: %d\n",
+					"\nDevice: %s\n"
+					"Region type: %d\n",
 					(is_mgmt) ? "Mgmt" : "Ops",
 					dir_mem_region->type);
 				et_print_event(et_dev->pdev, &dbg_msg);
@@ -1543,7 +1705,8 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				dbg_msg.desc =
 					"DIR discovered P2P region is not 2MB aligned!";
 				sprintf(dbg_msg.syndrome,
-					"\nDevice: %s\nRegion type: %d\n",
+					"\nDevice: %s\n"
+					"Region type: %d\n",
 					(is_mgmt) ? "Mgmt" : "Ops",
 					dir_mem_region->type);
 				et_print_event(et_dev->pdev, &dbg_msg);
@@ -1551,15 +1714,15 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 				goto error_free_new_node;
 			}
 			rv = et_p2pdma_add_resource(
-				et_dev,
-				&bm_info,
+				et_dev, &bm_info,
 				&regions[dir_mem_region->type]);
 			if (rv) {
 				dbg_msg.level = LEVEL_FATAL;
 				dbg_msg.desc =
 					"DIR discovered P2P region mapping failed!";
 				sprintf(dbg_msg.syndrome,
-					"\nDevice: %s\nRegion type: %d\n",
+					"\nDevice: %s\n"
+					"Region type: %d\n",
 					(is_mgmt) ? "Mgmt" : "Ops",
 					dir_mem_region->type);
 				et_print_event(et_dev->pdev, &dbg_msg);
@@ -1594,9 +1757,9 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 			dbg_msg.level = LEVEL_FATAL;
 			dbg_msg.desc = "DIRs missing compulsory region type!";
 			sprintf(dbg_msg.syndrome,
-				"\nDevice: %s\nRegion type: %d\n",
-				(is_mgmt) ? "Mgmt" : "Ops",
-				i);
+				"\nDevice: %s\n"
+				"Region type: %d\n",
+				(is_mgmt) ? "Mgmt" : "Ops", i);
 			et_print_event(et_dev->pdev, &dbg_msg);
 			rv = -EINVAL;
 			goto error_unmap_discovered_regions;
@@ -1606,13 +1769,14 @@ static ssize_t et_map_discovered_regions(struct et_pci_dev *et_dev,
 	if (compul_reg_count + non_compul_reg_count != num_reg_types) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
-			"DIRs expected number of memory regions doesn't match discovered number of memory regions",
+			"DIRs expected number doesn't match discovered number of memory regions!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: %s\nExpected regions: %d\nDiscovered compulsory regions: %d\nDiscovered non-compulsory regions: %d\n",
-			(is_mgmt) ? "Mgmt" : "Ops",
-			num_reg_types,
-			compul_reg_count,
-			non_compul_reg_count);
+			"\nDevice: %s\n"
+			"Expected regions: %d\n"
+			"Discovered compulsory regions: %d\n"
+			"Discovered non-compulsory regions: %d\n",
+			(is_mgmt) ? "Mgmt" : "Ops", num_reg_types,
+			compul_reg_count, non_compul_reg_count);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
@@ -1627,8 +1791,15 @@ error_unmap_discovered_regions:
 	return rv;
 }
 
-int et_mgmt_dev_init(struct et_pci_dev *et_dev,
-		     u32 timeout_secs,
+/**
+ * et_mgmt_dev_init() - Initialize mgmt device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @timeout_secs: Device discovery timeout
+ * @miscdev_create: Create miscellaneous character device node
+ *
+ * Return: 0 on success, negative error on failure
+ */
+int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs,
 		     bool miscdev_create)
 {
 	bool dir_ready = false;
@@ -1655,8 +1826,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	spin_lock_init(&et_dev->mgmt.open_lock);
 
 	// Map DIR region
-	rv = et_map_bar(et_dev,
-			&DIR_MAPPINGS[IOMEM_R_DIR_MGMT],
+	rv = et_map_bar(et_dev, &DIR_MAPPINGS[IOMEM_R_DIR_MGMT],
 			&et_dev->mgmt.dir);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "Mgmt: DIR mapping failed\n");
@@ -1690,7 +1860,8 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIRs discovery timed out!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nBoot status: %d\n",
+			"\nDevice: Mgmt\n"
+			"Boot status: %d\n",
 			rv);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EBUSY;
@@ -1703,9 +1874,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "Invalid DIRs total size!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nSize: (Max allowed: %llu, discovered: %zu)\n",
-			DIR_MAPPINGS[IOMEM_R_DIR_MGMT].size,
-			dir_size);
+			"\nDevice: Mgmt\n"
+			"Size: (Max allowed: %llu, discovered: %zu)\n",
+			DIR_MAPPINGS[IOMEM_R_DIR_MGMT].size, dir_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_unmap_dir_region;
@@ -1736,8 +1907,7 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 			"\nDevice: Mgmt\n"
 			"Region: DIR header\n"
 			"Version: (expected: %u != discovered: %u)\n",
-			MGMT_DIR_VERSION,
-			dir_mgmt->version);
+			MGMT_DIR_VERSION, dir_mgmt->version);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
@@ -1748,9 +1918,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc =
 			"BAR0 size doesn't match BAR0 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR0 size detected by host: 0x%llx\nBAR0 size exposed by DIRs: 0x%llx\n",
-			pci_resource_len(et_dev->pdev, 0),
-			dir_mgmt->bar0_size);
+			"BAR0 size detected by host: 0x%llx\n"
+			"BAR0 size exposed by DIRs: 0x%llx\n",
+			pci_resource_len(et_dev->pdev, 0), dir_mgmt->bar0_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		// TODO: Enable back the following to stop discovery if BAR size
 		// check fail. Currently setting it to optional with LEVEL_WARN
@@ -1767,9 +1937,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc =
 			"BAR2 size doesn't match BAR2 size exposed by DIRs!";
 		sprintf(dbg_msg.syndrome,
-			"BAR2 size detected by host: 0x%llx\nBAR2 size exposed by DIRs: 0x%llx\n",
-			pci_resource_len(et_dev->pdev, 2),
-			dir_mgmt->bar2_size);
+			"BAR2 size detected by host: 0x%llx\n"
+			"BAR2 size exposed by DIRs: 0x%llx\n",
+			pci_resource_len(et_dev->pdev, 2), dir_mgmt->bar2_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		// TODO: Enable back the following to stop discovery if BAR size
 		// check fail. Currently setting it to optional with LEVEL_WARN
@@ -1784,7 +1954,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region exceeded DIR total size!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nRegion: DIR header\nRegion end - DIR end: %zd)\n",
+			"\nDevice: Mgmt\n"
+			"Region: DIR header\n"
+			"Region end - DIR end: %zd)\n",
 			dir_pos + section_size - (dir_data + dir_size));
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
@@ -1797,17 +1969,19 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc =
 			"DIR region has extra attributes, skipping extra attributes";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nRegion: DIR header\nSize: (expected: %zu < discovered: %zu)\n",
-			sizeof(*dir_mgmt),
-			section_size);
+			"\nDevice: Mgmt\n"
+			"Region: DIR header\n"
+			"Size: (expected: %zu < discovered: %zu)\n",
+			sizeof(*dir_mgmt), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	} else if (section_size < sizeof(*dir_mgmt)) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region does not have enough attributes!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nRegion: DIR header\nSize: (expected: %zu > discovered: %zu)\n",
-			sizeof(*dir_mgmt),
-			section_size);
+			"\nDevice: Mgmt\n"
+			"Region: DIR header\n"
+			"Size: (expected: %zu > discovered: %zu)\n",
+			sizeof(*dir_mgmt), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
@@ -1820,9 +1994,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIRs CRC32 check mismatch!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nCRC: (expected: %x, calculated: %x)\n",
-			dir_mgmt->crc32,
-			crc32_result);
+			"\nDevice: Mgmt\n"
+			"CRC: (expected: %x, calculated: %x)\n",
+			dir_mgmt->crc32, crc32_result);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
@@ -1858,7 +2032,9 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region exceeded DIR total size!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nRegion: VQ Region\nRegion end - DIR end: %zd)\n",
+			"\nDevice: Mgmt\n"
+			"Region: VQ Region\n"
+			"Region end - DIR end: %zd)\n",
 			dir_pos + section_size - (dir_data + dir_size));
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
@@ -1871,24 +2047,25 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc =
 			"DIR region has extra attributes, skipping extra attributes";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nRegion: VQ Region\nSize: (expected: %zu < discovered: %zu)\n",
-			sizeof(*dir_vq_mgmt),
-			section_size);
+			"\nDevice: Mgmt\n"
+			"Region: VQ Region\n"
+			"Size: (expected: %zu < discovered: %zu)\n",
+			sizeof(*dir_vq_mgmt), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	} else if (section_size < sizeof(*dir_vq_mgmt)) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region does not have enough attributes!";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nRegion: VQ Region\nSize: (expected: %zu > discovered: %zu)\n",
-			sizeof(*dir_vq_mgmt),
-			section_size);
+			"\nDevice: Mgmt\n"
+			"Region: VQ Region\n"
+			"Size: (expected: %zu > discovered: %zu)\n",
+			sizeof(*dir_vq_mgmt), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
 	}
 
-	if (!valid_mgmt_vq_region(dir_vq_mgmt,
-				  dbg_msg.syndrome,
+	if (!valid_mgmt_vq_region(dir_vq_mgmt, dbg_msg.syndrome,
 				  ET_EVENT_SYNDROME_LEN)) {
 		if (strcmp(dbg_msg.syndrome, "") == 0) {
 			dev_err(&et_dev->pdev->dev,
@@ -1910,31 +2087,26 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 	 * Map all memory regions and save attributes
 	 */
 	regs_size = dir_size - ((u64)dir_pos - (u64)dir_data);
-	rv = et_map_discovered_regions(et_dev,
-				       true /* mgmt_dev */,
-				       dir_pos,
-				       regs_size,
-				       dir_mgmt->num_regions);
+	rv = et_map_discovered_regions(et_dev, true /* mgmt_dev */, dir_pos,
+				       regs_size, dir_mgmt->num_regions);
 	if (rv < 0) {
 		dev_err(&et_dev->pdev->dev,
 			"Mgmt: DIR Memory Regions mapping failed!");
 		goto error_free_dir_data;
 	}
 
-	et_print_mgmt_dir(&et_dev->pdev->dev,
-			  dir_data,
-			  dir_size,
+	et_print_mgmt_dir(&et_dev->pdev->dev, dir_data, dir_size,
 			  et_dev->mgmt.regions);
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
-			"Total DIR size does not match sum of respective sizes of attribute regions";
+			"Total DIR size doesn't match sum of respective sizes of attribute regions";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Mgmt\nSize: (DIRs: %zu, All Attribute Regions: %d)\n",
-			dir_size,
-			(int)(dir_pos - dir_data));
+			"\nDevice: Mgmt\n"
+			"Size: (DIRs: %zu, All Attribute Regions: %d)\n",
+			dir_size, (int)(dir_pos - dir_data));
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
@@ -1960,11 +2132,10 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		// Create Mgmt device node
 		et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
 		et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
-		et_dev->mgmt.misc_dev.mode = S_IRUGO | S_IWUGO;
-		et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-							    GFP_KERNEL,
-							    "et%d_mgmt",
-							    et_dev->devnum);
+		et_dev->mgmt.misc_dev.mode = 0666;
+		et_dev->mgmt.misc_dev.name =
+			devm_kasprintf(&et_dev->pdev->dev, GFP_KERNEL,
+				       "et%d_mgmt", et_dev->devnum);
 		rv = misc_register(&et_dev->mgmt.misc_dev);
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
@@ -2002,6 +2173,13 @@ error_unlock_init_mutex:
 	return rv;
 }
 
+/**
+ * et_mgmt_dev_destroy() - Destroy/Uninitialize mgmt device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @miscdev_destroy: miscellaneous character device node to be deleted
+ *
+ * Return: 0 on success, negative error on failure
+ */
 void et_mgmt_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
 	mutex_lock(&et_dev->mgmt.init_mutex);
@@ -2024,8 +2202,15 @@ unlock_init_mutex:
 	mutex_unlock(&et_dev->mgmt.init_mutex);
 }
 
-int et_ops_dev_init(struct et_pci_dev *et_dev,
-		    u32 timeout_secs,
+/**
+ * et_ops_dev_init() - Initialize ops device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @timeout_secs: Device discovery timeout
+ * @miscdev_create: Create miscellaneous device node
+ *
+ * Return: 0 on success, negative error on failure
+ */
+int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs,
 		    bool miscdev_create)
 {
 	bool dir_ready = false;
@@ -2052,8 +2237,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	spin_lock_init(&et_dev->ops.open_lock);
 
 	// Map DIR region
-	rv = et_map_bar(et_dev,
-			&DIR_MAPPINGS[IOMEM_R_DIR_OPS],
+	rv = et_map_bar(et_dev, &DIR_MAPPINGS[IOMEM_R_DIR_OPS],
 			&et_dev->ops.dir);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "Ops: DIR mapping failed\n");
@@ -2085,8 +2269,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	if (!dir_ready) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIRs discovery timed out!";
-		sprintf(dbg_msg.syndrome,
-			"\nDevice: Ops\nBoot status: %d\n",
+		sprintf(dbg_msg.syndrome, "\nDevice: Ops\nBoot status: %d\n",
 			rv);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EBUSY;
@@ -2100,8 +2283,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc = "Invalid DIRs total size!";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nSize: (Max allowed: %llu, discovered: %zu)\n",
-			DIR_MAPPINGS[IOMEM_R_DIR_OPS].size,
-			dir_size);
+			DIR_MAPPINGS[IOMEM_R_DIR_OPS].size, dir_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_unmap_dir_region;
@@ -2132,8 +2314,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 			"\nDevice: Ops\n"
 			"Region: DIR header\n"
 			"Version: (expected: %u != discovered: %u)\n",
-			OPS_DIR_VERSION,
-			dir_ops->version);
+			OPS_DIR_VERSION, dir_ops->version);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
@@ -2156,16 +2337,14 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 			"DIR region has extra attributes, skipping extra attributes";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nRegion: DIR header\nSize: (expected: %zu < discovered: %zu)\n",
-			sizeof(*dir_ops),
-			section_size);
+			sizeof(*dir_ops), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	} else if (section_size < sizeof(*dir_ops)) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region does not have enough attributes!";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nRegion: DIR header\nSize: (expected: %zu > discovered: %zu)\n",
-			sizeof(*dir_ops),
-			section_size);
+			sizeof(*dir_ops), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
@@ -2179,8 +2358,7 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		dbg_msg.desc = "DIRs CRC32 check mismatch!";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nCRC: (expected: %x, calculated: %x)\n",
-			dir_ops->crc32,
-			crc32_result);
+			dir_ops->crc32, crc32_result);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
@@ -2213,23 +2391,20 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 			"DIR region has extra attributes, skipping extra attributes";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nRegion: VQ Region\nSize: (expected: %zu < discovered: %zu)\n",
-			sizeof(*dir_vq_ops),
-			section_size);
+			sizeof(*dir_vq_ops), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 	} else if (section_size < sizeof(*dir_vq_ops)) {
 		dbg_msg.level = LEVEL_FATAL;
 		dbg_msg.desc = "DIR region does not have enough attributes!";
 		sprintf(dbg_msg.syndrome,
 			"\nDevice: Ops\nRegion: VQ Region\nSize: (expected: %zu > discovered: %zu)\n",
-			sizeof(*dir_vq_ops),
-			section_size);
+			sizeof(*dir_vq_ops), section_size);
 		et_print_event(et_dev->pdev, &dbg_msg);
 		rv = -EINVAL;
 		goto error_free_dir_data;
 	}
 
-	if (!valid_ops_vq_region(dir_vq_ops,
-				 dbg_msg.syndrome,
+	if (!valid_ops_vq_region(dir_vq_ops, dbg_msg.syndrome,
 				 ET_EVENT_SYNDROME_LEN)) {
 		if (strcmp(dbg_msg.syndrome, "") == 0) {
 			dev_err(&et_dev->pdev->dev,
@@ -2251,31 +2426,26 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 	 * Map all memory regions and save attributes
 	 */
 	regs_size = dir_size - ((u64)dir_pos - (u64)dir_data);
-	rv = et_map_discovered_regions(et_dev,
-				       false /* ops_dev */,
-				       dir_pos,
-				       regs_size,
-				       dir_ops->num_regions);
+	rv = et_map_discovered_regions(et_dev, false /* ops_dev */, dir_pos,
+				       regs_size, dir_ops->num_regions);
 	if (rv < 0) {
 		dev_err(&et_dev->pdev->dev,
 			"Ops: DIR Memory Regions mapping failed!");
 		goto error_free_dir_data;
 	}
 
-	et_print_ops_dir(&et_dev->pdev->dev,
-			 dir_data,
-			 dir_size,
+	et_print_ops_dir(&et_dev->pdev->dev, dir_data, dir_size,
 			 et_dev->ops.regions);
 
 	dir_pos += rv;
 	if (dir_pos != dir_data + dir_size) {
 		dbg_msg.level = LEVEL_WARN;
 		dbg_msg.desc =
-			"Total DIR size does not match sum of respective sizes of attribute regions";
+			"Total DIR size doesn't match sum of respective sizes of attribute regions";
 		sprintf(dbg_msg.syndrome,
-			"\nDevice: Ops\nSize: (DIRs: %zu, All Attribute Regions: %d)\n",
-			dir_size,
-			(int)(dir_pos - dir_data));
+			"\nDevice: Ops\n"
+			"Size: (DIRs: %zu, All Attribute Regions: %d)\n",
+			dir_size, (int)(dir_pos - dir_data));
 		et_print_event(et_dev->pdev, &dbg_msg);
 	}
 
@@ -2301,11 +2471,10 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		// Create Ops device node
 		et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
 		et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
-		et_dev->ops.misc_dev.mode = S_IRUGO | S_IWUGO;
-		et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-							   GFP_KERNEL,
-							   "et%d_ops",
-							   et_dev->devnum);
+		et_dev->ops.misc_dev.mode = 0666;
+		et_dev->ops.misc_dev.name =
+			devm_kasprintf(&et_dev->pdev->dev, GFP_KERNEL,
+				       "et%d_ops", et_dev->devnum);
 		rv = misc_register(&et_dev->ops.misc_dev);
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
@@ -2343,6 +2512,13 @@ error_unlock_init_mutex:
 	return rv;
 }
 
+/**
+ * et_ops_dev_destroy() - Destroy/Uninitialize ops device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @miscdev_destroy: miscellaneous character device node to be deleted
+ *
+ * Return: 0 on success, negative error on failure
+ */
 void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
 	mutex_lock(&et_dev->ops.init_mutex);
@@ -2365,6 +2541,10 @@ unlock_init_mutex:
 	mutex_unlock(&et_dev->ops.init_mutex);
 }
 
+/**
+ * destroy_et_pci_dev() - Delete struct et_pci_dev object
+ * @et_dev: Pointer to struct et_pci_dev
+ */
 static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 {
 	u8 devnum;
@@ -2380,6 +2560,15 @@ static void destroy_et_pci_dev(struct et_pci_dev *et_dev)
 	mutex_destroy(&et_dev->ops.reset_mutex);
 }
 
+/**
+ * init_et_pci_dev() - Initialize ETSoC1 PCI device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @miscdev_create: Create miscellaneous character device node
+ *
+ * Performs initialization steps generic to both mgmt and ops devices
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 {
 	int rv;
@@ -2410,13 +2599,10 @@ static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 	// Device Operations:
 	//  - Vector[2] - Ops SQ(s)
 	//  - Vector[3] - Ops CQ(s)
-	rv = pci_alloc_irq_vectors(pdev,
-				   ET_MAX_MSI_VECS,
-				   ET_MAX_MSI_VECS,
+	rv = pci_alloc_irq_vectors(pdev, ET_MAX_MSI_VECS, ET_MAX_MSI_VECS,
 				   PCI_IRQ_MSI);
 	if (rv != ET_MAX_MSI_VECS) {
-		dev_err(&pdev->dev,
-			"msi vectors=%d alloc failed\n",
+		dev_err(&pdev->dev, "msi vectors=%d alloc failed\n",
 			ET_MAX_MSI_VECS);
 		goto error_clear_master;
 	}
@@ -2447,8 +2633,7 @@ static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 	rv = et_ops_dev_init(et_dev, ops_discovery_timeout, miscdev_create);
 	if (rv) {
 		dev_warn(&pdev->dev,
-			 "Ops device initialization failed, errno: %d\n",
-			 -rv);
+			 "Ops device initialization failed, errno: %d\n", -rv);
 		rv = 0;
 	}
 
@@ -2476,6 +2661,15 @@ error_disable_dev:
 	return rv;
 }
 
+/**
+ * uninit_et_pci_dev() - Un-Initialize ETSoC1 PCI device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @miscdev_destroy: miscellaneous character device node to be deleted
+ *
+ * Performs un-initialization steps generic to both mgmt and ops devices
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 {
 	struct pci_dev *pdev = et_dev->pdev;
@@ -2498,6 +2692,10 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	pci_disable_device(pdev);
 }
 
+/**
+ * et_reset_isr_work() - ETSOC reset work ISR
+ * @work: Pointer to struct work_struct
+ */
 static void et_reset_isr_work(struct work_struct *work)
 {
 	int rv = 0;
@@ -2540,8 +2738,7 @@ static void et_reset_isr_work(struct work_struct *work)
 	rv = pci_load_saved_state(et_dev->pdev, et_dev->pstate);
 	if (rv) {
 		dev_warn(&et_dev->pdev->dev,
-			 "Failed to load PCI state, errno: %d\n",
-			 -rv);
+			 "Failed to load PCI state, errno: %d\n", -rv);
 	} else {
 		pci_restore_state(et_dev->pdev);
 	}
@@ -2549,8 +2746,7 @@ static void et_reset_isr_work(struct work_struct *work)
 	rv = init_et_pci_dev(et_dev, false);
 	if (rv < 0)
 		dev_err(&et_dev->pdev->dev,
-			"PCIe re-initialization failed, errno: %d\n",
-			-rv);
+			"PCIe re-initialization failed, errno: %d\n", -rv);
 
 exit_reset:
 	et_dev->mgmt.is_resetting = false;
@@ -2561,6 +2757,12 @@ unlock_reset_mutex:
 	mutex_unlock(&et_dev->mgmt.reset_mutex);
 }
 
+/**
+ * esperanto_pcie_probe() - Esperanto PCIe probe function
+ * @pdev: Pointer to struct pci_dev
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static int esperanto_pcie_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
@@ -2582,11 +2784,10 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	}
 
 	rv = pci_save_state(pdev);
-	if (rv) {
+	if (rv)
 		dev_warn(&pdev->dev, "couldn't save PCI state\n");
-	} else {
+	else
 		et_dev->pstate = pci_store_saved_state(pdev);
-	}
 
 	rv = init_et_pci_dev(et_dev, true);
 	if (rv < 0) {
@@ -2611,11 +2812,9 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_sysfs_remove_group;
 	}
 
-	et_dev->reset_workqueue = alloc_workqueue("%s:et%d_rstwq",
-						  WQ_MEM_RECLAIM | WQ_UNBOUND,
-						  1,
-						  dev_name(&et_dev->pdev->dev),
-						  et_dev->devnum);
+	et_dev->reset_workqueue =
+		alloc_workqueue("%s:et%d_rstwq", WQ_MEM_RECLAIM | WQ_UNBOUND, 1,
+				dev_name(&et_dev->pdev->dev), et_dev->devnum);
 	if (!et_dev->reset_workqueue) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		rv = -ENOMEM;
@@ -2635,10 +2834,8 @@ error_uninit_et_pci_dev:
 	uninit_et_pci_dev(et_dev, true);
 
 error_free_saved_state:
-	if (et_dev->pstate) {
-		kfree(et_dev->pstate);
-		et_dev->pstate = NULL;
-	}
+	kfree(et_dev->pstate);
+	et_dev->pstate = NULL;
 
 error_destroy_et_pci_dev:
 	destroy_et_pci_dev(et_dev);
@@ -2647,6 +2844,10 @@ error_destroy_et_pci_dev:
 	return rv;
 }
 
+/**
+ * esperanto_pcie_probe() - Esperanto PCIe remove function
+ * @pdev: Pointer to struct pci_dev
+ */
 static void esperanto_pcie_remove(struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
@@ -2661,10 +2862,8 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	uninit_et_pci_dev(et_dev, true);
 	et_sysfs_remove_files(et_dev);
 	et_sysfs_remove_groups(et_dev);
-	if (et_dev->pstate) {
-		kfree(et_dev->pstate);
-		et_dev->pstate = NULL;
-	}
+	kfree(et_dev->pstate);
+	et_dev->pstate = NULL;
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 }

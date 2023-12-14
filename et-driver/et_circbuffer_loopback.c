@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /***********************************************************************
  *
@@ -16,25 +16,17 @@
 #include "et_io.h"
 
 bool et_circbuffer_push(struct et_circbuffer *cb,
-			struct et_circbuffer __iomem *cb_mem,
-			u8 *buf,
-			size_t len,
-			u8 sync)
+			struct et_circbuffer __iomem *cb_mem, u8 *buf,
+			size_t len, u8 sync)
 {
 	size_t bytes_to_write;
 
 	if (!cb || !cb_mem)
 		return false;
 
-	if (sync & ET_CB_SYNC_FOR_HOST) {
-		et_ioread(cb_mem,
-			  offsetof(struct et_circbuffer, tail),
-			  (u8 *)&cb->tail,
-			  sizeof(cb->tail));
-		// TODO SW-6388: Sync whole circbuffer instead when
-		// requested
-		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
-	}
+	if (sync & ET_CB_SYNC_FOR_HOST)
+		et_ioread(cb_mem, offsetof(struct et_circbuffer, tail),
+			  (u8 *)&cb->tail, sizeof(cb->tail));
 
 	if (len > cb->len) {
 		pr_err("message too big (len %ld, max %lld)", len, cb->len);
@@ -58,34 +50,24 @@ bool et_circbuffer_push(struct et_circbuffer *cb,
 	}
 
 	if (sync & ET_CB_SYNC_FOR_DEVICE)
-		et_iowrite(cb_mem,
-			   offsetof(struct et_circbuffer, head),
-			   (u8 *)&cb->head,
-			   sizeof(cb->head));
+		et_iowrite(cb_mem, offsetof(struct et_circbuffer, head),
+			   (u8 *)&cb->head, sizeof(cb->head));
 
 	return true;
 }
 
 bool et_circbuffer_pop(struct et_circbuffer *cb,
-		       struct et_circbuffer __iomem *cb_mem,
-		       u8 *buf,
-		       size_t len,
-		       u8 sync)
+		       struct et_circbuffer __iomem *cb_mem, u8 *buf,
+		       size_t len, u8 sync)
 {
 	size_t bytes_to_read;
 
 	if (!cb || !cb_mem)
 		return false;
 
-	if (sync & ET_CB_SYNC_FOR_HOST) {
-		et_ioread(cb_mem,
-			  offsetof(struct et_circbuffer, head),
-			  (u8 *)&cb->head,
-			  sizeof(cb->head));
-		// TODO SW-6388: Sync whole circbuffer instead when
-		// requested
-		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
-	}
+	if (sync & ET_CB_SYNC_FOR_HOST)
+		et_ioread(cb_mem, offsetof(struct et_circbuffer, head),
+			  (u8 *)&cb->head, sizeof(cb->head));
 
 	if (et_circbuffer_used(cb) < len)
 		return false;
@@ -104,10 +86,8 @@ bool et_circbuffer_pop(struct et_circbuffer *cb,
 	}
 
 	if (sync & ET_CB_SYNC_FOR_DEVICE)
-		et_iowrite(cb_mem,
-			   offsetof(struct et_circbuffer, tail),
-			   (u8 *)&cb->tail,
-			   sizeof(cb->tail));
+		et_iowrite(cb_mem, offsetof(struct et_circbuffer, tail),
+			   (u8 *)&cb->tail, sizeof(cb->tail));
 
 	return true;
 }

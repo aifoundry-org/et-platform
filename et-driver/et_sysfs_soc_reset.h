@@ -16,28 +16,31 @@
 
 #include <linux/atomic.h>
 
+/**
+ * struct et_soc_reset_cfg - ETSOC reset configuration
+ * @pcilink_discovery_timeout_ms: (RW) Timeout parameter for ETSOC reset. The
+ * driver will wait for this time for PCI link to get stable after ETSOC reset
+ * is triggered. This can be updated at run-time by writing the new value in
+ * milliseconds
+ * @pcilink_max_estim_downtime_ms: (RO) The maximum estimated time for which
+ * device remains down for ETSOC reset
+ */
 struct et_soc_reset_cfg {
-	/*
-	 * pcilink_discovery_timeout_ms (RW): Timeout parameter for ETSOC reset.
-	 * The driver will wait for this time for PCI link to get stable after
-	 * ETSOC reset is triggered. This can be updated at run-time by writing
-	 * the new value in milliseconds
-	 */
 	unsigned long pcilink_discovery_timeout_ms;
-	/*
-	 * pcilink_max_estim_downtime_ms (RO): The maximum estimated time
-	 * for which device remains down for ETSOC reset
-	 */
 	unsigned long pcilink_max_estim_downtime_ms;
 };
 
+/**
+ * et_soc_reset_cfg_init() - Initialize ETSOC reset default configuration
+ * @cfg: Pointer to struct et_soc_reset_cfg
+ */
 static inline void et_soc_reset_cfg_init(struct et_soc_reset_cfg *cfg)
 {
-	// Default configuration
 	cfg->pcilink_discovery_timeout_ms = 10000;
 	cfg->pcilink_max_estim_downtime_ms = 300;
 }
 
+/* SysFS attribute group for ETSOC reset statistics */
 extern struct attribute_group et_sysfs_soc_reset_group;
 
 #endif

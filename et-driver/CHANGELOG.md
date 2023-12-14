@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-19549] Document the source code and apply checkpatch.pl script
 ### Changed
 ### Deprecated
 ### Removed

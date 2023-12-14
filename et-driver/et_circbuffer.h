@@ -21,14 +21,28 @@
 #define ET_CB_SYNC_FOR_HOST   BIT(0)
 #define ET_CB_SYNC_FOR_DEVICE BIT(1)
 
+/**
+ * struct et_circbuffer - The circular buffer control block
+ * @head: Offset of the circular buffer to write data to
+ * @tail: Offset of the circular buffer to read data from
+ * @len: Total length (in bytes) of the circular buffer
+ * @pad: Padding for alignment
+ * @buf: Flexible array to access circular buffer memory
+ */
 struct et_circbuffer {
 	u64 head;
 	u64 tail;
 	u64 len;
 	u64 pad;
 	u8 __iomem buf[];
-} __packed;
+} __packed __aligned(8);
 
+/**
+ * et_circbuffer_used() - Get number of used bytes in circular buffer
+ * @cb: pointer to et_circbuffer structure
+ *
+ * Return: Used space in bytes
+ */
 static inline u64 et_circbuffer_used(struct et_circbuffer *cb)
 {
 	if (cb->head >= cb->tail)
@@ -36,6 +50,12 @@ static inline u64 et_circbuffer_used(struct et_circbuffer *cb)
 	return cb->len + cb->head - cb->tail;
 }
 
+/**
+ * et_circbuffer_free() - Get number of free bytes in circular buffer
+ * @cb: pointer to et_circbuffer structure
+ *
+ * Return: Free space in bytes
+ */
 static inline u64 et_circbuffer_free(struct et_circbuffer *cb)
 {
 	if (cb->head >= cb->tail)
@@ -43,22 +63,11 @@ static inline u64 et_circbuffer_free(struct et_circbuffer *cb)
 	return cb->tail - cb->head - 1U;
 }
 
-/*
- * To minimize IO operations between the successive pushes/pops, the caller can
- * decide to whether use local copy of `cb` or directly read from device memory
- * `cb_mem`. Directly reading from device memory will also update the local
- * copy passed. So, in successive operations, caller should first read from
- * device memory and then can use cached copy.
- */
 bool et_circbuffer_push(struct et_circbuffer *cb,
-			struct et_circbuffer __iomem *cb_mem,
-			u8 *buf,
-			size_t len,
-			u8 sync);
+			struct et_circbuffer __iomem *cb_mem, u8 *buf,
+			size_t len, u8 sync);
 bool et_circbuffer_pop(struct et_circbuffer *cb,
-		       struct et_circbuffer __iomem *cb_mem,
-		       u8 *buf,
-		       size_t len,
-		       u8 sync);
+		       struct et_circbuffer __iomem *cb_mem, u8 *buf,
+		       size_t len, u8 sync);
 
 #endif

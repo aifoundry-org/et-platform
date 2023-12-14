@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /***********************************************************************
  *
@@ -20,6 +20,11 @@
 
 #define VALUE_STR_MAX_LEN 128
 
+/**
+ * parse_pcie_syndrome() - Parses PCIe syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
@@ -97,11 +102,16 @@ static void parse_pcie_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	}
 }
 
+/**
+ * parse_dram_syndrome() - Parses DRAM syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_dram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
-	uint32_t memshire = GET_MEMSHIRE_BITS(event_msg->event_syndrome[0]);
-	uint32_t controller_id;
+	u32 memshire = GET_MEMSHIRE_BITS(event_msg->event_syndrome[0]);
+	u32 controller_id;
 	char value_str[VALUE_STR_MAX_LEN];
 
 	if (event_msg->event_info.msg_id == DEV_MGMT_API_MID_DRAM_CE_EVENT) {
@@ -113,11 +123,9 @@ static void parse_dram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			controller_id = 0;
 
 		snprintf(
-			value_str,
-			VALUE_STR_MAX_LEN,
+			value_str, VALUE_STR_MAX_LEN,
 			"Memory controller %d correctable ECC error in Memshire %d\n",
-			controller_id,
-			memshire);
+			controller_id, memshire);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_info.msg_id == DEV_MGMT_API_MID_DRAM_UCE_EVENT) {
@@ -129,25 +137,25 @@ static void parse_dram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			controller_id = 0;
 
 		snprintf(
-			value_str,
-			VALUE_STR_MAX_LEN,
+			value_str, VALUE_STR_MAX_LEN,
 			"Memory controller %d uncorrectable ECC error in Memshire %d\n",
-			controller_id,
-			memshire);
+			controller_id, memshire);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 
-	snprintf(
-		value_str,
-		VALUE_STR_MAX_LEN,
-		"Rank      : 0x%x\nRow       : 0x%x\nCID       : 0x%x\nBank Group: "
-		"0x%x\nBank      : 0x%x\nBlock     : 0x%x",
-		(int)GET_ECCADDR0_RANK_BITS(event_msg->event_syndrome[1]),
-		(int)GET_ECCADDR0_ROW_BITS(event_msg->event_syndrome[1]),
-		(int)GET_ECCADDR1_CID_BITS(event_msg->event_syndrome[1]),
-		(int)GET_ECCADDR1_BG_BITS(event_msg->event_syndrome[1]),
-		(int)GET_ECCADDR1_BANK_BITS(event_msg->event_syndrome[1]),
-		(int)GET_ECCADDR1_BLOCK_BITS(event_msg->event_syndrome[1]));
+	snprintf(value_str, VALUE_STR_MAX_LEN,
+		 "Rank      : 0x%x\n"
+		 "Row       : 0x%x\n"
+		 "CID       : 0x%x\n"
+		 "Bank Group: 0x%x\n"
+		 "Bank      : 0x%x\n"
+		 "Block     : 0x%x",
+		 (int)GET_ECCADDR0_RANK_BITS(event_msg->event_syndrome[1]),
+		 (int)GET_ECCADDR0_ROW_BITS(event_msg->event_syndrome[1]),
+		 (int)GET_ECCADDR1_CID_BITS(event_msg->event_syndrome[1]),
+		 (int)GET_ECCADDR1_BG_BITS(event_msg->event_syndrome[1]),
+		 (int)GET_ECCADDR1_BANK_BITS(event_msg->event_syndrome[1]),
+		 (int)GET_ECCADDR1_BLOCK_BITS(event_msg->event_syndrome[1]));
 
 	strcat(dbg_msg->syndrome, value_str);
 }
@@ -156,7 +164,14 @@ static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
 	sprintf(dbg_msg->syndrome,
-		"ESR_SC_ERR_LOG_INFO\nValid     : %d\nMultiple  : %d\nEnabled   : %d\nImprecise : %d\nCode      : %d\nIndex     : %d\nError_bits: %d\nRam       : %d",
+		"ESR_SC_ERR_LOG_INFO\nValid     : %d\n"
+		"Multiple  : %d\n"
+		"Enabled   : %d\n"
+		"Imprecise : %d\n"
+		"Code      : %d\n"
+		"Index     : %d\n"
+		"Error_bits: %d\n"
+		"Ram       : %d",
 		(int)GET_ESR_SC_ERR_LOG_INFO_V_BIT(
 			event_msg->event_syndrome[0]),
 		(int)GET_ESR_SC_ERR_LOG_INFO_M_BIT(
@@ -175,6 +190,11 @@ static void parse_sram_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			event_msg->event_syndrome[0]));
 }
 
+/**
+ * parse_pmic_syndrome() - Parses PCIe syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				struct event_dbg_msg *dbg_msg)
 {
@@ -187,11 +207,9 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				    SYNDROME_TEMP_FRACT_MASK);
 		value_whole = (event_msg->event_syndrome[1] >> 2) &
 			      SYNDROME_TEMP_MASK;
-		snprintf(value_str,
-			 VALUE_STR_MAX_LEN,
+		snprintf(value_str, VALUE_STR_MAX_LEN,
 			 "Temperature Overshoot Beyond Threshold: %d.%d C\n",
-			 value_whole,
-			 value_fract);
+			 value_whole, value_fract);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] & PMIC_ERROR_OVER_POWER_INT_MASK) {
@@ -199,11 +217,9 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				    SYNDROME_PWR_FRACT_MASK);
 		value_whole = (event_msg->event_syndrome[1] >> 10) &
 			      SYNDROME_PWR_MASK;
-		snprintf(value_str,
-			 VALUE_STR_MAX_LEN,
+		snprintf(value_str, VALUE_STR_MAX_LEN,
 			 "Power Overshoot Beyond Threshold: %d.%d W\n",
-			 value_whole,
-			 value_fract);
+			 value_whole, value_fract);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
@@ -226,6 +242,11 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		       "Communication With Regulator Failed or Bad Data\n");
 }
 
+/**
+ * parse_thermal_syndrome() - Parses thermal syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				   struct event_dbg_msg *dbg_msg)
 {
@@ -239,6 +260,11 @@ static void parse_thermal_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	sprintf(dbg_msg->syndrome, "%d.%d C", temp_whole, temp_fract);
 }
 
+/**
+ * parse_cm_err_syndrome() - Parses minion error syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				  struct event_dbg_msg *dbg_msg)
 {
@@ -259,8 +285,7 @@ static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_FW_MM_SPW_ERROR:
-		sprintf(dbg_msg->syndrome,
-			"MM SPW Error (error code: %d)\n",
+		sprintf(dbg_msg->syndrome, "MM SPW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_FW_MM_DISPATCHER_ERROR:
@@ -269,23 +294,19 @@ static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_FW_MM_SQW_ERROR:
-		sprintf(dbg_msg->syndrome,
-			"MM SQW Error (error code: %d)\n",
+		sprintf(dbg_msg->syndrome, "MM SQW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_FW_MM_SQW_HP_ERROR:
-		sprintf(dbg_msg->syndrome,
-			"MM SQW HP Error (error code: %d)\n",
+		sprintf(dbg_msg->syndrome, "MM SQW HP Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_FW_MM_DMAW_ERROR:
-		sprintf(dbg_msg->syndrome,
-			"MM DMAW Error (error code: %d)\n",
+		sprintf(dbg_msg->syndrome, "MM DMAW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_FW_MM_KW_ERROR:
-		sprintf(dbg_msg->syndrome,
-			"MM KW Error (error code: %d)\n",
+		sprintf(dbg_msg->syndrome, "MM KW Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	case MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH:
@@ -339,13 +360,17 @@ static void parse_cm_err_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	default:
-		sprintf(dbg_msg->syndrome,
-			"Undefined Error (error code: %d)\n",
+		sprintf(dbg_msg->syndrome, "Undefined Error (error code: %d)\n",
 			(s32)event_msg->event_syndrome[1]);
 		break;
 	}
 }
 
+/**
+ * parse_throttle_syndrome() - Parses throttle syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				      struct event_dbg_msg *dbg_msg)
 {
@@ -355,6 +380,11 @@ static void parse_throttling_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			event_msg->event_syndrome[0]));
 }
 
+/**
+ * parse_sp_runtime_syndrome() - Parses SP runtime syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				      struct event_dbg_msg *dbg_msg,
 				      struct et_cqueue *cq)
@@ -378,8 +408,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 
 	if ((u64)(event_msg->event_syndrome[1] + trace_buf_size) >
 	    trace_region->size) {
-		dev_err(&pdev->dev,
-			"Invalid Trace Buffer Offset: 0x%llx\n",
+		dev_err(&pdev->dev, "Invalid Trace Buffer Offset: 0x%llx\n",
 			event_msg->event_syndrome[1]);
 		return;
 	}
@@ -398,9 +427,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	trace_addr = (u8 __iomem *)trace_region->io.mapped_baseaddr;
 
 	/* Read the Device Trace buffer (Base + Offset(from Syndrome) */
-	et_ioread(trace_addr,
-		  event_msg->event_syndrome[1],
-		  (u8 *)trace_stack,
+	et_ioread(trace_addr, event_msg->event_syndrome[1], (u8 *)trace_stack,
 		  trace_buf_size);
 
 	if (trace_stack->header.type != TRACE_TYPE_EXCEPTION) {
@@ -410,17 +437,14 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		goto error_free_trace_buf;
 	}
 
-	if (strlcat(dbg_msg->syndrome,
-		    "Service Processor Error\n",
+	if (strlcat(dbg_msg->syndrome, "Service Processor Error\n",
 		    ET_EVENT_SYNDROME_LEN) >= ET_EVENT_SYNDROME_LEN) {
 		dev_err(&pdev->dev, "Syndrome string out of space\n");
 		goto error_free_trace_buf;
 	}
 
 	/* Print SP timer ticks count */
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "Cycles    : 0x%llX\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN, "Cycles    : 0x%llX\n",
 		 trace_stack->header.cycle);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
@@ -429,9 +453,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	}
 
 	/* print CSRs (mepc, mstatus, mtval, mcause) */
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "mepc   : 0x%llX\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN, "mepc   : 0x%llX\n",
 		 trace_stack->registers.epc);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
@@ -439,9 +461,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		goto error_free_trace_buf;
 	}
 
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "mstatus: 0x%llX\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN, "mstatus: 0x%llX\n",
 		 trace_stack->registers.status);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
@@ -449,9 +469,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		goto error_free_trace_buf;
 	}
 
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "mtval  : 0x%llX\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN, "mtval  : 0x%llX\n",
 		 trace_stack->registers.tval);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
@@ -459,9 +477,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		goto error_free_trace_buf;
 	}
 
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "mcause : 0x%llX\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN, "mcause : 0x%llX\n",
 		 trace_stack->registers.cause);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
@@ -473,9 +489,7 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	 * Print SP GPRs - GPRs are stored in trace
 	 * buffer starting from x1 then x5 to x31
 	 */
-	snprintf(value_str,
-		 VALUE_STR_MAX_LEN,
-		 "x1 : 0x%llX\n",
+	snprintf(value_str, VALUE_STR_MAX_LEN, "x1 : 0x%llX\n",
 		 trace_stack->registers.gpr[0]);
 	if (strlcat(dbg_msg->syndrome, value_str, ET_EVENT_SYNDROME_LEN) >=
 	    ET_EVENT_SYNDROME_LEN) {
@@ -483,13 +497,9 @@ static void parse_sp_runtime_syndrome(struct device_mgmt_event_msg_t *event_msg,
 		goto error_free_trace_buf;
 	}
 	for (idx = 4; idx < DEV_GPR_REGISTERS; idx++) {
-		snprintf(value_str,
-			 VALUE_STR_MAX_LEN,
-			 "x%-2d: 0x%llX\n",
-			 idx + 1,
-			 trace_stack->registers.gpr[idx]);
-		if (strlcat(dbg_msg->syndrome,
-			    value_str,
+		snprintf(value_str, VALUE_STR_MAX_LEN, "x%-2d: 0x%llX\n",
+			 idx + 1, trace_stack->registers.gpr[idx]);
+		if (strlcat(dbg_msg->syndrome, value_str,
 			    ET_EVENT_SYNDROME_LEN) >= ET_EVENT_SYNDROME_LEN) {
 			dev_err(&pdev->dev, "Syndrome string out of space\n");
 			goto error_free_trace_buf;
@@ -501,27 +511,47 @@ error_free_trace_buf:
 	kfree(trace_buf);
 }
 
+/**
+ * parse_runtime_error_syndrome() - Parses runtime error syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void
 parse_runtime_error_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			     struct event_dbg_msg *dbg_msg)
 {
 	/* The error count above the threshold is present in the syndrome[1] */
 	sprintf(dbg_msg->syndrome,
-		"Runtime Error Count Beyond Threshold: %llu \n",
+		"Runtime Error Count Beyond Threshold: %llu\n",
 		event_msg->event_syndrome[1]);
 }
 
+/**
+ * parse_trace_buffer_syndrome() - Parses trace buffer syndrome
+ * @event_msg: Raw event information
+ * @dbg_msg: Parsed event information in string form
+ */
 static void
 parse_trace_buffer_event_syndrome(struct device_mgmt_event_msg_t *event_msg,
 				  struct event_dbg_msg *dbg_msg)
 {
 	/* syndrome[0]: Buffer type, syndrome[1]: Data size */
 	sprintf(dbg_msg->syndrome,
-		"Trace Buffer threshold reached\nBuffer type: %llu\nData size: %llu\n",
-		event_msg->event_syndrome[0],
-		event_msg->event_syndrome[1]);
+		"Trace Buffer threshold reached\n"
+		"Buffer type: %llu\n"
+		"Data size: %llu\n",
+		event_msg->event_syndrome[0], event_msg->event_syndrome[1]);
 }
 
+/**
+ * et_handle_device_event() - Handle processing of all types of events from CQ
+ * @cq: Pointer to struct et_cqueue
+ * @event_msg: Pointer to struct device_mgmt_event_msg_t, event to be processed
+ *
+ * Parses the event message and prints the information in the dmesg
+ *
+ * Return: true on success, false otherwise.
+ */
 int et_handle_device_event(struct et_cqueue *cq,
 			   struct device_mgmt_event_msg_t *event_msg)
 {
@@ -667,8 +697,7 @@ int et_handle_device_event(struct et_cqueue *cq,
 		break;
 	default:
 		dbg_msg.desc = "Un-Supported Event MSG ID";
-		dev_err(&pdev->dev,
-			"Event MSG ID [%d] is invalid\n",
+		dev_err(&pdev->dev, "Event MSG ID [%d] is invalid\n",
 			event_msg->event_info.msg_id);
 		rv = -EINVAL;
 		break;

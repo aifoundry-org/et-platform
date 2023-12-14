@@ -20,22 +20,21 @@
 #include "et_device_api.h"
 #include "et_vqueue.h"
 
-// clang-format off
-enum event_class {
-	ECLASS_INFO,           /* Informational */
-	ECLASS_WARNING,        /* Warning */
-	ECLASS_CRITICAL,       /* Critical */
-	ECLASS_FATAL,          /* Fatal */
-};
-
-/*!
- * @enum error_type
- * @brief Enum defining event/error type
+/**
+ * @enum event_class - Enum defining event/error class
+ * @ECLASS_INFO: Informational
+ * @ECLASS_WARNING: Warning
+ * @ECLASS_CRITICAL: Critical
+ * @ECLASS_FATAL: Fatal
  */
-enum error_type {
-	CORRECTABLE,
-	UNCORRETABLE,
-};
+enum event_class { ECLASS_INFO, ECLASS_WARNING, ECLASS_CRITICAL, ECLASS_FATAL };
+
+/**
+ * enum error_type - Enum defining event/error type
+ */
+enum error_type { CORRECTABLE, UNCORRETABLE };
+
+// clang-format off
 
 #define EVENT_CLASS_MASK	0x0003
 #define EVENT_COUNT_MASK	0x3FFF
@@ -93,21 +92,21 @@ enum error_type {
 #define DRAM_MC1_ECC_UNCORRECTED_ERR_INT_MASK       BIT(1)
 #define DRAM_MC0_ECC_UNCORRECTED_ERR_INT_MASK       BIT(0)
 
-#define GET_MEMSHIRE_BITS(x)    \
-    ((x) >> 32 & 0x07ULL)
+#define GET_MEMSHIRE_BITS(x)		\
+	((x) >> 32 & 0x07ULL)
 
-#define GET_ECCADDR0_RANK_BITS(x)   \
-    (((x) & 0x00000000FF000000ULL) >> 24)
-#define GET_ECCADDR0_ROW_BITS(x)    \
-    ((x) & 0x0000000000FFFFFFFUL)
-#define GET_ECCADDR1_CID_BITS(x)    \
-    (((x) & (0x00000000F0000000ULL << 32)) >> (28+32))
-#define GET_ECCADDR1_BG_BITS(x)     \
-    (((x) & (0x000000000F000000ULL << 32)) >> (24+32))
-#define GET_ECCADDR1_BANK_BITS(x)   \
-    (((x) & (0x0000000000FF0000ULL << 32)) >> (16+32))
-#define GET_ECCADDR1_BLOCK_BITS(x)  \
-    (((x) & (0x0000000000000FFFULL << 32)) >> 32)
+#define GET_ECCADDR0_RANK_BITS(x)	\
+	(((x) & 0x00000000FF000000ULL) >> 24)
+#define GET_ECCADDR0_ROW_BITS(x)	\
+	((x) & 0x0000000000FFFFFFFUL)
+#define GET_ECCADDR1_CID_BITS(x)	\
+	(((x) & (0x00000000F0000000ULL << 32)) >> (28 + 32))
+#define GET_ECCADDR1_BG_BITS(x)		\
+	(((x) & (0x000000000F000000ULL << 32)) >> (24 + 32))
+#define GET_ECCADDR1_BANK_BITS(x)	\
+	(((x) & (0x0000000000FF0000ULL << 32)) >> (16 + 32))
+#define GET_ECCADDR1_BLOCK_BITS(x)	\
+	(((x) & (0x0000000000000FFFULL << 32)) >> 32)
 
 #define SYNDROME_TEMP_MASK		0x000000000000003FULL
 #define SYNDROME_TEMP_FRACT_MASK	0x0000000000000003ULL
@@ -135,39 +134,41 @@ enum error_type {
 #define GET_OVER_THROTTLE_DURATION_BITS(reg)		\
 	((reg) & 0x00000000FFFFFFFFULL)
 
-/*!
- * @enum sp2mm_error_type
- * @brief Enum defining types of error reported by MM to SP.
- * @warning Must be kept in sync with the device.
+// clang-format on
+
+/**
+ * enum sp2mm_error_type - Enum defining types of error reported by MM to SP
+ *
+ * NOTE: Must be kept in sync with the device
  */
 enum sp2mm_error_type {
-    SP_RECOVERABLE_FW_MM_HANG = 0,
-    SP_RECOVERABLE_FW_MM_ERROR = 1,
-    MM_RECOVERABLE_FW_CM_RUNTIME_ERROR = 2,
-    MM_RECOVERABLE_FW_MM_DISPATCHER_ERROR = 3,
-    MM_RECOVERABLE_FW_MM_DMAW_ERROR = 4,
-    MM_RECOVERABLE_FW_MM_SQW_ERROR = 5,
-    MM_RECOVERABLE_FW_MM_SQW_HP_ERROR = 6,
-    MM_RECOVERABLE_FW_MM_SPW_ERROR = 7,
-    MM_RECOVERABLE_FW_MM_KW_ERROR = 8,
-    MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH = 9,
-    MM_RECOVERABLE_OPS_API_DMA_READLIST = 10,
-    MM_RECOVERABLE_OPS_API_DMA_WRITELIST = 11,
-    MM_RECOVERABLE_OPS_API_ECHO = 12,
-    MM_RECOVERABLE_OPS_API_FW_VER = 13,
-    MM_RECOVERABLE_OPS_API_COMPATIBILITY = 14,
-    MM_RECOVERABLE_OPS_API_ABORT = 15,
-    MM_RECOVERABLE_OPS_API_CM_RESET = 16,
-    MM_RECOVERABLE_OPS_API_TRACE_RT_CONFIG = 17,
-    MM_RECOVERABLE_OPS_API_TRACE_RT_CONTROL = 18
+	SP_RECOVERABLE_FW_MM_HANG = 0,
+	SP_RECOVERABLE_FW_MM_ERROR,
+	MM_RECOVERABLE_FW_CM_RUNTIME_ERROR,
+	MM_RECOVERABLE_FW_MM_DISPATCHER_ERROR,
+	MM_RECOVERABLE_FW_MM_DMAW_ERROR,
+	MM_RECOVERABLE_FW_MM_SQW_ERROR,
+	MM_RECOVERABLE_FW_MM_SQW_HP_ERROR,
+	MM_RECOVERABLE_FW_MM_SPW_ERROR,
+	MM_RECOVERABLE_FW_MM_KW_ERROR,
+	MM_RECOVERABLE_OPS_API_KERNEL_LAUNCH,
+	MM_RECOVERABLE_OPS_API_DMA_READLIST,
+	MM_RECOVERABLE_OPS_API_DMA_WRITELIST,
+	MM_RECOVERABLE_OPS_API_ECHO,
+	MM_RECOVERABLE_OPS_API_FW_VER,
+	MM_RECOVERABLE_OPS_API_COMPATIBILITY,
+	MM_RECOVERABLE_OPS_API_ABORT,
+	MM_RECOVERABLE_OPS_API_CM_RESET,
+	MM_RECOVERABLE_OPS_API_TRACE_RT_CONFIG,
+	MM_RECOVERABLE_OPS_API_TRACE_RT_CONTROL
 };
 
 /**
  * struct event_dbg_msg - Debug info based on event message
- * @level:	Severity level: warning, critical or fatal
- * @desc:	Text describing the event
- * @count:	No. of times an event occurred
- * @syndrome:	Info to debug or identify the event source
+ * @level: Severity level: warning, critical or fatal
+ * @desc: Text describing the event
+ * @count: No. of times an event occurred
+ * @syndrome: Info to debug or identify the event source
  */
 struct event_dbg_msg {
 	char *level;
@@ -176,21 +177,27 @@ struct event_dbg_msg {
 	char *syndrome;
 };
 
-#define ET_EVENT_SYNDROME_LEN			960
+#define ET_EVENT_SYNDROME_LEN 960
 
+/**
+ * et_print_event() - Print error event in dmesg
+ * @pdev: Pointer to struct pci_dev
+ * @dbg_msg: Pointer to struct event_dbg_msg, containing print message info.
+ */
 static inline void et_print_event(struct pci_dev *pdev,
-				  struct event_dbg_msg *dbg_msg) {
+				  struct event_dbg_msg *dbg_msg)
+{
 	dev_info(&pdev->dev,
-		 "Error Event Detected\nLevel     : %s\nDesc      : %s\nCount     : %d\nSyndrome  : %s",
-		 dbg_msg->level,
-		 dbg_msg->desc,
-		 dbg_msg->count,
+		 "Error Event Detected\n"
+		 "Level     : %s\n"
+		 "Desc      : %s\n"
+		 "Count     : %d\n"
+		 "Syndrome  : %s",
+		 dbg_msg->level, dbg_msg->desc, dbg_msg->count,
 		 dbg_msg->syndrome);
 }
 
 int et_handle_device_event(struct et_cqueue *cq,
 			   struct device_mgmt_event_msg_t *event_msg);
-
-// clang-format on
 
 #endif

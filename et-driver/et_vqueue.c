@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/*-------------------------------------------------------------------------
- * Copyright (C) 2018, Esperanto Technologies Inc.
+/***********************************************************************
+ *
+ * Copyright (C) 2023 Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
- *-------------------------------------------------------------------------
- */
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *
+ **********************************************************************/
 
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -18,23 +23,29 @@
 #include "et_pci_dev.h"
 #include "et_vqueue.h"
 
+/**
+ * create_msg_node() - Performs memory allocations to create the message node
+ * @msg_size: Size of message to be saved in the message node
+ *
+ * Return: Pointer to struct et_msg_node on success, NULL on failure
+ */
 static struct et_msg_node *create_msg_node(u32 msg_size)
 {
 	struct et_msg_node *new_node;
+
 	//Build node
 	new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
-
 	if (IS_ERR(new_node)) {
-		panic("Failed to allocate msg node, error %ld\n",
-		      PTR_ERR(new_node));
+		pr_err("Failed to allocate msg node, error %ld\n",
+		       PTR_ERR(new_node));
 		return NULL;
 	}
 
 	new_node->msg = kmalloc(msg_size, GFP_KERNEL);
-
 	if (IS_ERR(new_node->msg)) {
-		panic("Failed to allocate msg buffer, error %ld\n",
-		      PTR_ERR(new_node->msg));
+		pr_err("Failed to allocate msg buffer, error %ld\n",
+		       PTR_ERR(new_node->msg));
+		kfree(new_node);
 		return NULL;
 	}
 
@@ -43,6 +54,11 @@ static struct et_msg_node *create_msg_node(u32 msg_size)
 	return new_node;
 }
 
+/**
+ * enqueue_msg_node() - Enqueue the message node in CQ's user message list
+ * @cq: Pointer to struct et_cqueue
+ * @msg: Message to be enqueued
+ */
 static void enqueue_msg_node(struct et_cqueue *cq, struct et_msg_node *msg)
 {
 	mutex_lock(&cq->msg_list_mutex);
@@ -50,7 +66,13 @@ static void enqueue_msg_node(struct et_cqueue *cq, struct et_msg_node *msg)
 	mutex_unlock(&cq->msg_list_mutex);
 }
 
-struct et_msg_node *et_dequeue_msg_node(struct et_cqueue *cq)
+/**
+ * dequeue_msg_node() - Dequeue message node from CQ's user message list
+ * @cq: Pointer to struct et_cqueue
+ *
+ * Return: Pointer to struct et_msg_node on success, NULL on failure
+ */
+static struct et_msg_node *dequeue_msg_node(struct et_cqueue *cq)
 {
 	struct et_msg_node *msg;
 
@@ -64,6 +86,10 @@ struct et_msg_node *et_dequeue_msg_node(struct et_cqueue *cq)
 	return msg;
 }
 
+/**
+ * destroy_msg_node() - Performs memory de-allocations to free the message node
+ * @node: Message node to be destroyed
+ */
 static void destroy_msg_node(struct et_msg_node *node)
 {
 	if (node) {
@@ -72,6 +98,34 @@ static void destroy_msg_node(struct et_msg_node *node)
 	}
 }
 
+/**
+ * destroy_msg_list() - Free-up CQ's complete message list
+ * @cq: Pointer to struct et_cqueue
+ */
+static void destroy_msg_list(struct et_cqueue *cq)
+{
+	struct list_head *pos, *next;
+	struct et_msg_node *node;
+	int count = 0;
+
+	mutex_lock(&cq->msg_list_mutex);
+	list_for_each_safe (pos, next, &cq->msg_list) {
+		node = list_entry(pos, struct et_msg_node, list);
+		list_del(pos);
+		destroy_msg_node(node);
+		count++;
+	}
+	mutex_unlock(&cq->msg_list_mutex);
+
+	if (count)
+		pr_warn("Discarded (%d) CQ user messages", count);
+}
+
+/**
+ * mm_reset_completion_callback() - Callback on MM reset completion
+ * @cq: Pointer to struct et_cqueue
+ * @rsp: MM reset response received from device
+ */
 static void mm_reset_completion_callback(struct et_cqueue *cq,
 					 struct device_mgmt_rsp_hdr_t *rsp)
 {
@@ -79,8 +133,7 @@ static void mm_reset_completion_callback(struct et_cqueue *cq,
 	struct et_pci_dev *et_dev = pci_get_drvdata(cq->vq_common->pdev);
 
 	if (rsp->status != DEV_OPS_API_MM_RESET_RESPONSE_COMPLETE) {
-		dev_err(&et_dev->pdev->dev,
-			"MM reset failed!, status: %d\n",
+		dev_err(&et_dev->pdev->dev, "MM reset failed!, status: %d\n",
 			rsp->status);
 		return;
 	}
@@ -105,25 +158,12 @@ unlock_reset_mutex:
 	mutex_unlock(&et_dev->ops.reset_mutex);
 }
 
-void et_destroy_msg_list(struct et_cqueue *cq)
-{
-	struct list_head *pos, *next;
-	struct et_msg_node *node;
-	int count = 0;
-
-	mutex_lock(&cq->msg_list_mutex);
-	list_for_each_safe (pos, next, &cq->msg_list) {
-		node = list_entry(pos, struct et_msg_node, list);
-		list_del(pos);
-		destroy_msg_node(node);
-		count++;
-	}
-	mutex_unlock(&cq->msg_list_mutex);
-
-	if (count)
-		pr_warn("Discarded (%d) CQ user messages", count);
-}
-
+/**
+ * et_cqueue_msg_available() - Check for message in CQ's user message list
+ * @cq: Pointer to struct et_cqueue
+ *
+ * Return: true if message found, else false
+ */
 bool et_cqueue_msg_available(struct et_cqueue *cq)
 {
 	struct et_msg_node *msg;
@@ -135,6 +175,13 @@ bool et_cqueue_msg_available(struct et_cqueue *cq)
 	return !!(msg);
 }
 
+/**
+ * et_pcie_sq_isr() - SQ interrupt service routine
+ * @sq_id: Base address of SQ information / SQ[0] address
+ *
+ * This interrupt is generated by device when it pops out all commands from the
+ * SQ i.e. SQ became empty. Queues work to identify the availability of each SQ
+ */
 static irqreturn_t et_pcie_sq_isr(int irq, void *sq_id)
 {
 	int i;
@@ -147,8 +194,33 @@ static irqreturn_t et_pcie_sq_isr(int irq, void *sq_id)
 	return IRQ_HANDLED;
 }
 
+/**
+ * interrupt_device() - Write the SQ MBox interrupt on interrupt trigger region
+ * @sq: Pointer to struct et_squeue
+ */
+static inline void interrupt_device(struct et_squeue *sq)
+{
+	switch (sq->vq_common->intrpt_trg_size) {
+	case 1:
+		iowrite8(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
+		break;
+	case 2:
+		iowrite16(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
+		break;
+	case 4:
+		iowrite32(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
+		break;
+	case 8:
+		iowrite64(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
+	}
+}
+
 void et_squeue_sync_cb_for_host(struct et_squeue *sq);
 
+/**
+ * et_sq_isr_work() - SQ work ISR to re-evaluate SQ availability
+ * @work: Pointer to struct work_struct specific to a SQ
+ */
 static void et_sq_isr_work(struct work_struct *work)
 {
 	struct et_squeue *sq = container_of(work, struct et_squeue, isr_work);
@@ -171,6 +243,13 @@ update_sq_bitmap:
 	mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
 }
 
+/**
+ * et_pcie_cq_isr() - CQ interrupt service routine
+ * @sq_id: Base address of CQ information / CQ[0] address
+ *
+ * This interrupt is generated by device when it pushes response(s) into the CQ
+ * i.e. CQ is non-empty. This queues work to pop-out the responses from CQ(s)
+ */
 static irqreturn_t et_pcie_cq_isr(int irq, void *cq_id)
 {
 	int i;
@@ -183,13 +262,54 @@ static irqreturn_t et_pcie_cq_isr(int irq, void *cq_id)
 	return IRQ_HANDLED;
 }
 
+/**
+ * et_cq_isr_work() - CQ work ISR to receive responses from CQ
+ * @work: Pointer to struct work_struct specific to a CQ
+ *
+ * This method handles CQ messages for the kernel immediatley, and saves-off
+ * messages for user mode to be consumed later.
+ *
+ * User mode messages must not block kernel messages from being processed (e.g
+ * if the first msg in the vqueue is for the user and the second is for the
+ * kernel, the kernel message should not be stuck in line behind the user
+ * message).
+ *
+ * This method must be tolerant of spurious IRQs (no new msg), and taking an
+ * IRQ while messages are still in filght.
+ *
+ * Reasons it may fire:
+ * - The host sent a msg to this CQ
+ * - The host sent a msg to another CQ
+ * - The host sent two (or more) messages and two (or more) IRQs, but the ISR
+ *   handeled multiple messages in one pass, (follow-on IRQs should be ignored)
+ * - Another version of this: the ISR sees the data for the first message, and
+ *   only a portion of the data for the second message (rest of data and second
+ *   IRQ still in flight)
+ */
 static void et_cq_isr_work(struct work_struct *work)
 {
+	bool sync_for_host = true;
 	struct et_cqueue *cq = container_of(work, struct et_cqueue, isr_work);
 
-	et_cqueue_isr_bottom(cq);
+	// Handle all pending messages in the cqueue
+	while (et_cqueue_pop(cq, sync_for_host) > 0) {
+		// Only sync `circbuffer` the first time
+		if (sync_for_host)
+			sync_for_host = false;
+	}
 }
 
+/**
+ * et_high_priority_squeue_init_all() - Initialize HPSQs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ *
+ * Initializes all driver data structures for HPSQs. Expects that the BAR
+ * region for VQs is already mapped and information about VQs is available
+ * in vq_data
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 						bool is_mgmt)
 {
@@ -204,9 +324,8 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 		return 0;
 	}
 
-	if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
+	if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid)
 		return -EINVAL;
-	}
 
 	vq_data = &et_dev->ops.vq_data;
 	vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
@@ -215,8 +334,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 	hp_sq_size = et_dev->ops.dir_vq.hp_sq_size;
 
 	vq_data->hp_sqs = kmalloc_array(vq_data->vq_common.hp_sq_count,
-					sizeof(*vq_data->hp_sqs),
-					GFP_KERNEL);
+					sizeof(*vq_data->hp_sqs), GFP_KERNEL);
 	if (!vq_data->hp_sqs)
 		return -ENOMEM;
 
@@ -226,8 +344,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 		vq_data->hp_sqs[i].vq_common = &vq_data->vq_common;
 		vq_data->hp_sqs[i].cb_mem =
 			(struct et_circbuffer __iomem *)hp_sq_baseaddr;
-		et_ioread(vq_data->hp_sqs[i].cb_mem,
-			  0,
+		et_ioread(vq_data->hp_sqs[i].cb_mem, 0,
 			  (u8 *)&vq_data->hp_sqs[i].cb,
 			  sizeof(vq_data->hp_sqs[i].cb));
 		vq_data->hp_sqs[i].cb_mismatched = false;
@@ -240,6 +357,16 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 	return 0;
 }
 
+/**
+ * et_squeue_init_all() - Initialize SQs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ *
+ * Initializes all driver data structures for SQs. Expects that the BAR region
+ * for VQs is already mapped and information about VQs is available in vq_data
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t i, rv;
@@ -278,18 +405,15 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	// Initialize sq_workqueue
 	vq_data->vq_common.sq_workqueue =
-		alloc_workqueue("%s:%s%d_sqwq",
-				WQ_MEM_RECLAIM | WQ_UNBOUND,
+		alloc_workqueue("%s:%s%d_sqwq", WQ_MEM_RECLAIM | WQ_UNBOUND,
 				vq_data->vq_common.sq_count,
 				dev_name(&et_dev->pdev->dev),
-				(is_mgmt) ? "mgmt" : "ops",
-				et_dev->devnum);
+				(is_mgmt) ? "mgmt" : "ops", et_dev->devnum);
 	if (!vq_data->vq_common.sq_workqueue)
 		return -ENOMEM;
 
 	vq_data->sqs = kmalloc_array(vq_data->vq_common.sq_count,
-				     sizeof(*vq_data->sqs),
-				     GFP_KERNEL);
+				     sizeof(*vq_data->sqs), GFP_KERNEL);
 	if (!vq_data->sqs) {
 		rv = -ENOMEM;
 		goto error_destroy_sq_workqueue;
@@ -301,9 +425,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data->sqs[i].vq_common = &vq_data->vq_common;
 		vq_data->sqs[i].cb_mem =
 			(struct et_circbuffer __iomem *)sq_baseaddr;
-		et_ioread(vq_data->sqs[i].cb_mem,
-			  0,
-			  (u8 *)&vq_data->sqs[i].cb,
+		et_ioread(vq_data->sqs[i].cb_mem, 0, (u8 *)&vq_data->sqs[i].cb,
 			  sizeof(vq_data->sqs[i].cb));
 		vq_data->sqs[i].cb_mismatched = false;
 		sq_baseaddr += sq_size;
@@ -321,15 +443,11 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		flush_workqueue(vq_data->vq_common.sq_workqueue);
 	}
 
-	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
-			 et_pcie_sq_isr,
+	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx), et_pcie_sq_isr,
 			 0,
-			 devm_kasprintf(&et_dev->pdev->dev,
-					GFP_KERNEL,
-					"%s%d_irq%ld",
-					is_mgmt ? "mgmt" : "ops",
-					et_dev->devnum,
-					vec_idx),
+			 devm_kasprintf(&et_dev->pdev->dev, GFP_KERNEL,
+					"%s%d_irq%ld", is_mgmt ? "mgmt" : "ops",
+					et_dev->devnum, vec_idx),
 			 (void *)vq_data->sqs);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "request irq failed\n");
@@ -347,6 +465,16 @@ error_destroy_sq_workqueue:
 	return rv;
 }
 
+/**
+ * et_cqueue_init_all() - Initialize CQs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ *
+ * Initializes all driver data structures for CQs. Expects that the BAR region
+ * for VQs is already mapped and information about VQs is available in vq_data
+ *
+ * Return: 0 on success, negative error on failure
+ */
 static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t i, rv;
@@ -385,18 +513,15 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	// Initialize cq_workqueue
 	vq_data->vq_common.cq_workqueue =
-		alloc_workqueue("%s:%s%d_cqwq",
-				WQ_MEM_RECLAIM | WQ_UNBOUND,
+		alloc_workqueue("%s:%s%d_cqwq", WQ_MEM_RECLAIM | WQ_UNBOUND,
 				vq_data->vq_common.cq_count,
 				dev_name(&et_dev->pdev->dev),
-				(is_mgmt) ? "mgmt" : "ops",
-				et_dev->devnum);
+				(is_mgmt) ? "mgmt" : "ops", et_dev->devnum);
 	if (!vq_data->vq_common.cq_workqueue)
 		return -ENOMEM;
 
 	vq_data->cqs = kmalloc_array(vq_data->vq_common.cq_count,
-				     sizeof(*vq_data->cqs),
-				     GFP_KERNEL);
+				     sizeof(*vq_data->cqs), GFP_KERNEL);
 	if (!vq_data->cqs) {
 		rv = -ENOMEM;
 		goto error_destroy_cq_workqueue;
@@ -407,9 +532,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data->cqs[i].vq_common = &vq_data->vq_common;
 		vq_data->cqs[i].cb_mem =
 			(struct et_circbuffer __iomem *)cq_baseaddr;
-		et_ioread(vq_data->cqs[i].cb_mem,
-			  0,
-			  (u8 *)&vq_data->cqs[i].cb,
+		et_ioread(vq_data->cqs[i].cb_mem, 0, (u8 *)&vq_data->cqs[i].cb,
 			  sizeof(vq_data->cqs[i].cb));
 		vq_data->cqs[i].cb_mismatched = false;
 		cq_baseaddr += cq_size;
@@ -427,15 +550,11 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		flush_workqueue(vq_data->vq_common.cq_workqueue);
 	}
 
-	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx),
-			 et_pcie_cq_isr,
+	rv = request_irq(pci_irq_vector(et_dev->pdev, vec_idx), et_pcie_cq_isr,
 			 0,
-			 devm_kasprintf(&et_dev->pdev->dev,
-					GFP_KERNEL,
-					"%s%d_irq%ld",
-					is_mgmt ? "mgmt" : "ops",
-					et_dev->devnum,
-					vec_idx),
+			 devm_kasprintf(&et_dev->pdev->dev, GFP_KERNEL,
+					"%s%d_irq%ld", is_mgmt ? "mgmt" : "ops",
+					et_dev->devnum, vec_idx),
 			 (void *)vq_data->cqs);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "request irq failed\n");
@@ -457,6 +576,17 @@ static void et_high_priority_squeue_destroy_all(struct et_pci_dev *et_dev,
 						bool is_mgmt);
 static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt);
 
+/**
+ * et_vqueue_init_all() - Initialize general/common VQ information
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ *
+ * Initializes all driver data structures common for all VQs. Expects that the
+ * BAR region for MBox interrupts is already mapped and information about VQs
+ * is available in vq_data other than vq_common information.
+ *
+ * Return: 0 on success, negative error on failure
+ */
 ssize_t et_vqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	ssize_t rv;
@@ -542,6 +672,11 @@ error_sysfs_remove_group:
 	return rv;
 }
 
+/**
+ * et_high_priority_squeue_destroy_all() - Destroys all HPSQs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ */
 static void et_high_priority_squeue_destroy_all(struct et_pci_dev *et_dev,
 						bool is_mgmt)
 {
@@ -561,6 +696,11 @@ static void et_high_priority_squeue_destroy_all(struct et_pci_dev *et_dev,
 	kfree(vq_data->hp_sqs);
 }
 
+/**
+ * et_squeue_destroy_all() - Destroys all SQs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ */
 static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	int i;
@@ -588,6 +728,11 @@ static void et_squeue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	destroy_workqueue(vq_data->vq_common.sq_workqueue);
 }
 
+/**
+ * et_cqueue_destroy_all() - Destroys all CQs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ */
 static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	int i;
@@ -607,7 +752,7 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		cancel_work_sync(&vq_data->cqs[i].isr_work);
 		mutex_destroy(&vq_data->cqs[i].pop_mutex);
-		et_destroy_msg_list(&vq_data->cqs[i]);
+		destroy_msg_list(&vq_data->cqs[i]);
 		mutex_destroy(&vq_data->cqs[i].msg_list_mutex);
 		vq_data->cqs[i].cb_mem = NULL;
 		vq_data->cqs[i].vq_common = NULL;
@@ -617,6 +762,11 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	destroy_workqueue(vq_data->vq_common.cq_workqueue);
 }
 
+/**
+ * et_vqueue_destroy_all() - Destroy all general/common VQ structs
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ */
 void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 {
 	struct et_vq_data *vq_data;
@@ -625,12 +775,13 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	vq_data = is_mgmt ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
 	vq_stats_gid = is_mgmt ? ET_SYSFS_GID_MGMT_VQ_STATS :
 				 ET_SYSFS_GID_OPS_VQ_STATS;
-	// Memory barrier to ensure changes for the sleeper on waitqueue
-	// before it awakes
+
+	// Ensure changes for the sleeper on waitqueue before it awakes
 	smp_mb();
 	wake_up_all(&vq_data->vq_common.waitqueue);
+	// Wait until waitqueue becomes inactive
 	while (waitqueue_active(&vq_data->vq_common.waitqueue))
-		msleep(1);
+		msleep(50);
 
 	et_cqueue_destroy_all(et_dev, is_mgmt);
 	et_squeue_destroy_all(et_dev, is_mgmt);
@@ -642,23 +793,14 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	mutex_destroy(&vq_data->vq_common.cq_bitmap_mutex);
 }
 
-static inline void interrupt_device(struct et_squeue *sq)
-{
-	switch (sq->vq_common->intrpt_trg_size) {
-	case 1:
-		iowrite8(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
-		break;
-	case 2:
-		iowrite16(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
-		break;
-	case 4:
-		iowrite32(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
-		break;
-	case 8:
-		iowrite64(sq->vq_common->intrpt_id, sq->vq_common->intrpt_addr);
-	}
-}
-
+/**
+ * et_squeue_push() - Push command on SQ circular buffer
+ * @sq: Pointer to struct et_squeue
+ * @buf: Command memory buffer to be written on the circular buffer
+ * @count: Number of bytes of command memory buffer
+ *
+ * Return: Number of bytes written on success, negative error on failure
+ */
 ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 {
 	struct cmn_header_t *header = buf;
@@ -681,10 +823,7 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 
 	mutex_lock(&sq->push_mutex);
 
-	if (!et_circbuffer_push(&sq->cb,
-				sq->cb_mem,
-				buf,
-				header->size,
+	if (!et_circbuffer_push(&sq->cb, sq->cb_mem, buf, header->size,
 				ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE)) {
 		// Full; no room for message, returning EAGAIN
 		rv = -EAGAIN;
@@ -720,12 +859,20 @@ update_sq_bitmap:
 	return rv;
 }
 
-ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
-				 bool is_mgmt,
-				 bool is_hp_sq,
-				 u16 sq_index,
-				 const char __user *ubuf,
-				 size_t count)
+/**
+ * et_squeue_copy_from_user() - Copies command from user and forwards on SQ
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ * @is_hp_sq: Should be pushed on HPSQ or normal SQ
+ * @sq_index: SQ index
+ * @ubuf: Command memory buffer in user-space
+ * @count: Number of bytes of command memory buffer
+ *
+ * Return: Number of bytes written on success, negative error on failure
+ */
+ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev, bool is_mgmt,
+				 bool is_hp_sq, u16 sq_index,
+				 const char __user *ubuf, size_t count)
 {
 	struct et_vq_data *vq_data;
 	struct et_squeue *sq;
@@ -759,6 +906,10 @@ free_kern_buf:
 	return rv;
 }
 
+/**
+ * et_squeue_sync_cb_for_host() - Sync circular buffer local copy with remote
+ * @sq: Pointer to struct et_squeue
+ */
 void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 {
 	u64 head_local;
@@ -769,15 +920,20 @@ void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 
 	if (head_local != sq->cb.head) {
 		pr_err("SQ[%d] sync: head mismatched, head_local: %lld, head_remote: %lld",
-		       sq->index,
-		       head_local,
-		       sq->cb.head);
+		       sq->index, head_local, sq->cb.head);
 		sq->cb_mismatched = true;
 	}
 
 	mutex_unlock(&sq->push_mutex);
 }
 
+/**
+ * et_squeue_sync_bitmap() - Re-evaluate SQ status in the SQ bitmap
+ * @sq: Pointer to struct et_squeue
+ *
+ * This first updates the local copy of circular buffer with remote copy and
+ * then re-evaluates the SQ bitmap
+ */
 void et_squeue_sync_bitmap(struct et_squeue *sq)
 {
 	et_squeue_sync_cb_for_host(sq);
@@ -794,6 +950,15 @@ void et_squeue_sync_bitmap(struct et_squeue *sq)
 	mutex_unlock(&sq->vq_common->sq_bitmap_mutex);
 }
 
+/**
+ * et_squeue_empty() - Checks if SQ is empty
+ * @sq: Pointer to struct et_squeue
+ *
+ * This first updates the local copy of circular buffer with remote copy and
+ * then evaluates the SQ emptiness
+ *
+ * Return: true on success, false on failure
+ */
 bool et_squeue_empty(struct et_squeue *sq)
 {
 	if (!sq)
@@ -807,11 +972,19 @@ bool et_squeue_empty(struct et_squeue *sq)
 	return true;
 }
 
-ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
-			       bool is_mgmt,
-			       u16 cq_index,
-			       char __user *ubuf,
-			       size_t count)
+/**
+ * et_cqueue_copy_to_user() - Copies saved response from the CQ, to the user
+ * @et_dev: Pointer to struct et_pci_dev
+ * @is_mgmt: indicates if mgmt or ops device
+ * @cq_index: CQ index
+ * @ubuf: Response memory buffer in user-space
+ * @count: Number of bytes of response memory buffer
+ *
+ * Return: Number of bytes used from response memory buffer on success,
+ * negative error on failure
+ */
+ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
+			       u16 cq_index, char __user *ubuf, size_t count)
 {
 	struct et_vq_data *vq_data;
 	struct et_cqueue *cq;
@@ -828,7 +1001,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 		return -ENOTRECOVERABLE;
 	}
 
-	msg = et_dequeue_msg_node(cq);
+	msg = dequeue_msg_node(cq);
 	if (!msg || !(msg->msg)) {
 		// Empty; no message to POP, returning EAGAIN
 		rv = -EAGAIN;
@@ -868,6 +1041,14 @@ update_cq_bitmap:
 	return rv;
 }
 
+/**
+ * et_cqueue_pop() - Pop response from CQ circular buffer
+ * @sq: Pointer to struct et_cqueue
+ * @buf: Command memory buffer to be written on the circular buffer
+ * @count: Number of bytes of command memory buffer
+ *
+ * Return: Response size in bytes on success, negative error on failure
+ */
 ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 {
 	struct cmn_header_t header;
@@ -876,7 +1057,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	ssize_t rv;
 
 	if (cq->cb_mismatched) {
-		pr_err("et_cqueue_pop: CQ[%d]: circbuffer header invalid!",
+		pr_err("%s: CQ[%d]: circbuffer header invalid!", __func__,
 		       cq->index);
 		return -ENOTRECOVERABLE;
 	}
@@ -884,9 +1065,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	mutex_lock(&cq->pop_mutex);
 
 	// Read the message header
-	if (!et_circbuffer_pop(&cq->cb,
-			       cq->cb_mem,
-			       (u8 *)&header,
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem, (u8 *)&header,
 			       sizeof(header),
 			       (sync_for_host) ? ET_CB_SYNC_FOR_HOST : 0)) {
 		rv = -EAGAIN;
@@ -897,7 +1076,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// system is in a bad state. This should never happen.
 	// TODO: Add some recovery mechanism
 	if (!header.size) {
-		pr_err("et_cqueue_pop: CQ[%d]: invalid size!", cq->index);
+		pr_err("%s: CQ[%d]: invalid size!", __func__, cq->index);
 		rv = -ENOTRECOVERABLE;
 		goto error_unlock_mutex;
 	}
@@ -905,12 +1084,10 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Check if this is a mgmt event, handle accordingly
 	if (header.msg_id >= DEV_MGMT_API_MID_EVENTS_BEGIN &&
 	    header.msg_id <= DEV_MGMT_API_MID_EVENTS_END) {
-		memcpy((u8 *)&mgmt_event.event_info,
-		       (u8 *)&header,
+		memcpy((u8 *)&mgmt_event.event_info, (u8 *)&header,
 		       sizeof(header));
 
-		if (!et_circbuffer_pop(&cq->cb,
-				       cq->cb_mem,
+		if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
 				       (u8 *)&mgmt_event + sizeof(header),
 				       header.size - sizeof(header),
 				       ET_CB_SYNC_FOR_DEVICE)) {
@@ -924,8 +1101,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 		atomic64_inc(
 			&cq->stats.counters[ET_VQ_COUNTER_STATS_MSG_COUNT]);
 		et_rate_entry_update(
-			1,
-			&cq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
+			1, &cq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
 		atomic64_add(
 			header.size + sizeof(header),
 			&cq->stats.counters[ET_VQ_COUNTER_STATS_BYTE_COUNT]);
@@ -946,11 +1122,9 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	memcpy(msg_node->msg, (u8 *)&header, sizeof(header));
 
 	// MMIO msg payload into node memory
-	if (!et_circbuffer_pop(&cq->cb,
-			       cq->cb_mem,
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
 			       (u8 *)msg_node->msg + sizeof(header),
-			       header.size,
-			       ET_CB_SYNC_FOR_DEVICE)) {
+			       header.size, ET_CB_SYNC_FOR_DEVICE)) {
 		destroy_msg_node(msg_node);
 		rv = -EAGAIN;
 		goto error_unlock_mutex;
@@ -968,8 +1142,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Check for MM reset command and complete post reset steps
 	if (header.msg_id == DEV_MGMT_API_MID_MM_RESET)
 		mm_reset_completion_callback(
-			cq,
-			(struct device_mgmt_rsp_hdr_t *)msg_node->msg);
+			cq, (struct device_mgmt_rsp_hdr_t *)msg_node->msg);
 
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
@@ -988,6 +1161,10 @@ error_unlock_mutex:
 	return rv;
 }
 
+/**
+ * et_cqueue_sync_cb_for_host() - Sync circular buffer local copy with remote
+ * @cq: Pointer to struct et_cqueue
+ */
 void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 {
 	u64 tail_local;
@@ -998,55 +1175,9 @@ void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 
 	if (tail_local != cq->cb.tail) {
 		pr_err("CQ[%d] sync: tail mismatched, tail_local: %lld, tail_remote: %lld",
-		       cq->index,
-		       tail_local,
-		       cq->cb.tail);
+		       cq->index, tail_local, cq->cb.tail);
 		cq->cb_mismatched = true;
 	}
 
 	mutex_unlock(&cq->pop_mutex);
-}
-
-/*
- * Handles vqueue IRQ. The vqueue IRQ signals a a new message in the CQ.
- *
- * This method handles CQ messages for the kernel immediatley, and saves
- * off messages for user mode to be consumed later.
- *
- * User mode messages must not block kernel messages from being processed
- * (e.g if the first msg in the vqueue is for the user and the second is for
- * the kernel, the kernel message should not be stuck in line behind the user
- * message).
- *
- * This method must be tolerant of spurious IRQs (no new msg), and taking an
- * IRQ while messages are still in filght.
- *
- * Reasons it may fire:
- *
- * - The host sent a msg to this vqueue
- *
- * - The host sent a msg to another vqueue, and MSI
- *   multivector support is not available (IRQ is spurious for this vqueue)
- *
- * - The host sent two (or more) messages and two (or more) IRQs, but the ISR
- *   handeled multiple messages in one pass, (follow-on IRQs should be ignored)
- *
- *   Another version of this: the ISR sees the data for the first message, and
- *   only a portion of the data for the second message (rest of data and second
- *   IRQ still in flight)
- *
- * - Perodic wakeup fired (incase IRQs missed). There may be a state update or
- *   msg, there may be a message in flight (should take no action and wait for
- *   next IRQ), or there may be no changes (IRQ is spurious)
- */
-void et_cqueue_isr_bottom(struct et_cqueue *cq)
-{
-	bool sync_for_host = true;
-
-	// Handle all pending messages in the cqueue
-	while (et_cqueue_pop(cq, sync_for_host) > 0) {
-		// Only sync `circbuffer` the first time
-		if (sync_for_host)
-			sync_for_host = false;
-	}
 }

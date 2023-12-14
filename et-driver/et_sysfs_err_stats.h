@@ -17,6 +17,9 @@
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 
+/**
+ * enum et_err_counter_stats - IDs for error counter statistics
+ */
 enum et_err_counter_stats {
 	ET_ERR_COUNTER_STATS_DRAM_CE_COUNT = 0,
 	ET_ERR_COUNTER_STATS_MINION_CE_COUNT,
@@ -37,14 +40,19 @@ enum et_err_counter_stats {
 	ET_ERR_COUNTER_STATS_MAX_COUNTERS,
 };
 
+/**
+ * struct et_err_stats - Error statistics
+ * @counters: Counters (RO) attributes to present record of correctable and
+ * uncorrectable errors reported by Mgmt VQ interface
+ */
 struct et_err_stats {
-	/*
-	 * Counters (RO) attributes to present record of correctable and
-	 * uncorrectable errors reported by Mgmt VQ interface
-	 */
 	atomic64_t counters[ET_ERR_COUNTER_STATS_MAX_COUNTERS];
 };
 
+/**
+ * et_err_stats_init() - Initialize error statistics attributes
+ * @stats: Pointer to struct et_err_stats
+ */
 static inline void et_err_stats_init(struct et_err_stats *stats)
 {
 	int i;
@@ -53,6 +61,7 @@ static inline void et_err_stats_init(struct et_err_stats *stats)
 		atomic64_set(&stats->counters[i], 0);
 }
 
+/* SysFS attribute group for error statistics */
 extern struct attribute_group et_sysfs_err_stats_group;
 
 #endif

@@ -1,9 +1,16 @@
-/*-------------------------------------------------------------------------
- * Copyright (C) 2018, Esperanto Technologies Inc.
+// SPDX-License-Identifier: GPL-2.0
+
+/***********************************************************************
+ *
+ * Copyright (C) 2023 Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
- *-------------------------------------------------------------------------
- */
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *
+ **********************************************************************/
 
 #include <linux/crc32.h>
 #include <linux/delay.h>
@@ -67,10 +74,10 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
  *
  * TODO: Remove these params in production after bringup
  */
-static uint mgmt_discovery_timeout = 0;
+static uint mgmt_discovery_timeout = 10;
 module_param(mgmt_discovery_timeout, uint, 0);
 
-static uint ops_discovery_timeout = 0;
+static uint ops_discovery_timeout = 10;
 module_param(ops_discovery_timeout, uint, 0);
 
 DECLARE_BITMAP(dev_bitmap, ET_MAX_DEVS);
@@ -116,8 +123,8 @@ static __poll_t esperanto_pcie_ops_poll(struct file *fp, poll_table *wait)
 	return mask;
 }
 
-static long
-esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+static long esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd,
+				     unsigned long arg)
 {
 	long rv = 0;
 	struct et_pci_dev *et_dev;
@@ -143,8 +150,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -ENOMEM;
 		}
 
-		if (copy_to_user(usr_arg,
-				 dev_name(&et_dev->pdev->dev),
+		if (copy_to_user(usr_arg, dev_name(&et_dev->pdev->dev),
 				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -166,9 +172,10 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
 		// popped out of SQ by device and SQ will appear empty here.
-		for (sq_idx = 0; ops_state == DEV_STATE_READY &&
-				 sq_idx < ops->vq_data.vq_common.sq_count;
+		for (sq_idx = 0; sq_idx < ops->vq_data.vq_common.sq_count;
 		     sq_idx++) {
+			if (ops_state != DEV_STATE_READY)
+				break;
 			// Check if SQ has pending command(s)
 			if (!et_squeue_empty(&ops->vq_data.sqs[sq_idx]))
 				ops_state = DEV_STATE_PENDING_COMMANDS;
@@ -241,8 +248,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user(usr_arg,
-				 &ops->vq_data.vq_common.sq_count,
+		if (copy_to_user(usr_arg, &ops->vq_data.vq_common.sq_count,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -296,10 +302,8 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 				return -EINVAL;
 
 			rv = et_squeue_copy_from_user(
-				et_dev,
-				false /* ops_dev */,
-				true /* high priority SQ */,
-				cmd_info.sq_index,
+				et_dev, false /* ops_dev */,
+				true /* high priority SQ */, cmd_info.sq_index,
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 		} else {
@@ -309,20 +313,17 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 			if (cmd_info.flags & CMD_DESC_FLAG_P2PDMA)
 				rv = et_p2pdma_move_data(
-					et_dev,
-					cmd_info.sq_index,
+					et_dev, cmd_info.sq_index,
 					(char __user __force *)cmd_info.cmd,
 					cmd_info.size);
 			else if (cmd_info.flags & CMD_DESC_FLAG_DMA)
 				rv = et_dma_move_data(
-					et_dev,
-					cmd_info.sq_index,
+					et_dev, cmd_info.sq_index,
 					(char __user __force *)cmd_info.cmd,
 					cmd_info.size);
 			else
 				rv = et_squeue_copy_from_user(
-					et_dev,
-					false /* ops_dev */,
+					et_dev, false /* ops_dev */,
 					false /* normal SQ */,
 					cmd_info.sq_index,
 					(char __user __force *)cmd_info.cmd,
@@ -343,16 +344,14 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
-		rv = et_cqueue_copy_to_user(et_dev,
-					    false /* ops_dev */,
+		rv = et_cqueue_copy_to_user(et_dev, false /* ops_dev */,
 					    rsp_info.cq_index,
 					    (char __user __force *)rsp_info.rsp,
 					    rsp_info.size);
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 ops->vq_data.vq_common.sq_bitmap,
+		if (copy_to_user(usr_arg, ops->vq_data.vq_common.sq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -363,8 +362,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 ops->vq_data.vq_common.cq_bitmap,
+		if (copy_to_user(usr_arg, ops->vq_data.vq_common.cq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy to user!\n",
@@ -375,8 +373,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_SET_SQ_THRESHOLD:
-		if (copy_from_user(&sq_threshold_info,
-				   usr_arg,
+		if (copy_from_user(&sq_threshold_info, usr_arg,
 				   _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"ops_ioctl[%u]: failed to copy from user!\n",
@@ -414,8 +411,7 @@ esperanto_pcie_ops_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl: unknown cmd: 0x%x\n",
+		dev_err(&et_dev->pdev->dev, "ops_ioctl: unknown cmd: 0x%x\n",
 			cmd);
 		return -EINVAL;
 	}
@@ -460,12 +456,8 @@ static void esperanto_pcie_vm_open(struct vm_area_struct *vma)
 	if (!map)
 		return;
 
-	dev_dbg(&map->pdev->dev,
-		"vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
-		map,
-		map->size,
-		vma->vm_start,
-		vma->vm_end);
+	dev_dbg(&map->pdev->dev, "vm_open: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map, map->size, vma->vm_start, vma->vm_end);
 
 	map->ref_count++;
 	if (map->ref_count == 1) {
@@ -489,18 +481,12 @@ static void esperanto_pcie_vm_close(struct vm_area_struct *vma)
 	if (!map)
 		return;
 
-	dev_dbg(&map->pdev->dev,
-		"vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
-		map,
-		map->size,
-		vma->vm_start,
-		vma->vm_end);
+	dev_dbg(&map->pdev->dev, "vm_close: %p, [size=%lu,vma=%08lx-%08lx]\n",
+		map, map->size, vma->vm_start, vma->vm_end);
 
 	map->ref_count--;
 	if (map->ref_count == 0) {
-		dma_free_coherent(&map->pdev->dev,
-				  map->size,
-				  map->kern_vaddr,
+		dma_free_coherent(&map->pdev->dev, map->size, map->kern_vaddr,
 				  map->dma_addr);
 		et_dev = pci_get_drvdata(map->pdev);
 		atomic64_sub(
@@ -517,6 +503,7 @@ static const struct vm_operations_struct esperanto_pcie_vm_ops = {
 	.open	= esperanto_pcie_vm_open,
 	.close	= esperanto_pcie_vm_close,
 };
+
 // clang-format on
 
 struct vm_area_struct *et_find_vma(struct et_pci_dev *et_dev,
@@ -558,26 +545,21 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
 	vma->vm_ops = &esperanto_pcie_vm_ops;
 
-	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev,
-					size,
-					&dma_addr,
+	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev, size, &dma_addr,
 					GFP_USER | GFP_NOWAIT | __GFP_NOWARN);
 	if (!kern_vaddr) {
 		dev_err(&et_dev->pdev->dev, "dma_alloc_coherent() failed!\n");
 		return -ENOMEM;
 	}
 
-	rv = dma_mmap_coherent(&et_dev->pdev->dev,
-			       vma,
-			       kern_vaddr,
-			       dma_addr,
+	rv = dma_mmap_coherent(&et_dev->pdev->dev, vma, kern_vaddr, dma_addr,
 			       size);
 	if (rv) {
 		dev_err(&et_dev->pdev->dev, "dma_mmap_coherent() failed!");
 		goto error_dma_free_coherent;
 	}
 
-	map = kzalloc(sizeof(struct et_dma_mapping), GFP_KERNEL);
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map) {
 		rv = -ENOMEM;
 		goto error_dma_free_coherent;
@@ -601,8 +583,8 @@ error_dma_free_coherent:
 	return rv;
 }
 
-static long
-esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+static long esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd,
+				      unsigned long arg)
 {
 	long rv = 0;
 	struct et_pci_dev *et_dev;
@@ -627,8 +609,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -ENOMEM;
 		}
 
-		if (copy_to_user(usr_arg,
-				 dev_name(&et_dev->pdev->dev),
+		if (copy_to_user(usr_arg, dev_name(&et_dev->pdev->dev),
 				 strlen(dev_name(&et_dev->pdev->dev)) + 1)) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -650,9 +631,10 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		// A corner case is possible here that single command sent that
 		// causes hang will not be detected because the command will be
 		// popped out of SQ by device and SQ will appear empty here.
-		for (sq_idx = 0; mgmt_state == DEV_STATE_READY &&
-				 sq_idx < mgmt->vq_data.vq_common.sq_count;
+		for (sq_idx = 0; sq_idx < mgmt->vq_data.vq_common.sq_count;
 		     sq_idx++) {
+			if (mgmt_state != DEV_STATE_READY)
+				break;
 			// Check if SQ has pending command(s)
 			if (!et_squeue_empty(&mgmt->vq_data.sqs[sq_idx]))
 				mgmt_state = DEV_STATE_PENDING_COMMANDS;
@@ -693,14 +675,12 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 
 		rv = et_mmio_write_fw_image(
-			et_dev,
-			(char __user __force *)fw_update_info.ubuf,
+			et_dev, (char __user __force *)fw_update_info.ubuf,
 			fw_update_info.size);
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_COUNT:
-		if (copy_to_user(usr_arg,
-				 &mgmt->vq_data.vq_common.sq_count,
+		if (copy_to_user(usr_arg, &mgmt->vq_data.vq_common.sq_count,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -768,10 +748,8 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 
 		if (rv == 0)
 			rv = et_squeue_copy_from_user(
-				et_dev,
-				true /* mgmt_dev */,
-				false /* normal SQ */,
-				cmd_info.sq_index,
+				et_dev, true /* mgmt_dev */,
+				false /* normal SQ */, cmd_info.sq_index,
 				(char __user __force *)cmd_info.cmd,
 				cmd_info.size);
 
@@ -802,16 +780,14 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		    !rsp_info.rsp || !rsp_info.size)
 			return -EINVAL;
 
-		rv = et_cqueue_copy_to_user(et_dev,
-					    true /* mgmt_dev */,
+		rv = et_cqueue_copy_to_user(et_dev, true /* mgmt_dev */,
 					    rsp_info.cq_index,
 					    (char __user __force *)rsp_info.rsp,
 					    rsp_info.size);
 		break;
 
 	case ETSOC1_IOCTL_GET_SQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 mgmt->vq_data.vq_common.sq_bitmap,
+		if (copy_to_user(usr_arg, mgmt->vq_data.vq_common.sq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -822,8 +798,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_GET_CQ_AVAIL_BITMAP:
-		if (copy_to_user(usr_arg,
-				 mgmt->vq_data.vq_common.cq_bitmap,
+		if (copy_to_user(usr_arg, mgmt->vq_data.vq_common.cq_bitmap,
 				 _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy to user!\n",
@@ -834,8 +809,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case ETSOC1_IOCTL_SET_SQ_THRESHOLD:
-		if (copy_from_user(&sq_threshold_info,
-				   usr_arg,
+		if (copy_from_user(&sq_threshold_info, usr_arg,
 				   _IOC_SIZE(cmd))) {
 			dev_err(&et_dev->pdev->dev,
 				"mgmt_ioctl[%u]: failed to copy from user!\n",
@@ -862,8 +836,7 @@ esperanto_pcie_mgmt_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		dev_err(&et_dev->pdev->dev,
-			"ops_ioctl: unknown cmd: 0x%x\n",
+		dev_err(&et_dev->pdev->dev, "ops_ioctl: unknown cmd: 0x%x\n",
 			cmd);
 		return -EINVAL;
 	}
@@ -1025,8 +998,7 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev, struct pci_dev *pdev)
 	return 0;
 }
 
-int et_mgmt_dev_init(struct et_pci_dev *et_dev,
-		     u32 timeout_secs,
+int et_mgmt_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs,
 		     bool miscdev_create)
 {
 	struct et_mapped_region *region;
@@ -1101,11 +1073,10 @@ int et_mgmt_dev_init(struct et_pci_dev *et_dev,
 		// Create Mgmt device node
 		et_dev->mgmt.misc_dev.minor = MISC_DYNAMIC_MINOR;
 		et_dev->mgmt.misc_dev.fops = &et_pcie_mgmt_fops;
-		et_dev->mgmt.misc_dev.mode = S_IRUGO | S_IWUGO;
-		et_dev->mgmt.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-							    GFP_KERNEL,
-							    "et%d_mgmt",
-							    et_dev->devnum);
+		et_dev->mgmt.misc_dev.mode = 0666;
+		et_dev->mgmt.misc_dev.name =
+			devm_kasprintf(&et_dev->pdev->dev, GFP_KERNEL,
+				       "et%d_mgmt", et_dev->devnum);
 		rv = misc_register(&et_dev->mgmt.misc_dev);
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
@@ -1164,8 +1135,7 @@ unlock_init_mutex:
 	mutex_unlock(&et_dev->mgmt.init_mutex);
 }
 
-int et_ops_dev_init(struct et_pci_dev *et_dev,
-		    u32 timeout_secs,
+int et_ops_dev_init(struct et_pci_dev *et_dev, u32 timeout_secs,
 		    bool miscdev_create)
 {
 	struct et_mapped_region *region;
@@ -1257,11 +1227,10 @@ int et_ops_dev_init(struct et_pci_dev *et_dev,
 		// Create Ops device node
 		et_dev->ops.misc_dev.minor = MISC_DYNAMIC_MINOR;
 		et_dev->ops.misc_dev.fops = &et_pcie_ops_fops;
-		et_dev->ops.misc_dev.mode = S_IRUGO | S_IWUGO;
-		et_dev->ops.misc_dev.name = devm_kasprintf(&et_dev->pdev->dev,
-							   GFP_KERNEL,
-							   "et%d_ops",
-							   et_dev->devnum);
+		et_dev->ops.misc_dev.mode = 0666;
+		et_dev->ops.misc_dev.name =
+			devm_kasprintf(&et_dev->pdev->dev, GFP_KERNEL,
+				       "et%d_ops", et_dev->devnum);
 		rv = misc_register(&et_dev->ops.misc_dev);
 		if (rv) {
 			dev_err(&et_dev->pdev->dev,
@@ -1284,8 +1253,7 @@ error_sysfs_remove_group:
 
 error_p2pdma_release_resource:
 	et_p2pdma_release_resource(
-		et_dev,
-		&et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]);
+		et_dev, &et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]);
 
 error_free_vq_buffer:
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
@@ -1313,8 +1281,7 @@ void et_ops_dev_destroy(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	et_vqueue_destroy_all(et_dev, false /* ops_dev */);
 	et_sysfs_remove_group(et_dev, ET_SYSFS_GID_MEM_STATS);
 	et_p2pdma_release_resource(
-		et_dev,
-		&et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]);
+		et_dev, &et_dev->ops.regions[OPS_MEM_REGION_TYPE_HOST_MANAGED]);
 
 	kfree((void __force *)et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER]
 		      .io.mapped_baseaddr);
@@ -1374,14 +1341,14 @@ static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 	rv = et_ops_dev_init(et_dev, ops_discovery_timeout, miscdev_create);
 	if (rv) {
 		dev_warn(&pdev->dev,
-			 "Ops device initialization failed, errno: %d\n",
-			 -rv);
+			 "Ops device initialization failed, errno: %d\n", -rv);
 		rv = 0;
 	}
 
 	et_dev->is_initialized = true;
 
-	printk("\n------------ET PCIe loop back driver!-------------\n\n");
+	dev_info(&et_dev->pdev->dev,
+		 "\n------------ET PCIe loop back driver!-------------\n\n");
 
 	return rv;
 
@@ -1451,8 +1418,7 @@ static void et_reset_isr_work(struct work_struct *work)
 	rv = pci_load_saved_state(et_dev->pdev, et_dev->pstate);
 	if (rv) {
 		dev_warn(&et_dev->pdev->dev,
-			 "Failed to load PCI state, errno: %d\n",
-			 -rv);
+			 "Failed to load PCI state, errno: %d\n", -rv);
 	} else {
 		pci_restore_state(et_dev->pdev);
 	}
@@ -1460,8 +1426,7 @@ static void et_reset_isr_work(struct work_struct *work)
 	rv = init_et_pci_dev(et_dev, false);
 	if (rv < 0)
 		dev_err(&et_dev->pdev->dev,
-			"PCIe re-initialization failed, errno: %d\n",
-			-rv);
+			"PCIe re-initialization failed, errno: %d\n", -rv);
 
 exit_reset:
 	et_dev->mgmt.is_resetting = false;
@@ -1487,11 +1452,10 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 	}
 
 	rv = pci_save_state(pdev);
-	if (rv) {
+	if (rv)
 		dev_warn(&pdev->dev, "couldn't save PCI state\n");
-	} else {
+	else
 		et_dev->pstate = pci_store_saved_state(pdev);
-	}
 
 	rv = init_et_pci_dev(et_dev, true);
 	if (rv < 0) {
@@ -1516,11 +1480,9 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_sysfs_remove_group;
 	}
 
-	et_dev->reset_workqueue = alloc_workqueue("%s:et%d_rstwq",
-						  WQ_MEM_RECLAIM | WQ_UNBOUND,
-						  1,
-						  dev_name(&et_dev->pdev->dev),
-						  et_dev->devnum);
+	et_dev->reset_workqueue =
+		alloc_workqueue("%s:et%d_rstwq", WQ_MEM_RECLAIM | WQ_UNBOUND, 1,
+				dev_name(&et_dev->pdev->dev), et_dev->devnum);
 	if (!et_dev->reset_workqueue) {
 		dev_err(&pdev->dev, "Mgmt device initialization failed\n");
 		rv = -ENOMEM;
@@ -1540,10 +1502,8 @@ error_uninit_et_pci_dev:
 	uninit_et_pci_dev(et_dev, true);
 
 error_free_saved_state:
-	if (et_dev->pstate) {
-		kfree(et_dev->pstate);
-		et_dev->pstate = NULL;
-	}
+	kfree(et_dev->pstate);
+	et_dev->pstate = NULL;
 
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
@@ -1565,10 +1525,8 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 	uninit_et_pci_dev(et_dev, true);
 	et_sysfs_remove_files(et_dev);
 	et_sysfs_remove_groups(et_dev);
-	if (et_dev->pstate) {
-		kfree(et_dev->pstate);
-		et_dev->pstate = NULL;
-	}
+	kfree(et_dev->pstate);
+	et_dev->pstate = NULL;
 	destroy_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
 }

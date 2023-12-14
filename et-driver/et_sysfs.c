@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /*-----------------------------------------------------------------------------
  * Copyright (C) 2022, Esperanto Technologies Inc.
@@ -14,6 +14,13 @@
 #include "et_sysfs.h"
 #include "et_pci_dev.h"
 
+/**
+ * et_sysfs_add_group() - Add SysFS group of attributes for ETSoC1 device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @group_id: Value of enum et_sysfs_gid_e
+ *
+ * Return: 0 on success, negative value on failure
+ */
 int et_sysfs_add_group(struct et_pci_dev *et_dev, int group_id)
 {
 	int rv;
@@ -55,6 +62,11 @@ int et_sysfs_add_group(struct et_pci_dev *et_dev, int group_id)
 	return rv;
 }
 
+/**
+ * et_sysfs_remove_group() - Remove SysFS group of attributes for ETSoC1 device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @group_id: Value of enum et_sysfs_gid_e
+ */
 void et_sysfs_remove_group(struct et_pci_dev *et_dev, int group_id)
 {
 	struct attribute_group *group = NULL;
@@ -87,6 +99,10 @@ void et_sysfs_remove_group(struct et_pci_dev *et_dev, int group_id)
 	et_dev->sysfs_data.is_group_created[group_id] = false;
 }
 
+/**
+ * et_sysfs_remove_group() - Remove all SysFS groups for ETSoC1 device
+ * @et_dev: Pointer to struct et_pci_dev
+ */
 void et_sysfs_remove_groups(struct et_pci_dev *et_dev)
 {
 	int group_id;
@@ -95,16 +111,32 @@ void et_sysfs_remove_groups(struct et_pci_dev *et_dev)
 		et_sysfs_remove_group(et_dev, group_id);
 }
 
-static ssize_t
-devnum_show(struct device *dev, struct device_attribute *attr, char *buf)
+/**
+ * devnum_show() - Show function for SysFS attribute devnum
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
+ * Return: number of bytes written in buf, negative value on failure
+ */
+static ssize_t devnum_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
 	return sysfs_emit(buf, "%u\n", et_dev->devnum);
 }
 
+/* SysFS attribute devnum */
 static DEVICE_ATTR_RO(devnum);
 
+/**
+ * et_sysfs_add_file() - Add SysFS attribute file for ETSoC1 device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @file_id: Value of enum et_sysfs_fid_e
+ *
+ * Return: 0 on success, negative value on failure
+ */
 int et_sysfs_add_file(struct et_pci_dev *et_dev, int file_id)
 {
 	int rv;
@@ -123,8 +155,7 @@ int et_sysfs_add_file(struct et_pci_dev *et_dev, int file_id)
 
 	rv = device_create_file(&et_dev->pdev->dev, dev_attr);
 	if (rv)
-		dev_err(&et_dev->pdev->dev,
-			"Failed to create %s attribute!\n",
+		dev_err(&et_dev->pdev->dev, "Failed to create %s attribute!\n",
 			dev_attr->attr.name);
 	else
 		et_dev->sysfs_data.is_file_created[file_id] = true;
@@ -132,6 +163,11 @@ int et_sysfs_add_file(struct et_pci_dev *et_dev, int file_id)
 	return rv;
 }
 
+/**
+ * et_sysfs_remove_file() - Remove SysFS attribute file for ETSoC1 device
+ * @et_dev: Pointer to struct et_pci_dev
+ * @file_id: Value of enum et_sysfs_fid_e
+ */
 void et_sysfs_remove_file(struct et_pci_dev *et_dev, int file_id)
 {
 	struct device_attribute *dev_attr = NULL;
@@ -151,6 +187,10 @@ void et_sysfs_remove_file(struct et_pci_dev *et_dev, int file_id)
 	et_dev->sysfs_data.is_file_created[file_id] = false;
 }
 
+/**
+ * et_sysfs_remove_files() - Remove all SysFS attribute files for ETSoC1 device
+ * @et_dev: Pointer to struct et_pci_dev
+ */
 void et_sysfs_remove_files(struct et_pci_dev *et_dev)
 {
 	int file_id;

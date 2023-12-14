@@ -1,15 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/*-----------------------------------------------------------------------------
- * Copyright (C) 2022, Esperanto Technologies Inc.
+/******************************************************************************
+ *
+ * Copyright (C) 2023 Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
  * property of Esperanto Technologies, Inc. All Rights Reserved.
  * The program(s) may be used and/or copied only with
  * the written permission of Esperanto Technologies and
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
- *-----------------------------------------------------------------------------
- */
+ *
+ ******************************************************************************/
 
 #ifndef __ET_SYSFS_H
 #define __ET_SYSFS_H
@@ -19,7 +20,7 @@
 #include "et_sysfs_soc_reset.h"
 #include "et_sysfs_vq_stats.h"
 
-/*
+/**
  * Notes on addition of new attributes and group of attirbutes
  * To add a new attribute group
  * 1.  Create new header and source files et_sysfs_<name>.c|h and update
@@ -32,7 +33,7 @@
  * 6.  For every write-only device attribute, define a store function
  * 7.  For every readable and writeable device attribute, define a show
  *     function and a store function
- * 8.  Create an array of pointers to stuct attribute
+ * 8.  Create an array of pointers to struct attribute
  * 9.  Define and initialize new variable:
  *     struct attribute_group et_sysfs_<name>_attr_group
  * 10. In header file extern above defined variable
@@ -60,6 +61,9 @@
  *     a store function
  */
 
+/**
+ * enum et_sysfs_gid_e - SysFS attributes group ID
+ */
 enum et_sysfs_gid_e {
 	ET_SYSFS_GID_MGMT_VQ_STATS = 0,
 	ET_SYSFS_GID_OPS_VQ_STATS,
@@ -69,11 +73,19 @@ enum et_sysfs_gid_e {
 	ET_SYSFS_GROUPS,
 };
 
+/**
+ * enum et_sysfs_fid_e - SysFS attribute file ID
+ */
 enum et_sysfs_fid_e {
 	ET_SYSFS_FID_DEVNUM = 0,
 	ET_SYSFS_FILES,
 };
 
+/**
+ * struct et_sysfs_data - SysFS groups and files initialization information
+ * @is_group_created: Array indicating if SysFS attribute group(s) are created
+ * @is_file_created: Array indicating if SysFS attribute file(s) are created
+ */
 struct et_sysfs_data {
 	bool is_group_created[ET_SYSFS_GROUPS];
 	bool is_file_created[ET_SYSFS_FILES];

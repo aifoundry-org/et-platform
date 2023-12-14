@@ -1,7 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/***********************************************************************
+ *
+ * Copyright (C) 2023 Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *
+ **********************************************************************/
+
 #include <linux/sched.h>
 
 #include "et_io.h"
 
+/**
+ * et_iowrite() - Write data from source buffer in IO memory
+ * @dst: Pointer to destination address (64-bit aligned) in IO memory
+ * @offset: Offset from destination address in IO memory
+ * @src: Pointer to source buffer to write data from
+ * @count: number of bytes to write
+ */
 void et_iowrite(void __iomem *dst, loff_t offset, u8 *src, size_t count)
 {
 	size_t qwords;
@@ -66,6 +87,13 @@ void et_iowrite(void __iomem *dst, loff_t offset, u8 *src, size_t count)
 	}
 }
 
+/**
+ * et_ioread() - Read data into buffer from source IO memory
+ * @src: Pointer to source address (64-bit aligned) in IO memory
+ * @offset: Offset from source address in IO memory
+ * @dst: Pointer to destination buffer to read data into
+ * @count: number of bytes to read
+ */
 void et_ioread(void __iomem *src, loff_t offset, u8 *dst, size_t count)
 {
 	size_t qwords;

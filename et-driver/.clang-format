@@ -18,7 +18,6 @@ AlignConsecutiveMacros: true
 AlignOperands: true
 AlignTrailingComments: false
 AllowAllParametersOfDeclarationOnNextLine: false
-AllowAllArgumentsOnNextLine: false
 AllowShortBlocksOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
@@ -28,8 +27,8 @@ AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: false
-BinPackArguments: false
-BinPackParameters: false
+BinPackArguments: true
+BinPackParameters: true
 BraceWrapping:
   AfterClass: false
   AfterControlStatement: false
@@ -124,7 +123,6 @@ ForEachMacros:
   - 'drm_for_each_bridge_in_chain'
   - 'drm_for_each_connector_iter'
   - 'drm_for_each_crtc'
-  - 'drm_for_each_crtc_reverse'
   - 'drm_for_each_encoder'
   - 'drm_for_each_encoder_mask'
   - 'drm_for_each_fb'
@@ -206,13 +204,14 @@ ForEachMacros:
   - 'for_each_matching_node'
   - 'for_each_matching_node_and_match'
   - 'for_each_member'
+  - 'for_each_mem_region'
+  - 'for_each_memblock_type'
   - 'for_each_memcg_cache_index'
   - 'for_each_mem_pfn_range'
   - '__for_each_mem_range'
   - 'for_each_mem_range'
   - '__for_each_mem_range_rev'
   - 'for_each_mem_range_rev'
-  - 'for_each_mem_region'
   - 'for_each_migratetype_order'
   - 'for_each_msi_entry'
   - 'for_each_msi_entry_safe'
@@ -278,8 +277,10 @@ ForEachMacros:
   - 'for_each_reserved_mem_range'
   - 'for_each_reserved_mem_region'
   - 'for_each_rtd_codec_dais'
+  - 'for_each_rtd_codec_dais_rollback'
   - 'for_each_rtd_components'
   - 'for_each_rtd_cpu_dais'
+  - 'for_each_rtd_cpu_dais_rollback'
   - 'for_each_rtd_dais'
   - 'for_each_set_bit'
   - 'for_each_set_bit_from'
@@ -298,7 +299,6 @@ ForEachMacros:
   - '__for_each_thread'
   - 'for_each_thread'
   - 'for_each_unicast_dest_pgid'
-  - 'for_each_vsi'
   - 'for_each_wakeup_source'
   - 'for_each_zone'
   - 'for_each_zone_zonelist'
@@ -331,7 +331,6 @@ ForEachMacros:
   - 'hlist_for_each_entry_rcu_bh'
   - 'hlist_for_each_entry_rcu_notrace'
   - 'hlist_for_each_entry_safe'
-  - 'hlist_for_each_entry_srcu'
   - '__hlist_for_each_rcu'
   - 'hlist_for_each_safe'
   - 'hlist_nulls_for_each_entry'
@@ -380,7 +379,6 @@ ForEachMacros:
   - 'list_for_each_entry_safe_continue'
   - 'list_for_each_entry_safe_from'
   - 'list_for_each_entry_safe_reverse'
-  - 'list_for_each_entry_srcu'
   - 'list_for_each_prev'
   - 'list_for_each_prev_safe'
   - 'list_for_each_safe'
@@ -414,8 +412,6 @@ ForEachMacros:
   - 'of_property_for_each_string'
   - 'of_property_for_each_u32'
   - 'pci_bus_for_each_resource'
-  - 'pcl_for_each_chunk'
-  - 'pcl_for_each_segment'
   - 'pcm_for_each_format'
   - 'ping_portaddr_for_each_entry'
   - 'plist_for_each'

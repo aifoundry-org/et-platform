@@ -664,20 +664,20 @@ struct device_ops_kernel_abort_rsp_t {
 static struct et_msg_node *create_msg_node(u32 msg_size)
 {
 	struct et_msg_node *new_node;
+
 	//Build node
 	new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
-
 	if (IS_ERR(new_node)) {
-		panic("Failed to allocate msg node, error %ld\n",
-		      PTR_ERR(new_node));
+		pr_err("Failed to allocate msg node, error %ld\n",
+		       PTR_ERR(new_node));
 		return NULL;
 	}
 
 	new_node->msg = kmalloc(msg_size, GFP_KERNEL);
-
 	if (IS_ERR(new_node->msg)) {
-		panic("Failed to allocate msg buffer, error %ld\n",
-		      PTR_ERR(new_node->msg));
+		pr_err("Failed to allocate msg buffer, error %ld\n",
+		       PTR_ERR(new_node->msg));
+		kfree(new_node);
 		return NULL;
 	}
 
@@ -693,7 +693,7 @@ static void enqueue_msg_node(struct et_cqueue *cq, struct et_msg_node *msg)
 	mutex_unlock(&cq->msg_list_mutex);
 }
 
-struct et_msg_node *et_dequeue_msg_node(struct et_cqueue *cq)
+static struct et_msg_node *dequeue_msg_node(struct et_cqueue *cq)
 {
 	struct et_msg_node *msg;
 
@@ -715,6 +715,25 @@ static void destroy_msg_node(struct et_msg_node *node)
 	}
 }
 
+static void destroy_msg_list(struct et_cqueue *cq)
+{
+	struct list_head *pos, *next;
+	struct et_msg_node *node;
+	int count = 0;
+
+	mutex_lock(&cq->msg_list_mutex);
+	list_for_each_safe (pos, next, &cq->msg_list) {
+		node = list_entry(pos, struct et_msg_node, list);
+		list_del(pos);
+		destroy_msg_node(node);
+		count++;
+	}
+	mutex_unlock(&cq->msg_list_mutex);
+
+	if (count)
+		pr_warn("Discarded (%d) CQ user messages", count);
+}
+
 static void mm_reset_completion_callback(struct et_cqueue *cq,
 					 struct device_mgmt_rsp_hdr_t *rsp)
 {
@@ -722,8 +741,7 @@ static void mm_reset_completion_callback(struct et_cqueue *cq,
 	struct et_pci_dev *et_dev = pci_get_drvdata(cq->vq_common->pdev);
 
 	if (rsp->status != DEV_OPS_API_MM_RESET_RESPONSE_COMPLETE) {
-		dev_err(&et_dev->pdev->dev,
-			"MM reset failed!, status: %d\n",
+		dev_err(&et_dev->pdev->dev, "MM reset failed!, status: %d\n",
 			rsp->status);
 		return;
 	}
@@ -746,25 +764,6 @@ static void mm_reset_completion_callback(struct et_cqueue *cq,
 
 unlock_reset_mutex:
 	mutex_unlock(&et_dev->ops.reset_mutex);
-}
-
-void et_destroy_msg_list(struct et_cqueue *cq)
-{
-	struct list_head *pos, *next;
-	struct et_msg_node *node;
-	int count = 0;
-
-	mutex_lock(&cq->msg_list_mutex);
-	list_for_each_safe (pos, next, &cq->msg_list) {
-		node = list_entry(pos, struct et_msg_node, list);
-		list_del(pos);
-		destroy_msg_node(node);
-		count++;
-	}
-	mutex_unlock(&cq->msg_list_mutex);
-
-	if (count)
-		pr_warn("Discarded (%d) CQ user messages", count);
 }
 
 bool et_cqueue_msg_available(struct et_cqueue *cq)
@@ -804,9 +803,15 @@ update_sq_bitmap:
 
 static void et_cq_isr_work(struct work_struct *work)
 {
+	bool sync_for_host = true;
 	struct et_cqueue *cq = container_of(work, struct et_cqueue, isr_work);
 
-	et_cqueue_isr_bottom(cq);
+	// Handle all pending messages in the cqueue
+	while (et_cqueue_pop(cq, sync_for_host) > 0) {
+		// Only sync `circbuffer` the first time
+		if (sync_for_host)
+			sync_for_host = false;
+	}
 }
 
 static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
@@ -823,9 +828,8 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 		return 0;
 	}
 
-	if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid) {
+	if (!et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER].is_valid)
 		return -EINVAL;
-	}
 
 	vq_data = &et_dev->ops.vq_data;
 	vq_region = &et_dev->ops.regions[OPS_MEM_REGION_TYPE_VQ_BUFFER];
@@ -834,8 +838,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 	hp_sq_size = et_dev->ops.dir_vq.hp_sq_size;
 
 	vq_data->hp_sqs = kmalloc_array(vq_data->vq_common.hp_sq_count,
-					sizeof(*vq_data->hp_sqs),
-					GFP_KERNEL);
+					sizeof(*vq_data->hp_sqs), GFP_KERNEL);
 	if (!vq_data->hp_sqs)
 		return -ENOMEM;
 
@@ -849,8 +852,7 @@ static ssize_t et_high_priority_squeue_init_all(struct et_pci_dev *et_dev,
 		vq_data->hp_sqs[i].cb.tail = 0;
 		vq_data->hp_sqs[i].cb.len =
 			hp_sq_size - sizeof(struct et_circbuffer);
-		et_iowrite(vq_data->hp_sqs[i].cb_mem,
-			   0,
+		et_iowrite(vq_data->hp_sqs[i].cb_mem, 0,
 			   (u8 *)&vq_data->hp_sqs[i].cb,
 			   sizeof(vq_data->hp_sqs[i].cb));
 		hp_sq_baseaddr += hp_sq_size;
@@ -895,18 +897,15 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	// Initialize sq_workqueue
 	vq_data->vq_common.sq_workqueue =
-		alloc_workqueue("%s:%s%d_sqwq",
-				WQ_MEM_RECLAIM | WQ_UNBOUND,
+		alloc_workqueue("%s:%s%d_sqwq", WQ_MEM_RECLAIM | WQ_UNBOUND,
 				vq_data->vq_common.sq_count,
 				dev_name(&et_dev->pdev->dev),
-				(is_mgmt) ? "mgmt" : "ops",
-				et_dev->devnum);
+				(is_mgmt) ? "mgmt" : "ops", et_dev->devnum);
 	if (!vq_data->vq_common.sq_workqueue)
 		return -ENOMEM;
 
 	vq_data->sqs = kmalloc_array(vq_data->vq_common.sq_count,
-				     sizeof(*vq_data->sqs),
-				     GFP_KERNEL);
+				     sizeof(*vq_data->sqs), GFP_KERNEL);
 	if (!vq_data->sqs) {
 		rv = -ENOMEM;
 		goto error_destroy_sq_workqueue;
@@ -921,9 +920,7 @@ static ssize_t et_squeue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data->sqs[i].cb.head = 0;
 		vq_data->sqs[i].cb.tail = 0;
 		vq_data->sqs[i].cb.len = sq_size - sizeof(struct et_circbuffer);
-		et_iowrite(vq_data->sqs[i].cb_mem,
-			   0,
-			   (u8 *)&vq_data->sqs[i].cb,
+		et_iowrite(vq_data->sqs[i].cb_mem, 0, (u8 *)&vq_data->sqs[i].cb,
 			   sizeof(vq_data->sqs[i].cb));
 		sq_baseaddr += sq_size;
 
@@ -981,18 +978,15 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 
 	// Initialize cq_workqueue
 	vq_data->vq_common.cq_workqueue =
-		alloc_workqueue("%s:%s%d_cqwq",
-				WQ_MEM_RECLAIM | WQ_UNBOUND,
+		alloc_workqueue("%s:%s%d_cqwq", WQ_MEM_RECLAIM | WQ_UNBOUND,
 				vq_data->vq_common.cq_count,
 				dev_name(&et_dev->pdev->dev),
-				(is_mgmt) ? "mgmt" : "ops",
-				et_dev->devnum);
+				(is_mgmt) ? "mgmt" : "ops", et_dev->devnum);
 	if (!vq_data->vq_common.cq_workqueue)
 		return -ENOMEM;
 
 	vq_data->cqs = kmalloc_array(vq_data->vq_common.cq_count,
-				     sizeof(*vq_data->cqs),
-				     GFP_KERNEL);
+				     sizeof(*vq_data->cqs), GFP_KERNEL);
 	if (!vq_data->cqs) {
 		rv = -ENOMEM;
 		goto error_destroy_cq_workqueue;
@@ -1006,9 +1000,7 @@ static ssize_t et_cqueue_init_all(struct et_pci_dev *et_dev, bool is_mgmt)
 		vq_data->cqs[i].cb.head = 0;
 		vq_data->cqs[i].cb.tail = 0;
 		vq_data->cqs[i].cb.len = cq_size - sizeof(struct et_circbuffer);
-		et_iowrite(vq_data->cqs[i].cb_mem,
-			   0,
-			   (u8 *)&vq_data->cqs[i].cb,
+		et_iowrite(vq_data->cqs[i].cb_mem, 0, (u8 *)&vq_data->cqs[i].cb,
 			   sizeof(vq_data->cqs[i].cb));
 		cq_baseaddr += cq_size;
 
@@ -1149,7 +1141,7 @@ static void et_cqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	for (i = 0; i < vq_data->vq_common.cq_count; i++) {
 		cancel_work_sync(&vq_data->cqs[i].isr_work);
 		mutex_destroy(&vq_data->cqs[i].pop_mutex);
-		et_destroy_msg_list(&vq_data->cqs[i]);
+		destroy_msg_list(&vq_data->cqs[i]);
 		mutex_destroy(&vq_data->cqs[i].msg_list_mutex);
 		vq_data->cqs[i].cb_mem = NULL;
 		vq_data->cqs[i].vq_common = NULL;
@@ -1167,9 +1159,13 @@ void et_vqueue_destroy_all(struct et_pci_dev *et_dev, bool is_mgmt)
 	vq_data = is_mgmt ? &et_dev->mgmt.vq_data : &et_dev->ops.vq_data;
 	vq_stats_gid = is_mgmt ? ET_SYSFS_GID_MGMT_VQ_STATS :
 				 ET_SYSFS_GID_OPS_VQ_STATS;
+
+	// Ensure changes for the sleeper on waitqueue before it awakes
+	smp_mb();
 	wake_up_all(&vq_data->vq_common.waitqueue);
+	// Wait until waitqueue becomes inactive
 	while (waitqueue_active(&vq_data->vq_common.waitqueue))
-		msleep(1);
+		msleep(50);
 
 	et_cqueue_destroy_all(et_dev, is_mgmt);
 	et_squeue_destroy_all(et_dev, is_mgmt);
@@ -1237,20 +1233,15 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 	struct et_cqueue *cq = &cqs[0];
 
 	// Read the message header
-	if (!et_circbuffer_pop(&sq->cb,
-			       sq->cb_mem,
-			       (u8 *)&header,
-			       sizeof(header),
-			       ET_CB_SYNC_FOR_HOST))
+	if (!et_circbuffer_pop(&sq->cb, sq->cb_mem, (u8 *)&header,
+			       sizeof(header), ET_CB_SYNC_FOR_HOST))
 		return -EAGAIN;
 
 	cmd = kzalloc(header.size, GFP_KERNEL);
 	memcpy(cmd, (u8 *)&header, sizeof(header));
 
 	// Read the message payload
-	if (!et_circbuffer_pop(&sq->cb,
-			       sq->cb_mem,
-			       cmd + sizeof(header),
+	if (!et_circbuffer_pop(&sq->cb, sq->cb_mem, cmd + sizeof(header),
 			       header.size - sizeof(header),
 			       ET_CB_SYNC_FOR_DEVICE)) {
 		rv = -EAGAIN;
@@ -1269,9 +1260,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			DEV_OPS_API_MID_ECHO_RSP;
 		// send dummy timestamp
 		echo_rsp.device_cmd_start_ts = 0xdeadbeef;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&echo_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&echo_rsp,
 					sizeof(echo_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1289,9 +1278,7 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		compat_rsp.major = 0;
 		compat_rsp.minor = 1;
 		compat_rsp.patch = 0;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&compat_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&compat_rsp,
 					sizeof(compat_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1309,12 +1296,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		fw_version_rsp.major = 0;
 		fw_version_rsp.minor = 0;
 		fw_version_rsp.patch = 0;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&fw_version_rsp,
-					sizeof(fw_version_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
+		if (!et_circbuffer_push(
+			    &cq->cb, cq->cb_mem, (u8 *)&fw_version_rsp,
+			    sizeof(fw_version_rsp),
+			    ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
@@ -1328,12 +1313,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		dma_list_rsp.response_info.rsp_hdr.msg_id =
 			dma_list_cmd->command_info.cmd_hdr.msg_id + 1;
 		dma_list_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dma_list_rsp,
-					sizeof(dma_list_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
+		if (!et_circbuffer_push(
+			    &cq->cb, cq->cb_mem, (u8 *)&dma_list_rsp,
+			    sizeof(dma_list_rsp),
+			    ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
@@ -1347,12 +1330,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		p2pdma_list_rsp.response_info.rsp_hdr.msg_id =
 			p2pdma_list_cmd->command_info.cmd_hdr.msg_id + 1;
 		p2pdma_list_rsp.status = DEV_OPS_API_DMA_RESPONSE_COMPLETE;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&p2pdma_list_rsp,
-					sizeof(p2pdma_list_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
+		if (!et_circbuffer_push(
+			    &cq->cb, cq->cb_mem, (u8 *)&p2pdma_list_rsp,
+			    sizeof(p2pdma_list_rsp),
+			    ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
@@ -1367,12 +1348,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			DEV_OPS_API_MID_KERNEL_LAUNCH_RSP;
 		kernel_launch_rsp.status =
 			DEV_OPS_API_KERNEL_LAUNCH_RESPONSE_KERNEL_COMPLETED;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&kernel_launch_rsp,
-					sizeof(kernel_launch_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
+		if (!et_circbuffer_push(
+			    &cq->cb, cq->cb_mem, (u8 *)&kernel_launch_rsp,
+			    sizeof(kernel_launch_rsp),
+			    ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
@@ -1386,24 +1365,17 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 			DEV_OPS_API_MID_KERNEL_ABORT_RSP;
 		kernel_abort_rsp.status =
 			DEV_OPS_API_KERNEL_ABORT_RESPONSE_SUCCESS;
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&kernel_abort_rsp,
-					sizeof(kernel_abort_rsp),
-					ET_CB_SYNC_FOR_HOST |
-						ET_CB_SYNC_FOR_DEVICE))
+		if (!et_circbuffer_push(
+			    &cq->cb, cq->cb_mem, (u8 *)&kernel_abort_rsp,
+			    sizeof(kernel_abort_rsp),
+			    ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE))
 			rv = -EAGAIN;
 		break;
 
 	case DM_CMD_SET_PCIE_RESET:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_PCIE_RESET,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_PCIE_RESET, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1411,14 +1383,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_PCIE_MAX_LINK_SPEED:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_PCIE_MAX_LINK_SPEED,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_PCIE_MAX_LINK_SPEED, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1426,14 +1394,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_PCIE_LANE_WIDTH:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_PCIE_LANE_WIDTH,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_PCIE_LANE_WIDTH, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1441,14 +1405,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_PCIE_RETRAIN_PHY:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_PCIE_RETRAIN_PHY,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_PCIE_RETRAIN_PHY, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1456,14 +1416,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_PCIE_ECC_UECC:
-		FILL_RSP_HEADER(dm_gec_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_PCIE_ECC_UECC,
-				0,
+		FILL_RSP_HEADER(dm_gec_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_PCIE_ECC_UECC, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_gec_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_gec_rsp,
 					sizeof(dm_gec_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1471,14 +1427,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_DDR_ECC_UECC:
-		FILL_RSP_HEADER(dm_gec_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_DDR_ECC_UECC,
-				0,
+		FILL_RSP_HEADER(dm_gec_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_DDR_ECC_UECC, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_gec_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_gec_rsp,
 					sizeof(dm_gec_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1486,14 +1438,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_SRAM_ECC_UECC:
-		FILL_RSP_HEADER(dm_gec_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_SRAM_ECC_UECC,
-				0,
+		FILL_RSP_HEADER(dm_gec_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_SRAM_ECC_UECC, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_gec_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_gec_rsp,
 					sizeof(dm_gec_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1501,14 +1449,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_DDR_BW_COUNTER:
-		FILL_RSP_HEADER(dm_dbc_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_DDR_BW_COUNTER,
-				0,
+		FILL_RSP_HEADER(dm_dbc_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_DDR_BW_COUNTER, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_dbc_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_dbc_rsp,
 					sizeof(dm_dbc_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1516,14 +1460,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_DDR_ECC_COUNT:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_DDR_ECC_COUNT,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_DDR_ECC_COUNT, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1531,14 +1470,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_PCIE_ECC_COUNT:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_PCIE_ECC_COUNT,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_PCIE_ECC_COUNT, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1546,14 +1481,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_SRAM_ECC_COUNT:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_SRAM_ECC_COUNT,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_SRAM_ECC_COUNT, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1561,14 +1492,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MAX_MEMORY_ERROR:
-		FILL_RSP_HEADER(dm_mme_rsp,
-				header.tag_id,
-				DM_CMD_GET_MAX_MEMORY_ERROR,
-				0,
+		FILL_RSP_HEADER(dm_mme_rsp, header.tag_id,
+				DM_CMD_GET_MAX_MEMORY_ERROR, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mme_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mme_rsp,
 					sizeof(dm_mme_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1576,14 +1503,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_MAX_DDR_BW:
-		FILL_RSP_HEADER(dm_mdb_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MAX_DDR_BW,
-				0,
+		FILL_RSP_HEADER(dm_mdb_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_MAX_DDR_BW, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mdb_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mdb_rsp,
 					sizeof(dm_mdb_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1591,14 +1514,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_MAX_TEMPERATURE:
-		FILL_RSP_HEADER(dm_mt_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MAX_TEMPERATURE,
-				0,
+		FILL_RSP_HEADER(dm_mt_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_MAX_TEMPERATURE, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mt_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mt_rsp,
 					sizeof(dm_mt_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1606,14 +1525,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_FIRMWARE_UPDATE:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_FIRMWARE_UPDATE,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_FIRMWARE_UPDATE, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1621,14 +1536,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_FIRMWARE_REVISIONS:
-		FILL_RSP_HEADER(dm_fv_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_FIRMWARE_REVISIONS,
-				0,
+		FILL_RSP_HEADER(dm_fv_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_FIRMWARE_REVISIONS, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_fv_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_fv_rsp,
 					sizeof(dm_fv_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1636,14 +1547,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_FIRMWARE_BOOT_STATUS:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_GET_FIRMWARE_BOOT_STATUS,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_GET_FIRMWARE_BOOT_STATUS, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1651,14 +1558,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_SP_BOOT_ROOT_CERT:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_SP_BOOT_ROOT_CERT,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_SP_BOOT_ROOT_CERT, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1670,15 +1573,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_MANUFACTURE_NAME:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MANUFACTURE_NAME,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_MANUFACTURE_NAME, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%s", "Esperan");
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1686,15 +1585,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_PART_NUMBER:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_PART_NUMBER,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_PART_NUMBER, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%s", "ETPART1");
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1702,15 +1597,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_SERIAL_NUMBER:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_SERIAL_NUMBER,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_SERIAL_NUMBER, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%s", "ETSER_1");
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1718,14 +1609,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_CHIP_REVISION:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_ASIC_CHIP_REVISION,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_ASIC_CHIP_REVISION, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1733,14 +1620,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_PCIE_NUM_PORTS_MAX_SPEED, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1748,15 +1631,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_REVISION:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_REVISION,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_REVISION, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%d", 1);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1764,15 +1643,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_FORM_FACTOR:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_FORM_FACTOR,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_FORM_FACTOR, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%s", "Dual_M2");
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1780,15 +1655,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_MEMORY_VENDOR_PART_NUMBER, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%s", "Unknown");
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1796,15 +1667,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_MEMORY_SIZE_MB:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MEMORY_SIZE_MB,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_MEMORY_SIZE_MB, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%d", 16 * 1024);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1812,15 +1679,11 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_MEMORY_TYPE:
-		FILL_RSP_HEADER(dm_at_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_MEMORY_TYPE,
-				0,
+		FILL_RSP_HEADER(dm_at_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_MEMORY_TYPE, 0,
 				DM_STATUS_SUCCESS);
 		sprintf(dm_at_rsp.asset_info.asset, "%s", "LPDDR4X");
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_at_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_at_rsp,
 					sizeof(dm_at_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1828,14 +1691,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_POWER_STATE:
-		FILL_RSP_HEADER(dm_ps_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_POWER_STATE,
-				0,
+		FILL_RSP_HEADER(dm_ps_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_POWER_STATE, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_ps_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_ps_rsp,
 					sizeof(dm_ps_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1843,14 +1702,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_MODULE_ACTIVE_POWER_MANAGEMENT, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1858,14 +1713,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_STATIC_TDP_LEVEL:
-		FILL_RSP_HEADER(dm_tl_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_STATIC_TDP_LEVEL,
-				0,
+		FILL_RSP_HEADER(dm_tl_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_STATIC_TDP_LEVEL, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_tl_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_tl_rsp,
 					sizeof(dm_tl_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1873,14 +1724,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_MODULE_STATIC_TDP_LEVEL:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_MODULE_STATIC_TDP_LEVEL,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_MODULE_STATIC_TDP_LEVEL, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1888,14 +1735,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS:
-		FILL_RSP_HEADER(dm_tt_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS,
-				0,
+		FILL_RSP_HEADER(dm_tt_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_TEMPERATURE_THRESHOLDS, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_tt_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_tt_rsp,
 					sizeof(dm_tt_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1903,14 +1746,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_MODULE_TEMPERATURE_THRESHOLDS, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1918,14 +1757,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_CURRENT_TEMPERATURE:
-		FILL_RSP_HEADER(dm_ct_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_CURRENT_TEMPERATURE,
-				0,
+		FILL_RSP_HEADER(dm_ct_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_CURRENT_TEMPERATURE, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_ct_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_ct_rsp,
 					sizeof(dm_ct_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1933,14 +1768,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
-		FILL_RSP_HEADER(dm_tht_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES,
-				0,
+		FILL_RSP_HEADER(dm_tht_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_tht_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_tht_rsp,
 					sizeof(dm_tht_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1948,14 +1779,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
-		FILL_RSP_HEADER(dm_mtt_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES,
-				0,
+		FILL_RSP_HEADER(dm_mtt_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mtt_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mtt_rsp,
 					sizeof(dm_mtt_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1963,14 +1790,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_POWER:
-		FILL_RSP_HEADER(dm_mp_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_POWER,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mp_rsp,
+		FILL_RSP_HEADER(dm_mp_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_POWER, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mp_rsp,
 					sizeof(dm_mp_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1978,14 +1800,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_VOLTAGE:
-		FILL_RSP_HEADER(dm_mv_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_VOLTAGE,
-				0,
+		FILL_RSP_HEADER(dm_mv_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_VOLTAGE, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mv_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mv_rsp,
 					sizeof(dm_mv_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -1993,14 +1811,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_VOLTAGE:
-		FILL_RSP_HEADER(dm_av_rsp,
-				header.tag_id,
-				DM_CMD_GET_ASIC_VOLTAGE,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_av_rsp,
+		FILL_RSP_HEADER(dm_av_rsp, header.tag_id,
+				DM_CMD_GET_ASIC_VOLTAGE, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_av_rsp,
 					sizeof(dm_av_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2008,14 +1821,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MODULE_UPTIME:
-		FILL_RSP_HEADER(dm_mu_rsp,
-				header.tag_id,
-				DM_CMD_GET_MODULE_UPTIME,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_mu_rsp,
+		FILL_RSP_HEADER(dm_mu_rsp, header.tag_id,
+				DM_CMD_GET_MODULE_UPTIME, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_mu_rsp,
 					sizeof(dm_mu_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2023,14 +1831,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_FREQUENCIES:
-		FILL_RSP_HEADER(dm_af_rsp,
-				header.tag_id,
-				DM_CMD_GET_ASIC_FREQUENCIES,
-				0,
+		FILL_RSP_HEADER(dm_af_rsp, header.tag_id,
+				DM_CMD_GET_ASIC_FREQUENCIES, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_af_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_af_rsp,
 					sizeof(dm_af_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2038,14 +1842,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_DRAM_BANDWIDTH:
-		FILL_RSP_HEADER(dm_db_rsp,
-				header.tag_id,
-				DM_CMD_GET_DRAM_BANDWIDTH,
-				0,
+		FILL_RSP_HEADER(dm_db_rsp, header.tag_id,
+				DM_CMD_GET_DRAM_BANDWIDTH, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_db_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_db_rsp,
 					sizeof(dm_db_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2053,14 +1853,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_DRAM_CAPACITY_UTILIZATION:
-		FILL_RSP_HEADER(dm_dc_rsp,
-				header.tag_id,
-				DM_CMD_GET_DRAM_CAPACITY_UTILIZATION,
-				0,
+		FILL_RSP_HEADER(dm_dc_rsp, header.tag_id,
+				DM_CMD_GET_DRAM_CAPACITY_UTILIZATION, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_dc_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_dc_rsp,
 					sizeof(dm_dc_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2068,14 +1864,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION:
-		FILL_RSP_HEADER(dm_apcu_rsp,
-				header.tag_id,
+		FILL_RSP_HEADER(dm_apcu_rsp, header.tag_id,
 				DM_CMD_GET_ASIC_PER_CORE_DATAPATH_UTILIZATION,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_apcu_rsp,
+				0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_apcu_rsp,
 					sizeof(dm_apcu_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2083,14 +1875,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_UTILIZATION:
-		FILL_RSP_HEADER(dm_apcu_rsp,
-				header.tag_id,
-				DM_CMD_GET_ASIC_UTILIZATION,
-				0,
+		FILL_RSP_HEADER(dm_apcu_rsp, header.tag_id,
+				DM_CMD_GET_ASIC_UTILIZATION, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_apcu_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_apcu_rsp,
 					sizeof(dm_apcu_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2098,14 +1886,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_STALLS:
-		FILL_RSP_HEADER(dm_as_rsp,
-				header.tag_id,
-				DM_CMD_GET_ASIC_STALLS,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_as_rsp,
+		FILL_RSP_HEADER(dm_as_rsp, header.tag_id,
+				DM_CMD_GET_ASIC_STALLS, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_as_rsp,
 					sizeof(dm_as_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2113,14 +1896,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_ASIC_LATENCY:
-		FILL_RSP_HEADER(dm_al_rsp,
-				header.tag_id,
-				DM_CMD_GET_ASIC_LATENCY,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_al_rsp,
+		FILL_RSP_HEADER(dm_al_rsp, header.tag_id,
+				DM_CMD_GET_ASIC_LATENCY, 0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_al_rsp,
 					sizeof(dm_al_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2128,14 +1906,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_MM_ERROR_COUNT:
-		FILL_RSP_HEADER(dm_ms_rsp,
-				header.tag_id,
-				DM_CMD_GET_MM_ERROR_COUNT,
-				0,
+		FILL_RSP_HEADER(dm_ms_rsp, header.tag_id,
+				DM_CMD_GET_MM_ERROR_COUNT, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_ms_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_ms_rsp,
 					sizeof(dm_ms_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2143,14 +1917,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_MM_RESET:
-		FILL_RSP_HEADER(dm_ms_rsp,
-				header.tag_id,
-				DM_CMD_MM_RESET,
-				0,
+		FILL_RSP_HEADER(dm_ms_rsp, header.tag_id, DM_CMD_MM_RESET, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_ms_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_ms_rsp,
 					sizeof(dm_ms_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2158,14 +1927,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_GET_DEVICE_ERROR_EVENTS:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_GET_DEVICE_ERROR_EVENTS,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_GET_DEVICE_ERROR_EVENTS, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2173,14 +1938,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_DM_TRACE_RUN_CONTROL:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_DM_TRACE_RUN_CONTROL,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_DM_TRACE_RUN_CONTROL, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2188,14 +1949,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_DM_TRACE_CONFIG:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_DM_TRACE_CONFIG,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_DM_TRACE_CONFIG, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2203,14 +1960,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_MODULE_VOLTAGE:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_MODULE_VOLTAGE,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_MODULE_VOLTAGE, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2218,14 +1971,10 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_THROTTLE_POWER_STATE_TEST:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_THROTTLE_POWER_STATE_TEST,
-				0,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id,
+				DM_CMD_SET_THROTTLE_POWER_STATE_TEST, 0,
 				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2233,14 +1982,9 @@ static ssize_t cmd_loopback_handler(struct et_squeue *sq)
 		break;
 
 	case DM_CMD_SET_FREQUENCY:
-		FILL_RSP_HEADER(dm_def_rsp,
-				header.tag_id,
-				DM_CMD_SET_FREQUENCY,
-				0,
-				DM_STATUS_SUCCESS);
-		if (!et_circbuffer_push(&cq->cb,
-					cq->cb_mem,
-					(u8 *)&dm_def_rsp,
+		FILL_RSP_HEADER(dm_def_rsp, header.tag_id, DM_CMD_SET_FREQUENCY,
+				0, DM_STATUS_SUCCESS);
+		if (!et_circbuffer_push(&cq->cb, cq->cb_mem, (u8 *)&dm_def_rsp,
 					sizeof(dm_def_rsp),
 					ET_CB_SYNC_FOR_HOST |
 						ET_CB_SYNC_FOR_DEVICE))
@@ -2274,10 +2018,7 @@ ssize_t et_squeue_push(struct et_squeue *sq, void *buf, size_t count)
 
 	mutex_lock(&sq->push_mutex);
 
-	if (!et_circbuffer_push(&sq->cb,
-				sq->cb_mem,
-				buf,
-				header->size,
+	if (!et_circbuffer_push(&sq->cb, sq->cb_mem, buf, header->size,
 				ET_CB_SYNC_FOR_HOST | ET_CB_SYNC_FOR_DEVICE)) {
 		// Full; no room for message, returning EAGAIN
 		rv = -EAGAIN;
@@ -2318,12 +2059,9 @@ update_sq_bitmap:
 	return rv;
 }
 
-ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev,
-				 bool is_mgmt,
-				 bool is_hp_sq,
-				 u16 sq_index,
-				 const char __user *ubuf,
-				 size_t count)
+ssize_t et_squeue_copy_from_user(struct et_pci_dev *et_dev, bool is_mgmt,
+				 bool is_hp_sq, u16 sq_index,
+				 const char __user *ubuf, size_t count)
 {
 	struct et_vq_data *vq_data;
 	struct et_squeue *sq;
@@ -2368,8 +2106,7 @@ void et_squeue_sync_cb_for_host(struct et_squeue *sq)
 
 	if (head_local != sq->cb.head)
 		pr_err("SQ sync: head mismatched, head_local: %lld, head_remote: %lld",
-		       head_local,
-		       sq->cb.head);
+		       head_local, sq->cb.head);
 
 	mutex_unlock(&sq->push_mutex);
 }
@@ -2403,11 +2140,8 @@ bool et_squeue_empty(struct et_squeue *sq)
 	return true;
 }
 
-ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
-			       bool is_mgmt,
-			       u16 cq_index,
-			       char __user *ubuf,
-			       size_t count)
+ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev, bool is_mgmt,
+			       u16 cq_index, char __user *ubuf, size_t count)
 {
 	struct et_vq_data *vq_data;
 	struct et_cqueue *cq;
@@ -2420,7 +2154,7 @@ ssize_t et_cqueue_copy_to_user(struct et_pci_dev *et_dev,
 	if (!ubuf || !count)
 		return -EINVAL;
 
-	msg = et_dequeue_msg_node(cq);
+	msg = dequeue_msg_node(cq);
 	if (!msg || !(msg->msg)) {
 		// Empty; no message to POP, returning EAGAIN
 		rv = -EAGAIN;
@@ -2469,9 +2203,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	mutex_lock(&cq->pop_mutex);
 
 	// Read the message header
-	if (!et_circbuffer_pop(&cq->cb,
-			       cq->cb_mem,
-			       (u8 *)&header,
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem, (u8 *)&header,
 			       sizeof(header),
 			       (sync_for_host) ? ET_CB_SYNC_FOR_HOST : 0)) {
 		rv = -EAGAIN;
@@ -2481,7 +2213,8 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// If the size is invalid, the message buffer is corrupt and the
 	// system is in a bad state. This should never happen.
 	if (!header.size) {
-		pr_err("CQ corrupt: invalid size");
+		pr_err("%s: CQ[%d]: circbuffer header invalid!", __func__,
+		       cq->index);
 		rv = -ENOTRECOVERABLE;
 		goto error_unlock_mutex;
 	}
@@ -2489,12 +2222,10 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Check if this is a mgmt event, handle accordingly
 	if (header.msg_id >= DEV_MGMT_API_MID_EVENTS_BEGIN &&
 	    header.msg_id <= DEV_MGMT_API_MID_EVENTS_END) {
-		memcpy((u8 *)&mgmt_event.event_info,
-		       (u8 *)&header,
+		memcpy((u8 *)&mgmt_event.event_info, (u8 *)&header,
 		       sizeof(header));
 
-		if (!et_circbuffer_pop(&cq->cb,
-				       cq->cb_mem,
+		if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
 				       (u8 *)&mgmt_event + sizeof(header),
 				       header.size - sizeof(header),
 				       ET_CB_SYNC_FOR_DEVICE)) {
@@ -2508,8 +2239,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 		atomic64_inc(
 			&cq->stats.counters[ET_VQ_COUNTER_STATS_MSG_COUNT]);
 		et_rate_entry_update(
-			1,
-			&cq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
+			1, &cq->stats.rates[ET_VQ_RATE_STATS_MSG_RATE]);
 		atomic64_add(
 			header.size + sizeof(header),
 			&cq->stats.counters[ET_VQ_COUNTER_STATS_BYTE_COUNT]);
@@ -2530,11 +2260,9 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	memcpy(msg_node->msg, (u8 *)&header, sizeof(header));
 
 	// MMIO msg payload into node memory
-	if (!et_circbuffer_pop(&cq->cb,
-			       cq->cb_mem,
+	if (!et_circbuffer_pop(&cq->cb, cq->cb_mem,
 			       (u8 *)msg_node->msg + sizeof(header),
-			       header.size,
-			       ET_CB_SYNC_FOR_DEVICE)) {
+			       header.size, ET_CB_SYNC_FOR_DEVICE)) {
 		destroy_msg_node(msg_node);
 		rv = -EAGAIN;
 		goto error_unlock_mutex;
@@ -2552,8 +2280,7 @@ ssize_t et_cqueue_pop(struct et_cqueue *cq, bool sync_for_host)
 	// Check for MM reset command and complete post reset steps
 	if (header.msg_id == DEV_MGMT_API_MID_MM_RESET)
 		mm_reset_completion_callback(
-			cq,
-			(struct device_mgmt_rsp_hdr_t *)msg_node->msg);
+			cq, (struct device_mgmt_rsp_hdr_t *)msg_node->msg);
 
 	// Enqueue msg node to user msg_list of CQ
 	enqueue_msg_node(cq, msg_node);
@@ -2582,52 +2309,7 @@ void et_cqueue_sync_cb_for_host(struct et_cqueue *cq)
 
 	if (tail_local != cq->cb.tail)
 		pr_err("CQ sync: tail mismatched, tail_local: %lld, tail_remote: %lld",
-		       tail_local,
-		       cq->cb.tail);
+		       tail_local, cq->cb.tail);
 
 	mutex_unlock(&cq->pop_mutex);
-}
-
-/*
- * Handles vqueue IRQ. The vqueue IRQ signals a a new message in the CQ.
- *
- * This method handles CQ messages for the kernel immediatley, and saves
- * off messages for user mode to be consumed later.
- *
- * User mode messages must not block kernel messages from being processed
- * (e.g if the first msg in the vqueue is for the user and the second is for
- * the kernel, the kernel message should not be stuck in line behind the user
- * message).
- *
- * This method must be tolerant of spurious IRQs (no new msg), and taking an
- * IRQ while messages are still in filght.
- *
- * Reasons it may fire:
- *
- * - The host sent a msg to this vqueue
- *
- * - The host sent a msg to another vqueue, and MSI
- *   multivector support is not available (IRQ is spurious for this vqueue)
- *
- * - The host sent two (or more) messages and two (or more) IRQs, but the ISR
- *   handeled multiple messages in one pass, (follow-on IRQs should be ignored)
- *
- *   Another version of this: the ISR sees the data for the first message, and
- *   only a portion of the data for the second message (rest of data and second
- *   IRQ still in flight)
- *
- * - Perodic wakeup fired (incase IRQs missed). There may be a state update or
- *   msg, there may be a message in flight (should take no action and wait for
- *   next IRQ), or there may be no changes (IRQ is spurious)
- */
-void et_cqueue_isr_bottom(struct et_cqueue *cq)
-{
-	bool sync_for_host = true;
-
-	// Handle all pending messages in the cqueue
-	while (et_cqueue_pop(cq, sync_for_host) > 0) {
-		// Only sync `circbuffer` the first time
-		if (sync_for_host)
-			sync_for_host = false;
-	}
 }

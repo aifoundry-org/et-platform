@@ -17,6 +17,10 @@ include:
     file:
       - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
+default:
+  interruptible: true
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.7.4
+
 stages:
   - generate_build
   - build
@@ -74,17 +78,11 @@ verify_project_changes:
     - .template_job
     - .pod_nano
     - .verify_merge_request
-  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
   stage: .pre
   rules:
     - *development_job_rule
   variables:
     PROJ_VER_FILE_NAME: VERSION
-
-###############################################################################
-###############################################################################
-###############################################################################
-####
 
 check-on-top-of-master:
   extends: .check-on-top-of-master
@@ -93,24 +91,45 @@ check-on-top-of-master:
   rules:
     - *development_job_rule
 
+clang-format:
+  extends:
+    - .template_job
+    - .pod_nano
+  stage: .pre
+  rules:
+    - *development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      git fetch origin master
+      git clang-format --style file --diff origin/master --extensions c,h
+      git clang-format --style file --diff origin/master --extensions c,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
+
+checkpatch:
+  extends:
+    - .template_job
+    - .pod_nano
+  stage: .pre
+  rules:
+    - *development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      if find -maxdepth 1 -name '*.[ch]' -not -name '*loopback*' | xargs -I {} ./scripts/checkpatch.pl --no-tree --terse --show-types --strict --file {} | grep -Pv 'OPEN_ENDED_LINE|^total:'
+      then
+        echo "Please resolve the issues detected by checkpatch.pl!"
+        exit 1
+      else
+        echo "checkpatch.pl found no issue"
+      fi
+
 ###############################################################################
 ###############################################################################
-############################################################################
+###############################################################################
 
 create-sw-platform-branch:
   extends: .create-sw-platform-branch
   stage: generate_build
-  needs:
-    - job: verify_project_changes
-      optional: true
-    - job: check-on-top-of-master
-      optional: true
   rules:
     - *release_or_development_job_rule
-
-###############################################################################
-###############################################################################
-###############################################################################
 
 generate_build:conan:
   extends:
@@ -118,17 +137,10 @@ generate_build:conan:
     - .template_job
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: generate_build
-  needs:
-    - job: verify_project_changes
-      optional: true
-    - job: check-on-top-of-master
-      optional: true
   rules:
     - *release_or_development_job_rule
-
   variables:
     TIMEOUT: 15m
-
     CMD_BUILD: |
       cd conan
       python3 -m ci_build
@@ -140,6 +152,7 @@ generate_build:conan:
 
 ###############################################################################
 ###############################################################################
+###############################################################################
 
 create-sw-platform-trigger:
   extends: .create-sw-platform-trigger
@@ -148,10 +161,6 @@ create-sw-platform-trigger:
     - create-sw-platform-branch
   rules:
     - *release_or_development_job_rule
-
-###############################################################################
-###############################################################################
-###############################################################################
 
 build:conan:
   stage: build

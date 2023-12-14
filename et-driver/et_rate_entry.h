@@ -18,15 +18,27 @@
 #include <linux/spinlock.h>
 
 /*
- * et_rate_entry: calculation formula: rate = this_unit / (this_ts - prev_ts)
+ * struct et_rate_entry: Entry for rate calculation between two timestamps
+ * @this_unit: The unit value whose rate calculation is intended
+ * @this_ts: Timestamp at current time
+ * @prev_ts: Timestamp at previous time
+ *
+ * calculation formula: rate = this_unit / (this_ts - prev_ts)
  */
 struct et_rate_entry {
-	spinlock_t rw_lock; /* serializes r/w access to this entry */
+	/**
+	 * @rw_lock: serializes r/w access to this entry
+	 */
+	spinlock_t rw_lock;
 	u64 this_unit;
 	ktime_t prev_ts;
 	ktime_t this_ts;
 };
 
+/**
+ * et_rate_entry_init() - Initialize the rate entry
+ * @entry: Pointer to struct et_rate_entry
+ */
 static inline void et_rate_entry_init(struct et_rate_entry *entry)
 {
 	spin_lock_init(&entry->rw_lock);
@@ -35,6 +47,13 @@ static inline void et_rate_entry_init(struct et_rate_entry *entry)
 	entry->this_unit = 1;
 }
 
+/**
+ * et_rate_entry_update() - Update the rate entry
+ * @unit: New unit value
+ * @entry: Pointer to struct et_rate_entry
+ *
+ * Saves new unit value with its timestamp
+ */
 static inline void et_rate_entry_update(u64 unit, struct et_rate_entry *entry)
 {
 	spin_lock(&entry->rw_lock);
@@ -44,6 +63,12 @@ static inline void et_rate_entry_update(u64 unit, struct et_rate_entry *entry)
 	spin_unlock(&entry->rw_lock);
 }
 
+/**
+ * et_rate_entry_calculate() - Calculate the rate from rate entry
+ * @entry: Pointer to struct et_rate_entry
+ *
+ * Return: Calculated rate value
+ */
 static inline u64 et_rate_entry_calculate(struct et_rate_entry *entry)
 {
 	u64 rate, numerator, denominator;

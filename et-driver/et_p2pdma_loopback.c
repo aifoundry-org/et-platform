@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /******************************************************************************
  *
@@ -29,8 +29,7 @@ u64 et_p2pdma_get_compat_bitmap(u8 devnum)
 {
 	u64 dev_compat_bitmap;
 
-	memcpy(&dev_compat_bitmap,
-	       p2pdma_mappings[devnum].dev_compat_bitmap,
+	memcpy(&dev_compat_bitmap, p2pdma_mappings[devnum].dev_compat_bitmap,
 	       sizeof(dev_compat_bitmap));
 	return dev_compat_bitmap;
 }
@@ -96,9 +95,8 @@ int et_p2pdma_add_resource(struct et_pci_dev *et_dev,
 		if (p2pdma_mappings[et_dev->devnum].pdev &&
 		    p2pdma_mappings[devnum].pdev) {
 			// Set bit in dev_compat_bitmap of this device
-			set_bit(devnum,
-				p2pdma_mappings[et_dev->devnum]
-					.dev_compat_bitmap);
+			set_bit(devnum, p2pdma_mappings[et_dev->devnum]
+						.dev_compat_bitmap);
 			// Set bit in dev_compat_bitmap of other device
 			set_bit(et_dev->devnum,
 				p2pdma_mappings[devnum].dev_compat_bitmap);
@@ -121,9 +119,7 @@ void et_p2pdma_release_resource(struct et_pci_dev *et_dev,
 
 	if (p2pdma_mappings[et_dev->devnum].pdev) {
 		list_for_each_entry_safe (
-			pos,
-			tmp,
-			&p2pdma_mappings[et_dev->devnum].region_list,
+			pos, tmp, &p2pdma_mappings[et_dev->devnum].region_list,
 			list) {
 			if (pos->region == region) {
 				list_del(&pos->list);
@@ -163,10 +159,8 @@ void et_p2pdma_release_resource(struct et_pci_dev *et_dev,
 	}
 }
 
-ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
-			    u16 queue_index,
-			    char __user *ucmd,
-			    size_t cmd_size)
+ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev, u16 queue_index,
+			    char __user *ucmd, size_t cmd_size)
 {
 	ssize_t rv;
 	u32 node_num, nodes_count = 0;
@@ -179,8 +173,7 @@ ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
 
 	if (cmd_size <= sizeof(*cmd) || !nodes_count) {
 		dev_err(&et_dev->pdev->dev,
-			"P2PDMA list cmd_size: %zu is invalid!",
-			cmd_size);
+			"P2PDMA list cmd_size: %zu is invalid!", cmd_size);
 		return -EINVAL;
 	}
 
@@ -200,8 +193,7 @@ ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
 		if (!test_bit(cmd->list[node_num].peer_devnum, dev_bitmap)) {
 			dev_err(&et_dev->pdev->dev,
 				"P2PDMA list[%u].peer_devnum: %u does not exist!",
-				node_num,
-				cmd->list[node_num].peer_devnum);
+				node_num, cmd->list[node_num].peer_devnum);
 			rv = -EINVAL;
 			goto free_cmd_mem;
 		}
@@ -209,8 +201,7 @@ ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
 		if (!cmd->list[node_num].size) {
 			dev_err(&et_dev->pdev->dev,
 				"P2PDMA list[%u].size: %u is invalid!",
-				node_num,
-				cmd->list[node_num].size);
+				node_num, cmd->list[node_num].size);
 			rv = -EINVAL;
 			goto free_cmd_mem;
 		}
@@ -221,8 +212,7 @@ ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
 			    MEM_REGION_DMA_ELEMENT_STEP_SIZE) {
 			dev_err(&et_dev->pdev->dev,
 				"P2PDMA list[%u].size out of bound (0x%x/0x%x)!",
-				node_num,
-				cmd->list[node_num].size,
+				node_num, cmd->list[node_num].size,
 				et_dev->ops.regions
 						[OPS_MEM_REGION_TYPE_HOST_MANAGED]
 							.access.dma_elem_size *
@@ -238,8 +228,7 @@ ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
 		    !test_bit(et_dev->devnum, map->dev_compat_bitmap)) {
 			dev_err(&et_dev->pdev->dev,
 				"P2PDMA list[%u].peer_devnum: %u is incompatible peer!",
-				node_num,
-				cmd->list[node_num].peer_devnum);
+				node_num, cmd->list[node_num].peer_devnum);
 			rv = -EOPNOTSUPP;
 			up_read(&map->rwsem);
 			goto free_cmd_mem;
@@ -277,8 +266,7 @@ ssize_t et_p2pdma_move_data(struct et_pci_dev *et_dev,
 		up_read(&map->rwsem);
 	}
 
-	rv = et_squeue_push(&et_dev->ops.vq_data.sqs[queue_index],
-			    cmd,
+	rv = et_squeue_push(&et_dev->ops.vq_data.sqs[queue_index], cmd,
 			    cmd_size);
 	if (rv < 0)
 		goto free_cmd_mem;

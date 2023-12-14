@@ -1,3 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
+/******************************************************************************
+ *
+ * Copyright (C) 2020 Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ *
+ ******************************************************************************/
+
 #ifndef __ET_IOCTL_H
 #define __ET_IOCTL_H
 
@@ -6,6 +20,9 @@
 
 #define ESPERANTO_PCIE_IOCTL_MAGIC 0xE7
 
+/**
+ * enum cmd_desc_flag - Flag values for struct cmd_desc
+ */
 enum cmd_desc_flag {
 	CMD_DESC_FLAG_NONE = 0x0,
 	CMD_DESC_FLAG_DMA = 0x1 << 0,
@@ -15,45 +32,46 @@ enum cmd_desc_flag {
 	CMD_DESC_FLAG_P2PDMA = 0x1 << 4
 };
 
+/**
+ * enum dev_config_form_factor - Form factor values for struct dev_config
+ */
 enum dev_config_form_factor {
 	DEV_CONFIG_FORM_FACTOR_NONE = 0,
 	DEV_CONFIG_FORM_FACTOR_PCIE,
 	DEV_CONFIG_FORM_FACTOR_M_2
 };
 
+/**
+ * enum dev_config_arch_revision - Architecture revision values
+ */
 enum dev_config_arch_revision {
 	DEV_CONFIG_ARCH_REVISION_ETSOC1 = 0,
 	DEV_CONFIG_ARCH_REVISION_PANTERO,
 	DEV_CONFIG_ARCH_REVISION_GEPARDO
 };
 
-/*
- * Device State enum
+/**
+ * enum dev_state - Device States
  *
- * DEV_STATE_NOT_READY
- * 	- TODO: SW-10535 To be removed
- * 	- This represents that device is not initialized yet i.e., no device
- * 	  specific structures are initialized. This is the state before probe
- * 	  or when device could never be initialized.
- * DEV_STATE_READY
- * 	- This represents that device is properly initialized and is ready to
- * 	  use.
- * DEV_STATE_RESET_IN_PROGRESS
- * 	- This represents that device is undergoing a reset. User will not be
- * 	  able to open the device node in this state. If the device node is
- * 	  already opened then device node must be closed to let the reset
- * 	  complete. On successful reset, state will be changed to
- * 	  `DEV_STATE_READY` or on failure, state will be changed to
- * 	  `DEV_STATE_NOT_RESPONDING`.
- * DEV_STATE_NOT_RESPONDING
- * 	- This represents that device has undergone a failure. This could be
- * 	  a failure at time of device discovery or during re-initialization
- * 	  of device after reset.
- * DEV_STATE_PENDING_COMMANDS
- * 	- TODO: SW-10535 To be removed
- * 	- This represents the state of Virtual Queues. This is not an internal
- * 	  state of the device. This represents availability of pending command
- * 	  in any submission queue(s) of the device.
+ * TODO: SW-10535 To be removed
+ * @DEV_STATE_NOT_READY: This represents that device is not initialized yet
+ * i.e., no device specific structures are initialized. This is the state
+ * before probe or when device could never be initialized.
+ * @DEV_STATE_READY: This represents that device is properly initialized and is
+ * ready to use.
+ * @DEV_STATE_RESET_IN_PROGRESS: This represents that device is undergoing a
+ * reset. User will not be able to open the device node in this state. If the
+ * device node is already opened then device node must be closed to let the
+ * reset complete. On successful reset, state will be changed to
+ * `DEV_STATE_READY` or on failure, state will be changed to
+ * `DEV_STATE_NOT_RESPONDING`
+ * @DEV_STATE_NOT_RESPONDING: This represents that device has undergone a
+ * failure. This could be a failure at time of device discovery or during
+ * re-initialization of device after reset.
+ * TODO: SW-10535 To be removed
+ * @DEV_STATE_PENDING_COMMANDS: This represents the state of Virtual Queues.
+ * This is not an internal state of the device. This represents availability
+ * of pending command in any submission queue(s) of the device.
  */
 enum dev_state {
 	DEV_STATE_NOT_READY = 0,
@@ -63,6 +81,9 @@ enum dev_state {
 	DEV_STATE_PENDING_COMMANDS
 };
 
+/**
+ * enum trace_buffer_type - Trace buffer types
+ */
 enum trace_buffer_type {
 	TRACE_BUFFER_SP = 0,
 	TRACE_BUFFER_MM,
@@ -72,13 +93,23 @@ enum trace_buffer_type {
 	TRACE_BUFFER_TYPE_NUM
 };
 
-// clang-format off
-
+/**
+ * struct fw_update_desc - Descriptor for ETSOC1_IOCTL_FW_UPDATE
+ * @ubuf: Pointer to memory in user-space
+ * @size: Size of the buffer in bytes
+ */
 struct fw_update_desc {
 	void *ubuf;
 	__u64 size;
 };
 
+/**
+ * struct cmd_desc - Descriptor for ETSOC1_IOCTL_PUSH_SQ
+ * @cmd: Pointer to command memory in user-space
+ * @size: Size of the buffer in bytes
+ * @sq_index: SQ index
+ * @flags: value of enum cmd_desc_flag
+ */
 struct cmd_desc {
 	void *cmd;
 	__u16 size;
@@ -86,17 +117,36 @@ struct cmd_desc {
 	__u8 flags;
 };
 
+/**
+ * struct rsp_desc - Descriptor for ETSOC1_IOCTL_POP_CQ
+ * @rsp: Pointer to response memory in user-space
+ * @size: Size of the buffer in bytes
+ * @cq_index: CQ index
+ */
 struct rsp_desc {
 	void *rsp;
 	__u16 size;
 	__u16 cq_index;
 };
 
+/**
+ * struct sq_threshold - Descriptor for ETSOC1_IOCTL_SET_SQ_THRESHOLD
+ * @bytes_needed: Free bytes needed for the threshold
+ * @sq_index: SQ index
+ */
 struct sq_threshold {
 	__u16 bytes_needed;
 	__u16 sq_index;
 };
 
+/**
+ * struct dram_info - Descriptor for ETSOC1_IOCTL_GET_USER_DRAM_INFO
+ * @base: Base address of SOC DRAM
+ * @size: Size of DRAM region
+ * @dma_max_elem_size: Max allowed size of DMA element/node
+ * @dma_max_elem_count: Max allowed number of elements/nodes in DMAlist command
+ * @align_in_bits: DRAM address alignment requirement
+ */
 struct dram_info {
 	__u64 base;
 	__u64 size;
@@ -105,28 +155,47 @@ struct dram_info {
 	__u16 align_in_bits;
 };
 
+/**
+ * struct dev_config - Descriptor for ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION
+ * @total_l3_size: Total L3 cache size (KB)
+ * @total_l2_size: Total L2 cache size (KB)
+ * @total_scp_size: Total Scratchpad size (KB)
+ * @ddr_bandwidth: DDR bandwidth (MB/sec)
+ * @minion_boot_freq: Minion boot frequency (MHz)
+ * @cm_shire_mask: Compute minion shire mask
+ * @form_factor: value of enum dev_config_form_factor type
+ * @tdp: Device TDP (W)
+ * @cache_line_size: Cache line size (B)
+ * @num_l2_cache_banks: Number of L2 shire cache banks
+ * @sync_min_shire_id: Spare/sync minion shire ID
+ * @arch_rev: value of enum dev_config_arch_revision type
+ * @devnum: Physical device node index / device number
+ */
 struct dev_config {
-	__u32 total_l3_size;		/* in KB */
-	__u32 total_l2_size;		/* in KB */
-	__u32 total_scp_size;		/* in KB */
-	__u32 ddr_bandwidth;		/* in MB/sec */
-	__u32 minion_boot_freq;		/* in MHz */
-	__u32 cm_shire_mask;		/* Active Compute Shires Mask */
-	__u8 form_factor;		/* PCIE or M.2 */
-	__u8 tdp;			/* in Watts */
-	__u8 cache_line_size;		/* in Bytes */
-	__u8 num_l2_cache_banks;	/* Number of L2 Shire Cache banks */
-	__u8 sync_min_shire_id;		/* Spare/sync Minion Shire ID */
-	__u8 arch_rev;			/* Device architecture revision */
-	__u8 devnum;			/* Device physical number */
+	__u32 total_l3_size;
+	__u32 total_l2_size;
+	__u32 total_scp_size;
+	__u32 ddr_bandwidth;
+	__u32 minion_boot_freq;
+	__u32 cm_shire_mask;
+	__u8 form_factor;
+	__u8 tdp;
+	__u8 cache_line_size;
+	__u8 num_l2_cache_banks;
+	__u8 sync_min_shire_id;
+	__u8 arch_rev;
+	__u8 devnum;
 };
 
+/**
+ * struct trace_desc - Descriptor for ETSOC1_IOCTL_EXTRACT_TRACE_BUFFER
+ * @trace_type: value of enum trace_buffer_type type
+ * @buf: Pointer to memory buffer in user-space
+ */
 struct trace_desc {
 	__u8 trace_type;
 	void *buf;
 };
-
-// clang-format on
 
 #define ETSOC1_IOCTL_GET_USER_DRAM_INFO                                        \
 	_IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 1, struct dram_info)

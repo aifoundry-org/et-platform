@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /***********************************************************************
  *
@@ -15,23 +15,33 @@
 #include "et_circbuffer.h"
 #include "et_io.h"
 
+/**
+ * et_circbuffer_push() - Pushes the data from buffer to IO memory circbuffer
+ * @cb: et_circbuffer structure pointer to local copy of circular buffer
+ * @cb_mem: et_circbuffer structure pointer to IO memory circular buffer
+ * @buf: Pointer to source data to be pushed on IO memory circular buffer
+ * @len: The length of the source data in bytes
+ * @sync: The flag to indicate sync between local copy and IO memory
+ *
+ * To minimize IO operations between the successive pushes, the caller can
+ * decide to whether use local copy `cb` or directly read from device memory
+ * `cb_mem`. Directly reading from device memory will also update the local
+ * copy passed. So, in successive operations, caller should first read from
+ * device memory and then can use cached copy.
+ *
+ * Return: true on success, false otherwise.
+ */
 bool et_circbuffer_push(struct et_circbuffer *cb,
-			struct et_circbuffer __iomem *cb_mem,
-			u8 *buf,
-			size_t len,
-			u8 sync)
+			struct et_circbuffer __iomem *cb_mem, u8 *buf,
+			size_t len, u8 sync)
 {
 	size_t bytes_to_write;
 
 	if (!cb || !cb_mem)
 		return false;
 
-	if (sync & ET_CB_SYNC_FOR_HOST) {
+	if (sync & ET_CB_SYNC_FOR_HOST)
 		cb->tail = ioread64(&cb_mem->tail);
-		// TODO SW-6388: Sync whole circbuffer instead when
-		// requested
-		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
-	}
 
 	if (len > cb->len) {
 		pr_err("message too big (len %ld, max %lld)", len, cb->len);
@@ -60,23 +70,33 @@ bool et_circbuffer_push(struct et_circbuffer *cb,
 	return true;
 }
 
+/**
+ * et_circbuffer_pop() - Pop out the data into buffer from IO memory circbuffer
+ * @cb: et_circbuffer structure pointer to local copy of circular buffer
+ * @cb_mem: et_circbuffer structure pointer to IO memory circular buffer
+ * @buf: Pointer to buffer to read into from IO memory circular buffer
+ * @len: The length of the data to read in bytes
+ * @sync: The flag to indicate sync between local copy and IO memory
+ *
+ * To minimize IO operations between the successive pops, the caller can decide
+ * to whether use local copy `cb` or directly read from device memory `cb_mem`.
+ * Directly reading from device memory will also update the local copy passed.
+ * So, in successive operations, caller should first read from device memory
+ * and then can use cached copy.
+ *
+ * Return: true on success, false otherwise.
+ */
 bool et_circbuffer_pop(struct et_circbuffer *cb,
-		       struct et_circbuffer __iomem *cb_mem,
-		       u8 *buf,
-		       size_t len,
-		       u8 sync)
+		       struct et_circbuffer __iomem *cb_mem, u8 *buf,
+		       size_t len, u8 sync)
 {
 	size_t bytes_to_read;
 
 	if (!cb || !cb_mem)
 		return false;
 
-	if (sync & ET_CB_SYNC_FOR_HOST) {
+	if (sync & ET_CB_SYNC_FOR_HOST)
 		cb->head = ioread64(&cb_mem->head);
-		// TODO SW-6388: Sync whole circbuffer instead when
-		// requested
-		// et_ioread(cb_mem, 0, (u8 *)cb, sizeof(*cb));
-	}
 
 	if (et_circbuffer_used(cb) < len)
 		return false;

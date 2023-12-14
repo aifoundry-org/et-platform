@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 
 /*-----------------------------------------------------------------------------
  * Copyright (C) 2022, Esperanto Technologies Inc.
@@ -21,27 +21,41 @@
 
 // clang-format on
 
-/*
- * CMA memory utilization statistics
+/**
+ * cma_allocated_show() - Show function for SysFS attribute cma_allocated
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
  *
- * mem_stats
- * |- cma_allocated		Total CMA allocated (MB) by this device instance
- * |- cma_allocation_rate	CMA allocation rate (MB/sec)
+ * Total CMA allocated (MB) by this device instance
+ * mem_stats/cma_allocated
+ *
+ * Return: number of bytes written in buf, negative value on failure
  */
-static ssize_t
-cma_allocated_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t cma_allocated_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
 	return sysfs_emit(
-		buf,
-		"%llu MB\n",
+		buf, "%llu MB\n",
 		atomic64_read(
 			&et_dev->ops.mem_stats
 				 .counters[ET_MEM_COUNTER_STATS_CMA_ALLOCATED]) /
 			SZ_1M);
 }
 
+/**
+ * cma_allocation_rate_show() - Show function for attribute cma_allocation_rate
+ * @dev: Pointer to struct device
+ * @attr: Pointer to struct device_attribute
+ * @buf: buffer memory for the attribute
+ *
+ * CMA allocation rate (MB/sec)
+ * mem_stats/cma_allocation_rate
+ *
+ * Return: number of bytes written in buf, negative value on failure
+ */
 static ssize_t cma_allocation_rate_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -49,14 +63,14 @@ static ssize_t cma_allocation_rate_show(struct device *dev,
 	struct et_pci_dev *et_dev = dev_get_drvdata(dev);
 
 	return sysfs_emit(
-		buf,
-		"%llu MB/sec\n",
+		buf, "%llu MB/sec\n",
 		et_rate_entry_calculate(
 			&et_dev->ops.mem_stats
 				 .rates[ET_MEM_RATE_STATS_CMA_ALLOCATION_RATE]) /
 			SZ_1M);
 }
 
+/* SysFS attributes in group mem_stats */
 static DEVICE_ATTR_RO(cma_allocated);
 static DEVICE_ATTR_RO(cma_allocation_rate);
 
