@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.16.0] - 2023-12-15
+### Added
 - [SW-18926] Added multiple fixes to DVFS algorithm for stability
 - [SW-19172] Added Linux mode
 - EMMC and Maxion configuration only compiled in this mode.
