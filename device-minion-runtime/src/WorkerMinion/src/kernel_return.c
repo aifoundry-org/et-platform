@@ -39,6 +39,8 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
                          "csrs  sstatus, x1       \n" // set sstatus SPP and SPIE
                          "ld    sp, %0            \n" // load sp from supervisor stack SP region
                          "sd    zero, %0          \n" // clear supervisor stack SP region
+                         "mv    x10, %[return_value]\n"
+                         "mv    x11, %[return_type] \n" // use a1 to save the return type
                          "ld    x1,  1  * 8( sp ) \n" // restore context
                          "ld    x3,  3  * 8( sp ) \n"
                          "ld    x4,  4  * 8( sp ) \n"
@@ -47,8 +49,6 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
                          "ld    x7,  7  * 8( sp ) \n"
                          "ld    x8,  8  * 8( sp ) \n"
                          "ld    x9,  9  * 8( sp ) \n"
-                         // Leave return_value from kernel in a0
-                         "mv    x11, %[return_type] \n" // use a1 to save the return type
                          "ld    x12, 12 * 8( sp ) \n"
                          "ld    x13, 13 * 8( sp ) \n"
                          "ld    x14, 14 * 8( sp ) \n"
@@ -72,7 +72,9 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
                          "addi  sp, sp, (32 * 8)  \n"
                          "ret                     \n"
                          : "+m"(*firmware_sp)
-                         : [return_type] "r"(return_type));
+                         : [return_value] "r"(return_value)
+                         , [return_type] "r"(return_type)
+                        );
 
             return return_value;
         }
@@ -87,7 +89,7 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
 }
 
 /* Must only be used from environment call context */
-void kernel_self_abort_save_context(void)
+void kernel_self_abort_save_context(uint64_t stack_frame)
 {
     /* Get the kernel exception buffer */
     uint64_t exception_buffer = kernel_info_get_exception_buffer(get_shire_id());
@@ -96,18 +98,12 @@ void kernel_self_abort_save_context(void)
     if (exception_buffer != 0)
     {
         internal_execution_context_t context;
-        uint64_t stack_frame;
 
         /* Dump S-mode CSRs */
         CSR_READ_SCAUSE(context.scause)
         CSR_READ_SSTATUS(context.sstatus)
         CSR_READ_SEPC(context.sepc)
         CSR_READ_STVAL(context.stval)
-
-        /* For dumping the stack frame from an environment call, the stack is assumed
-        to be present in the s1 register. The trap handler saves the sp in the s1 and
-        it is preserved till we reach this point. */
-        asm volatile("mv %0, s1" : "=r"(stack_frame));
 
         context.regs = (uint64_t *)stack_frame;
 

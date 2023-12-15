@@ -23,9 +23,9 @@
 
 #include <stdint.h>
 
-int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
+int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t stack_frame);
 
-int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t stack_frame)
 {
     int64_t ret = SYSCALL_SUCCESS;
 
@@ -59,7 +59,7 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             /* Dump U-mode context in case of kernel self abort */
             if (arg2 == KERNEL_RETURN_SELF_ABORT)
             {
-                kernel_self_abort_save_context();
+                kernel_self_abort_save_context(stack_frame);
             }
             ret = return_from_kernel((int64_t)arg1, arg2);
             break;

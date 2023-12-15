@@ -12,6 +12,6 @@
 
 /* Function prototypes */
 int64_t return_from_kernel(int64_t return_value, uint64_t return_type);
-void kernel_self_abort_save_context(void);
+void kernel_self_abort_save_context(uint64_t stack_frame);
 
 #endif
