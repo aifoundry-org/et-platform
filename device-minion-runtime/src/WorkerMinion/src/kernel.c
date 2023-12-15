@@ -397,16 +397,20 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         "sd    x29, 29 * 8( sp )   \n"
         "sd    x30, 30 * 8( sp )   \n"
         "sd    x31, 31 * 8( sp )   \n"
-        "sd    sp, %[firmware_sp]  \n" // save sp to supervisor stack SP region (sscratch + 8)
+        "mv    a0, %[k_param_a0]   \n" // a0 = kernel.pointer_to_args
+        "mv    a1, %[k_param_a1]   \n" // a1 = kernel environment
+        "mv    a2, %[k_param_a2]   \n" // a2 = UNUSED
+        "mv    a3, %[k_param_a3]   \n" // a3 = UNUSED
+        "sd    sp, (%[firmware_sp])\n" // save sp to supervisor stack SP region (sscratch + 8)
         "mv    ra, %[k_ret_addr]   \n" // set return address to 0 to catch kernels that don't end properly
+        "csrw  sepc, %[k_entry]    \n" // kernel address to jump to in user mode
         "mv    s0, %[k_stack_addr] \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
         "addi  sp, s0, -32         \n" // switch to kernel stack: set sp to kernel stack after stack frame
         "sd    ra, 24(sp)          \n" // push ra
-        "sd    s0, 16(sp)          \n" // push s0
-        "li    x5, 0x100           \n" // bitmask to clear sstatus SPP=user
-        "csrc  sstatus, x5         \n" // clear sstatus SPP
+        "sd    s0, 16(sp)          \n" // push s0 (frame pointer)
+        "li    t0, 0x100           \n" // bitmask to clear sstatus SPP=user
+        "csrc  sstatus, t0         \n" // clear sstatus SPP
         "csrsi sstatus, 0x10       \n" // set sstatus UPIE
-        "csrw  sepc, %[k_entry]    \n" // kernel address to jump to in user mode
         "mv    x3, zero            \n" // kernel must set its own gp if it uses it
         "mv    x4, zero            \n" // Wipe registers: don't leak state from S to U
         "mv    x5, zero            \n"
@@ -414,10 +418,6 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         "mv    x7, zero            \n"
         "mv    x8, zero            \n"
         "mv    x9, zero            \n"
-        "mv    x10, %[k_param_a0]  \n" // a0 = kernel.pointer_to_args
-        "mv    x11, %[k_param_a1]  \n" // a1 = kernel environment
-        "mv    x12, %[k_param_a2]  \n" // a2 = UNUSED
-        "mv    x13, %[k_param_a3]  \n" // a3 = UNUSED
         "mv    x14, zero           \n"
         "mv    x15, zero           \n"
         "mv    x16, zero           \n"
@@ -473,18 +473,19 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         "mv    %[return_value], a0 \n"
         "mv    %[return_type],  a1 \n"
 
-        : [firmware_sp] "=m"(*firmware_sp), /* firmware context resume */
-        [return_value] "=r"(return_value),  /* collect kernel return value */
-        [return_type] "=r"(return_type)     /* collect kernel return type */
+        : [return_value] "=r"(return_value), /* collect kernel return value */
+        [return_type] "=r"(return_type)      /* collect kernel return type */
 
-        : [k_ret_addr] "r"(0),                    /* Setting kernel return to zero */
-        [k_stack_addr] "r"(kernel_stack_addr),    /* Kernel stack address */
-        [k_entry] "r"(kernel.code_start_address), /* Kernel entry address */
-        [k_param_a0] "r"(kernel.pointer_to_args), /* Kernel args address */
-        [k_param_a1] "r"(kernel_env_addr),        /* Kernel Environment */
-        [k_param_a2] "r"(0),                      /* Unused for now */
-        [k_param_a3] "r"(0)                       /* Unused for now */
-    );
+        : [k_param_a0] "r"(kernel.pointer_to_args), /* Kernel args address */
+        [k_param_a1] "r"(kernel_env_addr),          /* Kernel Environment */
+        [k_param_a2] "r"(0),                        /* Unused for now */
+        [k_param_a3] "r"(0),                        /* Unused for now */
+        [firmware_sp] "r"(firmware_sp),             /* firmware context resume */
+        [k_ret_addr] "r"(0),                        /* Setting kernel return to zero */
+        [k_entry] "r"(kernel.code_start_address),   /* Kernel entry address */
+        [k_stack_addr] "r"(kernel_stack_addr)       /* Kernel stack address */
+
+        : "memory", "a0", "a1");
 
     Log_Write(LOG_LEVEL_DEBUG, "launch_kernel:Returned from kernel launch\r\n");
 
