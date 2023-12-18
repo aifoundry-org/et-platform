@@ -485,7 +485,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         [k_entry] "r"(kernel.code_start_address),   /* Kernel entry address */
         [k_stack_addr] "r"(kernel_stack_addr)       /* Kernel stack address */
 
-        : "memory", "a0", "a1");
+        : "memory", "ra", "a0", "a1");
 
     Log_Write(LOG_LEVEL_DEBUG, "launch_kernel:Returned from kernel launch\r\n");
 
