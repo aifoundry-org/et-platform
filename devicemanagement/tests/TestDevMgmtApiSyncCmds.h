@@ -37,6 +37,7 @@ using TimeDuration = Clock::duration;
 #define ECID_LOT_ID_LENGTH 6
 
 DECLARE_bool(enable_trace_dump);
+DECLARE_bool(enable_bin_trace_dump);
 DECLARE_string(trace_base_dir);
 DECLARE_string(trace_txt_dir);
 DECLARE_string(trace_bin_dir);

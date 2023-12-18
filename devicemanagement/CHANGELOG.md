@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-19638] Add control option to dump bin traces in files
 ### Changed
+- [SW-19638] Disabled dump of raw traces to bin files
 ### Deprecated
 ### Removed
 ### Fixed

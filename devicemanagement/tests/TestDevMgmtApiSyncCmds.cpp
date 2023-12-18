@@ -47,6 +47,7 @@ using TimeDuration = Clock::duration;
 
 DEFINE_bool(enable_trace_dump, true,
             "Enable SP trace dump to file specified by flag: trace_logfile, otherwise on UART");
+DEFINE_bool(enable_bin_trace_dump, false, "Dump RAW/binary trace files under FLAGS_trace_bin_dir");
 DEFINE_bool(reset_trace_buffer, true,
             "Reset the SP trace buffer on the start of the test run if trace logging is enabled");
 DEFINE_string(trace_base_dir, "devtrace", "Base directory which will contain all traces");
@@ -398,6 +399,9 @@ static inline uint32_t updatePmicMetaFwHash(std::string pmicSlotImgPath, char* n
 
 void TestDevMgmtApiSyncCmds::dumpRawTraceBuffer(int deviceIdx, const std::vector<std::byte>& traceBufRaw,
                                                 TraceBufferType bufferType) const {
+  if (!FLAGS_enable_bin_trace_dump) {
+    return;
+  }
   if (traceBufRaw.empty()) {
     DV_LOG(INFO) << "Invalid trace buffer! size is 0";
     return;
