@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-19533] Added support for device-minion-runtime to be clang compatible
 ### Security
 
 ## [0.20.0] - 2023-11-07

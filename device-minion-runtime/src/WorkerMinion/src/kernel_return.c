@@ -41,7 +41,7 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
                          "sd    zero, %0          \n" // clear supervisor stack SP region
                          "mv    x10, %[return_value]\n"
                          "mv    x11, %[return_type] \n" // use a1 to save the return type
-                         "ld    x1,  1  * 8( sp ) \n" // restore context
+                         "ld    x1,  1  * 8( sp ) \n"   // restore context
                          "ld    x3,  3  * 8( sp ) \n"
                          "ld    x4,  4  * 8( sp ) \n"
                          "ld    x5,  5  * 8( sp ) \n"
@@ -72,10 +72,8 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
                          "addi  sp, sp, (32 * 8)  \n"
                          "ret                     \n"
                          : "+m"(*firmware_sp)
-                         : [return_value] "r"(return_value)
-                         , [return_type] "r"(return_type)
-                         : "x10", "x11"
-                        );
+                         : [return_value] "r"(return_value), [return_type] "r"(return_type)
+                         : "x10", "x11");
 
             return return_value;
         }

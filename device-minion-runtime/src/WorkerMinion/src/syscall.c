@@ -23,9 +23,11 @@
 
 #include <stdint.h>
 
-int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t stack_frame);
+int64_t syscall_handler(
+    uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t stack_frame);
 
-int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t stack_frame)
+int64_t syscall_handler(
+    uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3, uint64_t stack_frame)
 {
     int64_t ret = SYSCALL_SUCCESS;
 

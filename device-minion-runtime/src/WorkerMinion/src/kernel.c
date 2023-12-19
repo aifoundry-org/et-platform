@@ -484,8 +484,7 @@ int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
         [k_param_a1] "r"(kernel_env_addr),        /* Kernel Environment */
         [k_param_a2] "r"(0),                      /* Unused for now */
         [k_param_a3] "r"(0)                       /* Unused for now */
-        : "x10", "x11", "x12", "x13", "s0", "ra"
-    );
+        : "x10", "x11", "x12", "x13", "s0", "ra");
 
     Log_Write(LOG_LEVEL_DEBUG, "launch_kernel:Returned from kernel launch\r\n");
 
