@@ -74,6 +74,7 @@ int64_t return_from_kernel(int64_t return_value, uint64_t return_type)
                          : "+m"(*firmware_sp)
                          : [return_value] "r"(return_value)
                          , [return_type] "r"(return_type)
+                         : "x10", "x11"
                         );
 
             return return_value;
