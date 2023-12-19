@@ -7,6 +7,7 @@
 #include "test_filter_data.h"
 #include "test_act_data.h"
 #include <etsoc/isa/cacheops.h>
+#include <etsoc/isa/fcc.h>
 
 void init_l2_scp(uint32_t shire_id, uint32_t minion_id);
 
@@ -109,7 +110,13 @@ void init_l2_scp(uint32_t shire_id, uint32_t minion_id)
       for (uint64_t i = 0; i < 4; i++) {
         cb_drain(shire_id, i);
       }
+      // broad credits to shire
+      SEND_FCC(0xFF, 0, 0, 0xFFFFFFFF);
+      SEND_FCC(0xFF, 1, 0, 0xFFFFFFFF);
     }
+
+    // consume credits before going to the next barrier
+    WAIT_FCC(0);
 
     // Global barrier (harts, flb to use, source shire id, fcc to sync minions)
     // There are total 32 FLBs. Use seprate for each compute shire for syncing harts

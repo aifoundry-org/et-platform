@@ -20,8 +20,8 @@ int64_t entry_point(const custom_stack_params_t *const kernel_params)
 
         /* Allocate on stack and do a dummy copy
         64-bytes of stack are consumed for this kernel, hence allocate rest */
-        char arr[kernel_params->stack_size - 64];
-        et_memset(arr, 'A', kernel_params->stack_size - 64);
+        __attribute__((aligned(64))) char arr[(kernel_params->stack_size - 64)/2];
+        et_memset(arr, 'A', (kernel_params->stack_size - 64)/2);
     }
     else
     {

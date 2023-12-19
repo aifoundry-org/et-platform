@@ -31,11 +31,6 @@
 #define HELPER_CODE_THREADS       0x10000000ULL
 #define HELPER_DDR_THREADS        0x20000000ULL
 
-// Some defines
-#define THREAD_0 0
-#define THREAD_1 1
-#define FCC_0    0
-#define FCC_1    1
 
 // Global functions
 
