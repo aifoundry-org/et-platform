@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18522] Fixed minor build issues seen with clang
 - [SW-18522] More minor fixes for clang builds
 - [SW-18881] Fixing build warning.
-- Fixed kernel arguments corruption issue seen with clang
 ### Security
 
 ## [0.19.0] - 2023-08-03
