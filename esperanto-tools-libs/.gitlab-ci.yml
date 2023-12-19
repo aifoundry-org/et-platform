@@ -90,7 +90,7 @@ unit_tests:conan:sysemu:
   extends:
     - .pod_large
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: smoke
   needs: 
     - job: clang-format
@@ -107,7 +107,7 @@ unit_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -130,7 +130,7 @@ generate_build:conan:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: generate_build
   needs:
     - job: clang-format
@@ -189,7 +189,7 @@ tests:conan:sysemu:
   extends:
     - .pod_xlarge
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: test
   needs:
     - job: unit_tests:conan:sysemu
@@ -207,7 +207,7 @@ tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -223,13 +223,13 @@ tests:conan:sysemu:
 #     - .template_job
 #     - .template_sonarqube_job
 #     - .pod_large
-#     - .template-conan-linux-ubuntu18.04-gcc7
+#     - .template-conan-linux-ubuntu22.04-gcc11
 #   stage: test
 #   variables:
 #     CMD_CONFIG_BUILD: |
 #       mkdir build
 #       cd build
-#       conan install .. -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-release --build missing
+#       conan install .. -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release --build missing
 #       cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake-build-release/conan/conan_toolchain.cmake
 #     CMD_BUILD: |
 #       ${BUILD_WRAPPER} --out-dir build_wrapper_output_directory cmake --build ./build -j ${CPU_COUNT}
@@ -241,7 +241,7 @@ nightly_torture_tests:conan:sysemu:
   extends:
     - .pod_xlarge
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
@@ -255,7 +255,7 @@ nightly_torture_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -287,7 +287,7 @@ on_success:promote:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: deploy
   needs:
     - generate_build:conan
