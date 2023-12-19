@@ -19,9 +19,9 @@ int64_t entry_point(const custom_stack_params_t *const kernel_params)
         et_printf("Stack size received: 0x%lx Stack ptr:0x%lx\r\n", kernel_params->stack_size, (uint64_t)(uintptr_t)ptr);
 
         /* Allocate on stack and do a dummy copy
-        64-bytes of stack are consumed for this kernel, hence allocate rest */
-        __attribute__((aligned(64))) char arr[(kernel_params->stack_size - 64)/2];
-        et_memset(arr, 'A', (kernel_params->stack_size - 64)/2);
+        Allocate Half */
+        __attribute__((aligned(64))) char arr[(kernel_params->stack_size)/2];
+        et_memset(arr, 'A', (kernel_params->stack_size)/2);
     }
     else
     {
