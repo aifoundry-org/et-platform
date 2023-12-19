@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-19533] Add support to the kernels to be clang compatible
 ### Security
 
 ## [1.10.0] - 2023-12-07
