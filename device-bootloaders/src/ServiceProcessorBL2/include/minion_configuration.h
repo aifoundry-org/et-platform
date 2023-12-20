@@ -191,11 +191,24 @@ int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpl
 int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode, uint8_t lvdpll_mode,
                                               bool use_step_clock);
 
-/*! \fn uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
-    \brief This function gets the active compute shire mask
-           by reading the value from SP OTP
+/*! \fn void Minion_Read_Active_Compute_Minion_Mask(void)
+    \brief This function reads the active CM shire mask from SP OTP
     \param N/A
     \return Active CM shire mask.
+*/
+uint64_t Minion_Read_Active_Compute_Minion_Mask(void);
+
+/*! \fn void Minion_Set_Active_Compute_Minion_Mask (uint64_t active_compute_minion_mask)
+    \brief This function stores the active CM shire mask value
+    \param active_compute_minion_mask Active CM shire mask 
+    \return N/A.
+*/
+void Minion_Set_Active_Compute_Minion_Mask(uint64_t active_compute_minion_mask);
+
+/*! \fn void Minion_Get_Active_Compute_Minion_Mask (void)
+    \brief This function returns the stored Active CM shire mask value
+    \param N/A
+    \return stored value of Active CM shire mask.
 */
 uint64_t Minion_Get_Active_Compute_Minion_Mask(void);
 

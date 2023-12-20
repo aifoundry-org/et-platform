@@ -62,6 +62,7 @@
 #include "dm_event_control.h"
 #include "thermal_pwr_mgmt.h"
 #include "bl2_flash_fs.h"
+#include "noc_configuration.h"
 
 /*!
  * @struct struct minion_event_control_block
@@ -183,18 +184,23 @@ static StaticTimer_t MM_Timer_Buffer;
         shiremask >>= 1;                                  \
     }
 
-#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa)                  \
-    /* Set Shire ID, enable cache and all Neighborhoods */                               \
-    const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(id) |        \
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) | \
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask); \
-    write_esr_new(PP_MACHINE, id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,               \
-                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);                \
-    if (enable_vpu_rf_wa)                                                                \
-    {                                                                                    \
-        /* VPU Array init */                                                             \
-        if (0 != Minion_VPU_RF_Init(id))                                                 \
-            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", id);       \
+bool SWAP = false;
+
+#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa)                                               \
+    /* Set Shire ID, enable cache and all Neighborhoods */                                                            \
+    const int swap_id = (SWAP && id == Get_Spare_Shire_Id()) ? Get_Displace_Shire_Id() : id;                          \
+    const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(swap_id) |                                \
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) |                              \
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask);                              \
+                                                                                                                      \
+    /* Log_Write(LOG_LEVEL_CRITICAL,"@@ %d %d %#016lX %#016lX \n", id, swap_id, (0x1C0340008 | id << 22), config); */ \
+    write_esr_new(PP_MACHINE, id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,                                            \
+                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);                                             \
+    if (enable_vpu_rf_wa)                                                                                             \
+    {                                                                                                                 \
+        /* VPU Array init */                                                                                          \
+        if (0 != Minion_VPU_RF_Init(id))                                                                              \
+            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", id);                                    \
     }
 
 #define CONFIG_SHIRE_NEIGH_MPROT(shire_id, neigh_id, dram_size_encoded)                        \
@@ -269,6 +275,7 @@ static StaticTimer_t MM_Timer_Buffer;
 #define THROTTLE_VOLTAGE_STEP_MV 10U
 
 static uint64_t gs_active_shire_mask = 0;
+static uint64_t gs_active_compute_minion_mask = 0;
 static uint64_t gs_dlls_initialized = 0;
 static uint64_t gs_pll4_ldo_kick_performed = 0;
 
@@ -612,11 +619,12 @@ static int enable_minion_shire(uint64_t shire_mask)
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable S$*/, 0x0 /*Disable all Neigh*/,
                      false)
 
+    SWAP = true;
     /* Enable Minion in all neighs */
     shiremask = shire_mask;
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
                      false)
-
+    SWAP = false;
     /* Clock gate debug logic */
     CLOCK_GATE_DEBUG_LOGIC
 
@@ -1294,12 +1302,11 @@ int Initialize_Minions(uint64_t shire_mask)
 *
 *   FUNCTION
 *
-*       Minion_Get_Active_Compute_Minion_Mask
+*       Minion_Read_Active_Compute_Minion_Mask
 *
 *   DESCRIPTION
 *
-*       This function gets the active compute shire mask
-        by reading the value from SP OTP.
+*       This function reads the active compute shire mask from SP OTP.
 *
 *   INPUTS
 *
@@ -1310,7 +1317,7 @@ int Initialize_Minions(uint64_t shire_mask)
 *       Active CM shire mask
 *
 ***********************************************************************/
-uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
+uint64_t Minion_Read_Active_Compute_Minion_Mask(void)
 {
     int ret;
     OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t status_other;
@@ -1348,6 +1355,54 @@ uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
     }
 
     return enable_mask;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Set_Active_Compute_Minion_Mask
+*
+*   DESCRIPTION
+*
+*       This function stores the active CM mask value
+*
+*   INPUTS
+*
+*       active_compute_minion_mask - active CM mask value
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void Minion_Set_Active_Compute_Minion_Mask(uint64_t active_compute_minion_mask)
+{
+    gs_active_compute_minion_mask = active_compute_minion_mask;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       Minion_Get_Active_Compute_Minion_Mask
+*
+*   DESCRIPTION
+*
+*       This function returns the stored active CM mask value
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       Active CM shire mask
+*
+***********************************************************************/
+uint64_t Minion_Get_Active_Compute_Minion_Mask(void)
+{
+    return gs_active_compute_minion_mask;
 }
 
 /************************************************************************

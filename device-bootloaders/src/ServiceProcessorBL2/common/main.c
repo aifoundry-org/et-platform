@@ -180,13 +180,34 @@ static void taskMain(void *pvParameters)
 #endif
 
     // Extract the active Compute Minions based on fuse
-    minion_shires_mask = Minion_Get_Active_Compute_Minion_Mask();
+    minion_shires_mask = Minion_Read_Active_Compute_Minion_Mask();
+    Minion_Set_Active_Compute_Minion_Mask(minion_shires_mask);
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
+
+    // Displace shire needs to be set before calling Initialize_Minions()
+    status = Set_Displace_Shire_Id(minion_shires_mask);
+    ASSERT_FATAL(status == STATUS_SUCCESS, "Bad shire mask!")
 
     // Initialize Minions
     Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]Initialize Minion Shire\n");
     status = Initialize_Minions(minion_shires_mask);
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
+
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    // Remap shires
+    status = NOC_Remap_Shire_Id(Get_Displace_Shire_Id(), Get_Spare_Shire_Id());
+    ASSERT_FATAL(status == STATUS_SUCCESS, "NOC shire remap failed!")
+
+    //Re-enable to debug NOC remapping
+    //for(uint8_t shire_id = 0; shire_id < 34; shire_id++){
+    //    Log_Write(LOG_LEVEL_DEBUG,"@@ %d %#016lX %#016lX \n", shire_id, (0x1C0340008 | shire_id << 22), *((long *)(0x1C0340008 | (long)shire_id << 22)));
+    //}
+
+    // After successful remap, virtual shire mask is 0x1FFFFFFFF
+    minion_shires_mask = 0x1FFFFFFFFUL;
+    Minion_Set_Active_Compute_Minion_Mask(minion_shires_mask);
+    Minion_Set_Active_Shire_Mask(minion_shires_mask);
+#endif
 
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK
