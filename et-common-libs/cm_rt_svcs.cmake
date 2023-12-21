@@ -27,6 +27,7 @@ set(CM_RT_SVCS_HDRS
     include/etsoc/isa/etsoc_memory.h
     include/etsoc/isa/macros.h
     include/etsoc/isa/cacheops.h
+    include/etsoc/isa/cacheops_common.h
     include/etsoc/isa/sync.h
     include/etsoc/isa/syscall.h
     include/etsoc/isa/riscv_encoding.h

@@ -21,7 +21,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "etsoc/isa/atomic.h"
-#include "etsoc/isa/etsoc_memory.h"
 #include "etsoc/isa/fcc.h"
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/utils.h"

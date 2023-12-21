@@ -19,10 +19,7 @@
 #endif
 
 #include "etsoc/isa/utils.h"
-
-enum cop_dest { to_L1 = 0x0ULL, to_L2 = 0x1ULL, to_L3 = 0x2ULL, to_Mem = 0x3ULL };
-
-enum l1d_mode { l1d_shared, l1d_split, l1d_scp };
+#include "cacheops_common.h"
 
 //-------------------------------------------------------------------------------------------------
 //

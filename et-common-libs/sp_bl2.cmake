@@ -24,6 +24,7 @@ set(SP_BL2_HDRS
     include/etsoc/isa/etsoc_memory.h
     include/etsoc/isa/io.h
     include/etsoc/isa/cacheops.h
+    include/etsoc/isa/cacheops_common.h
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
     include/etsoc/isa/utils.h

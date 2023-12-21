@@ -16,7 +16,8 @@ set(CM_UMODE_HDRS
     include/etsoc/isa/atomic-impl.h
     include/etsoc/isa/barriers.h
     include/etsoc/isa/cacheops.h
-    include/etsoc/isa/cacheops-umode.h
+    include/etsoc/isa/cacheops_common.h
+    include/etsoc/isa/cacheops-umode.h    
     include/etsoc/isa/esr_defines.h
     include/etsoc/isa/fcc.h
     include/etsoc/isa/flb.h
