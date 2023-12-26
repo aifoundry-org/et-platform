@@ -54,6 +54,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         set(MAXION_SOURCES 
            ${CMAKE_CURRENT_SOURCE_DIR}/driver/maxion_configuration.c
            ${CMAKE_CURRENT_SOURCE_DIR}/driver/emmc_controller.c
+	   ${CMAKE_CURRENT_SOURCE_DIR}/driver/mmc_gpt_reader.c
            )
     endif()
                 

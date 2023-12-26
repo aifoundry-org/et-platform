@@ -31,6 +31,7 @@ typedef enum
 
 #define EMMC_PROBE_VERBOSITY_OFF false
 #define EMMC_PROBE_VERBOSITY_ON  true
+#define EMMC_BLOCK_SIZE          512
 
 // eMMC setup
 int Emmc_Probe(EMMC_MODE_t mode, bool verbose);
@@ -46,4 +47,6 @@ int Emmc_Iomode_Blk_Rd(uint32_t addr, uint32_t *data_buff, uint16_t block_size,
 int Emmc_Adma2_Wr(uint32_t addr, uint32_t *data_buff, uint16_t block_size, uint32_t block_count);
 int Emmc_Adma2_Rd(uint32_t addr, uint32_t *data_buff, uint16_t block_size, uint32_t block_count);
 
+//EMMC bulk read
+int Emmc_read_to_buffer(uint8_t *buffer, size_t size, uint64_t sector);
 #endif /* __BL2_EMMC_CONTROLLER_H__ */

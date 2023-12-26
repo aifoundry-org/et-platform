@@ -1644,3 +1644,69 @@ int Emmc_Adma2_Rd(uint32_t addr, uint32_t *data_buff, uint16_t block_size, uint3
 
     return status;
 }
+
+union AlignedBuffer
+{
+    uint8_t bytes[EMMC_BLOCK_SIZE];
+    uint64_t dummy; // Ensure proper alignment for 64-bit data
+};
+
+int Emmc_read_to_buffer(uint8_t *buffer, size_t size, uint64_t sector)
+{
+    union AlignedBuffer loc_dataBuff;
+
+    // Multi-block transfers
+    if (size > EMMC_BLOCK_SIZE)
+    {
+        uint32_t num_blocks = (uint32_t)(size / EMMC_BLOCK_SIZE);
+        size_t remaining_size = size % EMMC_BLOCK_SIZE;
+
+        // Iterate over each block
+        for (uint32_t block_idx = 0; block_idx < num_blocks; block_idx++)
+        {
+            if (0 == Emmc_Iomode_Blk_Rd((uint32_t)(sector + block_idx),
+                                        (uint32_t *)(void *)loc_dataBuff.bytes, EMMC_BLOCK_SIZE, 1,
+                                        EMMC_MODE_HS200))
+            {
+                // Copy the data from loc_dataBuff.bytes to the target buffer
+                memcpy(buffer + block_idx * EMMC_BLOCK_SIZE, loc_dataBuff.bytes, EMMC_BLOCK_SIZE);
+            }
+            else
+            {
+                return -1;
+            }
+        }
+
+        // Handle remaining bytes
+        if (remaining_size > 0)
+        {
+            if (0 == Emmc_Iomode_Blk_Rd((uint32_t)(sector + num_blocks),
+                                        (uint32_t *)(void *)loc_dataBuff.bytes, EMMC_BLOCK_SIZE, 1,
+                                        EMMC_MODE_HS200))
+            {
+                // Copy the data from loc_dataBuff.bytes to the target buffer
+                memcpy(buffer + num_blocks * EMMC_BLOCK_SIZE, loc_dataBuff.bytes, remaining_size);
+            }
+            else
+            {
+                return -1;
+            }
+        }
+    }
+    else
+    {
+        // Single, or less, block transfer
+        if (0 == Emmc_Iomode_Blk_Rd((uint32_t)sector, (uint32_t *)(void *)loc_dataBuff.bytes,
+                                    EMMC_BLOCK_SIZE, 1, EMMC_MODE_HS200))
+        {
+            // Copy the data from loc_dataBuff.bytes to the target buffer
+            memcpy(buffer, loc_dataBuff.bytes, size);
+        }
+        else
+        {
+            return -1;
+        }
+    }
+
+    return SUCCESS;
+}
