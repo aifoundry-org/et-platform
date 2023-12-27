@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10.3)
 project(runtime VERSION 0.14.0 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
