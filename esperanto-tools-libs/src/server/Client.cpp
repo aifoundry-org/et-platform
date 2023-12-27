@@ -140,16 +140,22 @@ void Client::responseProcessor() {
 }
 
 void Client::processDelayedResponses() {
-  auto it = delayedResponses_.begin();
-  while (it != delayedResponses_.end()) {
-    auto& response = *it;
-    try {
-      processResponse(response);
-      it = delayedResponses_.erase(it);
-    } catch (const Exception& e) {
-      EASY_EVENT("Failed to reprocess delayed response. Will retry.")
-      RT_LOG(WARNING) << "Delayed response for event " << response.id_ << " still not ready: " << e.what();
-      it++;
+  bool effective = true;
+  while (effective) {
+    effective = false;
+
+    auto it = delayedResponses_.begin();
+    while (it != delayedResponses_.end()) {
+      auto& response = *it;
+      try {
+        processResponse(response);
+        it = delayedResponses_.erase(it);
+        effective = true;
+      } catch (const Exception& e) {
+        EASY_EVENT("Failed to reprocess delayed response. Will retry.")
+        RT_LOG(WARNING) << "Delayed response for event " << response.id_ << " still not ready: " << e.what();
+        it++;
+      }
     }
   }
 }
