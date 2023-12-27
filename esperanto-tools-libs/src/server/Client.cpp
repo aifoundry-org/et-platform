@@ -16,6 +16,7 @@
 #include "Utils.h"
 #include "runtime/Types.h"
 
+#include <cereal/archives/json.hpp>
 #include <easy/arbitrary_value.h>
 #include <easy/details/profiler_colors.h>
 #include <easy/profiler.h>
@@ -120,6 +121,12 @@ void Client::responseProcessor() {
             EASY_EVENT("Response arrived before request ack, delaying its processing.")
             RT_LOG(WARNING) << "Response for event " << response.id_
                             << " arrived before request ack, delaying its processing: " << e.what();
+            std::ostringstream oss;
+            {
+              cereal::JSONOutputArchive jsonArchive(oss);
+              jsonArchive << response;
+            }
+            RT_LOG(WARNING) << "Response contents: " << oss.str();
             delayedResponses_.emplace_back(std::move(response));
           }
 
