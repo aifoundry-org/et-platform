@@ -24,7 +24,7 @@ auto getTmpFileName() {
   return filename;
 }
 
-enum class Status : uint64_t { INVALID, SERVER_READY, END_SERVER };
+enum class Status : uint64_t { INVALID, SERVER_READY, END_SERVER, SERVER_ERROR };
 
 } // namespace
 
@@ -47,46 +47,60 @@ void MpOrchestrator::createServer(const DeviceLayerCreatorFunc& deviceLayerCreat
       server_ = fork();
       if (server_ == 0) {
         auto logger = std::make_unique<logging::LoggerDefault>();
-        RT_LOG(INFO) << "Creating server process";
+        RT_LOG(INFO) << "Creating server process (pid " << getpid() << ")";
         auto server = rt::Server{socketPath_, deviceLayerCreator(), options};
         Status s(Status::SERVER_READY);
         write(efdFromServer_, &s, sizeof(s));
         while (s != Status::END_SERVER) {
           read(efdToServer_, &s, sizeof(s));
         }
-        RT_LOG(INFO) << "Exiting server process.";
+        RT_LOG(INFO) << "Exiting server process (pid " << getpid() << ")";
         logger.reset();
         exit(0);
       } else {
         Status s(Status::INVALID);
-        while (s != Status::SERVER_READY) {
+        while ((s != Status::SERVER_READY) and (s != Status::SERVER_ERROR)) {
           read(efdFromServer_, &s, sizeof(s));
+        }
+
+        if (s == Status::SERVER_ERROR) {
+          ADD_FAILURE() << "Server failure. Exiting (pid " << getpid() << ")";
+          exit(1);
         }
       }
     } catch (const std::exception& e) {
-      FAIL() << "Exception in server process: " << e.what();
+      if (server_ == 0) {
+        Status s(Status::SERVER_ERROR);
+        write(efdFromServer_, &s, sizeof(s));
+      }
+      ADD_FAILURE() << "Exception in server process: '" << e.what() << "'. Exiting (pid " << getpid() << ")";
+      exit(1);
     } catch (...) {
-      FAIL() << "Unknown exception in server process.";
+      ADD_FAILURE() << "Unknown exception in server process. Exiting (pid " << getpid() << ")";
+      exit(1);
     }
   }
 }
 
 void MpOrchestrator::createClient(const std::function<void(rt::IRuntime*)>& func) {
-  try {
-    if (auto pid = fork(); pid == 0) {
+  auto pid = fork();
+  if (pid == 0) {
+    try {
       auto logger = std::make_unique<logging::LoggerDefault>();
       auto cl = rt::Client(socketPath_);
       func(&cl);
       RT_LOG(INFO) << "End client execution.";
       logger.reset();
       exit(0);
-    } else {
-      clients_.push_back(pid);
+    } catch (const std::exception& e) {
+      ADD_FAILURE() << "Exception in client process: " << e.what();
+      exit(1);
+    } catch (...) {
+      ADD_FAILURE() << "Unknown exception in client process.";
+      exit(1);
     }
-  } catch (const std::exception& e) {
-    FAIL() << "Exception in client process: " << e.what();
-  } catch (...) {
-    FAIL() << "Unknown exception in client process.";
+  } else {
+    clients_.push_back(pid);
   }
 }
 
