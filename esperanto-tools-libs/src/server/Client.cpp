@@ -97,6 +97,9 @@ void Client::responseProcessor() {
       pfd.events = POLLIN;
       pfd.fd = socket_;
       if (poll(&pfd, 1, 5) == 0) {
+        // Some responses can arrive before their event has been registered. Here we make sure of forward progress event
+        // if no more responses arrive
+        processDelayedResponses();
         continue;
       }
 
@@ -310,7 +313,7 @@ void Client::processResponse(const resp::Response& response) {
   }
   default:
     RT_VLOG(MID) << "Got response type: " << static_cast<uint32_t>(response.type_) << " wake up waiter.";
-    auto it = find(responseWaiters_, response.id_, "Couldn't found the request id" + std::to_string(response.id_));
+    auto it = find(responseWaiters_, response.id_, "Could not find the request id " + std::to_string(response.id_));
     RT_VLOG(MID) << "Waiter found; notifying";
     it->second->notify(response.payload_);
     break;

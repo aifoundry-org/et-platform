@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-19729] Fix client hangs when messages arrive out of order
 - [SW-19262] Fix some runtime tests timeout when the host is very loaded
 - [SW-19735] Fix multiprocess tests that fail end up hanging or fork-bombing
+- [SW-19738] Fix client hangs when MP responses are processed before their event has been registered
 
 ## [0.13.1]
 ### Fixed
