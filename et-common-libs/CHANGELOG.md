@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+[SW-19739] Fixed the et_memcmp utility function
 ### Security
 
 ## [0.21.0] - 2023-12-15
