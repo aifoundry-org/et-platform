@@ -12,6 +12,14 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define STRINGIFY(N) #N
+
+#ifdef __clang__
+#define PRAGMA_UNROLL_LOOP(N) _Pragma(STRINGIFY(clang loop unroll_count(N)))
+#else
+#define PRAGMA_UNROLL_LOOP(N) _Pragma(STRINGIFY(GCC unroll N))
+#endif
+
 //-------------------------------------------------------------------------------------------------
 //
 // FUNCTION store

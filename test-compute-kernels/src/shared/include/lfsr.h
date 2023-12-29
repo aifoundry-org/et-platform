@@ -1,6 +1,7 @@
 #ifndef LFSR_H
 #define LFSR_H
 
+#include "common.h"
 #include <stdint.h>
 
 // MLS LFSR polynomials from https://users.ece.cmu.edu/~koopman/lfsr/index.html
@@ -27,7 +28,7 @@ static inline __attribute__((always_inline)) uint64_t update_lfsr(uint64_t lfsr)
     register const uint64_t polynomial = LFSR_POLYNOMIAL_35_BIT;
 
 // Minion are slow to branch so unroll this loop
-#pragma GCC unroll 35
+PRAGMA_UNROLL_LOOP(35)
     for (int i = 0; i < LFSR_SHIFTS_PER_READ_32_GB_DRAM; i++)
     {
         uint64_t lsb = lfsr & 1U;
@@ -58,7 +59,7 @@ static inline __attribute__((always_inline)) uint64_t update_lfsr64(uint64_t lfs
     register const uint64_t polynomial = LFSR_POLYNOMIAL_64_BIT;
 
 // Minion are slow to branch so unroll this loop
-#pragma GCC unroll 64
+PRAGMA_UNROLL_LOOP(64)
     for (int i = 0; i <  LFSR_SHIFTS_PER_READ_64_BIT_DATA; i++)
     {
         uint64_t lsb = lfsr & 1U;

@@ -141,7 +141,7 @@ uint64_t generate_random_value(uint64_t lfsr)
     register const uint64_t polynomial = POLYNOMIAL_BIT;
 
 // Minion are slow to branch so unroll this loop
-#pragma GCC unroll 35
+PRAGMA_UNROLL_LOOP(35)
     for (int i = 0; i < LFSR_SHIFTS_PER_READ; i++)
     {
 #ifdef ASM_LFSR
@@ -186,7 +186,7 @@ uint64_t generate_random_value_2(uint64_t lfsr)
     register const uint64_t polynomial = POLYNOMIAL_BIT_2;
 
 // Minion are slow to branch so unroll this loop
-#pragma GCC unroll 35
+PRAGMA_UNROLL_LOOP(35)
     for (int i = 0; i < LFSR_SHIFTS_PER_READ_2; i++)
     {
 #ifdef ASM_LFSR
