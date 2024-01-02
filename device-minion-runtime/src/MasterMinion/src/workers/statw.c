@@ -295,35 +295,22 @@ static void statw_update_pmc_stats(uint64_t shire_mask, pmc_prev_counters *pmc_c
                         STATW_UTIL_BAD_PMC_CHECK("SC_Write", shire_id, bank_id,
                             pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id], sc_pmcs->pmc1)
 
-                        /* If overflow, counters are zero, no need to generate CMA, Min and Max */
-                        if (!(sc_pmcs->cycle_overflow || sc_pmcs->pmc0_overflow ||
-                                sc_pmcs->pmc1_overflow))
-                        {
-                            /* Calculate the stats */
-                            STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_read_bw,
-                                STATW_PMU_REQ_COUNT_TO_MBPS(
-                                    sc_pmcs->pmc0 -
-                                        pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
-                                    minion_freq_mhz,
-                                    sc_pmcs->cycle -
-                                        pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
-                                STATW_BW_CMA_SAMPLE_COUNT)
-                            STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_write_bw,
-                                STATW_PMU_REQ_COUNT_TO_MBPS(
-                                    sc_pmcs->pmc1 -
-                                        pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
-                                    minion_freq_mhz,
-                                    sc_pmcs->cycle -
-                                        pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
-                                STATW_BW_CMA_SAMPLE_COUNT)
-                        }
-                        else
-                        {
-                            /* If overflowed, counters needs to be restarted */
-                            /* Sample PMC SC Counter 0 and 1 (reads, writes). */
-                            syscall(SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id,
-                                (uintptr_t)sc_pmcs);
-                        }
+                        /* Calculate the stats */
+                        STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_read_bw,
+                            STATW_PMU_REQ_COUNT_TO_MBPS(
+                                sc_pmcs->pmc0 - pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
+                                minion_freq_mhz,
+                                sc_pmcs->cycle -
+                                    pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
+                            STATW_BW_CMA_SAMPLE_COUNT)
+                        STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_write_bw,
+                            STATW_PMU_REQ_COUNT_TO_MBPS(
+                                sc_pmcs->pmc1 -
+                                    pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
+                                minion_freq_mhz,
+                                sc_pmcs->cycle -
+                                    pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
+                            STATW_BW_CMA_SAMPLE_COUNT)
                         /* Update the previous values */
                         pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] = sc_pmcs->cycle;
                         pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] = sc_pmcs->pmc0;
