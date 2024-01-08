@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Generate packages with linux-ubuntu22.04-x86_64-gcc11-release and fix gcc11 build errors
+- Updated FTXUI to use version 5.0.0 instead of 3.0.0
 ### Deprecated
 ### Removed
 ### Fixed
