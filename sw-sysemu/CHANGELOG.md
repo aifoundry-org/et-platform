@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated pointers to match release SDK 1.4.0
 - (CI) by default use conan-linux-ubuntu18.04-gcc7 image
+- (Conan) Solve Ubuntu 22.04 linker issues using LD_LIBRARY_PATH provided by VirtualBuildEnv/VirtualRunEnv
 ### Deprecated
 ### Removed
 ### Fixed
