@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2023-12-13
 ### Added
 - [SW-19096] Add exception message for EPOLLHUP event
+### Changed
+- (Conan) Consume latest sw-sysemu release (0.14.2)
 ### Fixed
 - [SW-18867] Fix compilation with GCC 11
 - [SW-19102] Make IDeviceSYnc a pure interface (breaking change)
