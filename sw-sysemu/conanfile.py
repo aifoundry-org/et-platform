@@ -1,5 +1,7 @@
 from conan import ConanFile
+from conan.tools.build import cross_building
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
+from conan.tools.env import VirtualBuildEnv, VirtualRunEnv
 from conan.tools.files import get, rmdir, rm
 import os
 import tempfile
@@ -129,6 +131,12 @@ class SwSysemuConan(ConanFile):
         get_sources_if_scm_pristine(self)
 
     def generate(self):
+        env = VirtualBuildEnv(self)
+        env.generate()
+        if not cross_building(self):
+            env = VirtualRunEnv(self)
+            env.generate(scope="build")
+
         tc = CMakeToolchain(self)
         tc.variables["PROFILING"] = self.options.profiling
         tc.variables["BACKTRACE"] = self.options.backtrace
