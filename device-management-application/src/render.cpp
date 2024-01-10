@@ -257,13 +257,18 @@ int cHEIGHT = DEFAULT_DIM_SIZE;
 
 Canvas setupCanvas(std::vector<std::shared_ptr<PerfMeasure>>& items, int low, int high, int height, int width) {
   auto c = Canvas(cWIDTH, cWIDTH);
-  int i = 0;
-  for (auto it : items) {
-    for (size_t x = 0; x < it->getData().size() - 1; x++) {
-      c.DrawPointLine(x, adjustValue(it->getData()[x], low, high, height), x + 1,
-                      adjustValue(it->getData()[x + 1], low, high, height), colors[i]);
+  size_t i = 0;
+  for (auto& perfMeasure : items) {
+    const auto& data = perfMeasure->getData(); // Get the data from PerfMeasure
+
+    // Check if data is not empty and colors[i] is a valid index
+    if (!data.empty() && i < colors.size()) {
+      for (size_t x = 0; x < data.size() - 1; x++) {
+        c.DrawPointLine(x, adjustValue(data[x], low, high, height), x + 1, adjustValue(data[x + 1], low, high, height),
+                        colors[i]);
+      }
+      i++;
     }
-    i++;
   }
   return c;
 }
@@ -278,18 +283,23 @@ Canvas setupCanvas(std::vector<std::shared_ptr<PerfMeasure>>& items, int low, in
  */
 Element setupYAxis(std::vector<std::shared_ptr<PerfMeasure>>& items, std::string unit) {
   auto vboxElements = std::vector<ftxui::Element>{};
-  int i = 0;
+  size_t i = 0;
   vboxElements.push_back(hbox({
     text(unit),
   }));
   vboxElements.push_back(filler() | size(WIDTH, LESS_THAN, 1));
   for (const auto& item : items) {
-    vboxElements.push_back(hbox({
-      text("■") | ftxui::color(colors[i]),
-      text(" " + item->getName() + " " + std::to_string(item->getData()[item->getData().size() - 1])),
-    }));
-    vboxElements.push_back(filler() | size(WIDTH, LESS_THAN, 1));
-    i++;
+    const auto& data = item->getData();
+
+    // Check if data is not empty before accessing its size
+    if (!data.empty() && i < colors.size()) {
+      vboxElements.push_back(hbox({
+        text("■") | ftxui::color(colors[i]),
+        text(" " + item->getName() + " " + std::to_string(data[data.size() - 1])),
+      }));
+      vboxElements.push_back(filler() | size(WIDTH, LESS_THAN, 1));
+      i++;
+    }
   }
   auto yAxis = hbox({
     vbox(vboxElements) | border | flex,

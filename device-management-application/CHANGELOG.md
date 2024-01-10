@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Stop using FetchContent when importing ftxui dependency in Conan builds
+- Fix case where perfMeasure array elements are acessesed before being populated
 ### Security
 
 ## [1.14.0] - 2023-11-07
