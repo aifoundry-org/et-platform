@@ -19,12 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18926] Added multiple fixes to DVFS algorithm for stability
 - [SW-19172] Added Linux mode
 - EMMC and Maxion configuration only compiled in this mode.
- - Changing default log level to WARNING
+- Changing default log level to WARNING
 - Added support to read GPT tables
 ### Changed
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed __code_end to be word aligned
 ### Security
 
 ## [0.15.0] - 2023-11-07
