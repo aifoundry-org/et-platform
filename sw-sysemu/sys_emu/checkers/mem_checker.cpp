@@ -534,7 +534,8 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
             // Clears the minion dirty flag in shire, must have an entry
             if((it_shire->second.l2_dirty_minion_id != 255) && (it_shire->second.l2_dirty_minion_id != minion_id))
             {
-                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong minion) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong minion) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u",
+                          (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
             }
             it_shire->second.l2_dirty_minion_id     = 255;
             if(* dirty_evict)
@@ -564,7 +565,8 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
         // CBs should be drained with ESRs, not evict_va
         if(it_shire->second.cb_dirty)
         {
-            LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard CB evict) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id);
+            LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard CB evict) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                      (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id);
         }
 
         // Gets if dirty data from L1 is dirty
@@ -585,7 +587,8 @@ bool mem_checker::evict_va(uint64_t pc, uint64_t address, op_location_t location
             // Clears the minion dirty flag in global, must have an entry
             if((it_global->second.l2_dirty_shire_id != 255) && (it_global->second.l2_dirty_shire_id != shire_id))
             {
-                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong shire) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_shire_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_global->second.l2_dirty_shire_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard wrong shire) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_shire_id=%u",
+                          (long long unsigned int) pc, (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_global->second.l2_dirty_shire_id);
             }
             it_global->second.l2_dirty_shire_id = 255;
             if(* dirty_evict)
@@ -1014,10 +1017,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         if(!coherent)
         {
             if (!m_waive_reads[thread]) {
-                LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                          (long long unsigned int) pc, (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
                 return false;
             } else {
-                LOG_AGENT(WARN, *this, "\t(Coherency Read Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+                LOG_AGENT(WARN, *this, "\t(Coherency Read Hazard) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                          (long long unsigned int) pc, (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
             }
         }
 
@@ -1028,10 +1033,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
             if(!coherent)
             {
                 if (!m_waive_reads[thread]) {
-                    LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                    LOG_AGENT(FTL, *this, "\t(Coherency Read Hazard Unaligned Access) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                              (long long unsigned int) pc, (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                     return false;
                 } else {
-                    LOG_AGENT(WARN, *this, "\t(Coherency Read Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                    LOG_AGENT(WARN, *this, "\t(Coherency Read Hazard Unaligned Access) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                              (long long unsigned int) pc, (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                 }
             }
         }
@@ -1047,7 +1054,8 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
 
         if(!coherent)
         {
-            LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+            LOG_AGENT(FTL, *this, "\t(Coherency EvictVA Hazard) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                      (long long unsigned int) pc, (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
             return false;
         }
     }
@@ -1060,10 +1068,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
         if(!coherent)
         {
             if (!m_waive_writes[thread]) {
-                LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+                LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                          (long long unsigned int) pc, (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
                 return false;
             } else {
-                LOG_AGENT(WARN, *this, "\t(Coherency Write Hazard) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
+                LOG_AGENT(WARN, *this, "\t(Coherency Write Hazard) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                          (long long unsigned int) pc, (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id, thread_id);
             }
         }
 
@@ -1074,10 +1084,12 @@ bool mem_checker::access(uint64_t pc, uint64_t addr, bemu::mem_access_type macc,
             if(!coherent)
             {
                 if (!m_waive_writes[thread]) {
-                    LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                    LOG_AGENT(FTL, *this, "\t(Coherency Write Hazard Unaligned Access) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                              (long long unsigned int) pc, (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                     return false;
                 } else {
-                    LOG_AGENT(WARN, *this, "\t(Coherency Write Hazard Unaligned Access) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u", (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
+                    LOG_AGENT(WARN, *this, "\t(Coherency Write Hazard Unaligned Access) pc=%llX, addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u",
+                              (long long unsigned int) pc, (long long unsigned int) (addr & ~0x3FULL) + 64, location, shire_id, minion_id, thread_id);
                 }
             }
         }
