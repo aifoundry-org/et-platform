@@ -55,7 +55,7 @@ namespace filesystem = std::experimental::filesystem;
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw) (pwr_10mw / 100)
 #define FW_UPDATE_TIME_VAL 90000                       /* Time value of normal FW update command completion */
-#define FW_UPDATE_CMD_TIMEOUT (FW_UPDATE_TIME_VAL * 2) /* Timeout value in seconds */
+#define FW_UPDATE_CMD_TIMEOUT (FW_UPDATE_TIME_VAL * 4) /* Timeout value in seconds */
 
 namespace fs = std::filesystem;
 
