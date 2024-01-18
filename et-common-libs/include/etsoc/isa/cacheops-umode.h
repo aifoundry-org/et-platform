@@ -155,6 +155,19 @@ cache_ops_priv_evict_l1(uint64_t use_tmask, uint64_t dest_level)
     return syscall(SYSCALL_CACHE_OPS_EVICT_L1, use_tmask, dest_level, 0);
 }
 
+/*! \fn  inline int64_t cache_ops_priv_evict_whole_l1_l2(void) 
+    \brief  This function invalidates all of L1 and L2  of whole Minion Shire.
+    \param None
+    \return status of function call, success/error
+    \memops Implementation of cache_ops_priv_evict_whole_l1_l2 api 
+    \example cache_ops_priv_evict_whole_l1_l2.c
+    Example(s) of using cache_ops_priv_evict_whole_l1_l2 api
+*/
+inline int64_t __attribute__((always_inline)) cache_ops_priv_evict_whole_l1_l2(void)
+{
+    return syscall(SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2, 0, 0, 0);
+}
+
 //-------------------------------------------------------------------------------------------------
 //   Instructions available to U-Mode, S-Mode, and M-Mode
 //-------------------------------------------------------------------------------------------------
