@@ -10,6 +10,8 @@
 cmake_minimum_required(VERSION 3.15)
 project(EsperantoBootLoader VERSION 0.17.0 LANGUAGES C ASM)
 
+cmake_policy(SET CMP0118 NEW)
+
 message(STATUS "PROJECT_VERSION ${PROJECT_VERSION}")
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)

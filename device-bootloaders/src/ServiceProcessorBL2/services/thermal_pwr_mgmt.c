@@ -2460,7 +2460,12 @@ void set_system_voltages(void)
     pmic_set_voltage(MODULE_MAXION, MXN_BOOT_VOLTAGE);
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_MAXION, &voltage);
+
+#if defined(LINUX_MODE) && LINUX_MODE == 1
+    Log_Write(LOG_LEVEL_INFO, "Overriding MAXION -> 850mV(0x%X)\n", voltage);
+#else
     Log_Write(LOG_LEVEL_INFO, "Overriding MAXION -> 600mV(0x%X)\n", voltage);
+#endif
 }
 
 /************************************************************************

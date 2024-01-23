@@ -18,6 +18,62 @@
 #ifndef __BL2_RESET_H__
 #define __BL2_RESET_H__
 
+/*! \fn void Maxion_Reset_Cold_Assert(void)
+    \brief This function asserts Maxion Cold reset
+    \param None
+    \return none
+*/
+void Maxion_Reset_Cold_Assert(void);
+/*! \fn void Maxion_Reset_Cold_Release(void)
+    \brief This function releases Maxion Cold reset
+    \param None
+    \return none
+*/
+void Maxion_Reset_Cold_Release(void);
+
+/*! \fn void Maxion_Reset_Warm_Uncore_Assert(void)
+    \brief This function asserts Maxion Uncore Warm reset
+    \param None
+    \return none
+*/
+void Maxion_Reset_Warm_Uncore_Assert(void);
+
+/*! \fn void Maxion_Reset_Warm_Uncore_Release(void)
+    \brief This function releases Maxion Uncore Warm reset
+    \param None
+    \return none
+*/
+void Maxion_Reset_Warm_Uncore_Release(void);
+
+/*! \fn void Maxion_Reset_Warm_Core_Release(void)
+    \brief This function releases Maxion Core Warm reset
+    \param None
+    \return none
+*/
+void Maxion_Reset_Warm_Core_Release(void);
+
+/*! \fn void Maxion_Reset_Warm_Core_Assert(void)
+    \brief This function asserts Maxion Core Warm reset
+    \param None
+    \return none
+*/
+void Maxion_Reset_Warm_Core_Assert(void);
+
+/*! \fn void Maxion_Reset_PLL_Uncore_Release
+    \brief This function releases Maxion Uncore PLL from reset state
+    \param None
+    \return none
+*/
+void Maxion_Reset_PLL_Uncore_Release(void);
+
+/*! \fn void Maxion_Reset_PLL_Core_Release
+    \brief This function releases Maxion Core PLL from reset state
+    \param None
+    \return none
+
+*/
+void Maxion_Reset_PLL_Core_Release(void);
+
 /*! \fn int release_memshire_from_reset(void)
     \brief This function releases minionshore from reset state
     \param None 

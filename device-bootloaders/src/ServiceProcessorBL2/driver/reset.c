@@ -22,6 +22,13 @@
         release_etsoc_reset
         pcie_reset_flr
         pcie_reset_warm
+        Maxion_Reset_Cold_Release
+        Maxion_Reset_Warm_Uncore_Release
+        Maxion_Reset_Warm_Core_Release
+        Maxion_Reset_Warm_Core_Assert
+        Maxion_Reset_PLL_Uncore_Release
+        Maxion_Reset_PLL_Core_Release
+        
 
 */
 /***********************************************************************/
@@ -128,4 +135,60 @@ uint8_t get_lvdpll_strap_value(void)
     uint32_t rm_status2;
     rm_status2 = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_STATUS2_ADDRESS);
     return (uint8_t)((RESET_MANAGER_RM_STATUS2_STRAP_IN_GET(rm_status2) >> 2) & 0x3u);
+}
+
+void Maxion_Reset_Cold_Release(void)
+{
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_COLD_OFFSET,
+              RESET_MANAGER_RM_MAX_COLD_RSTN_SET(1));
+}
+
+void Maxion_Reset_Cold_Assert(void)
+{
+    uint32_t rwVal = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_COLD_OFFSET);
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_COLD_OFFSET,
+              (rwVal & ~(uint32_t)(RESET_MANAGER_RM_MAX_WARM_CORE_RSTN_SET(1))));
+}
+
+void Maxion_Reset_Warm_Uncore_Assert(void)
+{
+    uint32_t rwVal = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET);
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET,
+              (rwVal & ~(uint32_t)(RESET_MANAGER_RM_MAX_WARM_CORE_RSTN_SET(1))));
+}
+
+void Maxion_Reset_Warm_Uncore_Release(void)
+{
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET,
+              RESET_MANAGER_RM_MAX_WARM_UNCORE_RSTN_SET(1));
+}
+
+void Maxion_Reset_PLL_Uncore_Release(void)
+{
+    uint32_t rwVal = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_OFFSET);
+    rwVal |= RESET_MANAGER_RM_MAX_PLL_UNCORE_RSTN_SET(1);
+
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_OFFSET, rwVal);
+}
+
+void Maxion_Reset_PLL_Core_Release(void)
+{
+    uint32_t rwVal = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_OFFSET);
+    rwVal |= RESET_MANAGER_RM_MAX_PLL_CORE_RSTN_SET(1);
+
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_OFFSET, rwVal);
+}
+
+void Maxion_Reset_Warm_Core_Assert(void)
+{
+    uint32_t rwVal = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET);
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET,
+              (rwVal & ~(uint32_t)(RESET_MANAGER_RM_MAX_WARM_CORE_RSTN_SET(0xF))));
+}
+
+void Maxion_Reset_Warm_Core_Release(void)
+{
+    uint32_t rwVal = ioread32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET);
+    iowrite32(R_SP_CRU_BASEADDR + RESET_MANAGER_RM_MAX_WARM_OFFSET,
+              (rwVal | RESET_MANAGER_RM_MAX_WARM_CORE_RSTN_SET(0xF)));
 }

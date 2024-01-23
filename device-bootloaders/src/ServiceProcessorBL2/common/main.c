@@ -28,6 +28,8 @@
 #include "bl2_pvt_controller.h"
 #if LINUX_MODE
 #include "bl2_emmc_controller.h"
+#include "maxion_configuration.h"
+#include "delays.h"
 #endif
 
 #include "noc_configuration.h"
@@ -275,6 +277,23 @@ static void taskMain(void *pvParameters)
     {
         Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt] eMMC flash is not present\r\n");
     }
+
+    //default Minion runtime would let Maxion rail be on 600mV
+    //thus we must make sure correct voltage for Maxion is set
+    //nominal Maxion voltage is 850mV
+
+    // Initialize Maxion Uncore PLL to 933MHz, and Maxion Core PLL to 1500MHz
+    Maxion_Init(MAXION_PLL_MHZ_933, MAXION_PLL_MHZ_1500);
+
+    //Fill Maxion BootRAM with current minimal boot-code
+    Maxion_Initialize_Boot_Code();
+
+    //Let Maxion run, release core reset
+    Maxion_Reset_Warm_Core_Release();
+
+    vTaskDelay(1000U); //give time for memory check to be written, while Maxion is out of reset
+
+    Maxion_Check_If_Booted();
 
 #endif
 

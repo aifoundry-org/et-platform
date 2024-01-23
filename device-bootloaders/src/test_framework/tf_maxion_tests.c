@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "etsoc/drivers/serial/serial.h"
 #include "bl2_sp_pll.h"
+#include "bl2_reset.h"
 #include "maxion_configuration.h"
 
 int8_t Maxion_Init_Cmd_Handler(void* test_cmd);
@@ -19,15 +20,15 @@ int8_t Maxion_Init_Cmd_Handler(void* test_cmd)
     cmd_rsp_hdr.rsp_hdr.flags = TF_RSP_WITH_PAYLOAD;
     cmd_rsp_hdr.rsp_hdr.payload_size = TF_GET_PAYLOAD_SIZE(cmd_rsp_hdr);
     printf("\n** MAX cold rst **\r\n");
-    Maxion_Reset_Cold_Deassert();
+    Maxion_Reset_Cold_Release();
     printf("\n** MAX uncore warm rst **\r\n");
-    Maxion_Reset_Warm_Uncore_Deassert();
+    Maxion_Reset_Warm_Uncore_Release();
     printf("\n** MAX sh ch en **\r\n");
     Maxion_Shire_Channel_Enable();
     printf("\n** MAX pll uncore rst  **\r\n");
-    Maxion_Reset_PLL_Uncore_Deassert();
+    Maxion_Reset_PLL_Uncore_Release();
     printf("\n** MAX pll core rst  **\r\n");
-    Maxion_Reset_PLL_Core_Deassert();
+    Maxion_Reset_PLL_Core_Release();
     cmd_rsp_hdr.status = 0x0;
     printf("\n** MAX Init done **\r\n");
     TF_Send_Response(&cmd_rsp_hdr, sizeof(cmd_rsp_hdr));

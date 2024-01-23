@@ -57,7 +57,8 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
 	   ${CMAKE_CURRENT_SOURCE_DIR}/driver/mmc_gpt_reader.c
            )
     endif()
-                
+    
+              
 
     add_riscv_executable(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/common/entry.S
@@ -120,11 +121,14 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_scratch_buffer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/minion_debug.c
         ${MAXION_SOURCES}
+        ${PROJECT_BINARY_DIR}/src/Maxion/Bootrom/maxion_bootrom.h
     )
+    
     target_include_directories(${TARGET_NAME}.elf
         PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
             $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/Maxion/Bootrom>
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw>
     )
     target_compile_definitions(${TARGET_NAME}.elf

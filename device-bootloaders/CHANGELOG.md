@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-19082] Maxion configuration functions.
+- Added support to read GPT tables
 ### Changed
 ### Deprecated
 ### Removed
@@ -21,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - EMMC and Maxion configuration only compiled in this mode.
 - Changing default log level to WARNING
 - Added support to read GPT tables
+- Changing default log level to WARNING
 ### Changed
 ### Deprecated
 ### Removed

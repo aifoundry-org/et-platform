@@ -41,7 +41,12 @@
 #define SRAM_BOOT_VOLTAGE   0x64U // 730 mV
 #define NOC_BOOT_VOLTAGE    0x2FU // 485 mV
 #define DDR_BOOT_VOLTAGE    0x6EU // 800 mV
-#define MXN_BOOT_VOLTAGE    0x46U // 600 mV
+
+#if defined(LINUX_MODE) && LINUX_MODE == 1
+#define MXN_BOOT_VOLTAGE 0x78U // 850 mV
+#else
+#define MXN_BOOT_VOLTAGE 0x46U // 600 mV
+#endif
 
 /* define to convert Hex value to millivolt*/
 #define MINION_HEX_TO_MILLIVOLT(hex_val)                                                     \
