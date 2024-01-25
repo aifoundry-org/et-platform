@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
   // logger creation
   if (auto res = mkdir(FLAGS_log_folder.c_str(), 0770); res != 0 && errno != EEXIST) {
     perror("Couldn't create the log folder");
-    exit(1);
+    _Exit(1);
   }
   const std::string logfilename = "daemon";
   auto worker = g3::LogWorker::createLogWorker();

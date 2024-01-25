@@ -56,7 +56,7 @@ void MpOrchestrator::createServer(const DeviceLayerCreatorFunc& deviceLayerCreat
         }
         RT_LOG(INFO) << "Exiting server process (pid " << getpid() << ")";
         logger.reset();
-        exit(0);
+        _Exit(0);
       } else {
         Status s(Status::INVALID);
         while ((s != Status::SERVER_READY) and (s != Status::SERVER_ERROR)) {
@@ -74,10 +74,10 @@ void MpOrchestrator::createServer(const DeviceLayerCreatorFunc& deviceLayerCreat
         write(efdFromServer_, &s, sizeof(s));
       }
       ADD_FAILURE() << "Exception in server process: '" << e.what() << "'. Exiting (pid " << getpid() << ")";
-      exit(1);
+      _Exit(1);
     } catch (...) {
       ADD_FAILURE() << "Unknown exception in server process. Exiting (pid " << getpid() << ")";
-      exit(1);
+      _Exit(1);
     }
   }
 }
@@ -91,13 +91,13 @@ void MpOrchestrator::createClient(const std::function<void(rt::IRuntime*)>& func
       func(&cl);
       RT_LOG(INFO) << "End client execution.";
       logger.reset();
-      exit(0);
+      _Exit(0);
     } catch (const std::exception& e) {
       ADD_FAILURE() << "Exception in client process: " << e.what();
-      exit(1);
+      _Exit(1);
     } catch (...) {
       ADD_FAILURE() << "Unknown exception in client process.";
-      exit(1);
+      _Exit(1);
     }
   } else {
     clients_.push_back(pid);
@@ -111,7 +111,7 @@ void MpOrchestrator::clearClients() {
     if (pid > 0) {
       int status;
       waitpid(pid, &status, 0);
-      RT_LOG_IF(FATAL, status != 0) << "Child client did not ended properly";
+      RT_LOG_IF(FATAL, status != 0) << "Child client did not shut down properly";
     }
   }
   clients_.clear();
@@ -125,7 +125,7 @@ MpOrchestrator::~MpOrchestrator() {
   if (!useExternalServer_) {
     int status;
     waitpid(server_, &status, 0);
-    RT_LOG_IF(FATAL, status != 0) << "Child server did not ended properly";
+    RT_LOG_IF(FATAL, status != 0) << "Child server did not shut down properly";
     std::remove(socketPath_.c_str());
   }
 }

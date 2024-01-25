@@ -57,7 +57,7 @@ TEST(mp, handshake) {
     auto cl = Client(socketName);
     RT_LOG(INFO) << "End child";
     ASSERT_EQ(dummy, 'Y');
-    exit(0);
+    _Exit(0);
   }
 }
 
@@ -85,7 +85,7 @@ TEST(mp, handshake_500) {
       read(fd[0], &dummy, 1);
       ASSERT_EQ(dummy, 'Y');
       auto cl = Client(socketName);
-      exit(0);
+      _Exit(0);
     }
   }
   logging::LoggerDefault logger_;
