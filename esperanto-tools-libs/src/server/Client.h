@@ -16,6 +16,8 @@
 #include "runtime/Types.h"
 #include <hostUtils/threadPool/ThreadPool.h>
 
+struct sockaddr_un;
+
 namespace rt {
 class Client : public IRuntime, public IMonitor {
 public:
@@ -81,6 +83,8 @@ public:
   std::unordered_map<DeviceId, uint32_t> getAliveEvents() final;
 
 private:
+  void connect(sockaddr_un& addr) const;
+
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
     auto reqId = getNextId();
     sendRequest({type, reqId, std::move(payload)});

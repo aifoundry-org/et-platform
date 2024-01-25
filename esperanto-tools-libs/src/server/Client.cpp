@@ -16,27 +16,39 @@
 #include "Utils.h"
 #include "runtime/Types.h"
 
+#include <chrono>
+#include <sstream>
+#include <thread>
+
 #include <cereal/archives/json.hpp>
 #include <easy/arbitrary_value.h>
 #include <easy/details/profiler_colors.h>
 #include <easy/profiler.h>
+
 #include <poll.h>
-#include <sstream>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 
 using namespace rt;
+using namespace std::chrono_literals;
 
 namespace {
+
 constexpr auto kSocketNeededSize = static_cast<int>(sizeof(ErrorContext) * kNumErrorContexts);
+
 constexpr size_t kMaxMessageSize = kSocketNeededSize * 2;
-constexpr auto kProcessResponseTries = 100;
+
+constexpr auto kConnectTimeout = 1000ms;
+
+constexpr auto kConnectRetries = 10;
+
 struct MemStream : public std::streambuf {
   MemStream(char* s, std::size_t n) {
     setg(s, s, s + n);
   }
 };
+
 } // namespace
 
 void Client::doSetOnStreamErrorsCallback(std::function<void(EventId, StreamError const&)> callback) {
@@ -56,7 +68,6 @@ Client::~Client() {
 }
 
 Client::Client(const std::string& socketPath) {
-
   socket_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 
   sockaddr_un addr;
@@ -69,9 +80,8 @@ Client::Client(const std::string& socketPath) {
     throw NetworkException(std::string{"unable to set local per credentials: "} + strerror(errno));
   }
 
-  if (connect(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == -1) {
-    throw NetworkException(std::string{"connect error: "} + strerror(errno));
-  }
+  connect(addr);
+
   ucred ucred;
   if (socklen_t len = sizeof(ucred); getsockopt(socket_, SOL_SOCKET, SO_PEERCRED, &ucred, &len) == -1) {
     throw NetworkException(std::string{"getsockopt error: "} + strerror(errno));
@@ -83,6 +93,42 @@ Client::Client(const std::string& socketPath) {
 
   listener_ = std::thread(&Client::responseProcessor, this);
   handShake();
+}
+
+void Client::connect(sockaddr_un& addr) const {
+  std::string error;
+
+  // Attempt to connect kConnectRetries times
+  bool connected = false;
+  for (int retry = 0; retry < kConnectRetries; retry++) {
+    // Connect and exit the loop if successful
+    auto rc = ::connect(socket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    connected = (rc == 0);
+    if (connected) {
+      break;
+    }
+
+    // Make the error more intelligible
+    if (errno == ENOENT) {
+      error = "Could not find the host runtime server socket. Either the server is not running, or it is still trying "
+              "to get CMA memory.";
+    } else {
+      error = strerror(errno);
+    }
+
+    // Emit error and retry message
+    if (retry < (kConnectRetries - 1)) {
+      RT_LOG(WARNING) << "Failed to connect to the Host Runtime Server (" << (retry + 1) << "/" << kConnectRetries
+                      << "): \"" << error << "\". Will retry in " << kConnectTimeout.count() << "ms.";
+      std::this_thread::sleep_for(kConnectTimeout);
+    }
+  } // Retry loop
+
+  // Emit final error message and throw exception
+  if (!connected) {
+    RT_LOG(WARNING) << "Failed to connect to the Host Runtime Server: \"" << error << "\".";
+    throw NetworkException(error);
+  }
 }
 
 void Client::responseProcessor() {
