@@ -47,7 +47,7 @@ class DeviceMinionRuntimeConan(ConanFile):
         self.requires("signedImageFormat/1.3.0")
         # libs
         self.requires("etsoc_hal/1.6.0")
-        self.requires("et-common-libs/0.20.0")
+        self.requires("et-common-libs/0.22.0-alpha")
 
     def package_id(self):
         self.python_requires["conan-common"].module.x86_64_compatible(self)

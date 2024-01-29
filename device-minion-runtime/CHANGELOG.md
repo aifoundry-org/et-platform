@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-19533] Added support for device-minion-runtime to be clang compatible
 - Fixed a bug in handling of Minions stats for overflow condition
+- [SW-20055] Fix to make correct syscall for l1 l2 flush
 ### Security
 
 ## [0.20.0] - 2023-11-07

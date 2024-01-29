@@ -54,7 +54,7 @@ int64_t syscall_handler(
         case SYSCALL_SHIRE_CACHE_BANK_OP:
             ret = syscall(SYSCALL_SHIRE_CACHE_BANK_OP_INT, arg1, arg2, arg3);
             break;
-        case SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT:
+        case SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2:
             ret = syscall(SYSCALL_CACHE_OPS_EVICT_WHOLE_L1_L2_INT, arg1, arg2, arg3);
             break;
         case SYSCALL_RETURN_FROM_KERNEL:
