@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.21.0] - 2024-01-30
+### Added
+### Changed
 - Updated Minion Runtime documentation
 ### Deprecated
 ### Removed
