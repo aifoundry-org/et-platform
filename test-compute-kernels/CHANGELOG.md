@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+### Security
+
+## [1.11.0] - 2024-01-30
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
 - [SW-19533] Add support to the kernels to be clang compatible
 - [SW-19783] Added clang loop unroll support
 ### Security
