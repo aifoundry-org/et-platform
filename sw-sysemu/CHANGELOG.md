@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.15.0] - 2024-01-30
+### Added
 - [SW-19833] Log PC on coherency hazard
 ### Changed
 - Updated pointers to match release SDK 1.4.0
