@@ -1778,7 +1778,8 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleFrequency(bool singleDevice) {
     DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
     auto* asic_frequencies = reinterpret_cast<const device_mgmt_api::asic_frequencies_t*>(output_buff);
     DV_LOG(INFO) << fmt::format("Device[{}]: Received Frequencies: Minion={}, NOC={} MHz.", deviceIdx,
-                                asic_frequencies->minion_shire_mhz, asic_frequencies->noc_mhz);
+                                static_cast<uint16_t>(asic_frequencies->minion_shire_mhz),
+                                static_cast<uint16_t>(asic_frequencies->noc_mhz));
     return std::make_pair<uint16_t, uint16_t>(asic_frequencies->minion_shire_mhz, asic_frequencies->noc_mhz);
   };
 
