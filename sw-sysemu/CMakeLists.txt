@@ -25,6 +25,25 @@ option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
 option(SDK_RELEASE "Enable various changes for SDK release" OFF)
 
+option(ENABLE_IPO "Enable Inter-Procedural Optimizations (LTO)" ON)
+if (ENABLE_IPO)
+    cmake_policy(SET CMP0069 NEW)
+
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT supports-ipo OUTPUT output)
+    if (supports-ipo)
+        message(STATUS "* IPO (Link time optimizations) is enabled for Release, RelWIthDebInfo and MinSizeRel builds.")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+        # LTO disabled for Debug
+    else()
+        message(WARNING "IPO is not supported: ${output}.")
+    endif()
+else()
+    message(STATUS "* IPO is disabled.")
+endif()
+
 include(GNUInstallDirs)
 
 find_package(elfio REQUIRED)
