@@ -198,11 +198,6 @@ static void taskMain(void *pvParameters)
     status = NOC_Remap_Shire_Id(Get_Displace_Shire_Id(), Get_Spare_Shire_Id());
     ASSERT_FATAL(status == STATUS_SUCCESS, "NOC shire remap failed!")
 
-    //Re-enable to debug NOC remapping
-    //for(uint8_t shire_id = 0; shire_id < 34; shire_id++){
-    //    Log_Write(LOG_LEVEL_DEBUG,"@@ %d %#016lX %#016lX \n", shire_id, (0x1C0340008 | shire_id << 22), *((long *)(0x1C0340008 | (long)shire_id << 22)));
-    //}
-
     // After successful remap, virtual shire mask is 0x1FFFFFFFF
     minion_shires_mask = 0x1FFFFFFFFUL;
     Minion_Set_Active_Compute_Minion_Mask(minion_shires_mask);
