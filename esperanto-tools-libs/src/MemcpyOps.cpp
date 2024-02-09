@@ -106,7 +106,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, const std::byte* h_src
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them
 
-  commandSender.send(Command{{}, commandSender, evt, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, stream, true});
   RT_VLOG(MID) << "H2D: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
@@ -142,7 +142,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, const std::byte* d_src
   // commands. This is needed because we don't know if we will have enough CMA memory to hold all commands with their
   // addresses and sizes in the queue or we will have to chunk them.
 
-  commandSender.send(Command{{}, commandSender, evt, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, stream, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
@@ -180,7 +180,7 @@ EventId RuntimeImp::doMemcpyHostToDevice(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  commandSender.send(Command{{}, commandSender, evt, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, stream, true});
   RT_VLOG(MID) << "H2D: Added command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
@@ -216,7 +216,7 @@ EventId RuntimeImp::doMemcpyDeviceToHost(StreamId stream, MemcpyList memcpyList,
                << " EventId: " << static_cast<int>(evt);
   streamManager_.addEvent(stream, evt);
 
-  commandSender.send(Command{{}, commandSender, evt, evt, true});
+  commandSender.send(Command{{}, commandSender, evt, evt, stream, true});
   RT_VLOG(MID) << "D2H: Added GHOST command id: " << static_cast<int>(evt) << " to CS " << &commandSender;
 
   auto device = DeviceId{streamInfo.device_};
@@ -277,7 +277,7 @@ EventId RuntimeImp::doMemcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDs
   dataPtr->list[0].peer_devnum = dc.physDeviceId_;
   dataPtr->list[0].size = static_cast<uint32_t>(size);
 
-  commandSender.send(Command{std::move(data), commandSender, evt, evt, true, true, true});
+  commandSender.send(Command{std::move(data), commandSender, evt, evt, streamSrc, true, true, true});
 
   Sync(evt);
   return evt;
@@ -327,7 +327,7 @@ EventId RuntimeImp::doMemcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDs
   dataPtr->list[0].peer_devnum = dc.physDeviceId_;
   dataPtr->list[0].size = static_cast<uint32_t>(size);
 
-  commandSender.send(Command{std::move(data), commandSender, evt, evt, true, true, true});
+  commandSender.send(Command{std::move(data), commandSender, evt, evt, streamDst, true, true, true});
 
   Sync(evt);
   return evt;

@@ -9,16 +9,21 @@
  *-------------------------------------------------------------------------*/
 
 #include "ProfilerImp.h"
+#include "RemoteProfiler.h"
+
 #include "Server.h"
+
 #include "runtime/DeviceLayerFake.h"
 #include "runtime/IProfiler.h"
+
+#include <gflags/gflags.h>
+#include <hostUtils/logging/Logger.h>
+#include <sw-sysemu/SysEmuOptions.h>
+
 #include <condition_variable>
 #include <csignal>
 #include <fstream>
-#include <gflags/gflags.h>
-#include <hostUtils/logging/Logger.h>
 #include <ios>
-#include <sw-sysemu/SysEmuOptions.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -208,20 +213,34 @@ int main(int argc, char* argv[]) {
     }
 
     rt::Server s(FLAGS_socket_path, std::move(deviceLayer), opts);
-    if (FLAGS_enable_tracing) {
-      auto profiler = s.getProfiler();
+
+    // Set up profiling
+    {
+      std::unique_ptr<rt::profiling::IProfilerRecorder> localProfiler;
+      if (FLAGS_enable_tracing) {
+        localProfiler = std::make_unique<rt::profiling::ProfilerImp>();
+      } else {
+        localProfiler = std::make_unique<rt::profiling::DummyProfiler>();
+      }
+
+      auto profiler = dynamic_cast<rt::profiling::RemoteProfiler*>(s.getProfiler());
+      if (profiler == nullptr) {
+        throw rt::Exception("Invalid profiler");
+      }
+      profiler->setLocalProfiler(std::move(localProfiler));
+
       auto type = rt::IProfiler::OutputType::Json;
       if (FLAGS_tracing_mode != "json") {
         type = rt::IProfiler::OutputType::Binary;
       }
       profiler->start(*traceFileStream, type);
-    } else {
-      s.setProfiler(std::make_unique<rt::profiling::DummyProfiler>());
     }
 
     std::unique_lock lock(s_m);
     s_cv.wait(lock, [] { return !s_running; });
+
     std::cout << "End server execution\n.";
+
     return 0;
   } catch (const rt::Exception& e) {
     std::cerr << "Terminating due to a runtime exception: " << e.what();

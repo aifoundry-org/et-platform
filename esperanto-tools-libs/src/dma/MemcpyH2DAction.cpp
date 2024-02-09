@@ -71,8 +71,8 @@ bool MemcpyH2DAction::update() {
   RT_VLOG(MID) << ">>> Alloc cmaPtr: " << std::hex << cmaPtr << " associated event: " << int(cmdEvt);
 
   // set the proper data once the builder has been filled
-  ctx_.commandSender_.sendBefore(ctx_.eventId_,
-                                 {builder.build(), ctx_.commandSender_, cmdEvt, ctx_.eventId_, true, false});
+  ctx_.commandSender_.sendBefore(
+    ctx_.eventId_, {builder.build(), ctx_.commandSender_, cmdEvt, ctx_.eventId_, ctx_.stream_, true, false});
 
   // once all cmacopies has been done, enable the command
   ctx_.eventManager_.addOnDispatchCallback(

@@ -30,6 +30,7 @@ struct Command {
   class CommandSender& parent_;
   EventId eventId_;
   EventId parentEventId_;
+  StreamId streamId_;
   bool isDma_ = false;
   bool isEnabled_ = false;
   bool isP2P_ = false;

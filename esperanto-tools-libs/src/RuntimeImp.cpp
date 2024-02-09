@@ -70,13 +70,14 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
   checkMemcpyDeviceAddress_ = options.checkMemcpyDeviceOperations_;
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);
-  for (int i = 0; i < devicesCount; ++i) {
-    auto id = DeviceId{i};
-    devices_.emplace_back(id);
-    auto sqCount = deviceLayer->getSubmissionQueuesCount(i);
-    streamManager_.addDevice(id, sqCount);
+
+  for (int device = 0; device < devicesCount; ++device) {
+    auto deviceId = DeviceId{device};
+    devices_.emplace_back(deviceId);
+    auto sqCount = deviceLayer->getSubmissionQueuesCount(device);
+    streamManager_.addDevice(deviceId, sqCount);
     for (int sq = 0; sq < sqCount; ++sq) {
-      commandSenders_.try_emplace(getCommandSenderIdx(i, sq), *deviceLayer_, getProfiler(), i, sq);
+      commandSenders_.try_emplace(getCommandSenderIdx(device, sq), *deviceLayer_, getProfiler(), device, sq);
     }
   }
 
@@ -727,7 +728,7 @@ void RuntimeImp::checkDeviceApi(DeviceId device) {
   cmdPtr->command_info.cmd_hdr.msg_id = device_ops_api::DEV_OPS_API_MID_CHECK_DEVICE_OPS_API_COMPATIBILITY_CMD;
   cmdPtr->command_info.cmd_hdr.size = static_cast<msg_size_t>(cmd.size());
   auto& commandSender = find(commandSenders_, getCommandSenderIdx(streamInfo.device_, streamInfo.vq_))->second;
-  commandSender.send(Command{cmd, commandSender, evt, evt, false, true});
+  commandSender.send(Command{cmd, commandSender, evt, evt, st, false, true});
   doWaitForStream(st);
   doDestroyStream(st);
   // now the responsereceiver will put the data into deviceapi field, check that

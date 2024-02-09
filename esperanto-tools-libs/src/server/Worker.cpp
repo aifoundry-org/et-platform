@@ -9,16 +9,22 @@
  *-------------------------------------------------------------------------*/
 
 #include "Worker.h"
+
+#include "runtime/Types.h"
+
 #include "NetworkException.h"
+#include "ProfilerImp.h"
 #include "Protocol.h"
+#include "RemoteProfiler.h"
 #include "ScopedProfileEvent.h"
 #include "Server.h"
 #include "Utils.h"
-#include "runtime/Types.h"
+
 #include <cereal/archives/portable_binary.hpp>
-#include <cstring>
 #include <easy/profiler.h>
 #include <g3log/loglevels.hpp>
+
+#include <cstring>
 #include <sys/poll.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -97,16 +103,41 @@ Worker::~Worker() {
   SpinLock lock(mutex_);
   close(socket_);
   runner_.join();
+
+  // Unregister all streams from the Remote Profiler
+  auto profiler = getProfiler();
+  if (profiler != nullptr) {
+    for (auto stream : streams_) {
+      profiler->unassignRemoteWorkerFromStream(stream);
+    }
+  }
+
   freeResources();
+
   RT_VLOG(LOW) << "Worker dtor ended. Ptr:" << this;
+}
+
+rt::profiling::RemoteProfiler* Worker::getProfiler() {
+  return dynamic_cast<rt::profiling::RemoteProfiler*>(runtime_.getProfiler());
 }
 
 void Worker::requestProcessor() {
   using namespace std::string_literals;
   auto threadName = "Server::Worker" + std::to_string(workerId_++);
+
   EASY_THREAD_SCOPE(threadName.c_str())
   constexpr size_t kMaxRequestSize = req::kMaxKernelSize + 4096; // 4096 is for all metadata
   auto requestBuffer = std::vector<char>(kMaxRequestSize);
+
+  auto profiler = getProfiler();
+  if (profiler == nullptr) {
+    RT_LOG(FATAL) << "Remote profiler not set";
+    return;
+  }
+
+  // Associate the current thread to the this Worker object within the RemoteProfiler
+  profiler->setThisThreadsWorker(this);
+
   try {
     while (running_) {
       EASY_BLOCK("requestProcessor::loop", profiler::colors::Blue)
@@ -119,13 +150,16 @@ void Worker::requestProcessor() {
         continue;
       }
       EASY_END_BLOCK
+
       EASY_BLOCK("read")
-      if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); res < 0) {
+      auto res = read(socket_, requestBuffer.data(), requestBuffer.size());
+      if (res < 0) {
         auto msg = std::string{"Read socket error: "} + strerror(errno);
         RT_VLOG(LOW) << msg;
         throw NetworkException(msg);
       } else if (res > 0) {
         EASY_END_BLOCK
+
         EASY_BLOCK("decodeRequest")
         auto ms = MemStream{requestBuffer.data(), static_cast<size_t>(res)};
         std::istream is(&ms);
@@ -136,6 +170,7 @@ void Worker::requestProcessor() {
           archive >> request;
           id = request.id_; // save in case runtime triggers an exception to answer with correct id
           EASY_END_BLOCK
+
           processRequest(request);
         } catch (const Exception& e) {
           if (running_) {
@@ -147,10 +182,12 @@ void Worker::requestProcessor() {
         running_ = false;
         server_.removeWorker(this);
       }
-    }
+    } // while running_
   } catch (const NetworkException& e) {
     RT_VLOG(LOW) << "Got a network exception. " << e.what();
   }
+
+  profiler->releaseThisThreadsWorker();
 }
 
 void Worker::processRequest(const req::Request& request) {
@@ -160,7 +197,7 @@ void Worker::processRequest(const req::Request& request) {
   switch (request.type_) {
 
   case req::Type::VERSION: {
-    sendResponse({resp::Type::VERSION, request.id_, resp::Version{3, 2}}); // current version is "3.1"
+    sendResponse({resp::Type::VERSION, request.id_, resp::Version{Protocol::MAJOR, Protocol::MINOR}});
     break;
   }
 
@@ -223,6 +260,8 @@ void Worker::processRequest(const req::Request& request) {
   case req::Type::CREATE_STREAM: {
     auto& req = std::get<req::CreateStream>(request.payload_);
     auto st = runtime_.createStream(req.device_);
+    auto profiler = getProfiler();
+    profiler->assignRemoteWorkerToStream(st);
     streams_.insert(st);
     sendResponse({resp::Type::CREATE_STREAM, request.id_, resp::CreateStream{st}});
     break;
@@ -230,11 +269,14 @@ void Worker::processRequest(const req::Request& request) {
 
   case req::Type::DESTROY_STREAM: {
     auto& req = std::get<req::DestroyStream>(request.payload_);
-    if (streams_.erase(req.stream_) != 1) {
+    auto st = req.stream_;
+    if (streams_.erase(st) != 1) {
       RT_LOG(WARNING) << "Trying to destroy a non previous created stream.";
       throw Exception("Trying to destroy a non previous created stream.");
     }
-    runtime_.destroyStream(req.stream_);
+    auto profiler = getProfiler();
+    profiler->unassignRemoteWorkerFromStream(st);
+    runtime_.destroyStream(st);
     sendResponse({resp::Type::DESTROY_STREAM, request.id_, std::monostate{}});
     break;
   }
@@ -387,6 +429,24 @@ void Worker::processRequest(const req::Request& request) {
     auto evt = runtime_.memcpyDeviceToDevice(req.device_, req.stream_, src, dst, req.size_, req.barrier_);
     events_.emplace(evt);
     sendResponse({resp::Type::MEMCPY_P2P_READ, request.id_, resp::Event{evt}});
+    break;
+  }
+
+  case req::Type::ENABLE_TRACING: {
+    auto profiler = getProfiler();
+    if (profiler != nullptr) {
+      profiler->enableRemote();
+    }
+    sendResponse({resp::Type::ENABLE_TRACING, request.id_, std::monostate()});
+    break;
+  }
+
+  case req::Type::DISABLE_TRACING: {
+    auto profiler = getProfiler();
+    if (profiler != nullptr) {
+      profiler->disableRemote();
+    }
+    sendResponse({resp::Type::DISABLE_TRACING, request.id_, std::monostate()});
     break;
   }
 

@@ -325,7 +325,7 @@ public:
   /// @param[in] profiler see \ref rt::profiling::IProfilerRecorder. This is the profiler that the runtime will use to
   /// store and process the traces.
   ///
-  void setProfiler(std::unique_ptr<profiling::IProfilerRecorder> profiler) {
+  void setProfiler(std::unique_ptr<profiling::IProfilerRecorder>&& profiler) {
     profiler_ = std::move(profiler);
     onProfilerChanged();
   }

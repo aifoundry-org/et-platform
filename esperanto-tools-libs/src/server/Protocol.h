@@ -10,6 +10,7 @@
 
 #pragma once
 #include "KernelLaunchOptionsImp.h"
+#include "runtime/IProfileEvent.h"
 #include "runtime/Types.h"
 #include <cereal/cereal.hpp>
 #include <cereal/types/array.hpp>
@@ -45,6 +46,11 @@ template <class Archive> void serialize(Archive& archive, StreamError& se) {
   archive(se.errorCode_, se.cmShireMask_, se.errorContext_);
 }
 
+namespace Protocol {
+static constexpr int MAJOR = 3;
+static constexpr int MINOR = 3;
+} // namespace Protocol
+
 namespace req {
 
 // these requests corresponds to first version of the protocol, is expected to add more versions here in the future
@@ -74,6 +80,8 @@ enum class Type : uint32_t {
   GET_P2P_COMPATIBILITY,
   MEMCPY_P2P_READ,
   MEMCPY_P2P_WRITE,
+  ENABLE_TRACING,
+  DISABLE_TRACING,
 };
 
 using Id = uint32_t;
@@ -271,6 +279,9 @@ enum class Type : uint32_t {
   GET_P2P_COMPATIBILITY,
   MEMCPY_P2P_READ,
   MEMCPY_P2P_WRITE,
+  ENABLE_TRACING,
+  DISABLE_TRACING,
+  TRACING_EVENT,
 };
 
 constexpr auto getStr(Type t) {
@@ -307,6 +318,9 @@ constexpr auto getStr(Type t) {
     STR_TYPE(GET_P2P_COMPATIBILITY)
     STR_TYPE(MEMCPY_P2P_READ)
     STR_TYPE(MEMCPY_P2P_WRITE)
+    STR_TYPE(ENABLE_TRACING)
+    STR_TYPE(DISABLE_TRACING)
+    STR_TYPE(TRACING_EVENT)
 
   default:
     return "Unknown type";
@@ -447,7 +461,7 @@ struct Response {
 
   using Payload_t = std::variant<std::monostate, Version, Malloc, GetDevices, Event, CreateStream, LoadCode,
                                  StreamError, RuntimeException, DmaInfo, DeviceProperties, KernelAborted, NumClients,
-                                 FreeMemory, WaitingCommands, AliveEvents, P2PCompatibility>;
+                                 FreeMemory, WaitingCommands, AliveEvents, P2PCompatibility, profiling::ProfileEvent>;
   Type type_;
   Id id_ = req::INVALID_REQUEST_ID;
   Payload_t payload_;

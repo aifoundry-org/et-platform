@@ -93,6 +93,8 @@ add_library(etrt_obj OBJECT
     src/dma/MemcpyListH2DAction.h
     src/dma/MemcpyD2HAction.cpp
     src/ProfileEvent.cpp
+    src/ProfilerImp.cpp
+    src/RemoteProfiler.cpp
     src/StreamManager.cpp
     src/Types.cpp
     src/Utils.cpp

@@ -19,13 +19,16 @@
 #include "ResponseReceiver.h"
 #include "StreamManager.h"
 #include "Utils.h"
+
 #include "dma/CmaManager.h"
 #include "dma/IDmaBuffer.h"
 #include "runtime/IProfileEvent.h"
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
-#include <algorithm>
+
 #include <hostUtils/threadPool/ThreadPool.h>
+
+#include <algorithm>
 #include <limits>
 #include <optional>
 #include <type_traits>

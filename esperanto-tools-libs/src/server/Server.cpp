@@ -8,14 +8,18 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "Server.h"
+
 #include "Constants.h"
+#include "RemoteProfiler.h"
 #include "Utils.h"
 #include "Worker.h"
+
 #include "runtime/Types.h"
+
 #include <easy/profiler.h>
 #include <hostUtils/threadPool/ThreadPool.h>
+
 #include <linux/capability.h>
-#include <mutex>
 #include <signal.h>
 #include <sys/capability.h>
 #include <sys/param.h>
@@ -24,6 +28,9 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#include <mutex>
+
 using namespace rt;
 namespace {
 constexpr auto kSocketNeededSize = static_cast<int>(2 * sizeof(ErrorContext) * kNumErrorContexts);
@@ -69,6 +76,8 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   CHECK(deviceLayer_ != nullptr) << "DeviceLayer can't be null";
 
   runtime_ = IRuntime::create(deviceLayer_.get(), options);
+  auto profiler = std::make_unique<rt::profiling::RemoteProfiler>();
+  runtime_->setProfiler(std::move(profiler));
 
   socket_ = socket(AF_UNIX, SOCK_SEQPACKET, 0);
 

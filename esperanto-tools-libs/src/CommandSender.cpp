@@ -8,13 +8,17 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #include "CommandSender.h"
+
 #include "Utils.h"
+
 #include <device-layer/IDeviceLayer.h>
+
 #include <functional>
 #include <iomanip>
 #include <mutex>
 #include <optional>
 #include <thread>
+
 using namespace rt;
 
 std::string commandString(const std::vector<std::byte>& commandData) {
@@ -148,6 +152,7 @@ void CommandSender::runnerFunc() {
 
           profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
           event.setEvent(cmd.eventId_);
+          event.setStream(cmd.streamId_);
           event.setDeviceId(DeviceId(deviceId_));
           event.setParentId(cmd.parentEventId_);
           profiler_->record(event);

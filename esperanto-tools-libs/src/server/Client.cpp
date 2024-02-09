@@ -14,6 +14,8 @@
 #include "ProfilerImp.h"
 #include "Protocol.h"
 #include "Utils.h"
+
+#include "runtime/IProfileEvent.h"
 #include "runtime/Types.h"
 
 #include <chrono>
@@ -131,13 +133,25 @@ void Client::connect(sockaddr_un& addr) const {
   }
 }
 
+void Client::onProfilerChanged() {
+  auto profiler = getProfiler();
+  if (profiler == nullptr) {
+    throw Exception("Profiler not set");
+  }
+
+  if (profiler->isDummy()) {
+    sendRequestAndWait(req::Type::DISABLE_TRACING, std::monostate{});
+  } else {
+    sendRequestAndWait(req::Type::ENABLE_TRACING, std::monostate{});
+  }
+}
+
 void Client::responseProcessor() {
   EASY_THREAD_SCOPE("Client::responseProcessor")
   auto requestBuffer = std::vector<char>(kMaxMessageSize);
   try {
     while (running_) {
       EASY_BLOCK("Client::responseProcessor::loop")
-      RT_VLOG(LOW) << "Reading response ...";
 
       pollfd pfd;
       pfd.events = POLLIN;
@@ -151,6 +165,8 @@ void Client::responseProcessor() {
 
       if (auto res = read(socket_, requestBuffer.data(), requestBuffer.size()); running_) {
         EASY_BLOCK("Client::responseProcessor::read")
+        RT_VLOG(LOW) << "Reading response ...";
+
         if (res < 0) {
           RT_LOG(WARNING) << "Read socket error: " << strerror(errno);
           break;
@@ -302,6 +318,7 @@ void Client::dispatch(EventId event) {
 void Client::processResponse(const resp::Response& response) {
   EASY_FUNCTION()
   RT_VLOG(MID) << "Processing response";
+
   SpinLock lock(mutex_);
   switch (response.type_) {
   case resp::Type::KERNEL_ABORTED: {
@@ -326,6 +343,7 @@ void Client::processResponse(const resp::Response& response) {
     }
     break;
   }
+
   case resp::Type::EVENT_DISPATCHED: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Event dispatched should have request type ASYNC_RUNTIME_EVENT";
     // only dispatch the event if its a delayed event (a callback is being executed), otherwise it will be dispatched
@@ -335,6 +353,7 @@ void Client::processResponse(const resp::Response& response) {
     }
     break;
   }
+
   case resp::Type::STREAM_ERROR: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request type ASYNC_RUNTIME_EVENT";
     auto& payload = std::get<resp::StreamError>(response.payload_);
@@ -357,6 +376,14 @@ void Client::processResponse(const resp::Response& response) {
     }
     break;
   }
+
+  case resp::Type::TRACING_EVENT: {
+    CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request type ASYNC_RUNTIME_EVENT";
+    auto& payload = std::get<profiling::ProfileEvent>(response.payload_);
+    getProfiler()->record(payload);
+    break;
+  }
+
   default:
     RT_VLOG(MID) << "Got response type: " << static_cast<uint32_t>(response.type_) << " wake up waiter.";
     auto it = find(responseWaiters_, response.id_, "Could not find the request id " + std::to_string(response.id_));
@@ -399,10 +426,11 @@ void Client::handShake() {
 
   RT_LOG(INFO) << "Server protocol version: " << major << "." << minor;
 
-  if (major != 3 || minor < 2) {
+  if (major != Protocol::MAJOR || minor < Protocol::MINOR) {
     throw Exception(
-      "Unsupported version. Current client version only supports version: 3.>=2 Please update the runtime "
-      "client library or runtime daemon server.");
+      "Unsupported version. Current client version only supports version: >=" + std::to_string(Protocol::MAJOR) + "." +
+      std::to_string(Protocol::MINOR) + ", <" + std::to_string(Protocol::MAJOR + 1) +
+      ".0. Please update the runtime client library or runtime daemon server.");
   }
   // get deviceLayerProperties now
   auto devices = getDevices();

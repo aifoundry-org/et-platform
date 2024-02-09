@@ -11,13 +11,20 @@
 #include "Protocol.h"
 #include "RuntimeImp.h"
 #include "runtime/Types.h"
+#include "server/Protocol.h"
 
 #include <set>
 #include <sys/socket.h>
 #include <thread>
 
 namespace rt {
+
 class Server;
+
+namespace profiling {
+class RemoteProfiler;
+}
+
 class Worker : public patterns::Observer<EventId> {
 public:
   explicit Worker(int socket, RuntimeImp& runtime, Server& server, ucred credentials);
@@ -29,12 +36,18 @@ public:
 
   void onKernelAborted(EventId event, std::byte* context, size_t size, std::function<void()> freeResources);
 
+  void sendProfilerEvent(const profiling::ProfileEvent& event) {
+    sendResponse({resp::Type::TRACING_EVENT, req::ASYNC_RUNTIME_EVENT, event});
+  }
+
 private:
   void requestProcessor();
   void freeResources();
   void processRequest(const req::Request& request);
 
   void sendResponse(const resp::Response& response);
+
+  rt::profiling::RemoteProfiler* getProfiler();
 
   struct Allocation {
     DeviceId device_;
@@ -43,6 +56,7 @@ private:
       return device_ < other.device_ || (device_ == other.device_ && ptr_ < other.ptr_);
     }
   };
+
   inline static std::atomic<size_t> workerId_{0};
 
   RuntimeImp& runtime_;

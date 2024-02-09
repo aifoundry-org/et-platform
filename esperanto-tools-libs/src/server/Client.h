@@ -85,6 +85,8 @@ public:
 private:
   void connect(sockaddr_un& addr) const;
 
+  void onProfilerChanged() final;
+
   template <typename Payload> resp::Response::Payload_t sendRequestAndWait(req::Type type, Payload payload) {
     auto reqId = getNextId();
     sendRequest({type, reqId, std::move(payload)});

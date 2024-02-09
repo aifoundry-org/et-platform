@@ -52,6 +52,9 @@ class ProfileEvent;
 class IProfilerRecorder : public IProfiler {
 public:
   virtual void record(const ProfileEvent& event) = 0;
+  virtual bool isDummy() const {
+    return false;
+  }
 };
 
 } // namespace profiling

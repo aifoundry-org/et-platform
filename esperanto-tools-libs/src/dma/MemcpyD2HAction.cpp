@@ -74,8 +74,8 @@ bool MemcpyD2HAction::update() {
 
   /***/
   // set the proper data once the builder has been filled
-  ctx_.commandSender_.sendBefore(ctx_.eventId_,
-                                 {builder.build(), ctx_.commandSender_, cmdEvt, ctx_.eventId_, true, true});
+  ctx_.commandSender_.sendBefore(
+    ctx_.eventId_, {builder.build(), ctx_.commandSender_, cmdEvt, ctx_.eventId_, ctx_.stream_, true, true});
 
   // release the buffer once the command has been completed
   ctx_.eventManager_.addOnDispatchCallback({syncEvents, [& cm = ctx_.cmaManager_, cmaPtr] {
