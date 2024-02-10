@@ -191,14 +191,15 @@ quality:clang-tidy:
   variables:
     TIMEOUT: 1h
     BUILD_TYPE: Release
-    CCACHE_DIR: .ccache
+    CCACHE_DIR: ${CI_PROJECT_DIR}/.ccache
     CMD_CONFIG_BUILD: |
       sudo apt update -y
       sudo apt install -y ccache ninja-build clang-tidy
       ls -l .ccache | true
-      ccache --show-stats
+      mkdir -p ${CCACHE_DIR}
+      ccache --show-stats --verbose
       ccache --zero-stats
-      ccache --show-stats
+      ccache --show-stats --verbose
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
@@ -214,16 +215,17 @@ quality:clang-tidy:
       cmake -S . -B build/${BUILD_TYPE} -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_CLANG_TIDY="clang-tidy;--use-color;--extra-arg=-Wno-error=unknown-warning-option" -DENABLE_IPO=OFF -G Ninja
       source build/${BUILD_TYPE}/generators/conanbuild.sh
       cmake --build build/${BUILD_TYPE}
-      ccache --show-stats
-      num_clang_tidi_all_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | wc -l) || true
-      num_clang_tidi_bugprone_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep bugprone | wc -l) || true
-      num_clang_tidi_concurrency_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep concurrency | wc -l) || true
-      num_clang_tidi_cppcoreguidelines_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep cppcoreguidelines | wc -l) || true
-      num_clang_tidi_misc_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep misc | wc -l) || true
-      num_clang_tidi_modernize_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep modernize | wc -l) || true
-      num_clang_tidi_performance_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep performance | wc -l) || true
-      num_clang_tidi_readability_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep readability | wc -l) || true
-      ccache --show-stats
+      ccache --show-stats --verbose
+      cmake --build build/${BUILD_TYPE} --clean-first > compilation.log
+      num_clang_tidi_all_warnings=$(cat compilation.log | grep "warning:" | wc -l) || true
+      num_clang_tidi_bugprone_warnings=$(cat compilation.log | grep "warning:" | grep bugprone | wc -l) || true
+      num_clang_tidi_concurrency_warnings=$(cat compilation.log | grep "warning:" | grep concurrency | wc -l) || true
+      num_clang_tidi_cppcoreguidelines_warnings=$(cat compilation.log | grep "warning:" | grep cppcoreguidelines | wc -l) || true
+      num_clang_tidi_misc_warnings=$(cat compilation.log | grep "warning:" | grep misc | wc -l) || true
+      num_clang_tidi_modernize_warnings=$(cat compilation.log | grep "warning:" | grep modernize | wc -l) || true
+      num_clang_tidi_performance_warnings=$(cat compilation.log | grep "warning:" | grep performance | wc -l) || true
+      num_clang_tidi_readability_warnings=$(cat compilation.log | grep "warning:" | grep readability | wc -l) || true
+      ccache --show-stats --verbose
       echo "num_clang_tidi_all_warnings $$num_clang_tidi_all_warnings" >> metrics.txt
       echo "num_clang_tidi_bugprone_warnings $$num_clang_tidi_bugprone_warnings" >> metrics.txt
       echo "num_clang_tidi_concurrency_warnings $$num_clang_tidi_concurrency_warnings" >> metrics.txt
