@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- (CI) Add clang-format and clant-tidy jobs
 ### Changed
 - Detect if compiler supports -flto and enable it
 ### Deprecated
