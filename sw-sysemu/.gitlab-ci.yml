@@ -191,7 +191,6 @@ quality:clang-tidy:
   variables:
     TIMEOUT: 1h
     BUILD_TYPE: Release
-    CCACHE_COMPILERCHECK: content
     CCACHE_DIR: .ccache
     CMD_CONFIG_BUILD: |
       sudo apt update -y
@@ -216,9 +215,23 @@ quality:clang-tidy:
       source build/${BUILD_TYPE}/generators/conanbuild.sh
       cmake --build build/${BUILD_TYPE}
       ccache --show-stats
-      num_clang_tidi_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | wc -l) || true
+      num_clang_tidi_all_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | wc -l) || true
+      num_clang_tidi_bugprone_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep bugprone | wc -l) || true
+      num_clang_tidi_concurrency_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep concurrency | wc -l) || true
+      num_clang_tidi_cppcoreguidelines_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep cppcoreguidelines | wc -l) || true
+      num_clang_tidi_misc_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep misc | wc -l) || true
+      num_clang_tidi_modernize_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep modernize | wc -l) || true
+      num_clang_tidi_performance_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep performance | wc -l) || true
+      num_clang_tidi_readability_warnings=$(cmake --build  build/${BUILD_TYPE} --clean-first | grep "warning:" | grep readability | wc -l) || true
       ccache --show-stats
-      echo "num_clang_tidi_warnings $$num_clang_tidi_warnings" >> metrics.txt
+      echo "num_clang_tidi_all_warnings $$num_clang_tidi_all_warnings" >> metrics.txt
+      echo "num_clang_tidi_bugprone_warnings $$num_clang_tidi_bugprone_warnings" >> metrics.txt
+      echo "num_clang_tidi_concurrency_warnings $$num_clang_tidi_concurrency_warnings" >> metrics.txt
+      echo "num_clang_tidi_cppcoreguidelines_warnings $$num_clang_tidi_cppcoreguidelines_warnings" >> metrics.txt
+      echo "num_clang_tidi_misc_warnings $$num_clang_tidi_misc_warnings" >> metrics.txt
+      echo "num_clang_tidi_modernize_warnings $$num_clang_tidi_modernize_warnings" >> metrics.txt
+      echo "num_clang_tidi_performance_warnings $$num_clang_tidi_performance_warnings" >> metrics.txt
+      echo "num_clang_tidi_readability_warnings $$num_clang_tidi_readability_warnings" >> metrics.txt
   cache:
     key: ${CI_JOB_NAME_SLUG}
     paths:
