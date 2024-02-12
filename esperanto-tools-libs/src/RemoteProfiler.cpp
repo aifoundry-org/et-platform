@@ -61,6 +61,12 @@ void RemoteProfiler::record(const ProfileEvent& event) {
     return;
   }
 
+  auto cl = event.getClass();
+  if ((cl != Class::ResponseReceived) && (cl != Class::CommandSent) && (cl != Class::DispatchEvent)) {
+    // All other classes are also measured at the client, so here we avoid having both events in the client
+    return;
+  }
+
   auto eventId = event.getEvent().value();
 
   if (event.getStream().has_value()) {
