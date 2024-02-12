@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-19738] Fix client hangs when MP responses are processed before their event has been registered
 - [SW-19967] Try connecting to the MP server several times before failing
 - [SW-20002] Avoid running exit handlers on forked processes
+- [SW-20203] Remove duplicate profiling of kernel launches
 
 ## [0.13.1]
 ### Fixed

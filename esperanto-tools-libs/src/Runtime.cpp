@@ -125,8 +125,6 @@ EventId IRuntime::kernelLaunch(StreamId stream, KernelId kernel, const std::byte
                                uint64_t shire_mask, bool barrier, bool flushL3,
                                std::optional<UserTrace> userTraceConfig, const std::string& coreDumpPath) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::KernelLaunch, *profiler_, stream, kernel, -1ULL);
-
   KernelLaunchOptions kernelLaunchOptions;
 
   kernelLaunchOptions.setShireMask(shire_mask);
@@ -142,9 +140,7 @@ EventId IRuntime::kernelLaunch(StreamId stream, KernelId kernel, const std::byte
     kernelLaunchOptions.setCoreDumpFilePath(coreDumpPath);
   }
 
-  auto evt = kernelLaunch(stream, kernel, kernel_args, kernel_args_size, kernelLaunchOptions);
-  profileEvent.setEventId(evt);
-  return evt;
+  return kernelLaunch(stream, kernel, kernel_args, kernel_args_size, kernelLaunchOptions);
 }
 
 EventId IRuntime::kernelLaunch(StreamId stream, KernelId kernel, const std::byte* kernel_args, size_t kernel_args_size,
