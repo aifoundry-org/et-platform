@@ -32,6 +32,7 @@
 #ifndef SDK_RELEASE
 #include "checkers/vpurf_checker.h"
 #endif
+#include "ISysEmuExport.hpp"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -141,13 +142,13 @@ class api_communicate;
 class sys_emu
 {
 public:
-    sys_emu(const sys_emu_cmd_options& cmd_options, api_communicate* api_comm = nullptr);
+    SW_SYSEMU_EXPORT sys_emu(const sys_emu_cmd_options& cmd_options, api_communicate* api_comm = nullptr);
     virtual ~sys_emu() = default;
 
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options>
-    parse_command_line_arguments(int argc, char* argv[]);
-    static void get_command_line_help(std::ostream& stream);
+    SW_SYSEMU_EXPORT parse_command_line_arguments(int argc, char* argv[]);
+    SW_SYSEMU_EXPORT static void get_command_line_help(std::ostream& stream);
 
     uint64_t thread_get_pc(unsigned thread_id) { return chip.cpu[thread_id].pc; }
     void thread_set_pc(unsigned thread_id, uint64_t pc) { chip.cpu[thread_id].pc = pc; }
@@ -167,7 +168,7 @@ public:
     void raise_external_supervisor_interrupt(unsigned shire_id);
     void clear_external_supervisor_interrupt(unsigned shire_id);
     void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
-    int main_internal();
+    SW_SYSEMU_EXPORT int main_internal();
 
     uint64_t get_emu_cycle()  { return emu_cycle; }
 

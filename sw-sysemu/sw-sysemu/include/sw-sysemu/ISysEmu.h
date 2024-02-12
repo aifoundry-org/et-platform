@@ -10,18 +10,19 @@
 
 #pragma once
 #include "SysEmuOptions.h"
+#include "ISysEmuExport.hpp"
+
 #include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <stdint.h>
 
-#pragma GCC visibility push(default)
 
 namespace emu {
-struct Exception : public std::runtime_error {
+struct SW_SYSEMU_EXPORT Exception : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
-class ISysEmu {
+class SW_SYSEMU_EXPORT ISysEmu {
 public:
   class IHostListener {
   public:
@@ -48,5 +49,3 @@ public:
                                          IHostListener* hostListener);
 };
 }  // namespace emu
-
-#pragma GCC visibility pop
