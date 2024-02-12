@@ -20,6 +20,7 @@ class SwSysemuConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
+        "lto": [True, False],
         "profiling": [True, False],
         "backtrace": [True, False],
         "preload_elfs": [True, False],
@@ -35,6 +36,7 @@ class SwSysemuConan(ConanFile):
     }
     default_options = {
         "shared": False,
+        "lto": True,
         "profiling": False,
         "backtrace": False,
         "preload_elfs": True,
@@ -140,6 +142,7 @@ class SwSysemuConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["PROFILING"] = self.options.profiling
         tc.variables["BACKTRACE"] = self.options.backtrace
+        tc.variables["ENABLE_IPO"] = self.options.lto
         tc.variables["PRELOAD_LZ4"] = "lz4" is self.options.preload_compression
         if self.options.preload_elfs:
             default_emmedded_elfs_conanfile = self._default_embedded_elfs_conanfile

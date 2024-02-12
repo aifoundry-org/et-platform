@@ -6,6 +6,7 @@ include:
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
       - pods/large-pod.yaml
+      - pods/xlarge-pod.yaml
       - jobs/generic-k8s-job.yaml
       - jobs/sonarqube-job.yaml
       - rules/exec_maybe_interactively.yaml
@@ -35,6 +36,12 @@ variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
   SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: sw-sysemu
+  # Collection of envvars to force colors on Python / pytest / conan / console
+  PY_COLOR: "1"
+  FORCE_COLOR: "1"
+  CLICOLOR: "1"
+  CLICOLOR_FORCE: "1"
+  CONAN_COLOR_DISPLAY: "1"
 
 # Only run job in these cases:
 # - if it's a tag pipeline
@@ -82,6 +89,23 @@ check-on-top-of-master:
   needs: []
   rules:
     - *development_job_rule
+
+clang-format:
+  extends:
+    - .template_job
+    - .pod_medium
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: .pre
+  rules:
+    - *development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      git fetch --tags
+      sudo apt update
+      sudo apt install -y --no-install-recommends clang-format
+      linter_errors=$(git clang-format --commit ${CI_DEFAULT_BRANCH} -q --diff | grep -v --color=never "no modified files to format" || true)
+      echo "$${linter_errors}"
+      if [ ! -z "$${linter_errors}" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
 
 ###############################################################################
 ###############################################################################
@@ -138,7 +162,7 @@ build:conan:
   extends:
     - .exec_maybe_interactively
   needs:
-  - generate_build:conan
+    - generate_build:conan
   stage: build
   rules:
     - *release_or_development_job_rule
@@ -147,6 +171,80 @@ build:conan:
     - artifact: conan/build_pipeline.yml
       job: generate_build:conan
     strategy: depend
+
+# This job compiles sw-sysemu with clang-tidy.
+quality:clang-tidy:
+  extends:
+    - .pod_xlarge
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: build
+  rules:
+    - *release_or_development_job_rule
+  needs:
+    - job: verify_project_changes
+      optional: true
+    - job: check-on-top-of-master
+      optional: true
+    - job: clang-format
+      optional: true
+  variables:
+    TIMEOUT: 1h
+    BUILD_TYPE: Release
+    CCACHE_DIR: ${CI_PROJECT_DIR}/.ccache
+    CMD_CONFIG_BUILD: |
+      sudo apt update -y
+      sudo apt install -y ccache ninja-build clang-tidy
+      ls -l .ccache | true
+      mkdir -p ${CCACHE_DIR}
+      ccache --show-stats --verbose
+      ccache --zero-stats
+      ccache --show-stats --verbose
+    CMD_BUILD: |
+      BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
+      conan remote disable conan-tmp
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER}-shared -o sw-sysemu:lto=False --build missing --lockfile-out=${BUILD_TYPE}.lock
+      conan lock build-order ${BUILD_TYPE}.lock --json=build-order.json
+      cat build-order.json
+      conan install . --lockfile=${BUILD_TYPE}.lock --build missing
+      if [[ $(< build-order.json) != "[]" ]]; then
+        conan remote enable conan-tmp
+        conan upload "*" --all --check --confirm --retry 5 --retry-wait 120 --parallel -r conan-tmp
+        conan upload "*" --all --check --confirm --retry 5 --retry-wait 120 --parallel -r conan-develop
+      fi
+      cmake -S . -B build/${BUILD_TYPE} -DCMAKE_TOOLCHAIN_FILE=generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_CLANG_TIDY="clang-tidy;--use-color;--extra-arg=-Wno-error=unknown-warning-option" -DENABLE_IPO=OFF -G Ninja
+      source build/${BUILD_TYPE}/generators/conanbuild.sh
+      cmake --build build/${BUILD_TYPE}
+      ccache --show-stats --verbose
+      cmake --build build/${BUILD_TYPE} --clean-first > compilation.log
+      num_clang_tidi_all_warnings=$(cat compilation.log | grep "warning:" | wc -l) || true
+      num_clang_tidi_bugprone_warnings=$(cat compilation.log | grep "warning:" | grep bugprone | wc -l) || true
+      num_clang_tidi_concurrency_warnings=$(cat compilation.log | grep "warning:" | grep concurrency | wc -l) || true
+      num_clang_tidi_cppcoreguidelines_warnings=$(cat compilation.log | grep "warning:" | grep cppcoreguidelines | wc -l) || true
+      num_clang_tidi_misc_warnings=$(cat compilation.log | grep "warning:" | grep misc | wc -l) || true
+      num_clang_tidi_modernize_warnings=$(cat compilation.log | grep "warning:" | grep modernize | wc -l) || true
+      num_clang_tidi_performance_warnings=$(cat compilation.log | grep "warning:" | grep performance | wc -l) || true
+      num_clang_tidi_readability_warnings=$(cat compilation.log | grep "warning:" | grep readability | wc -l) || true
+      ccache --show-stats --verbose
+      echo "num_clang_tidi_all_warnings $$num_clang_tidi_all_warnings" >> metrics.txt
+      echo "num_clang_tidi_bugprone_warnings $$num_clang_tidi_bugprone_warnings" >> metrics.txt
+      echo "num_clang_tidi_concurrency_warnings $$num_clang_tidi_concurrency_warnings" >> metrics.txt
+      echo "num_clang_tidi_cppcoreguidelines_warnings $$num_clang_tidi_cppcoreguidelines_warnings" >> metrics.txt
+      echo "num_clang_tidi_misc_warnings $$num_clang_tidi_misc_warnings" >> metrics.txt
+      echo "num_clang_tidi_modernize_warnings $$num_clang_tidi_modernize_warnings" >> metrics.txt
+      echo "num_clang_tidi_performance_warnings $$num_clang_tidi_performance_warnings" >> metrics.txt
+      echo "num_clang_tidi_readability_warnings $$num_clang_tidi_readability_warnings" >> metrics.txt
+  cache:
+    key: ${CI_JOB_NAME_SLUG}
+    paths:
+      - .ccache
+  artifacts:
+    when: always
+    expire_in: 1y
+    paths:
+      - metrics.txt
+    reports:
+      metrics: metrics.txt
 
 ###############################################################################
 ###############################################################################
