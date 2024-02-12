@@ -145,12 +145,12 @@ void CommandSender::runnerFunc() {
         flags.isP2pDma_ = cmd.isP2P_;
         RT_VLOG(MID) << ">>> Sending command: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
                      << " SQ: " << sqIdx_ << " EventId: " << static_cast<int>(cmd.eventId_);
+        profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
         if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
                                                  flags)) {
           RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
                        << " SQ: " << sqIdx_ << " EventId: " << static_cast<int>(cmd.eventId_);
 
-          profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
           event.setEvent(cmd.eventId_);
           event.setStream(cmd.streamId_);
           event.setDeviceId(DeviceId(deviceId_));
