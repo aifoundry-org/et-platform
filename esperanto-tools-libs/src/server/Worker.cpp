@@ -50,7 +50,6 @@ void Worker::update(EventId event) {
 
 void Worker::sendResponse(const resp::Response& resp) {
   EASY_FUNCTION(profiler::colors::Green)
-  SpinLock lock(mutex_);
   RT_VLOG(MID) << "Sending response. Type: " << static_cast<uint32_t>(resp.type_) << "(" << resp::getStr(resp.type_)
                << ") Id: " << resp.id_;
   EASY_BLOCK("Serialize response")
