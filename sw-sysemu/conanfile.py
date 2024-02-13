@@ -20,6 +20,7 @@ class SwSysemuConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
+        "fPIC": [True, False],
         "lto": [True, False],
         "profiling": [True, False],
         "backtrace": [True, False],
@@ -36,6 +37,7 @@ class SwSysemuConan(ConanFile):
     }
     default_options = {
         "shared": False,
+        "fPIC": True,
         "lto": True,
         "profiling": False,
         "backtrace": False,
@@ -53,7 +55,13 @@ class SwSysemuConan(ConanFile):
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
+    def config_options(self):
+        if self.settings.os == "Windows":
+            del self.options.fPIC
+
     def configure(self):
+        if self.options.shared:
+            self.options.rm_safe("fPIC")
         if not self.options.preload_elfs_versions_device_api:
             del self.options.preload_elfs_versions_device_api
         if not self.options.preload_elfs_versions_device_minion_rt:
