@@ -114,6 +114,7 @@ endif()
 
 
 add_library(sw-sysemu)
+add_library(sw-sysemu::sw-sysemu ALIAS sw-sysemu)
 target_sources(sw-sysemu PRIVATE
     # Core sysemu files
     sys_emu/checkers/flb_checker.cpp
