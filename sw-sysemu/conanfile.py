@@ -35,6 +35,7 @@ class SwSysemuConan(ConanFile):
         "preload_compression": [None, "lz4"],
         "sdk_release": [True, False],
         "with_sys_emu_exe": [True, False],
+        "with_benchmarks": [True, False],
     }
     default_options = {
         "shared": False,
@@ -53,6 +54,7 @@ class SwSysemuConan(ConanFile):
         "preload_compression": "lz4",
         "sdk_release": False,
         "with_sys_emu_exe": True,
+        "with_benchmarks": True,
     }
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
@@ -95,6 +97,8 @@ class SwSysemuConan(ConanFile):
         self.requires("lz4/1.9.3")
         if self.options.backtrace:
             self.requires("libunwind/1.5.0")
+        if self.options.with_benchmarks:
+            self.requires("benchmark/1.8.0")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -152,6 +156,7 @@ class SwSysemuConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["PROFILING"] = self.options.profiling
         tc.variables["BACKTRACE"] = self.options.backtrace
+        tc.variables["BENCHMARKS"] = self.options.with_benchmarks
         tc.variables["ENABLE_IPO"] = self.options.lto
         tc.variables["PRELOAD_LZ4"] = "lz4" is self.options.preload_compression
         if self.options.preload_elfs:

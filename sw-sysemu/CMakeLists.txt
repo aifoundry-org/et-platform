@@ -42,6 +42,7 @@ if (NOT CMAKE_CXX_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
     message(FATAL_ERROR "CMAKE_CXX_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
 endif()
 
+option(BENCHMARKS "Enable building benchmarks" OFF)
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
@@ -516,6 +517,9 @@ else()
     )
 endif()
 
+if (BENCHMARKS)
+    add_subdirectory(bench)
+endif()
 
 # Install the export set for use with the install-tree
 install(EXPORT sw-sysemuTargets
