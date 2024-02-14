@@ -24,7 +24,25 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "By default set fPIC" ON)
 if (BUILD_SHARED_LIBS AND NOT CMAKE_POSITION_INDEPENDENT_CODE)
     message(ERROR "Cannot build shared library without fPIC.")
 endif()
+set(VISIBILITY_PRESET_VALUES default protected hidden)
+set(CMAKE_ASM_VISIBILITY_PRESET default CACHE STRING "Value for ASM symbol visibility compile flags. If ON, adds -fvisibility" FORCE)
+set(CMAKE_C_VISIBILITY_PRESET   default CACHE STRING "Value for C   symbol visibility compile flags. If ON, adds -fvisibility" FORCE)
+set(CMAKE_CXX_VISIBILITY_PRESET default CACHE STRING "Value for C++ symbol visibility compile flags. If ON, adds -fvisibility" FORCE)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF CACHE BOOL "Whether to add a compile flag to hide symbols of inline functions. If ON, adds -fvisibility-inlines-hidden" FORCE)
+set_property(CACHE CMAKE_ASM_VISIBILITY_PRESET PROPERTY STRINGS ${VISIBILITY_PRESET_VALUES})
+set_property(CACHE CMAKE_C_VISIBILITY_PRESET PROPERTY STRINGS ${VISIBILITY_PRESET_VALUES})
+set_property(CACHE CMAKE_CXX_VISIBILITY_PRESET PROPERTY STRINGS ${VISIBILITY_PRESET_VALUES})
+if (NOT CMAKE_ASM_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
+    message(FATAL_ERROR "CMAKE_ASM_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
+endif()
+if (NOT CMAKE_C_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
+    message(FATAL_ERROR "CMAKE_C_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
+endif()
+if (NOT CMAKE_CXX_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
+    message(FATAL_ERROR "CMAKE_CXX_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
+endif()
 
+option(BENCHMARKS "Enable building benchmarks" OFF)
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
@@ -436,10 +454,6 @@ set(SW_SYSEMU_PUBLIC_EXPORT_HEADER ${PROJECT_BINARY_DIR}/sw-sysemu/include/sw-sy
 set_target_properties(sw-sysemu PROPERTIES
     PUBLIC_HEADER "sw-sysemu/include/sw-sysemu/ISysEmu.h;sw-sysemu/include/sw-sysemu/SysEmuOptions.h;${SW_SYSEMU_PUBLIC_EXPORT_HEADER}"
     CXX_EXTENSIONS OFF
-    ASM_VISIBILITY_PRESET hidden
-    C_VISIBILITY_PRESET   hidden
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
 )
 include(GenerateExportHeader)
 generate_export_header(sw-sysemu EXPORT_FILE_NAME ${SW_SYSEMU_PUBLIC_EXPORT_HEADER})
@@ -459,6 +473,22 @@ if (SDK_RELEASE)
             COMMAND strip -S -x $<TARGET_FILE:sw-sysemu>
             COMMENT "Stripping sw-sysemu symbols"
     )
+    get_target_property(SW_SYSEMU_ASM_VISIBILITY_PRESET sw-sysemu ASM_VISIBILITY_PRESET)
+    if (SW_SYSEMU_ASM_VISIBILITY_PRESET NOT STREQUAL "hidden")
+        message(FATAL_ERROR "SDK builds must hide private symbols. Incorrect value for ASM_VISIBILITY_PRESET: ${SW_SYSEMU_ASM_VISIBILITY_PRESET}")
+    endif()
+    get_target_property(SW_SYSEMU_C_VISIBILITY_PRESET   sw-sysemu C_VISIBILITY_PRESET)
+    if (SW_SYSEMU_C_VISIBILITY_PRESET NOT STREQUAL "hidden")
+        message(FATAL_ERROR "SDK builds must hide private symbols. Incorrect value for C_VISIBILITY_PRESET: ${SW_SYSEMU_C_VISIBILITY_PRESET}")
+    endif()
+    get_target_property(SW_SYSEMU_CXX_VISIBILITY_PRESET sw-sysemu CXX_VISIBILITY_PRESET)
+    if (SW_SYSEMU_CXX_VISIBILITY_PRESET NOT STREQUAL "hidden")
+        message(FATAL_ERROR "SDK builds must hide private symbols. Incorrect value for CXX_VISIBILITY_PRESET: ${SW_SYSEMU_CXX_VISIBILITY_PRESET}")
+    endif()
+    get_target_property(SW_SYSEMU_VISIBILITY_INLINES_HIDDEN sw-sysemu VISIBILITY_INLINES_HIDDEN)
+    if (NOT SW_SYSEMU_VISIBILITY_INLINES_HIDDEN)
+        message(FATAL_ERROR "SDK builds must hide private symbols. Incorrect value for VISIBILITY_INLINES_HIDDEN: ${SW_SYSEMU_VISIBILITY_INLINES_HIDDEN}")
+    endif()
 endif()
 
 install(TARGETS sw-sysemu
@@ -487,6 +517,9 @@ else()
     )
 endif()
 
+if (BENCHMARKS)
+    add_subdirectory(bench)
+endif()
 
 # Install the export set for use with the install-tree
 install(EXPORT sw-sysemuTargets

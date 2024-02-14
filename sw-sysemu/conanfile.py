@@ -22,6 +22,7 @@ class SwSysemuConan(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "lto": [True, False],
+        "fvisibility": ["default", "protected", "hidden"],
         "profiling": [True, False],
         "backtrace": [True, False],
         "preload_elfs": [True, False],
@@ -34,11 +35,13 @@ class SwSysemuConan(ConanFile):
         "preload_compression": [None, "lz4"],
         "sdk_release": [True, False],
         "with_sys_emu_exe": [True, False],
+        "with_benchmarks": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "lto": True,
+        "fvisibility": "default",
         "profiling": False,
         "backtrace": False,
         "preload_elfs": True,
@@ -51,6 +54,7 @@ class SwSysemuConan(ConanFile):
         "preload_compression": "lz4",
         "sdk_release": False,
         "with_sys_emu_exe": True,
+        "with_benchmarks": True,
     }
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
@@ -93,6 +97,8 @@ class SwSysemuConan(ConanFile):
         self.requires("lz4/1.9.3")
         if self.options.backtrace:
             self.requires("libunwind/1.5.0")
+        if self.options.with_benchmarks:
+            self.requires("benchmark/1.8.0")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -150,6 +156,7 @@ class SwSysemuConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["PROFILING"] = self.options.profiling
         tc.variables["BACKTRACE"] = self.options.backtrace
+        tc.variables["BENCHMARKS"] = self.options.with_benchmarks
         tc.variables["ENABLE_IPO"] = self.options.lto
         tc.variables["PRELOAD_LZ4"] = "lz4" is self.options.preload_compression
         if self.options.preload_elfs:
@@ -206,6 +213,10 @@ etsoc_hal/{etsoc_hal_version}
             ]
             tc.variables["PRELOAD_ELFS"] = ";".join(preload_elfs_list)
         tc.variables["SDK_RELEASE"] = self.options.sdk_release
+        tc.variables["CMAKE_ASM_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_C_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_CXX_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_VISIBILITY_INLINES_HIDDEN"] = "ON" if self.options.fvisibility == "hidden" else "OFF"
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.generate()
 
