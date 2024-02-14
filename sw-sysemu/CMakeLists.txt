@@ -19,6 +19,12 @@ message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
 message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
 
+option(BUILD_SHARED_LIBS "If enabled a shared library is built. Otherwise a static library is built." OFF)
+option(CMAKE_POSITION_INDEPENDENT_CODE "By default set fPIC" ON)
+if (BUILD_SHARED_LIBS AND NOT CMAKE_POSITION_INDEPENDENT_CODE)
+    message(ERROR "Cannot build shared library without fPIC.")
+endif()
+
 option(PROFILING "Enable profiling" OFF)
 option(BACKTRACE "Enable backtrace" OFF)
 option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
@@ -101,37 +107,14 @@ if (PRELOAD_ELFS)
 endif()
 
 
-if (SDK_RELEASE)
-    if (NOT BUILD_SHARED_LIBS)
-        message(WARNING "Forcefully building a shared library for the SDK release")
-    endif()
-    add_library(sw-sysemu SHARED)
-    set_target_properties(sw-sysemu PROPERTIES
-        ASM_VISIBILITY_PRESET hidden
-        C_VISIBILITY_PRESET   hidden
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN ON
-    )
-    add_custom_command(TARGET sw-sysemu POST_BUILD
-        COMMAND strip -S -x $<TARGET_FILE:sw-sysemu>
-        COMMENT "Stripping sw-sysemu symbols"
-    )
-else()
-    add_library(sw-sysemu)
-    add_executable(sys_emu sw-sysemu/main.cpp)
-    target_link_libraries(sys_emu PRIVATE sw-sysemu)
-    target_include_directories(sys_emu
-        PRIVATE
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sys_emu>
-    )
-    install(TARGETS sys_emu
-        RUNTIME DESTINATION ${SYSEMU_INSTALL_DIR}
-        COMPONENT tools
-    )
+if (SDK_RELEASE AND NOT BUILD_SHARED_LIBS)
+    message(WARNING "Forcefully building a shared library for the SDK release")
+    set(BUILD_SHARED_LIBS ON)
 endif()
 
 
+add_library(sw-sysemu)
+add_library(sw-sysemu::sw-sysemu ALIAS sw-sysemu)
 target_sources(sw-sysemu PRIVATE
     # Core sysemu files
     sys_emu/checkers/flb_checker.cpp
@@ -432,6 +415,7 @@ target_sources(sw-sysemu PRIVATE
 )
 target_include_directories(sw-sysemu
     PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/sw-sysemu/include/sw-sysemu>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
@@ -448,11 +432,18 @@ target_compile_definitions(sw-sysemu
 )
 target_compile_features(sw-sysemu PUBLIC cxx_std_17)
 target_compile_options(sw-sysemu PRIVATE -Wall -Wextra -pedantic-errors -Werror -Wno-implicit-fallthrough -Wno-sign-compare)
+set(SW_SYSEMU_PUBLIC_EXPORT_HEADER ${PROJECT_BINARY_DIR}/sw-sysemu/include/sw-sysemu/ISysEmuExport.hpp)
 set_target_properties(sw-sysemu PROPERTIES
-    PUBLIC_HEADER "sw-sysemu/include/sw-sysemu/ISysEmu.h;sw-sysemu/include/sw-sysemu/SysEmuOptions.h"
-    POSITION_INDEPENDENT_CODE TRUE
+    PUBLIC_HEADER "sw-sysemu/include/sw-sysemu/ISysEmu.h;sw-sysemu/include/sw-sysemu/SysEmuOptions.h;${SW_SYSEMU_PUBLIC_EXPORT_HEADER}"
     CXX_EXTENSIONS OFF
+    ASM_VISIBILITY_PRESET hidden
+    C_VISIBILITY_PRESET   hidden
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON
 )
+include(GenerateExportHeader)
+generate_export_header(sw-sysemu EXPORT_FILE_NAME ${SW_SYSEMU_PUBLIC_EXPORT_HEADER})
+target_sources(sw-sysemu PRIVATE ${SW_SYSEMU_PUBLIC_EXPORT_HEADER})
 target_link_libraries(sw-sysemu
     PRIVATE
         elfio::elfio
@@ -461,6 +452,14 @@ target_link_libraries(sw-sysemu
         glog::glog
         $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
 )
+target_link_options(sw-sysemu PRIVATE LINKER:-Bsymbolic)
+
+if (SDK_RELEASE)
+    add_custom_command(TARGET sw-sysemu POST_BUILD
+            COMMAND strip -S -x $<TARGET_FILE:sw-sysemu>
+            COMMENT "Stripping sw-sysemu symbols"
+    )
+endif()
 
 install(TARGETS sw-sysemu
     EXPORT sw-sysemuTargets
@@ -469,6 +468,24 @@ install(TARGETS sw-sysemu
     ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/sw-sysemu
 )
+
+if (SDK_RELEASE)
+    message(STATUS "SDK Build. Not building sys_emu executable.")
+else()
+    message(STATUS "Regular Build. Building sys_emu executable.")
+
+    add_executable(sys_emu sw-sysemu/main.cpp)
+    target_link_libraries(sys_emu PRIVATE sw-sysemu)
+    target_include_directories(sys_emu
+        PRIVATE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sys_emu>
+    )
+    install(TARGETS sys_emu
+        RUNTIME DESTINATION ${SYSEMU_INSTALL_DIR}
+        COMPONENT tools
+    )
+endif()
 
 
 # Install the export set for use with the install-tree

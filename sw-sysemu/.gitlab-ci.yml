@@ -217,30 +217,30 @@ quality:clang-tidy:
       cmake --build build/${BUILD_TYPE}
       ccache --show-stats --verbose
       cmake --build build/${BUILD_TYPE} --clean-first > compilation.log
-      num_clang_tidi_all_warnings=$(cat compilation.log | grep "warning:" | wc -l) || true
-      num_clang_tidi_bugprone_warnings=$(cat compilation.log | grep "warning:" | grep bugprone | wc -l) || true
-      num_clang_tidi_concurrency_warnings=$(cat compilation.log | grep "warning:" | grep concurrency | wc -l) || true
-      num_clang_tidi_cppcoreguidelines_warnings=$(cat compilation.log | grep "warning:" | grep cppcoreguidelines | wc -l) || true
-      num_clang_tidi_misc_warnings=$(cat compilation.log | grep "warning:" | grep misc | wc -l) || true
-      num_clang_tidi_modernize_warnings=$(cat compilation.log | grep "warning:" | grep modernize | wc -l) || true
-      num_clang_tidi_performance_warnings=$(cat compilation.log | grep "warning:" | grep performance | wc -l) || true
-      num_clang_tidi_readability_warnings=$(cat compilation.log | grep "warning:" | grep readability | wc -l) || true
+      num_clang_tidy_all_warnings=$(cat compilation.log | grep "warning:" | wc -l) || true
+      num_clang_tidy_bugprone_warnings=$(cat compilation.log | grep "warning:" | grep bugprone | wc -l) || true
+      num_clang_tidy_concurrency_warnings=$(cat compilation.log | grep "warning:" | grep concurrency | wc -l) || true
+      num_clang_tidy_cppcoreguidelines_warnings=$(cat compilation.log | grep "warning:" | grep cppcoreguidelines | wc -l) || true
+      num_clang_tidy_misc_warnings=$(cat compilation.log | grep "warning:" | grep misc | wc -l) || true
+      num_clang_tidy_modernize_warnings=$(cat compilation.log | grep "warning:" | grep modernize | wc -l) || true
+      num_clang_tidy_performance_warnings=$(cat compilation.log | grep "warning:" | grep performance | wc -l) || true
+      num_clang_tidy_readability_warnings=$(cat compilation.log | grep "warning:" | grep readability | wc -l) || true
       ccache --show-stats --verbose
-      echo "num_clang_tidi_all_warnings $$num_clang_tidi_all_warnings" >> metrics.txt
-      echo "num_clang_tidi_bugprone_warnings $$num_clang_tidi_bugprone_warnings" >> metrics.txt
-      echo "num_clang_tidi_concurrency_warnings $$num_clang_tidi_concurrency_warnings" >> metrics.txt
-      echo "num_clang_tidi_cppcoreguidelines_warnings $$num_clang_tidi_cppcoreguidelines_warnings" >> metrics.txt
-      echo "num_clang_tidi_misc_warnings $$num_clang_tidi_misc_warnings" >> metrics.txt
-      echo "num_clang_tidi_modernize_warnings $$num_clang_tidi_modernize_warnings" >> metrics.txt
-      echo "num_clang_tidi_performance_warnings $$num_clang_tidi_performance_warnings" >> metrics.txt
-      echo "num_clang_tidi_readability_warnings $$num_clang_tidi_readability_warnings" >> metrics.txt
+      echo "num_clang_tidy_all_warnings $$num_clang_tidy_all_warnings" >> metrics.txt
+      echo "num_clang_tidy_bugprone_warnings $$num_clang_tidy_bugprone_warnings" >> metrics.txt
+      echo "num_clang_tidy_concurrency_warnings $$num_clang_tidy_concurrency_warnings" >> metrics.txt
+      echo "num_clang_tidy_cppcoreguidelines_warnings $$num_clang_tidy_cppcoreguidelines_warnings" >> metrics.txt
+      echo "num_clang_tidy_misc_warnings $$num_clang_tidy_misc_warnings" >> metrics.txt
+      echo "num_clang_tidy_modernize_warnings $$num_clang_tidy_modernize_warnings" >> metrics.txt
+      echo "num_clang_tidy_performance_warnings $$num_clang_tidy_performance_warnings" >> metrics.txt
+      echo "num_clang_tidy_readability_warnings $$num_clang_tidy_readability_warnings" >> metrics.txt
   cache:
     key: ${CI_JOB_NAME_SLUG}
     paths:
       - .ccache
   artifacts:
     when: always
-    expire_in: 1y
+    expire_in: 1m
     paths:
       - metrics.txt
     reports:

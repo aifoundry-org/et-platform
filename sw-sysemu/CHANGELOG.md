@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (CI) Add clang-format and clant-tidy jobs
 ### Changed
 - Detect if compiler supports -flto and enable it
+- Change default symbol visibility to "hidden". Export only public interface
 ### Deprecated
 ### Removed
 ### Fixed
