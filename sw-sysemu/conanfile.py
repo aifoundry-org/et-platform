@@ -22,6 +22,7 @@ class SwSysemuConan(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "lto": [True, False],
+        "fvisibility": ["default", "protected", "hidden"],
         "profiling": [True, False],
         "backtrace": [True, False],
         "preload_elfs": [True, False],
@@ -39,6 +40,7 @@ class SwSysemuConan(ConanFile):
         "shared": False,
         "fPIC": True,
         "lto": True,
+        "fvisibility": "default",
         "profiling": False,
         "backtrace": False,
         "preload_elfs": True,
@@ -206,6 +208,10 @@ etsoc_hal/{etsoc_hal_version}
             ]
             tc.variables["PRELOAD_ELFS"] = ";".join(preload_elfs_list)
         tc.variables["SDK_RELEASE"] = self.options.sdk_release
+        tc.variables["CMAKE_ASM_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_C_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_CXX_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_VISIBILITY_INLINES_HIDDEN"] = "ON" if self.options.fvisibility == "hidden" else "OFF"
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.generate()
 
