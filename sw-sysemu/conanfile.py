@@ -40,7 +40,7 @@ class SwSysemuConan(ConanFile):
     default_options = {
         "shared": False,
         "fPIC": True,
-        "lto": True,
+        "lto": False,
         "fvisibility": "default",
         "profiling": False,
         "backtrace": False,
@@ -54,7 +54,7 @@ class SwSysemuConan(ConanFile):
         "preload_compression": "lz4",
         "sdk_release": False,
         "with_sys_emu_exe": True,
-        "with_benchmarks": True,
+        "with_benchmarks": False,
     }
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
