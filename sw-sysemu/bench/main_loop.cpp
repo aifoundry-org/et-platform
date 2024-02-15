@@ -26,11 +26,12 @@ static void BM_main_internal_empty(benchmark::State& state) {
     int status;
     for (auto _ : state) {
         // Run the benchmark
-        status = emu->main_internal();
-        assert(status == EXIT_SUCCESS);
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
     }
-
-    std::cout << "Status " << status << std::endl;
 };
 
 static void BM_main_internal_inst_seq(benchmark::State& state) {
@@ -47,11 +48,12 @@ static void BM_main_internal_inst_seq(benchmark::State& state) {
     int status;
     for (auto _ : state) {
         // Run the benchmark
-        status = emu->main_internal();
-        assert(status == EXIT_SUCCESS);
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
     }
-
-    std::cout << "Status " << status << std::endl;
 };
 
 // Register the function as a benchmark

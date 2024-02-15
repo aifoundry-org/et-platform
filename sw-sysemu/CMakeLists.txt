@@ -445,6 +445,7 @@ target_compile_definitions(sw-sysemu
         SYS_EMU
     PRIVATE
         $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
+        $<$<BOOL:${BENCHMARKS}>:BENCHMARKS=1>
         $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
         $<$<BOOL:${SDK_RELEASE}>:SDK_RELEASE=1>
 )

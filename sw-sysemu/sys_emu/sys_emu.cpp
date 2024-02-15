@@ -193,7 +193,11 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     chip.set_emu(this);
 
     chip.dram_size = cmd_options.dram_size;
-
+#ifdef BENCHMARKS
+    auto default_log_level = LOG_WARN;
+#else
+    auto default_log_level = LOG_INFO;
+#endif
     // Setup logging
     chip.log.setDevice(this);
     chip.log_trigger_insn = cmd_options.log_trigger_insn;
@@ -202,7 +206,8 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     chip.log_trigger_stop = cmd_options.log_trigger_stop;
     chip.log_trigger_count = 0;
     chip.log_dynamic = (chip.log_trigger_insn != 0) && (chip.log_trigger_stop > chip.log_trigger_start) && (chip.log_trigger_hart < EMU_NUM_THREADS);
-    chip.log.setLogLevel(cmd_options.log_en && (!chip.log_dynamic || (chip.log_trigger_start == 0)) ? LOG_DEBUG : LOG_INFO);
+
+    chip.log.setLogLevel(cmd_options.log_en && (!chip.log_dynamic || (chip.log_trigger_start == 0)) ? LOG_DEBUG : default_log_level);
     chip.log_thread = cmd_options.log_thread;
     chip.warning = cmd_options.warning;
 
