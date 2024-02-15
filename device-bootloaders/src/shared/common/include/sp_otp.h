@@ -20,7 +20,8 @@ int sp_otp_init(void);
 int sp_otp_read(uint32_t offset, uint32_t *result);
 int sp_otp_write(uint32_t offset, uint32_t value);
 
-int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t *value);
+int sp_otp_get_shire_status_mask(uint32_t *value);
+int sp_otp_get_mm_shire_status_mask(uint32_t *value);
 int sp_otp_get_neighborhood_status_nh128_nh135_other(
     OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t *status);
 
@@ -79,5 +80,5 @@ int sp_otp_get_critical_patch_data(uint32_t index, OTP_CRITICAL_PATCH_t *patch_d
 
 void sp_otp_diag(void);
 
-int sp_otp_get_silicon_revision(OTP_SILICON_REVISION_t * si_revision);
+int sp_otp_get_silicon_revision(OTP_SILICON_REVISION_t *si_revision);
 #endif

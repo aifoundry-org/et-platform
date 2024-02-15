@@ -183,6 +183,7 @@ static void taskMain(void *pvParameters)
     minion_shires_mask = Minion_Read_Active_Compute_Minion_Mask();
     Minion_Set_Active_Compute_Minion_Mask(minion_shires_mask);
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
+    Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt] efuse Active Shire Mask %lx\n", minion_shires_mask);
 
     // Displace shire needs to be set before calling Initialize_Minions()
     status = Set_Displace_Shire_Id(minion_shires_mask);
@@ -197,12 +198,12 @@ static void taskMain(void *pvParameters)
     // Remap shires
     status = NOC_Remap_Shire_Id(Get_Displace_Shire_Id(), Get_Spare_Shire_Id());
     ASSERT_FATAL(status == STATUS_SUCCESS, "NOC shire remap failed!")
+#endif
 
     // After successful remap, virtual shire mask is 0x1FFFFFFFF
     minion_shires_mask = 0x1FFFFFFFFUL;
     Minion_Set_Active_Compute_Minion_Mask(minion_shires_mask);
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
-#endif
 
     // Initialize Host to Service Processor Interface
 #if !TEST_FRAMEWORK

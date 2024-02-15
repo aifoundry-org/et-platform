@@ -249,23 +249,47 @@ int sp_otp_write(uint32_t offset, uint32_t value)
     return 0;
 }
 
-int sp_otp_get_neighborhood_status_mask(uint32_t index, uint32_t *value)
+int sp_otp_get_shire_status_mask(uint32_t *value)
 {
     if (!gs_is_otp_available)
     {
         return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
     }
 
-    if ((index > 3) || (value == NULL))
+    if (value == NULL)
     {
         return ERROR_INVALID_ARGUMENT;
     }
 
-    if (0 != sp_otp_read(SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH0_NH31 + index, value))
+    if (0 != sp_otp_read(SP_OTP_INDEX_SHIRE_STATUS_S0_S31, value))
     {
         *value = 0;
         return ERROR_SP_OTP_OTP_READ;
     }
+
+    return 0;
+}
+
+int sp_otp_get_mm_shire_status_mask(uint32_t *value)
+{
+    if (!gs_is_otp_available)
+    {
+        return ERROR_SP_OTP_OTP_NOT_AVAILABLE;
+    }
+
+    if (value == NULL)
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    if (0 != sp_otp_read(SP_OTP_INDEX_SHIRE_STATUS_S32_S33, value))
+    {
+        *value = 0;
+        return ERROR_SP_OTP_OTP_READ;
+    }
+
+    // Return only lower 2 bits are valid
+    *value &= 0x3;
 
     return 0;
 }
@@ -283,7 +307,7 @@ int sp_otp_get_neighborhood_status_nh128_nh135_other(
         return ERROR_INVALID_ARGUMENT;
     }
 
-    if (0 != sp_otp_read(SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER, &(status->R)))
+    if (0 != sp_otp_read(SP_OTP_INDEX_SHIRE_STATUS_S32_S33, &(status->R)))
     {
         status->R = 0;
         return ERROR_SP_OTP_OTP_READ;

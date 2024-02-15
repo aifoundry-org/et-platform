@@ -13,9 +13,12 @@
 
 #include <stdint.h>
 
-typedef struct OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_s {
-    union {
-        struct {
+typedef struct OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_s
+{
+    union
+    {
+        struct
+        {
             uint32_t neighborhood_status : 8;
             uint32_t maxion_status : 4;
             uint32_t graphics_status : 1;
@@ -31,11 +34,15 @@ typedef struct OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_s {
 // The following struct has two uses:
 //   1) Information to append to the PCIe whitelist (MASK and SIZE used)
 //   2) Directly patch PCIe registers by writing MASK directly to them
-typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_s {
-    union {
-        union {
+typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_s
+{
+    union
+    {
+        union
+        {
             uint32_t MASK; // used when is_region=0
-            struct { // used when is_region=1
+            struct
+            { // used when is_region=1
                 uint32_t reserved1 : 2;
                 uint32_t LIMIT_23_02 : 22; // bits 23:2 of the region limit offset
                 uint32_t reserved2 : 8;
@@ -45,27 +52,35 @@ typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_s {
     };
 } OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_t;
 
-typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_s {
-    union {
-        struct {
-            uint32_t FLAGS : 2; // 0 - add to white list, 1 - apply before PCIe config, 2 - apply after PCIe config, 3 - ignore
+typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_s
+{
+    union
+    {
+        struct
+        {
+            uint32_t
+                FLAGS : 2; // 0 - add to white list, 1 - apply before PCIe config, 2 - apply after PCIe config, 3 - ignore
             uint32_t OFFSET_23_02 : 22; // bits 23:2 of the offset
-            uint32_t MEM_SPACE : 4; // memory space
-            uint32_t IS_REGION : 1; // when 0: single-register entry, when 1: region entry
+            uint32_t MEM_SPACE : 4;     // memory space
+            uint32_t IS_REGION : 1;     // when 0: single-register entry, when 1: region entry
             uint32_t reserved : 3;
         } B;
         uint32_t R;
     };
 } OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_t;
 
-typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_s {
+typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_s
+{
     OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_t dw_0;
     OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_t dw_1;
 } OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_t;
 
-typedef struct OTP_CHICKEN_BITS_s {
-    union {
-        struct {
+typedef struct OTP_CHICKEN_BITS_s
+{
+    union
+    {
+        struct
+        {
             uint32_t VaultIP_Chicken_Bit : 2;
             uint32_t VaultIP_FWp_Allowed_Chicken_Bit : 2;
             uint32_t unused : 2;
@@ -78,9 +93,12 @@ typedef struct OTP_CHICKEN_BITS_s {
     };
 } OTP_CHICKEN_BITS_t;
 
-typedef struct MISC_CONFIGURATION_BITS_s {
-    union {
-        struct {
+typedef struct MISC_CONFIGURATION_BITS_s
+{
+    union
+    {
+        struct
+        {
             uint32_t ENG : 1;
             uint32_t VaultIP_FIPS : 1;
             uint32_t VaultIP_FCST : 1;
@@ -97,16 +115,19 @@ typedef struct MISC_CONFIGURATION_BITS_s {
     };
 } MISC_CONFIGURATION_BITS_t;
 
-typedef struct OTP_UART_CONFIGURATION_OVERRIDE_s {
-    union {
-        struct {
+typedef struct OTP_UART_CONFIGURATION_OVERRIDE_s
+{
+    union
+    {
+        struct
+        {
             uint32_t RBR_DLL : 8; // overrides the RBR.DLL field (lower 8 bits of the divisor latch)
             uint32_t DLH_DLH : 8; // overrides the DLH.DLH field (upper 8 bits of the divisor latch)
             uint32_t DLF_DLF : 4; // overrides the DLF.DLF field (divisor latch fraction register)
             uint32_t LCR_DLS : 2; // overrides the LCR.DLS field (data length select)
             uint32_t LCR_STOP : 1; // overrides the LCR.STOP field (number of stop bits)
-            uint32_t LCR_PEN : 1; // overrides the LCR.PEN field (parity enable)
-            uint32_t LCR_EPS : 1; // overrides the LCR.EPS field (even parity select)
+            uint32_t LCR_PEN : 1;  // overrides the LCR.PEN field (parity enable)
+            uint32_t LCR_EPS : 1;  // overrides the LCR.EPS field (even parity select)
             uint32_t reserved : 6;
             uint32_t
                 IGN : 1; // 1 - ignore OTP override values and use default UART settings instead, 0 - use OTP override values
@@ -115,9 +136,12 @@ typedef struct OTP_UART_CONFIGURATION_OVERRIDE_s {
     };
 } OTP_UART_CONFIGURATION_OVERRIDE_t;
 
-typedef struct OTP_SPI_CONFIGURATION_OVERRIDE_s {
-    union {
-        struct {
+typedef struct OTP_SPI_CONFIGURATION_OVERRIDE_s
+{
+    union
+    {
+        struct
+        {
             uint32_t
                 BAUDR_SCKDIV_RX : 15; // overrides the BAUDR.SCKDIV field (clock divider) for RX transfers
             uint32_t
@@ -131,10 +155,13 @@ typedef struct OTP_SPI_CONFIGURATION_OVERRIDE_s {
     };
 } OTP_SPI_CONFIGURATION_OVERRIDE_t;
 
-typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_0_s {
-    union {
-        struct {
-            uint32_t FLASH_READ_COMMAND : 8; // overrides the FLASH READ command
+typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_0_s
+{
+    union
+    {
+        struct
+        {
+            uint32_t FLASH_READ_COMMAND : 8;    // overrides the FLASH READ command
             uint32_t FLASH_PROGRAM_COMMAND : 8; // overrides the FLASH PAGE PROGRAM command
             uint32_t
                 READ_DUMMY_BYTES : 2; // overrides the number of dummy bytes following the FLASH READ command (0-3)
@@ -148,8 +175,8 @@ typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_0_s {
                 STATUS_OVERWRITE : 1; // 1 - ignore the FLASH_GET_PROGRAM_STATUS_xxx fields and use default values, 0 -use OTP ovrride values
             uint32_t
                 OVERRIDE_FLASH_SIZE : 3; // 0-6 - override the SPI flash size to (2 << OVERRIDE_FLASH_SIZE) MegaBytes, 0x7 - determine size dynamically
-            uint32_t SKIP_RDID : 1; // 0 - skip the RDID command, 1 - issue the RDID command
-            uint32_t SKIP_RDSFDP : 1; // 0 - skip the RDSFDP command, 1 - issue the RDID command
+            uint32_t SKIP_RDID : 1;      // 0 - skip the RDID command, 1 - issue the RDID command
+            uint32_t SKIP_RDSFDP : 1;    // 0 - skip the RDSFDP command, 1 - issue the RDID command
             uint32_t reserved : 2;
             uint32_t
                 IGN : 1; // 1 - ignore OTP_FLASH_CONFIGURATION_OVERRIDE_0_t and OTP_FLASH_CONFIGURATION_OVERRIDE_1_t fields and use default values, 0 - use override values
@@ -158,13 +185,16 @@ typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_0_s {
     };
 } OTP_FLASH_CONFIGURATION_OVERRIDE_0_t;
 
-typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_1_s {
-    union {
-        struct {
+typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_1_s
+{
+    union
+    {
+        struct
+        {
             uint32_t
                 FLASH_GET_PROGRAM_STATUS_COMMAND : 8; // STATUS command code (used to determine if page programming has completed)
             uint32_t FLASH_GET_PROGRAM_STATUS_MASK : 8; // MASK value
-            uint32_t unused : 8; // Currently unused
+            uint32_t unused : 8;                        // Currently unused
             uint32_t
                 FLASH_GET_PROGRAM_STATUS_BUSY_VALUE : 8; // (when STATUS & MASK) == BUSY_VALUE, the programming operation is in progress
         } B;
@@ -172,16 +202,20 @@ typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_1_s {
     };
 } OTP_FLASH_CONFIGURATION_OVERRIDE_1_t;
 
-typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_s {
+typedef struct OTP_FLASH_CONFIGURATION_OVERRIDE_s
+{
     OTP_FLASH_CONFIGURATION_OVERRIDE_0_t dw0;
     OTP_FLASH_CONFIGURATION_OVERRIDE_1_t dw1;
 } OTP_FLASH_CONFIGURATION_OVERRIDE_t;
 
-typedef struct OTP_PLL_CONFIGURATION_OVERRIDE_s {
-    union {
-        struct {
+typedef struct OTP_PLL_CONFIGURATION_OVERRIDE_s
+{
+    union
+    {
+        struct
+        {
             uint32_t REGISTER_VALUE : 16; // PLL register value
-            uint32_t REGISTER_INDEX : 6; // PLL register index
+            uint32_t REGISTER_INDEX : 6;  // PLL register index
             uint32_t reserved : 2;
             uint32_t
                 PLL_0 : 1; // 1 - use this entry when programming SP_PLL_0, 0 - ignore this entry when programming SP_PLL_0
@@ -203,9 +237,12 @@ typedef struct OTP_PLL_CONFIGURATION_OVERRIDE_s {
     };
 } OTP_PLL_CONFIGURATION_OVERRIDE_t;
 
-typedef struct OTP_CRITICAL_PATCH_ADDRESS_HI_s {
-    union {
-        struct {
+typedef struct OTP_CRITICAL_PATCH_ADDRESS_HI_s
+{
+    union
+    {
+        struct
+        {
             uint32_t ADDRESS_39_32 : 8;
             uint32_t SEQUENCE : 3;
             uint32_t MASK : 12;
@@ -217,34 +254,44 @@ typedef struct OTP_CRITICAL_PATCH_ADDRESS_HI_s {
     };
 } OTP_CRITICAL_PATCH_ADDRESS_HI_t;
 
-typedef struct OTP_CRITICAL_PATCH_ADDRESS_LO_s {
-    union {
-        struct {
+typedef struct OTP_CRITICAL_PATCH_ADDRESS_LO_s
+{
+    union
+    {
+        struct
+        {
             uint32_t ADDRESS_31_00 : 32;
         } B;
         uint32_t R;
     };
 } OTP_CRITICAL_PATCH_ADDRESS_LO_t;
 
-typedef struct OTP_CRITICAL_PATCH_DATA_HI_s {
-    union {
-        struct {
+typedef struct OTP_CRITICAL_PATCH_DATA_HI_s
+{
+    union
+    {
+        struct
+        {
             uint32_t DATA_63_32 : 32;
         } B;
         uint32_t R;
     };
 } OTP_CRITICAL_PATCH_DATA_HI_t;
 
-typedef struct OTP_CRITICAL_PATCH_DATA_LO_s {
-    union {
-        struct {
+typedef struct OTP_CRITICAL_PATCH_DATA_LO_s
+{
+    union
+    {
+        struct
+        {
             uint32_t DATA_31_00 : 32;
         } B;
         uint32_t R;
     };
 } OTP_CRITICAL_PATCH_DATA_LO_t;
 
-typedef struct OTP_CRITICAL_PATCH_s {
+typedef struct OTP_CRITICAL_PATCH_s
+{
     OTP_CRITICAL_PATCH_ADDRESS_HI_t dw0;
     OTP_CRITICAL_PATCH_ADDRESS_LO_t dw1;
     OTP_CRITICAL_PATCH_DATA_HI_t dw2;
@@ -253,9 +300,12 @@ typedef struct OTP_CRITICAL_PATCH_s {
 
 #define OTP_MAX_CRITICAL_PATCH_COUNT 8
 
-typedef struct OTP_SPECIAL_CUSTOMER_DESIGNATOR_s {
-    union {
-        struct {
+typedef struct OTP_SPECIAL_CUSTOMER_DESIGNATOR_s
+{
+    union
+    {
+        struct
+        {
             uint32_t special_customer_id : 8;
             uint32_t reserved : 24;
         } B;
@@ -263,9 +313,12 @@ typedef struct OTP_SPECIAL_CUSTOMER_DESIGNATOR_s {
     };
 } OTP_CRITICAL_PAOTP_SPECIAL_CUSTOMER_DESIGNATOR_t;
 
-typedef struct OTP_PLL_CONFIGURATION_DELAY_s {
-    union {
-        struct {
+typedef struct OTP_PLL_CONFIGURATION_DELAY_s
+{
+    union
+    {
+        struct
+        {
             uint32_t
                 sp_pll_delay_1 : 15; // delay (in iterations) after configuring the PLL and waiting for it to lock
             uint32_t sp_pll_delay_1_ignore : 1;
@@ -276,42 +329,49 @@ typedef struct OTP_PLL_CONFIGURATION_DELAY_s {
     };
 } OTP_PLL_CONFIGURATION_DELAY_t;
 
-typedef struct OTP_PLL_LOCK_TIMEOUT_s {
-    union {
-        struct {
+typedef struct OTP_PLL_LOCK_TIMEOUT_s
+{
+    union
+    {
+        struct
+        {
             uint32_t TIMEOUT : 31; // timeout value
-            uint32_t IGNORE : 1; // 1 - IGNORE this entry, 0 - USE this entry
+            uint32_t IGNORE : 1;   // 1 - IGNORE this entry, 0 - USE this entry
         } B;
         uint32_t R;
     };
 } OTP_PLL_LOCK_TIMEOUT_t;
 
-typedef struct OTP_SILICON_REVISION_s {
-    union {
-        struct {
-            uint32_t MS_29_H2 : 4;      // MS_29_H2 field 
-            uint32_t MS_30_H2 : 4;      // MS_30_H2 field
-            uint32_t MS_31_H2 : 4;      // MS_31_H2 field
-            uint32_t MS_32_H2 : 4;      // MS_32_H2 field
-            uint32_t MS_33_H2 : 4;      // MS_33_H2 field 
-            uint32_t MX_0_H2 : 4;       // MX_0_H2  field
-            uint32_t si_major_rev : 4;  // si_major_rev field
-            uint32_t si_minor_rev : 4;  // si_minor_rev field
+typedef struct OTP_SILICON_REVISION_s
+{
+    union
+    {
+        struct
+        {
+            uint32_t MS_29_H2 : 4;     // MS_29_H2 field
+            uint32_t MS_30_H2 : 4;     // MS_30_H2 field
+            uint32_t MS_31_H2 : 4;     // MS_31_H2 field
+            uint32_t MS_32_H2 : 4;     // MS_32_H2 field
+            uint32_t MS_33_H2 : 4;     // MS_33_H2 field
+            uint32_t MX_0_H2 : 4;      // MX_0_H2  field
+            uint32_t si_major_rev : 4; // si_major_rev field
+            uint32_t si_minor_rev : 4; // si_minor_rev field
         } B;
         uint32_t R;
     };
 } OTP_SILICON_REVISION_t;
 
-#define SP_OTP_INDEX_SILICON_REVISION                                              12
+#define SP_OTP_INDEX_SILICON_REVISION 12
 
 #define SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT 16
 #define SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT  16
 
-#define SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH0_NH31          13
-#define SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH32_NH63         14
-#define SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH64_NH95         15
-#define SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH96_NH127        16
 #define SP_OTP_INDEX_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER 17
+
+#define SP_OTP_INDEX_SHIRE_STATUS_S0_S31     40
+#define SP_OTP_INDEX_SHIRE_STATUS_S32_S33    41
+#define SP_OTP_INDEX_SHIRE_STATUS_S0_S31_V2  42
+#define SP_OTP_INDEX_SHIRE_STATUS_S32_S33_V2 43
 
 #define SP_OTP_INDEX_SHIRE_SPEED 18
 

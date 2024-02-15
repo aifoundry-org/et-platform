@@ -284,14 +284,15 @@ int read_ecid(ecid_t *ecid)
         lot_id >>= 6;
     }
 
-    Log_Write(LOG_LEVEL_INFO, "ECID:\n");
-    Log_Write(LOG_LEVEL_INFO, "  OTP row 36 = 0x%08x\n", sp_otp_data[36]);
-    Log_Write(LOG_LEVEL_INFO, "  OTP row 37 = 0x%08x\n", sp_otp_data[37]);
-    Log_Write(LOG_LEVEL_INFO, "  Lot ID       = %s (0x%016lx)\n", ecid->lot_id_str, ecid->lot_id);
-    Log_Write(LOG_LEVEL_INFO, "  Wafer ID     = 0x%02x (%d)\n", ecid->wafer_id, ecid->wafer_id);
-    Log_Write(LOG_LEVEL_INFO, "  X Coordinate = 0x%02x (%d)\n", ecid->x_coordinate,
+    Log_Write(LOG_LEVEL_CRITICAL, "ECID:\n");
+    Log_Write(LOG_LEVEL_CRITICAL, "  OTP row 36 = 0x%08x\n", sp_otp_data[36]);
+    Log_Write(LOG_LEVEL_CRITICAL, "  OTP row 37 = 0x%08x\n", sp_otp_data[37]);
+    Log_Write(LOG_LEVEL_CRITICAL, "  Lot ID       = %s (0x%016lx)\n", ecid->lot_id_str,
+              ecid->lot_id);
+    Log_Write(LOG_LEVEL_CRITICAL, "  Wafer ID     = 0x%02x (%d)\n", ecid->wafer_id, ecid->wafer_id);
+    Log_Write(LOG_LEVEL_CRITICAL, "  X Coordinate = 0x%02x (%d)\n", ecid->x_coordinate,
               ecid->x_coordinate);
-    Log_Write(LOG_LEVEL_INFO, "  Y Coordinate = 0x%02x (%d)\n", ecid->y_coordinate,
+    Log_Write(LOG_LEVEL_CRITICAL, "  Y Coordinate = 0x%02x (%d)\n", ecid->y_coordinate,
               ecid->y_coordinate);
 
     return 0;

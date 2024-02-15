@@ -1323,39 +1323,16 @@ int Initialize_Minions(uint64_t shire_mask)
 uint64_t Minion_Read_Active_Compute_Minion_Mask(void)
 {
     int ret;
-    OTP_NEIGHBORHOOD_STATUS_NH128_NH135_OTHER_t status_other;
     uint64_t enable_mask = 0;
+    uint32_t status = 0;
 
-    // 32 Worker Shires: There are 4 OTP entries containing the status of their Neighboorhods
-    for (uint32_t entry = 0; entry < 4; entry++)
-    {
-        uint32_t status;
+    // Compute Shire status
+    ret = sp_otp_get_shire_status_mask(&status);
+    enable_mask = (ret < 0) ? 0xFFFFFFFF : status;
 
-        ret = sp_otp_get_neighborhood_status_mask(entry, &status);
-        if (ret < 0)
-        {
-            // If the OTP read fails, assume we have to enable all Neighboorhods
-            status = 0xFFFFFFFF;
-        }
-
-        // Each Neighboorhod status OTP entry contains information for 8 Shires
-        for (uint32_t i = 0; i < 8; i++)
-        {
-            // Only enable a Shire if *ALL* its Neighboorhods are Functional
-            if ((status & 0xF) == 0xF)
-            {
-                enable_mask |= 1ULL << (entry * 8 + i);
-            }
-            status >>= 4;
-        }
-    }
-
-    // Master Shire Neighboorhods status
-    ret = sp_otp_get_neighborhood_status_nh128_nh135_other(&status_other);
-    if ((ret < 0) || ((status_other.B.neighborhood_status & 0xF) == 0xF))
-    {
-        enable_mask |= 1ULL << 32;
-    }
+    // Master/Spare Shire status
+    ret = sp_otp_get_mm_shire_status_mask(&status);
+    enable_mask |= (ret < 0) ? 0x100000000 : ((uint64_t)(status & 3) << 32);
 
     return enable_mask;
 }
