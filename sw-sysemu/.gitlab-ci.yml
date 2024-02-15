@@ -250,7 +250,48 @@ quality:clang-tidy:
 ###############################################################################
 ###############################################################################
 
-# hypotetical unit tests would go here
+test:micro-benchmarks:
+  extends:
+    - .pod_xlarge
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: build
+  rules:
+    - *development_job_rule
+  needs:
+    - build:conan
+    - quality:clang-tidy
+  variables:
+    TIMEOUT: 1h
+    BUILD_TYPE: Release
+    CCACHE_DIR: ${CI_PROJECT_DIR}/.ccache
+    CMD_CONFIG_BUILD: |
+      sudo apt update -y
+      sudo apt install -y ccache ninja-build clang-tidy
+      ls -l .ccache | true
+      mkdir -p ${CCACHE_DIR}
+      ccache --show-stats --verbose
+      ccache --zero-stats
+      ccache --show-stats --verbose
+      conan install riscv-gnu-toolchain/20220720@ -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release -if=build/toolchain -g VirtualRunEnv
+      source build/toolchain/conanrun.sh
+      cd bench/device_kernels/
+      make
+    CMD_BUILD: |
+      BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER}-shared -o sw-sysemu:lto=False -o sw-sysemu:with_benchmarks=True --build missing --lockfile-out=${BUILD_TYPE}.lock
+      conan lock build-order ${BUILD_TYPE}.lock --json=build-order.json
+      cat build-order.json
+      conan install . --lockfile=${BUILD_TYPE}.lock --build missing
+      if [[ $(< build-order.json) != "[]" ]]; then
+        conan remote enable conan-tmp
+        conan upload "*" --all --check --confirm --retry 5 --retry-wait 120 --parallel -r conan-tmp
+        conan upload "*" --all --check --confirm --retry 5 --retry-wait 120 --parallel -r conan-develop
+      fi
+      cmake --preset $${BUILD_TYPE_LOWER} -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      source build/${BUILD_TYPE}/generators/conanbuild.sh
+      cmake --build --preset $${BUILD_TYPE_LOWER}
+      ./build/${BUILD_TYPE}/bench/bench
 
 # integration testing with sw-platform
 #

@@ -19,7 +19,7 @@ COMPILE_OPT    ?= -O2
 EXTRA_CFLAGS   ?=
 # Extra paths/sources
 RISCV          ?=
-BUILD_DIR      ?= ../build/.
+BUILD_DIR      ?= ../../build/device_kernels/
 BOOT_SRC       ?= common/boot.S
 CRT_SRC        ?= common/crt.S
 
