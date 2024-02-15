@@ -49,7 +49,7 @@ option(PRELOAD_LZ4 " Enable lz4 compression for preloaded ELFs" OFF)
 set(PRELOAD_ELFS "" CACHE STRING "Semicolon seperated list of ELFs to preload")
 option(SDK_RELEASE "Enable various changes for SDK release" OFF)
 
-option(ENABLE_IPO "Enable Inter-Procedural Optimizations (LTO)" ON)
+option(ENABLE_IPO "Enable Inter-Procedural Optimizations (LTO)" OFF)
 if (ENABLE_IPO)
     cmake_policy(SET CMP0069 NEW)
 
@@ -445,6 +445,7 @@ target_compile_definitions(sw-sysemu
         SYS_EMU
     PRIVATE
         $<$<BOOL:${BACKTRACE}>:BACKTRACE=1>
+        $<$<BOOL:${BENCHMARKS}>:BENCHMARKS=1>
         $<$<BOOL:${PRELOAD_LZ4}>:PRELOAD_LZ4=1>
         $<$<BOOL:${SDK_RELEASE}>:SDK_RELEASE=1>
 )

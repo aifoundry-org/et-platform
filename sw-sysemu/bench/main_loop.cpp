@@ -13,7 +13,7 @@ std::vector<std::string> preload_elfs_list = {
     std::string{PROJECT_BINARY_DIR} + std::string{"/device-minion-runtime/lib/esperanto-fw/WorkerMinion/WorkerMinion.elf"}
 };
 
-static void BM_main_internal(benchmark::State& state) {
+static void BM_main_internal_fw_boot(benchmark::State& state) {
     sys_emu_cmd_options cmd_options;
 
     // Push the ELF files to cmd_options.elf_files
@@ -26,15 +26,40 @@ static void BM_main_internal(benchmark::State& state) {
     int status;
     for (auto _ : state) {
         // Run the benchmark
-        status = emu->main_internal();
-        assert(status == EXIT_SUCCESS);
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
     }
+    state.counters["cycles"] = emu->get_emu_cycle();
+    state.counters["cycles/s"] = (1e3 * emu->get_emu_cycle()) / emu->get_total_exe_time();
+    state.counters["total_time"] = emu->get_total_exe_time();
+};
 
-    std::cout << "Status " << status << std::endl;
+static void BM_main_internal_inst_seq(benchmark::State& state) {
+    sys_emu_cmd_options cmd_options;
+    cmd_options.elf_files.push_back(std::string{DEVICE_KERNELS_DIR} + std::string{"inst_seq.elf"});
+
+    auto emu = std::make_unique<sys_emu>(cmd_options);
+
+    int status;
+    for (auto _ : state) {
+        // Run the benchmark
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
+    }
+    state.counters["cycles"] = emu->get_emu_cycle();
+    state.counters["cycles/s"] = (1e3 * emu->get_emu_cycle()) / emu->get_total_exe_time();
+    state.counters["total_time"] = emu->get_total_exe_time();
 };
 
 // Register the function as a benchmark
-BENCHMARK(BM_main_internal);
+BENCHMARK(BM_main_internal_fw_boot);
+BENCHMARK(BM_main_internal_inst_seq);
 
 // Run the benchmark
 BENCHMARK_MAIN();
