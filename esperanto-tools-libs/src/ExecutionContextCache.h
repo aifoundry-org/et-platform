@@ -59,6 +59,11 @@ public:
   // returns an associated buffer for eventId or nullptr if there is no associated buffer
   Buffer* getReservedBuffer(EventId eventId) const;
 
+  // returns the size of buffers
+  int getBufferSize() const {
+    return bufferSize_;
+  }
+
   ~ExecutionContextCache();
 
 private:

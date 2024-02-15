@@ -41,10 +41,11 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
     throw Exception(ss.str());
   }
 
-  if (kernel_args_size > kBlockSize) {
-    char buffer[1024];
-    std::snprintf(buffer, sizeof buffer, "Maximum kernel arg size is %d", kBlockSize);
-    throw Exception(buffer);
+  if (kernel_args_size > executionContextCache_->getBufferSize()) {
+    throw Exception("Maximum kernel arg size is " + std::to_string(executionContextCache_->getBufferSize()));
+  } else if (kernel_args_size > kBlockSize) {
+    RT_LOG(WARNING) << "Kernel args size exceeds " << kBlockSize
+                    << ". On abort or exception, it will be partially overwritten by the exception information.";
   }
 
   constexpr auto ETSOC_THREADS_PER_SHIRE = 64;
