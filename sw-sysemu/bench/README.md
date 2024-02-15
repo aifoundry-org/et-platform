@@ -22,6 +22,8 @@ Device elfs will be present in `build/device_kernels/` dir.
 
 If compiling with native CMake, make sure to pass `-DBENCHMARKS=ON`.
 
+WARNING: If sw-sysemu is built with pre-loaded elfs, all microbenchmarks will load these too! Be advised.
+
 If using Conan package provide `-o:h sw-sysemu:with_benchmarks=True`
 
 ```

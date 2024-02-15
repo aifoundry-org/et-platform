@@ -653,6 +653,7 @@ int sys_emu::main_internal() {
     const auto elapsed = std::chrono::high_resolution_clock::now() - start_time;
     total_time +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count();
+    total_exe_time = total_time;
 
     LOG_AGENT(INFO, agent, "Emulation performance: %lf cycles/sec (%"
               PRIu64 " cycles / %lf sec)",

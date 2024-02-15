@@ -171,6 +171,7 @@ public:
     SW_SYSEMU_EXPORT int main_internal();
 
     uint64_t get_emu_cycle()  { return emu_cycle; }
+    double   get_total_exe_time() { return total_exe_time; }
 
     // gdbstub needs these
     bool thread_exists(unsigned thread) { return !chip.cpu[thread].is_nonexistent(); }
@@ -245,6 +246,7 @@ private:
 
     std::ofstream   log_file;
     uint64_t        emu_cycle = 0;
+    double          total_exe_time = 0;
 #ifndef SDK_RELEASE
     std::unique_ptr<Vpurf_checker> vpurf_checker = nullptr;
 #endif

@@ -13,7 +13,7 @@ std::vector<std::string> preload_elfs_list = {
     std::string{PROJECT_BINARY_DIR} + std::string{"/device-minion-runtime/lib/esperanto-fw/WorkerMinion/WorkerMinion.elf"}
 };
 
-static void BM_main_internal_empty(benchmark::State& state) {
+static void BM_main_internal_fw_boot(benchmark::State& state) {
     sys_emu_cmd_options cmd_options;
 
     // Push the ELF files to cmd_options.elf_files
@@ -32,15 +32,13 @@ static void BM_main_internal_empty(benchmark::State& state) {
             break; // Needed to skip the rest of the iteration.
         }
     }
+    state.counters["cycles"] = emu->get_emu_cycle();
+    state.counters["cycles/s"] = (1e3 * emu->get_emu_cycle()) / emu->get_total_exe_time();
+    state.counters["total_time"] = emu->get_total_exe_time();
 };
 
 static void BM_main_internal_inst_seq(benchmark::State& state) {
     sys_emu_cmd_options cmd_options;
-
-    // Push the ELF files to cmd_options.elf_files
-    for (const auto& elf_file : preload_elfs_list) {
-        cmd_options.elf_files.push_back(elf_file);
-    }
     cmd_options.elf_files.push_back(std::string{DEVICE_KERNELS_DIR} + std::string{"inst_seq.elf"});
 
     auto emu = std::make_unique<sys_emu>(cmd_options);
@@ -54,10 +52,13 @@ static void BM_main_internal_inst_seq(benchmark::State& state) {
             break; // Needed to skip the rest of the iteration.
         }
     }
+    state.counters["cycles"] = emu->get_emu_cycle();
+    state.counters["cycles/s"] = (1e3 * emu->get_emu_cycle()) / emu->get_total_exe_time();
+    state.counters["total_time"] = emu->get_total_exe_time();
 };
 
 // Register the function as a benchmark
-BENCHMARK(BM_main_internal_empty);
+BENCHMARK(BM_main_internal_fw_boot);
 BENCHMARK(BM_main_internal_inst_seq);
 
 // Run the benchmark
