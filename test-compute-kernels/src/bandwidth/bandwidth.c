@@ -15,33 +15,50 @@
 #include <etsoc/isa/hart.h>
 #include <trace/trace_umode.h>
 
+#define PER_HART_MEMORY_ALLOC 1024
+
+typedef struct {
+    uint32_t start_address;
+    uint32_t end_address;
+} AddressRange;
+
 typedef struct {
   uint64_t base_addr;
   uint64_t num_minions;
   uint64_t num_cache_lines;
 } Parameters;
+
 int64_t entry_point(const Parameters*);
+
+int isAddressInRange(uint32_t address) {
+    return (address >= hart_memory_range.start_address) &&
+           (address <= hart_memory_range.end_address);
+}
 
 int64_t entry_point(const Parameters *const kernel_params_ptr)
 {
+  AddressRange hart_memory_range;
+
   uint64_t start_ts = et_get_timestamp();
   et_printf("Kernel start TS: %ld", start_ts);
 
-  /* TODO: Define the body of the kernel */
-  et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
-  et_printf("Hart[%d]:Kernel Param:num_minions:%ld\r\n", get_hart_id(), kernel_params_ptr->num_minions);
-  et_printf("Hart[%d]:Kernel Param:num_cache_lines:%ld\r\n", get_hart_id(), kernel_params_ptr->num_cache_lines);
+  // To be able enabled for debug only
+  //et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
+  //et_printf("Hart[%d]:Kernel Param:num_minions:%ld\r\n", get_hart_id(), kernel_params_ptr->num_minions);
+  //et_printf("Hart[%d]:Kernel Param:num_cache_lines:%ld\r\n", get_hart_id(), kernel_params_ptr->num_cache_lines);
 
-  /* Dump Minion and Neighborhood related PMCs
-  Only a single hart should ideally do this. */
-  et_trace_pmc_compute(62);
+  uint32_t hart_id = get_hart_id();
+  uint64_t value = 0;
 
-  /* Dump shire-cache and mem-shire related PMCs
-  Only a single hart should ideally do this. */
-  et_trace_pmc_sc(63);
-  et_trace_pmc_ms(63, 0);
+  // Assuming kernel_params_ptr is properly initialized
+  hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * PER_HART_MEMORY_ALLOC;
+  hart_memory_range.end_address   = hart_memory_range.start_address + kernel_params_ptr->num_cache_lines * 64;
 
-  et_printf("Kernel execution duration: %ld", et_get_delta_timestamp(start_ts));
+  for (uint64_t addr = hart_memory_range.start_address; addr < hart_memory_range.end_address; addr += 8) {
+       value = *((uint64_t*)addr);
+  }
+
+  et_printf("Kernel exec dur: %ld Measured B/W: %ld Bytes/s ", et_get_delta_timestamp(start_ts), (kernel_params_ptr->num_cache_lines * 64)/et_get_delta_timestamp(start_ts));
 
   return 0;
 }
