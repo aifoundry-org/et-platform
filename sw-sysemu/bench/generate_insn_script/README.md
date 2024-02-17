@@ -27,7 +27,7 @@ At the top we have a list of the general purpose registers in RISC-V.
 
 Next, we define each of the different categories, followed by the specific instructions that fall under these categories, followed by a list of the associated operands in the correct order.
 
-We currently have this mapping:
+We currently support this mapping:
     rd/rs1/rs2: registers
     imm : immediate
 

@@ -52,6 +52,38 @@ def generate_insn(insn_count, category):
     instruction_list.insert(0, category.upper())
     return instruction_list
 
+def generate_insn_raw(insn_count, category):
+    instruction_set = instruction_table[category]
+    operators = list(instruction_set.keys())
+    instruction_list = []
+
+    for count in range(insn_count):
+
+        random_operator = random.choice(operators)
+        instruction_string = random_operator + ' '
+        operand_count = len(instruction_set[random_operator])
+        op_list = []
+
+        # Create Template String
+        for count in range(operand_count):
+            if count == operand_count - 1:
+                instruction_string += '{}'
+            else:
+                instruction_string += '{}, '
+        
+        # Match operands from lookup and populate with values        
+        for operand in instruction_set[random_operator]:
+            if operand == 'rs1' or operand == 'rs2' or operand == 'rd':
+                op_list.append(random.choice(instruction_table['registers']))
+
+            elif operand == 'imm':
+                op_list.append(random.randrange(0, 1500))
+        
+        instruction_list.append(instruction_string.format(*op_list))
+    
+    instruction_list.insert(0, category.upper())
+    return instruction_list
+
 
 """
 Args: 
