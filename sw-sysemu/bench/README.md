@@ -7,6 +7,7 @@ This microbenchmark depends on some device_kernels that must be compiled beforeh
 Firstly ensure you have a riscv-gnu-toolchain compiler in your path.
 If you don't have one you can use Conan to download one:
 ```
+./dock.py --num-devices=0 --image=convoke/ubuntu-22.04-gcc11-conan prompt
 conan install riscv-gnu-toolchain/20220720@ -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release -if=toolchain -g VirtualRunEnv
 source toolchain/conanrun.sh
 ```
