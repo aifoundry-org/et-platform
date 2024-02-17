@@ -9,22 +9,23 @@ registers:
 # offset: offset i.e. 1(x64)
 
 categories: ['rv64i', 'rv64m', 'rv64a', 'rv64f', 'zifencei']
+offsets:    ['16(x16)', '16(x32)', '8(x16)', '8(x8)']
 
 rv64i:
-  add: ['rd', 'rs1', 'rs2']
-  addi: ['rd', 'rs1', 'imm']
-  # addiw: ['rd', 'rs1', 'imm']
-  and: ['rd', 'rs1', 'rs2']
-  andi: ['rd', 'rs1', 'imm']
-  # sd: ['rs2', 'rs1']
-  # ld: ['rd', 'rs1']
-  sub: ['rd', 'rs1', 'rs2']
-  xor: ['rd', 'rs1', 'rs2']
-  xori: ['rd', 'rs1', 'imm']
-  or: ['rd', 'rs1', 'rs2']
-  sll: ['rd', 'rs1', 'rs2']
-  sra: ['rd', 'rs1', 'rs2']
-  srl: ['rd', 'rs1', 'rs2']
+  add:    ['rd', 'rs1', 'rs2']
+  addi:   ['rd', 'rs1', 'imm']
+  addiw:  ['rd', 'rs1', 'imm']
+  and:    ['rd', 'rs1', 'rs2']
+  andi:   ['rd', 'rs1', 'imm']
+  sd:     ['rs2', 'rs1', 'offset']
+  ld:     ['rd', 'rs1', 'offset']
+  sub:    ['rd', 'rs1', 'rs2']
+  xor:    ['rd', 'rs1', 'rs2']
+  xori:   ['rd', 'rs1', 'imm']
+  or:     ['rd', 'rs1', 'rs2']
+  sll:    ['rd', 'rs1', 'rs2']
+  sra:    ['rd', 'rs1', 'rs2']
+  srl:    ['rd', 'rs1', 'rs2']
 
 
 
@@ -32,15 +33,16 @@ rv64i:
 #   fence_i: ['imm', 'rs1', 'rd']
 
 rv64m:
-  div: ['rd', 'rs1', 'rs2']
-  divu: ['rd', 'rs1', 'rs2']
-  # divuw: ['rd', 'rs1', 'rs2']
-  # divw: ['rd', 'rs1', 'rs2']
-  mul: ['rd', 'rs1', 'rs2']
-  rem: ['rd', 'rs1', 'rs2']
-  remu: ['rd', 'rs1', 'rs2']
+  div:    ['rd', 'rs1', 'rs2']
+  divu:   ['rd', 'rs1', 'rs2']
+  divuw:  ['rd', 'rs1', 'rs2']
+  divw:   ['rd', 'rs1', 'rs2']
+  mul:    ['rd', 'rs1', 'rs2']
+  rem:    ['rd', 'rs1', 'rs2']
+  remu:   ['rd', 'rs1', 'rs2']
 
 rv64a:
+
 
 rv64f:
 

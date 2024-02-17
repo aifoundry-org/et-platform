@@ -2,15 +2,15 @@
 
 int main() {
 /* RV64I */
-	asm volatile("xor x29, x2, x20");
-	asm volatile("add x14, x2, x15");
-	asm volatile("or x10, x10, x20");
-	asm volatile("addi x9, x31, 821");
-	asm volatile("and x16, x10, x16");
+	asm volatile("add x13, x3, x18");
+	asm volatile("ld x31, x28, 8(x8)");
+	asm volatile("or x5, x19, x19");
+	asm volatile("xor x21, x16, x9");
+	asm volatile("addi x29, x30, 1238");
 /* RV64M */
-	asm volatile("remu x18, x13, x22");
-	asm volatile("div x30, x25, x3");
-	asm volatile("mul x4, x1, x9");
-	asm volatile("divu x6, x12, x2");
-	asm volatile("rem x7, x0, x23");
+	asm volatile("remu x21, x27, x24");
+	asm volatile("rem x25, x19, x16");
+	asm volatile("div x31, x23, x27");
+	asm volatile("divw x11, x27, x12");
+	asm volatile("rem x9, x9, x23");
 }

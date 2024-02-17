@@ -43,15 +43,19 @@ def generate_insn(insn_count, category):
         for operand in instruction_set[random_operator]:
             if operand == 'rs1' or operand == 'rs2' or operand == 'rd':
                 op_list.append(random.choice(instruction_table['registers']))
-
             elif operand == 'imm':
                 op_list.append(random.randrange(0, 1500))
+            elif operand == 'offset':
+                op_list.append(random.choice(instruction_table['offsets']))
         
         instruction_list.append(instruction_string.format(*op_list))
     
     instruction_list.insert(0, category.upper())
     return instruction_list
 
+"""
+This function just generates the raw RISCV instruction, not wrapped in C code to be compiled and tested like the one above.
+"""
 def generate_insn_raw(insn_count, category):
     instruction_set = instruction_table[category]
     operators = list(instruction_set.keys())
@@ -75,9 +79,10 @@ def generate_insn_raw(insn_count, category):
         for operand in instruction_set[random_operator]:
             if operand == 'rs1' or operand == 'rs2' or operand == 'rd':
                 op_list.append(random.choice(instruction_table['registers']))
-
             elif operand == 'imm':
                 op_list.append(random.randrange(0, 1500))
+            elif operand == 'offset':
+                op_list.append(random.choice(instruction_table['offsets']))
         
         instruction_list.append(instruction_string.format(*op_list))
     
