@@ -11,7 +11,7 @@ make
 
 # Compile SysEMu for benchmarking
 cd ../../.
-conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release-shared -s:h sw-sysemu:build_type=Release -o sw-sysemu:with_benchmarks=True
+conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release -s:h sw-sysemu:build_type=Release -o sw-sysemu:with_benchmarks=True
 cmake --preset release -G Ninja
 cmake --build --preset release
 

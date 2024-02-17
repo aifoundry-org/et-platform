@@ -203,7 +203,7 @@ quality:clang-tidy:
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
-      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER}-shared -o sw-sysemu:lto=False --build missing --lockfile-out=${BUILD_TYPE}.lock
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o sw-sysemu:lto=False --build missing --lockfile-out=${BUILD_TYPE}.lock
       conan lock build-order ${BUILD_TYPE}.lock --json=build-order.json
       cat build-order.json
       conan install . --lockfile=${BUILD_TYPE}.lock --build missing
@@ -280,7 +280,7 @@ test:micro-benchmarks:
       make
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
-      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER}-shared -o sw-sysemu:lto=False -o sw-sysemu:preload_elfs=False -o sw-sysemu:with_benchmarks=True --build missing --lockfile-out=${BUILD_TYPE}.lock
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o sw-sysemu:lto=False -o sw-sysemu:preload_elfs=False -o sw-sysemu:with_benchmarks=True --build missing --lockfile-out=${BUILD_TYPE}.lock
       conan lock build-order ${BUILD_TYPE}.lock --json=build-order.json
       cat build-order.json
       conan install . --lockfile=${BUILD_TYPE}.lock --build missing
