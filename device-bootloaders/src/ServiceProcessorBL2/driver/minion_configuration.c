@@ -147,14 +147,14 @@ static StaticTimer_t MM_Timer_Buffer;
     }
 
 /* Macro to update all Shires for a given input function */
-#define UPDATE_ALL_SHIRE(shiremask, function, arg1, arg2, arg3) \
-    for (uint8_t i = 0; i <= num_shires; i++)                   \
-    {                                                           \
-        if (shiremask & 1)                                      \
-        {                                                       \
-            function(i, arg1, arg2, arg3);                      \
-        }                                                       \
-        shiremask >>= 1;                                        \
+#define UPDATE_ALL_SHIRE(shiremask, function, arg1, arg2, arg3, arg4) \
+    for (uint8_t i = 0; i <= num_shires; i++)                         \
+    {                                                                 \
+        if (shiremask & 1)                                            \
+        {                                                             \
+            function(i, arg1, arg2, arg3, arg4);                      \
+        }                                                             \
+        shiremask >>= 1;                                              \
     }
 
 /* Macro to update all nieghs of all Shires for a given input function */
@@ -184,11 +184,9 @@ static StaticTimer_t MM_Timer_Buffer;
         shiremask >>= 1;                                  \
     }
 
-bool SWAP = false;
-
-#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa)                          \
+#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa, swap)                    \
     /* Set Shire ID, enable cache and all Neighborhoods */                                       \
-    const int swap_id = !SWAP ?                                                                  \
+    const int swap_id = !swap ?                                                                  \
                             id :                                                                 \
                             ((id == Get_Spare_Shire_Id()) ?                                      \
                                  Get_Displace_Shire_Id() :                                       \
@@ -612,7 +610,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 
     /* Enable Minion in all neighs */
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
-                     true /*Enable VPU RF WA*/)
+                     true /*Enable VPU RF WA*/, false /* Dont swap NOC config*/)
 
     /* Due to workaround to initialize Minion VPU RF using Minion Program Buffer
        we need to reset the Neigh/Minion Core to bring it back to clean state */
@@ -620,14 +618,13 @@ static int enable_minion_shire(uint64_t shire_mask)
     /* Disable Minion in all neighs */
     shiremask = shire_mask;
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable S$*/, 0x0 /*Disable all Neigh*/,
-                     false)
+                     false, false /*Dont swap NOC config*/)
 
-    SWAP = true;
     /* Enable Minion in all neighs */
     shiremask = shire_mask;
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
-                     false)
-    SWAP = false;
+                     false, true /*Swap NOC config*/)
+
     /* Clock gate debug logic */
     CLOCK_GATE_DEBUG_LOGIC
 
@@ -663,7 +660,7 @@ static int enable_minion_shire(uint64_t shire_mask)
 
     /* Enable Minion in all neighs */
     UPDATE_ALL_SHIRE(shire_mask, CONFIG_SHIRE_NEIGH, 1 /* Enable S$*/, 0xF /*Enable all Neigh*/,
-                     false)
+                     false, false)
 #endif
 
     return SUCCESS;
@@ -881,14 +878,14 @@ int Master_Minion_Reset(void)
 
     /* Disable Minion neighs */
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 0 /* Disable SC */, 0x0 /* Disable all Neigh */,
-                     false)
+                     false, false)
 
     shiremask = Minion_State_MM_Iface_Get_Active_Shire_Mask();
 
     /* Enable Minion neighs. Master shire threads will be enabled later below and
     Compute Minion threads will be enabled by MM when it will boot up */
     UPDATE_ALL_SHIRE(shiremask, CONFIG_SHIRE_NEIGH, 1 /* Enable SC */, 0xf /* Enable all Neigh */,
-                     false)
+                     false, false)
 
     /* Re initialize SP-MM services */
     status = SP_MM_Iface_Init();
