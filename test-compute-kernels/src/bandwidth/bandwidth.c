@@ -18,8 +18,8 @@
 #define PER_HART_MEMORY_ALLOC 1024
 
 typedef struct {
-    uint32_t start_address;
-    uint32_t end_address;
+    uint64_t start_address;
+    uint64_t end_address;
 } AddressRange;
 
 typedef struct {
@@ -30,9 +30,9 @@ typedef struct {
 
 int64_t entry_point(const Parameters*);
 
-int isAddressInRange(uint32_t address) {
-    return (address >= hart_memory_range.start_address) &&
-           (address <= hart_memory_range.end_address);
+static int isAddressInRange(uint64_t address, AddressRange *range) {
+    return (address >= range->start_address) &&
+           (address <= range->end_address);
 }
 
 int64_t entry_point(const Parameters *const kernel_params_ptr)
