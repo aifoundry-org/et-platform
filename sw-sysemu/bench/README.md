@@ -2,11 +2,19 @@
 
 This microbenchmark depends on some device_kernels that must be compiled beforehand.
 
-## How to compile test device_kernels
+## Helper script
+
+There is a helper script which is created to help compile kernels and execute on SysEMU for benchmarking
+  |-> scripts/run_benchmark.sh
+
+## Details of the script
+
+## Compile test device_kernels
 
 Firstly ensure you have a riscv-gnu-toolchain compiler in your path.
 If you don't have one you can use Conan to download one:
 ```
+./dock.py --num-devices=0 --image=convoke/ubuntu-22.04-gcc11-conan prompt
 conan install riscv-gnu-toolchain/20220720@ -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release -if=toolchain -g VirtualRunEnv
 source toolchain/conanrun.sh
 ```
@@ -18,7 +26,7 @@ make
 ```
 Device elfs will be present in `build/device_kernels/` dir.
 
-## Compiling sw-sysemu with benchmarks
+## Compile sw-sysemu for benchmarking
 
 If compiling with native CMake, make sure to pass `-DBENCHMARKS=ON`.
 
@@ -32,5 +40,8 @@ cmake --preset release -G Ninja
 cmake --build --preset release
 ```
 
-Then the benchmark will be available in `build/Release/bench/bench`.
+## Run kernel with sw-sysemu for benchmarking
+The benchmark will be available in `build/Release/bench/bench`.
+
+## Building debug, other versions of executable
 Replace Release with other build types (Debug, RelWithDebInfo, etc..) according to the value passed in `-s:h sw-sysemu:build_type`.
