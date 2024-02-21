@@ -809,7 +809,8 @@ static int32_t dm_svc_firmware_update(void)
     }
     else
     {
-        Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Executing exit sequence...\n");
+        Log_Write(LOG_LEVEL_WARNING, "[ETFP] Executing exit sequence, return status = %d...\n",
+                  status);
         Log_Write(LOG_LEVEL_ERROR, "[ETFP] Firmware update failed!\n");
     }
 

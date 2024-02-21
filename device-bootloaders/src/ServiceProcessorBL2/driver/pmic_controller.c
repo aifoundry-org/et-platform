@@ -332,7 +332,7 @@ static int set_pmic_reg(uint8_t reg, const uint8_t *value, uint8_t reg_size)
         if (status != STATUS_SUCCESS)
         {
             Log_Write(
-                LOG_LEVEL_DEBUG,
+                LOG_LEVEL_WARNING,
                 "set_pmic_reg: PMIC write reg: %d failed, status: %d! Resetting I2C and retrying.\r\n",
                 reg, status);
             status = i2c_soft_reset(&g_pmic_i2c_dev_reg);
@@ -2387,11 +2387,16 @@ static int pmic_send_firmware_block(uint32_t flash_addr, uint8_t *fw_ptr, uint32
 
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "[ETFP] PMIC programming failed (write_count %u)\n",
-                      flash_addr / reg_size_bytes);
+            Log_Write(
+                LOG_LEVEL_ERROR,
+                "[ETFP] PMIC programming failed flash_addr: 0x%x, reg_size_bytes: %d, fw_block_size: %d, write_count: %d\n",
+                flash_addr, reg_size_bytes, fw_block_size, write_count);
             break;
         }
-        Log_Write(LOG_LEVEL_DEBUG, "[ETFP] PMIC byte count: %u\n", flash_addr / reg_size_bytes);
+        Log_Write(
+            LOG_LEVEL_DEBUG,
+            "[ETFP] PMIC flash_addr: 0x%x, reg_size_bytes: %d, fw_block_size: %d, write_count: %d\n",
+            flash_addr, reg_size_bytes, fw_block_size, write_count);
 
         fw_ptr += reg_size_bytes;
         flash_addr += reg_size_bytes;
@@ -3071,6 +3076,8 @@ int pmic_firmware_update(void)
         else
         {
             /* Send the data block to PMIC */
+            Log_Write(LOG_LEVEL_INFO, "[ETFP] Send fw block: flash addr = 0x%x size = %d.\n",
+                      flash_addr, fw_send_size);
             status = pmic_send_firmware_block(flash_addr, (uint8_t *)fw, fw_send_size);
         }
 

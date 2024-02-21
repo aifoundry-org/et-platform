@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [SW-18887] Added NOC shire re-map functionality
+- [SW-20169] Add more logs for fw update
 ### Changed
 ### Deprecated
 ### Removed
