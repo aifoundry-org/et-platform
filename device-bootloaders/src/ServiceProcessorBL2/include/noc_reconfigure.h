@@ -27,7 +27,7 @@
 #define NUM_SHIRES                           34
 #define SPARE_SHIRE_BIT_POSITION             (NUM_SHIRES - 1)
 #define MAX_SHIRE_BIT_POSITION               (SPARE_SHIRE_BIT_POSITION - 1)
-#define SHIRE_MASK_DEFAULT                   ((uint64_t)((1ull << (NUM_SHIRES - 1)) - 1))
+#define SHIRE_MASK_DEFAULT                   ((uint64_t)((1ull << NUM_SHIRES) - 1))
 #define NUM_NOC_ESR_BRIDGE                   6
 #define NUM_NOC_ESR_SIB_TOL3                 2
 #define NUM_NOC_ESR_SIB_TOSYS                1
