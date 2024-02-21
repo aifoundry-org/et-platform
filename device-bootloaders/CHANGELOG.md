@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-18887] Added NOC shire re-map functionality
 ### Changed
 ### Deprecated
 ### Removed
@@ -18,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-19082] Maxion configuration functions.
 - Added support to read GPT tables
-- [SW-18887] Added NOC shire re-map functionality
 ### Changed
 ### Deprecated
 ### Removed

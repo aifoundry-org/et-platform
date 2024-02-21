@@ -235,7 +235,7 @@ int32_t NOC_Configure(uint8_t mode)
 
 int32_t Set_Displace_Shire_Id(uint64_t shire_mask)
 {
-    if (shire_mask >= SHIRE_MASK_DEFAULT)
+    if (shire_mask == SHIRE_MASK_DEFAULT)
     {
         // All is good, no remap required
         Log_Write(LOG_LEVEL_INFO, "Using the default shire mask, no shire to be displaced.\n");

@@ -180,7 +180,12 @@ static void taskMain(void *pvParameters)
 #endif
 
     // Extract the active Compute Minions based on fuse
+#if !(FAST_BOOT || TEST_FRAMEWORK)
     minion_shires_mask = Minion_Read_Active_Compute_Minion_Mask();
+#else
+    minion_shires_mask = 0x1FFFFFFFFUL;
+#endif
+
     Minion_Set_Active_Compute_Minion_Mask(minion_shires_mask);
     Minion_Set_Active_Shire_Mask(minion_shires_mask);
     Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt] efuse Active Shire Mask %lx\n", minion_shires_mask);
