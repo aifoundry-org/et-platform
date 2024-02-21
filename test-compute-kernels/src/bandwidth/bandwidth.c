@@ -58,7 +58,9 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
        value = *((uint64_t*)addr);
   }
 
-  et_printf("Kernel exec dur: %ld Measured B/W: %ld Bytes/s ", et_get_delta_timestamp(start_ts), (kernel_params_ptr->num_cache_lines * 64)/et_get_delta_timestamp(start_ts));
+  uint64_t delta_us = (et_get_timestamp() - start_ts) / 40;
+  et_printf("Kernel exec dur: %ld Measured B/W: %ld MB/s ", et_get_delta_timestamp(start_ts), (kernel_params_ptr->num_cache_lines * 64 *1000000)/(1024 * delta_us));
+
 
   return 0;
 }
