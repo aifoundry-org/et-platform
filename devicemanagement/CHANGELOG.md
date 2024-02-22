@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-19638] Add control option to dump bin traces in files
 ### Changed
 - [SW-19638] Disabled dump of raw traces to bin files
+- [SW-20169] Double fw update test timeout for multiple devices 
 ### Deprecated
 ### Removed
 ### Fixed

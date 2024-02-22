@@ -2899,7 +2899,8 @@ void TestDevMgmtApiSyncCmds::setFirmwareUpdateImage(bool singleDevice, bool rese
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
   DeviceManagement& dm = (*dmi)(devLayer_.get());
-  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
+  auto timeoutMulFactor = singleDevice ? 1 : 2; // doubling timeout for running on multiple devices
+  auto end = Clock::now() + timeoutMulFactor * std::chrono::milliseconds(FLAGS_exec_timeout_ms);
 
   // Verify the paths for flash image and its tools
   ASSERT_TRUE(fs::exists(FLASH_TOOL_PATH));
