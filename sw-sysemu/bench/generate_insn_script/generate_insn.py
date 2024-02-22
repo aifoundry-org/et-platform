@@ -20,17 +20,16 @@ instruction_list - list of strings(instructions)
 
 This function retrieves the instructions from the global RISC V green book/look up table. It then constructs a template string that we will populate with the instruction operator and its associated operands. It will repeat this for the number of instructions we want to generate as specified. It will return a list of instruction strings that would be written to our instruction sequence which will be used to test SW simulator (SysEMU).
 """
-def generate_insn(insn_count, category, include_c_code=True):
-    instruction_set = instruction_table[category]
+def generate_insn(insn_count, category, include_c_code=True, add_float_params=False):
+    instruction_set, instruction_list = instruction_table[category], []
     operators = list(instruction_set.keys())
-    instruction_list = []
 
     for count in range(insn_count):
         random_operator = random.choice(operators)
         instruction_string = ''
 
         if include_c_code:
-            instruction_string += 'asm volatile("' + random_operator + ' '
+            instruction_string += 'asm volatile ("' + random_operator + ' '
         else:
             instruction_string += random_operator + ' '
 
@@ -42,24 +41,38 @@ def generate_insn(insn_count, category, include_c_code=True):
             if count == operand_count - 1:
                 if include_c_code:
                     instruction_string += '{}");'
+                    if add_float_params:
+                        instruction_string = instruction_string[:-2] + generate_float_params_helper(operand_count) + ");"
                 else:
-                    instruction_string += '{}'
+                    instruction_string += '{}'                    
             else:
                 instruction_string += '{}, '
-
+        
         # Match operands from lookup and populate with values
         for operand in instruction_set[random_operator]:
             if operand == 'rs1' or operand == 'rs2' or operand == 'rd':
                 op_list.append(random.choice(instruction_table['registers']))
             elif operand == 'imm':
-                op_list.append(random.randrange(0, 1500))
+                op_list.append(random.randrange(1, 100))
             elif operand == 'offset':
                 op_list.append(random.choice(instruction_table['offsets']))
+            elif '%' in operand:
+                op_list.append(operand)
 
         instruction_list.append(instruction_string.format(*op_list))
 
     instruction_list.insert(0, category.upper())
     return instruction_list
+
+def generate_float_params_helper(count):
+    params_str = (' : "=f" (output): ')
+    for op in range(count - 1):
+            if op == count - 2:
+                params_str += ('"f" (f{})').format(op + 1)
+            else:
+                params_str += ('"f" (f{}),').format(op + 1)
+    return params_str
+
 
 """
 Args: 
@@ -79,7 +92,9 @@ def write_to_test_file_C(instruction_groups_list):
     with open("generated_inst_seq.c", "w") as test_file:
         test_file.write('#include "macros.h"\n\n')
         test_file.write('int main() {\n')
-
+        test_file.write('\tfloat f1 = 2.0, f2 = 4.0, f3 = 8.0, output;\n')
+        test_file.write('\t(void)f1;\n\t(void)f2;\n\t(void)f3;\n')
+        
         for instruction_list in instruction_groups_list:
             category_comment = '/* {} */\n'.format(instruction_list[0])
             test_file.write(category_comment)
@@ -110,12 +125,15 @@ if __name__ == "__main__":
 
     # RV64A
     #Atomic instructions for atomic memory operations.
+    # instruction_groups_list.append(generate_insn(int(total_insn), 'rv64a', True, True))
 
-    #RV64F
+    #RV64Fs
     #Single-precision floating-point instructions.
+    instruction_groups_list.append(generate_insn(int(total_insn), 'rv64f', True, True))
 
     #RV64D
     #Double-precision floating-point instructions.
+    # instruction_groups_list.append(generate_insn(int(total_insn), 'rv64d', True, True))
 
     #RV64C
     #Compressed instructions for reduced code size.

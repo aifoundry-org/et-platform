@@ -1,11 +1,12 @@
 registers:
-  ['x0', 'x1', 'x2', 'x3', 'x4', 'x5', 'x6', 'x7', 'x8', 'x9', 'x10', 'x11', 'x12', 'x13', 'x14', 'x15', 'x16', 'x17', 'x18', 'x19', 'x20', 'x21', 'x22', 'x23', 'x24', 'x25', 'x26', 'x27', 'x28', 'x29', 'x30', 'x31']
+  ['x5', 'x6', 'x7', 'x28', 'x29', 'x30', 'x31'] #TEMPORARY registers only
 
 # Current Supported Mappings:
 # rd/rs1/rs2: registers
 # imm: immediate
+# %f: float values
 
-# TODO: add more mappings
+# TODO: add more mappings / fix any issues with current mappings
 # offset: offset i.e. 1(x64)
 
 categories: ['rv64i', 'rv64m', 'rv64a', 'rv64f', 'zifencei']
@@ -17,8 +18,8 @@ rv64i:
   addiw:  ['rd', 'rs1', 'imm']
   and:    ['rd', 'rs1', 'rs2']
   andi:   ['rd', 'rs1', 'imm']
-  sd:     ['rs2', 'rs1', 'offset']
-  ld:     ['rd', 'rs1', 'offset']
+  # sd:     ['rs2', 'rs1', 'offset']
+  # ld:     ['rd', 'rs1', 'offset']
   sub:    ['rd', 'rs1', 'rs2']
   xor:    ['rd', 'rs1', 'rs2']
   xori:   ['rd', 'rs1', 'imm']
@@ -26,8 +27,6 @@ rv64i:
   sll:    ['rd', 'rs1', 'rs2']
   sra:    ['rd', 'rs1', 'rs2']
   srl:    ['rd', 'rs1', 'rs2']
-
-
 
 # zifencei:
 #   fence_i: ['imm', 'rs1', 'rd']
@@ -41,9 +40,26 @@ rv64m:
   rem:    ['rd', 'rs1', 'rs2']
   remu:   ['rd', 'rs1', 'rs2']
 
-rv64a:
-
-
 rv64f:
+  fmadd.s: ['%0', '%1', '%2', '%3']
+  fmsub.s: ['%0', '%1', '%2', '%3']
+  fnmadd.s: ['%0', '%1', '%2', '%3']
+  fnmsub.s: ['%0', '%1', '%2', '%3']
+  fadd.s: ['%0', '%1', '%2']
+  fsub.s: ['%0', '%1', '%2']
+  fmul.s: ['%0', '%1', '%2']
 
+rv64a:
+  amoadd.d: ['%0', '%1', '%2']
+  amoswap.d: ['%0', '%1', '%2']
+  amoxor.d: ['%0', '%1', '%2']
+  amoand.d: ['%0', '%1', '%2']
+  amoor.d: ['%0', '%1', '%2']
+  amomin.d: ['%0', '%1', '%2']
+  amomin.d: ['%0', '%1', '%2']
 
+rv64d:
+  fmv.x.d: ['%0', '%1']
+  fcvt.d.l: ['%0', '%1']
+  fmv.d.x: ['%0', '%1']
+  fcvt.l.df/a/d: ['%0', '%1']
