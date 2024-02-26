@@ -56,7 +56,7 @@ static int getPhysicalID(int virtualID)
 static uint64_t calculate_new_base_value(int new_virtual_id, bridge_t bridge,
                                          unsigned int bridge_id, bridge_range_t range)
 {
-    uint64_t value = 0ul;
+    uint64_t value = 0UL;
     switch (range)
     {
         case BRIDGE_RANGE_SCP:
@@ -75,20 +75,20 @@ static uint64_t calculate_new_base_value(int new_virtual_id, bridge_t bridge,
 
                 if (bridge == BRIDGE_NOC_ESR && bridge_id == 4)
                 {
-                    value &= ~0x80ul;
+                    value &= ~0x80UL;
                 }
                 if ((bridge == BRIDGE_NOC_ESR && bridge_id == 5) ||
                     ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS || bridge == BRIDGE_NOC_ESR_BRIDGE_PS) &&
                      (bridge_id == 2)))
                 {
-                    value &= ~0x80ul;
-                    value |= 0x40ul;
+                    value &= ~0x80UL;
+                    value |= 0x40UL;
                 }
                 if ((bridge == BRIDGE_NOC_ESR_SIB_TOL3 && bridge_id == 1) ||
                     (bridge == BRIDGE_NOC_ESR_BRIDGE_IOS && bridge_id == 0) ||
                     (bridge == BRIDGE_NOC_ESR_BRIDGE_PS && bridge_id == 3))
                 {
-                    value |= 0x40ul;
+                    value |= 0x40UL;
                 }
             }
             else
@@ -99,19 +99,19 @@ static uint64_t calculate_new_base_value(int new_virtual_id, bridge_t bridge,
             if ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS || bridge == BRIDGE_NOC_ESR_BRIDGE_PS) &&
                 (bridge_id == 2))
             {
-                value |= 0x8ul;
+                value |= 0x8UL;
             }
             return value;
         default:
             break;
     }
-    return ~0ul;
+    return ~0UL;
 }
 
 static uint64_t calculate_new_mask_value(int new_virtual_id, bridge_t bridge,
                                          unsigned int bridge_id, bridge_range_t range)
 {
-    uint64_t value = 0ul;
+    uint64_t value = 0UL;
     switch (range)
     {
         case BRIDGE_RANGE_SCP:
@@ -121,24 +121,24 @@ static uint64_t calculate_new_mask_value(int new_virtual_id, bridge_t bridge,
             if ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS && bridge_id == 6) ||
                 (bridge == BRIDGE_NOC_ESR_BRIDGE_MEM && bridge_id == 0))
             {
-                value |= 0x8ul;
+                value |= 0x8UL;
             }
             return value;
         case BRIDGE_RANGE_DRAM:
-            value = !(new_virtual_id == 32 || new_virtual_id == 33) ?
-                        BRIDGE_RANGE_DRAM_ADMASK :
-                        ((new_virtual_id == 32) ? BRIDGE_RANGE_DRAM_ADMASK_VID_32 :
-                                                  BRIDGE_RANGE_DRAM_ADMASK_VID_33);
+            value = (new_virtual_id == 32) ?
+                        BRIDGE_RANGE_DRAM_ADMASK_VID_32 :
+                        (new_virtual_id == 33) ? BRIDGE_RANGE_DRAM_ADMASK_VID_33 :
+                                                 BRIDGE_RANGE_DRAM_ADMASK;
             if ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS || bridge == BRIDGE_NOC_ESR_BRIDGE_PS) &&
                 (bridge_id == 2))
             {
-                value |= 0x8ul;
+                value |= 0x8UL;
             }
             return value;
         default:
             break;
     }
-    return ~0ul;
+    return ~0UL;
 }
 
 static void remap_regs(bridge_t bridge, unsigned int bridge_id, int old_virtual_id,
@@ -152,26 +152,12 @@ static void remap_regs(bridge_t bridge, unsigned int bridge_id, int old_virtual_
     {
         case BRIDGE_NOC_ESR: {
             adbase = adbase_noc_esr_bridge;
-            if (bridge_id < NUM_NOC_ESR_BRIDGE_SCP)
-            {
-                range = BRIDGE_RANGE_SCP;
-            }
-            else
-            {
-                range = BRIDGE_RANGE_DRAM;
-            }
+            range = (bridge_id < NUM_NOC_ESR_BRIDGE_SCP) ? BRIDGE_RANGE_SCP : BRIDGE_RANGE_DRAM;
             break;
         }
         case BRIDGE_NOC_ESR_SIB_TOL3: {
             adbase = adbase_noc_esr_sib_tol3;
-            if (bridge_id < NUM_NOC_ESR_SIB_TOL3_SCP)
-            {
-                range = BRIDGE_RANGE_SCP;
-            }
-            else
-            {
-                range = BRIDGE_RANGE_DRAM;
-            }
+            range = (bridge_id < NUM_NOC_ESR_SIB_TOL3_SCP) ? BRIDGE_RANGE_SCP : BRIDGE_RANGE_DRAM;
             break;
         }
         case BRIDGE_NOC_ESR_SIB_TOSYS: {
@@ -181,34 +167,20 @@ static void remap_regs(bridge_t bridge, unsigned int bridge_id, int old_virtual_
         }
         case BRIDGE_NOC_ESR_BRIDGE_IOS: {
             adbase = adbase_noc_esr_bridge_ios;
-            if (bridge_id < NUM_NOC_ESR_BRIDGE_IOS_DRAM)
-            {
-                range = BRIDGE_RANGE_DRAM;
-            }
-            else if (bridge_id < (NUM_NOC_ESR_BRIDGE_IOS_DRAM + NUM_NOC_ESR_BRIDGE_IOS_SCP))
-            {
-                range = BRIDGE_RANGE_SCP;
-            }
-            else
-            {
-                range = BRIDGE_RANGE_CSR;
-            }
+            range = (bridge_id < NUM_NOC_ESR_BRIDGE_IOS_DRAM) ?
+                        BRIDGE_RANGE_DRAM :
+                        (bridge_id < (NUM_NOC_ESR_BRIDGE_IOS_DRAM + NUM_NOC_ESR_BRIDGE_IOS_SCP) ?
+                             BRIDGE_RANGE_SCP :
+                             BRIDGE_RANGE_CSR);
             break;
         }
         case BRIDGE_NOC_ESR_BRIDGE_PS: {
             adbase = adbase_noc_esr_bridge_ps;
-            if (bridge_id < NUM_NOC_ESR_BRIDGE_PS_SCP)
-            {
-                range = BRIDGE_RANGE_SCP;
-            }
-            else if (bridge_id < (NUM_NOC_ESR_BRIDGE_PS_SCP + NUM_NOC_ESR_BRIDGE_PS_CSR))
-            {
-                range = BRIDGE_RANGE_CSR;
-            }
-            else
-            {
-                range = BRIDGE_RANGE_DRAM;
-            }
+            range = (bridge_id < NUM_NOC_ESR_BRIDGE_PS_SCP) ?
+                        BRIDGE_RANGE_SCP :
+                        (bridge_id < (NUM_NOC_ESR_BRIDGE_PS_SCP + NUM_NOC_ESR_BRIDGE_PS_CSR) ?
+                             BRIDGE_RANGE_CSR :
+                             BRIDGE_RANGE_DRAM);
             break;
         }
         case BRIDGE_NOC_ESR_BRIDGE_MEM: {
@@ -344,7 +316,7 @@ static void reconfig_minion_shire(CSR_SLAM_TABLE *reconfig_table_ptr)
                                  ETSOC_SHIRE_CACHE_ESR_SC_L3_SHIRE_SWIZZLE_CTL_ADDRESS, j);
                 value =
                     ETSOC_SHIRE_CACHE_ESR_SC_L3_SHIRE_SWIZZLE_CTL_ESR_SC_ALL_SHIRE_ALIASING_MODIFY(
-                        value, 0x1ull);
+                        value, 0x1ULL);
                 write_esr_new(PP_MACHINE, i, REGION_OTHER, ESR_OTHER_SUBREGION_CACHE,
                               ETSOC_SHIRE_CACHE_ESR_SC_L3_SHIRE_SWIZZLE_CTL_ADDRESS, value, j);
             }
