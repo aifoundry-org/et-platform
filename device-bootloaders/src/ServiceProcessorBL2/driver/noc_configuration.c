@@ -53,31 +53,183 @@ static int getPhysicalID(int virtualID)
     }
 }
 
-static void swap_regs(uint32_t adbase[][NUM_SHIRES], unsigned int bridge_id, int displace,
-                      int spare, long unsigned int offset)
+static uint64_t calculate_new_base_value(int new_virtual_id, bridge_t bridge,
+                                         unsigned int bridge_id, bridge_range_t range)
 {
-    int displace_phy_id = getPhysicalID(displace);
-    int spare_phy_id = getPhysicalID(spare);
+    uint64_t value = 0ul;
+    switch (range)
+    {
+        case BRIDGE_RANGE_SCP:
+            value = BRIDGE_RANGE_SCP_ADBASE & ~VIRTUAL_ID_MASK_SCP;
+            value |= (((uint64_t)new_virtual_id << 23) & VIRTUAL_ID_MASK_SCP);
+            return value;
+        case BRIDGE_RANGE_CSR:
+            value = BRIDGE_RANGE_CSR_ADBASE & ~VIRTUAL_ID_MASK_CSR;
+            value |= (((uint64_t)new_virtual_id << 22) & VIRTUAL_ID_MASK_CSR);
+            return value;
+        case BRIDGE_RANGE_DRAM:
+            if (new_virtual_id == 32 || new_virtual_id == 33)
+            {
+                value = (new_virtual_id == 32) ? BRIDGE_RANGE_DRAM_ADBASE_VID_32 :
+                                                 BRIDGE_RANGE_DRAM_ADBASE_VID_33;
 
-    if (displace_phy_id != -1 && spare_phy_id != -1)
+                if (bridge == BRIDGE_NOC_ESR && bridge_id == 4)
+                {
+                    value &= ~0x80ul;
+                }
+                if ((bridge == BRIDGE_NOC_ESR && bridge_id == 5) ||
+                    ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS || bridge == BRIDGE_NOC_ESR_BRIDGE_PS) &&
+                     (bridge_id == 2)))
+                {
+                    value &= ~0x80ul;
+                    value |= 0x40ul;
+                }
+                if ((bridge == BRIDGE_NOC_ESR_SIB_TOL3 && bridge_id == 1) ||
+                    (bridge == BRIDGE_NOC_ESR_BRIDGE_IOS && bridge_id == 0) ||
+                    (bridge == BRIDGE_NOC_ESR_BRIDGE_PS && bridge_id == 3))
+                {
+                    value |= 0x40ul;
+                }
+            }
+            else
+            {
+                value = BRIDGE_RANGE_DRAM_ADBASE & ~VIRTUAL_ID_MASK_DRAM;
+                value |= (((uint64_t)new_virtual_id << 6) & VIRTUAL_ID_MASK_DRAM);
+            }
+            if ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS || bridge == BRIDGE_NOC_ESR_BRIDGE_PS) &&
+                (bridge_id == 2))
+            {
+                value |= 0x8ul;
+            }
+            return value;
+        default:
+            break;
+    }
+    return ~0ul;
+}
+
+static uint64_t calculate_new_mask_value(int new_virtual_id, bridge_t bridge,
+                                         unsigned int bridge_id, bridge_range_t range)
+{
+    uint64_t value = 0ul;
+    switch (range)
+    {
+        case BRIDGE_RANGE_SCP:
+            return BRIDGE_RANGE_SCP_ADMASK;
+        case BRIDGE_RANGE_CSR:
+            value = BRIDGE_RANGE_CSR_ADMASK;
+            if ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS && bridge_id == 6) ||
+                (bridge == BRIDGE_NOC_ESR_BRIDGE_MEM && bridge_id == 0))
+            {
+                value |= 0x8ul;
+            }
+            return value;
+        case BRIDGE_RANGE_DRAM:
+            value = !(new_virtual_id == 32 || new_virtual_id == 33) ?
+                        BRIDGE_RANGE_DRAM_ADMASK :
+                        ((new_virtual_id == 32) ? BRIDGE_RANGE_DRAM_ADMASK_VID_32 :
+                                                  BRIDGE_RANGE_DRAM_ADMASK_VID_33);
+            if ((bridge == BRIDGE_NOC_ESR_BRIDGE_IOS || bridge == BRIDGE_NOC_ESR_BRIDGE_PS) &&
+                (bridge_id == 2))
+            {
+                value |= 0x8ul;
+            }
+            return value;
+        default:
+            break;
+    }
+    return ~0ul;
+}
+
+static void remap_regs(bridge_t bridge, unsigned int bridge_id, int old_virtual_id,
+                       int new_virtual_id, long unsigned int offset)
+{
+    int old_phy_id = getPhysicalID(old_virtual_id);
+    uint32_t(*adbase)[NUM_SHIRES];
+    bridge_range_t range;
+
+    switch (bridge)
+    {
+        case BRIDGE_NOC_ESR: {
+            adbase = adbase_noc_esr_bridge;
+            if (bridge_id < NUM_NOC_ESR_BRIDGE_SCP)
+            {
+                range = BRIDGE_RANGE_SCP;
+            }
+            else
+            {
+                range = BRIDGE_RANGE_DRAM;
+            }
+            break;
+        }
+        case BRIDGE_NOC_ESR_SIB_TOL3: {
+            adbase = adbase_noc_esr_sib_tol3;
+            if (bridge_id < NUM_NOC_ESR_SIB_TOL3_SCP)
+            {
+                range = BRIDGE_RANGE_SCP;
+            }
+            else
+            {
+                range = BRIDGE_RANGE_DRAM;
+            }
+            break;
+        }
+        case BRIDGE_NOC_ESR_SIB_TOSYS: {
+            adbase = adbase_noc_esr_sib_tosys;
+            range = BRIDGE_RANGE_CSR;
+            break;
+        }
+        case BRIDGE_NOC_ESR_BRIDGE_IOS: {
+            adbase = adbase_noc_esr_bridge_ios;
+            if (bridge_id < NUM_NOC_ESR_BRIDGE_IOS_DRAM)
+            {
+                range = BRIDGE_RANGE_DRAM;
+            }
+            else if (bridge_id < (NUM_NOC_ESR_BRIDGE_IOS_DRAM + NUM_NOC_ESR_BRIDGE_IOS_SCP))
+            {
+                range = BRIDGE_RANGE_SCP;
+            }
+            else
+            {
+                range = BRIDGE_RANGE_CSR;
+            }
+            break;
+        }
+        case BRIDGE_NOC_ESR_BRIDGE_PS: {
+            adbase = adbase_noc_esr_bridge_ps;
+            if (bridge_id < NUM_NOC_ESR_BRIDGE_PS_SCP)
+            {
+                range = BRIDGE_RANGE_SCP;
+            }
+            else if (bridge_id < (NUM_NOC_ESR_BRIDGE_PS_SCP + NUM_NOC_ESR_BRIDGE_PS_CSR))
+            {
+                range = BRIDGE_RANGE_CSR;
+            }
+            else
+            {
+                range = BRIDGE_RANGE_DRAM;
+            }
+            break;
+        }
+        case BRIDGE_NOC_ESR_BRIDGE_MEM: {
+            adbase = adbase_noc_esr_bridge_mem;
+            range = BRIDGE_RANGE_CSR;
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+
+    if (old_phy_id != -1)
     {
         const uint64_t baseAddr = R_SP_MAIN_NOC_REGBUS_BASEADDR;
-        uint64_t displace_base = baseAddr + adbase[bridge_id][displace_phy_id] + offset;
-        uint64_t displace_mask = baseAddr + adbase[bridge_id][displace_phy_id] + offset + 8;
-        uint64_t spare_base = baseAddr + adbase[bridge_id][spare_phy_id] + offset;
-        uint64_t spare_mask = baseAddr + adbase[bridge_id][spare_phy_id] + offset + 8;
+        uint64_t old_base = baseAddr + adbase[bridge_id][old_phy_id] + offset;
+        uint64_t old_mask = baseAddr + adbase[bridge_id][old_phy_id] + offset + 8;
 
-        // Swap Base values
-        uint64_t spare_base_org_value = *(uint64_t *)spare_base;
-        uint64_t displace_base_org_value = *(uint64_t *)displace_base;
-        *(uint64_t *)spare_base = displace_base_org_value;
-        *(uint64_t *)displace_base = spare_base_org_value;
+        *(uint64_t *)old_base = calculate_new_base_value(new_virtual_id, bridge, bridge_id, range);
 
-        // Swap Mask values
-        uint64_t spare_mask_org_value = *(uint64_t *)spare_mask;
-        uint64_t displace_mask_org_value = *(uint64_t *)displace_mask;
-        *(uint64_t *)spare_mask = displace_mask_org_value;
-        *(uint64_t *)displace_mask = spare_mask_org_value;
+        *(uint64_t *)old_mask = calculate_new_mask_value(new_virtual_id, bridge, bridge_id, range);
     }
     else
     {
@@ -86,14 +238,14 @@ static void swap_regs(uint32_t adbase[][NUM_SHIRES], unsigned int bridge_id, int
     }
 }
 
-static void swap_shires(int displace, int spare)
+static void remap_shire(int old_virtual_id, int new_virtual_id)
 {
     for (unsigned int bridge_id = 0; bridge_id < NUM_NOC_ESR_BRIDGE; bridge_id++)
     {
         for (unsigned int min_shire = 0; min_shire < NOC_ESR_BRIDGE_ARRAY_COUNT; min_shire++)
         {
-            swap_regs(adbase_noc_esr_bridge, bridge_id, displace, spare,
-                      min_shire * NOC_ESR_BRIDGE_ARRAY_ELEMENT_SIZE);
+            remap_regs(BRIDGE_NOC_ESR, bridge_id, old_virtual_id, new_virtual_id,
+                       min_shire * NOC_ESR_BRIDGE_ARRAY_ELEMENT_SIZE);
         }
     }
 
@@ -101,8 +253,8 @@ static void swap_shires(int displace, int spare)
     {
         for (unsigned int min_shire = 0; min_shire < NOC_ESR_SIB_TOL3_ARRAY_COUNT; min_shire++)
         {
-            swap_regs(adbase_noc_esr_sib_tol3, bridge_id, displace, spare,
-                      min_shire * NOC_ESR_SIB_TOL3_ARRAY_ELEMENT_SIZE);
+            remap_regs(BRIDGE_NOC_ESR_SIB_TOL3, bridge_id, old_virtual_id, new_virtual_id,
+                       min_shire * NOC_ESR_SIB_TOL3_ARRAY_ELEMENT_SIZE);
         }
     }
 
@@ -110,27 +262,27 @@ static void swap_shires(int displace, int spare)
     {
         for (unsigned int min_shire = 0; min_shire < NOC_ESR_SIB_TOSYS_ARRAY_COUNT; min_shire++)
         {
-            swap_regs(adbase_noc_esr_sib_tosys, bridge_id, displace, spare,
-                      min_shire * NOC_ESR_SIB_TOSYS_ARRAY_ELEMENT_SIZE);
+            remap_regs(BRIDGE_NOC_ESR_SIB_TOSYS, bridge_id, old_virtual_id, new_virtual_id,
+                       min_shire * NOC_ESR_SIB_TOSYS_ARRAY_ELEMENT_SIZE);
         }
     }
 
     for (unsigned int bridge_id = 0; bridge_id < NUM_NOC_ESR_BRIDGE_IOS; bridge_id++)
     {
-        swap_regs(adbase_noc_esr_bridge_ios, bridge_id, displace, spare, 0);
+        remap_regs(BRIDGE_NOC_ESR_BRIDGE_IOS, bridge_id, old_virtual_id, new_virtual_id, 0);
     }
 
     for (unsigned int bridge_id = 0; bridge_id < NUM_NOC_ESR_BRIDGE_PS; bridge_id++)
     {
-        swap_regs(adbase_noc_esr_bridge_ps, bridge_id, displace, spare, 0);
+        remap_regs(BRIDGE_NOC_ESR_BRIDGE_PS, bridge_id, old_virtual_id, new_virtual_id, 0);
     }
 
     for (unsigned int bridge_id = 0; bridge_id < NUM_NOC_ESR_BRIDGE_MEM; bridge_id++)
     {
         for (unsigned int mem_shire = 0; mem_shire < NOC_ESR_BRIDGE_MEM_ARRAY_COUNT; mem_shire++)
         {
-            swap_regs(adbase_noc_esr_bridge_mem, bridge_id, displace, spare,
-                      mem_shire * NOC_ESR_BRIDGE_MEM_ARRAY_ELEMENT_SIZE);
+            remap_regs(BRIDGE_NOC_ESR_BRIDGE_MEM, bridge_id, old_virtual_id, new_virtual_id,
+                       mem_shire * NOC_ESR_BRIDGE_MEM_ARRAY_ELEMENT_SIZE);
         }
     }
 }
@@ -271,17 +423,17 @@ int32_t Get_Spare_Shire_Id(void)
     return SPARE_SHIRE_BIT_POSITION;
 }
 
-int32_t NOC_Remap_Shire_Id(int displace, int spare)
+int Get_New_Virtual_Id(int shire_id)
 {
-    if (displace == spare)
-    {
-        // All is good, no remap required
-        Log_Write(LOG_LEVEL_INFO, "Using the default shire mask, no remap needed.\n");
-        return SUCCESS;
-    }
+    return new_virtual_map[Get_Displace_Shire_Id()][shire_id];
+}
 
-    Log_Write(LOG_LEVEL_INFO, "Remapping shire %d.\n", displace);
-    swap_shires(displace, spare);
+int32_t NOC_Remap_Shires(void)
+{
+    for (int id = 0; id < NUM_SHIRES; id++)
+    {
+        remap_shire(id, Get_New_Virtual_Id(id));
+    }
 
     return SUCCESS;
 }

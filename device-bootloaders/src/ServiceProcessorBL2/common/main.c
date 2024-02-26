@@ -196,8 +196,7 @@ static void taskMain(void *pvParameters)
     ASSERT_FATAL(status == STATUS_SUCCESS, "Minion initialization failed!")
 
 #if !(FAST_BOOT || TEST_FRAMEWORK)
-    // Remap shires
-    status = NOC_Remap_Shire_Id(Get_Displace_Shire_Id(), Get_Spare_Shire_Id());
+    status = NOC_Remap_Shires();
     ASSERT_FATAL(status == STATUS_SUCCESS, "NOC shire remap failed!")
 #endif
 

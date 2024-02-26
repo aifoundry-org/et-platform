@@ -184,24 +184,20 @@ static StaticTimer_t MM_Timer_Buffer;
         shiremask >>= 1;                                  \
     }
 
-#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa, swap)                    \
-    /* Set Shire ID, enable cache and all Neighborhoods */                                       \
-    const int swap_id = !swap ?                                                                  \
-                            id :                                                                 \
-                            ((id == Get_Spare_Shire_Id()) ?                                      \
-                                 Get_Displace_Shire_Id() :                                       \
-                                 ((id == Get_Displace_Shire_Id()) ? Get_Spare_Shire_Id() : id)); \
-    const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(swap_id) |           \
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) |         \
-                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask);         \
-                                                                                                 \
-    write_esr_new(PP_MACHINE, id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,                       \
-                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);                        \
-    if (enable_vpu_rf_wa)                                                                        \
-    {                                                                                            \
-        /* VPU Array init */                                                                     \
-        if (0 != Minion_VPU_RF_Init(id))                                                         \
-            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", id);               \
+#define CONFIG_SHIRE_NEIGH(id, sc_enable, neigh_mask, enable_vpu_rf_wa, swap)            \
+    /* Set Shire ID, enable cache and all Neighborhoods */                               \
+    const int swap_id = !swap ? id : Get_New_Virtual_Id(id);                             \
+    const uint64_t config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_SHIRE_ID_SET(swap_id) |   \
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_CACHE_EN_SET(sc_enable) | \
+                            ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_SET(neigh_mask); \
+                                                                                         \
+    write_esr_new(PP_MACHINE, id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,               \
+                  ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);                \
+    if (enable_vpu_rf_wa)                                                                \
+    {                                                                                    \
+        /* VPU Array init */                                                             \
+        if (0 != Minion_VPU_RF_Init(id))                                                 \
+            Log_Write(LOG_LEVEL_WARNING, "Shire %d VPU RF not initialized\n", id);       \
     }
 
 #define CONFIG_SHIRE_NEIGH_MPROT(shire_id, neigh_id, dram_size_encoded)                        \

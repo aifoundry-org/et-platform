@@ -33,6 +33,13 @@ int32_t NOC_Configure(uint8_t mode);
 */
 int32_t NOC_Remap_Shire_Id(int displace, int spare);
 
+/*! \fn int32_t NOC_Remap_Shires(void
+    \brief This funtion remaps shires
+    \param n/a
+    \return Status indicating success or negative error
+*/
+int32_t NOC_Remap_Shires(void);
+
 /*! \fn int32_t Set_Displace_Shire_Id(uint64_t shire_mask)
     \brief This funtion sets the global displace shire ID value
     \param shire_mask shire mask to calculate the ID of the shire to be displaced
@@ -53,5 +60,12 @@ int Get_Displace_Shire_Id(void);
     \return Status indicating success or negative error
 */
 int Get_Spare_Shire_Id(void);
+
+/*! \fn int32_t Get_New_Virtual_Id (uint64_t shire_mask)
+    \brief This funtion gets the new virtual shire id to be used after spare shire swap
+    \param n/a
+    \return Status indicating success or negative error
+*/
+int Get_New_Virtual_Id(int shire_id);
 
 #endif
