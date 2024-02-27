@@ -40,7 +40,7 @@
 /* Globals for NOC Shire Remap */
 static int g_displace = SPARE_SHIRE_BIT_POSITION;
 
-static int getPhysicalID(int virtualID)
+static int get_shire_bridge_id(int virtualID)
 {
     // Validate virtualID to avoid array index out of bounds
     if (virtualID < 0 || virtualID > NUM_SHIRES - 1)
@@ -49,7 +49,7 @@ static int getPhysicalID(int virtualID)
     }
     else
     {
-        return phy_id[virtualID];
+        return shire_bridge_id[virtualID];
     }
 }
 
@@ -144,7 +144,7 @@ static uint64_t calculate_new_mask_value(int new_virtual_id, bridge_t bridge,
 static void remap_regs(bridge_t bridge, unsigned int bridge_id, int old_virtual_id,
                        int new_virtual_id, long unsigned int offset)
 {
-    int old_phy_id = getPhysicalID(old_virtual_id);
+    int old_shire_bridge_id = get_shire_bridge_id(old_virtual_id);
     uint32_t(*adbase)[NUM_SHIRES];
     bridge_range_t range;
 
@@ -193,11 +193,11 @@ static void remap_regs(bridge_t bridge, unsigned int bridge_id, int old_virtual_
         }
     }
 
-    if (old_phy_id != -1)
+    if (old_shire_bridge_id != -1)
     {
         const uint64_t baseAddr = R_SP_MAIN_NOC_REGBUS_BASEADDR;
-        uint64_t old_base = baseAddr + adbase[bridge_id][old_phy_id] + offset;
-        uint64_t old_mask = baseAddr + adbase[bridge_id][old_phy_id] + offset + 8;
+        uint64_t old_base = baseAddr + adbase[bridge_id][old_shire_bridge_id] + offset;
+        uint64_t old_mask = baseAddr + adbase[bridge_id][old_shire_bridge_id] + offset + 8;
 
         *(uint64_t *)old_base = calculate_new_base_value(new_virtual_id, bridge, bridge_id, range);
 
@@ -397,7 +397,7 @@ int32_t Get_Spare_Shire_Id(void)
 
 int Get_New_Virtual_Id(int shire_id)
 {
-    return new_virtual_map[Get_Displace_Shire_Id()][shire_id];
+    return new_shire_virtual_id[Get_Displace_Shire_Id()][shire_id];
 }
 
 int32_t NOC_Remap_Shires(void)
