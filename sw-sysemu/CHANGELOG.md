@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change default symbol visibility to "hidden". Export only public interface
 - Change default back to "default" while investigating deadlocks in shared libs.
 - Parametrize benchmarks
+- Improving performance on Tensor Store Checker
 ### Deprecated
 ### Removed
 ### Fixed
