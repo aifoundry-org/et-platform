@@ -518,6 +518,11 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
       DV_LOG(INFO) << "input_buff: " << tmp;
     } break;
+
+    case device_mgmt_api::DM_CMD::DM_CMD_SET_FRU:{
+      //memcpy(wCB->payload,input_buff,inputSize);
+      //wCB->info.cmd_hdr.size=sizeof(wCB->info)+inputSize;
+    } break;
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES:
     case device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES:
     case device_mgmt_api::DM_CMD::DM_CMD_SET_DM_TRACE_RUN_CONTROL:
