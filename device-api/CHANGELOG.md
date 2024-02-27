@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 ## [Unreleased]
 ### Added
+-[CS-226] Added 2 new Comamnds to read/write FRU from Host Device Management Service
 ### Changed
 ### Deprecated
 ### Removed
