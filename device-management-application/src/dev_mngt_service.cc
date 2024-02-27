@@ -46,6 +46,9 @@ namespace filesystem = std::experimental::filesystem;
 #include <esperanto/et-trace/decoder.h>
 #include <hostUtils/logging/Logging.h>
 
+#include <nlohmann/json.hpp>
+#include <fstream>
+
 #define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
 #define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
 #define DM_VLOG(level) ET_VLOG(DEV_MNGT_SERVICE, level) // verbosity levels: LOW MID HIGH
@@ -67,7 +70,7 @@ using namespace boost::multiprecision;
 using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
-
+char* fruFileName = nullptr;
 class DMLib {
 public:
   DMLib() {
@@ -405,6 +408,14 @@ void check_dm_events(DeviceManagement& dm) {
   }
 }
 
+
+void parseFRUDataFromFile(const char* fileName, FRUData& fruData) {
+    std::ifstream fileStream(fileName);
+    nlohmann::json json;
+    fileStream >> json;
+    fruData.board.mfg = json["board"]["mfg"];
+}
+
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
 
   static DMLib dml;
@@ -437,6 +448,8 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   return 0;
 }
 
+
+
 int verifyService() {
   int ret;
 
@@ -464,7 +477,6 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-
     DM_LOG(INFO) << fmt::format("Asset Output: {:#x}", *(static_cast<uint64_t*>(static_cast<void*>(output_buff))));
   } break;
 
@@ -506,6 +518,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
+    
     memcpy(&ecid, output_buff, output_size);
     DM_LOG(INFO) << fmt::format("Lot ID       = {} 0x{:016x}", ecid.lot_id_str.data(), ecid.lot_id);
     DM_LOG(INFO) << fmt::format("Wafer ID     = 0x{:02x} ({})", ecid.wafer_id, ecid.wafer_id);
@@ -1239,7 +1252,18 @@ int verifyService() {
       return ret;
     }
   } break;
-
+  case DM_CMD::DM_CMD_SET_FRU: {
+    FRUData fruData;
+    parseFRUDataFromFile(fruFileName,fruData);
+    std::cout<<fruData.board.mfg<<std::endl;
+    const uint32_t input_size=sizeof(FRUData);
+    char input_buff[input_size];
+    const uint32_t output_size=sizeof(uint32_t);
+    char output_buff[output_size]={0};
+    if ((ret=runService(input_buff,input_size,output_buff,output_size))!=DM_STATUS_SUCCESS) {
+      return ret;
+    }
+  } break;
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
     const uint32_t output_size = sizeof(device_mgmt_api::fused_public_keys_t);
     char output_buff[output_size] = {0};
@@ -2229,7 +2253,6 @@ bool doTraceOperation() {
 void printVersion(void) {
   std::cout << "dev_mngt_service version " << DM_APP_VERSION << std::endl;
 }
-
 int main(int argc, char** argv) {
   int c;
   int option_index = 0;
@@ -2275,6 +2298,12 @@ int main(int argc, char** argv) {
       if (!(cmd_flag = validCommand())) {
         return -EINVAL;
       }
+      if (strcmp(optarg, "DM_CMD_SET_FRU") == 0) {
+        fruFileName = argv[optind];
+        std::cout<<fruFileName<<std::endl;
+      }
+    break;
+
       break;
 
     case 'g':
