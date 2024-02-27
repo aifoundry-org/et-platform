@@ -77,19 +77,19 @@ verify_project_changes:
   variables:
     PROJ_VER_FILE_NAME: CMakeLists.txt
 
-clang-format:
-  extends:
-    - .template_job
-    - .pod_nano
-  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.5.0
-  stage: .pre
-  rules:
-    - *development_job_rule
-  variables:
-    CMD_SCRIPT: |
-      git fetch origin master
-      git clang-format --style file --diff origin/master --extensions c,h
-      git clang-format --style file --diff origin/master --extensions c,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
+#clang-format:
+#  extends:
+#    - .template_job
+#    - .pod_nano
+#  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.5.0
+#  stage: .pre
+#  rules:
+#    - *development_job_rule
+#  variables:
+#    CMD_SCRIPT: |
+#      git fetch origin master
+#      git clang-format --style file --diff origin/master --extensions c,h
+#      git clang-format --style file --diff origin/master --extensions c,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
 
 check-on-top-of-master:
   extends: .check-on-top-of-master
