@@ -115,6 +115,7 @@ enum DM_CMD {
   DM_CMD_SET_SHIRE_CACHE_CONFIG = 68,                 /**<  */
   DM_CMD_GET_SHIRE_CACHE_CONFIG = 69,                 /**<  */
   DM_CMD_SET_FRU = 70,                                /**<  */
+  DM_CMD_GET_FRU = 71,                                /**<  */
   DM_CMD_MDI_BEGIN = 128,                             /**<  */
   DM_CMD_MDI_SELECT_HART = 128,                       /**<  */
   DM_CMD_MDI_UNSELECT_HART = 129,                     /**<  */
@@ -136,8 +137,9 @@ enum DM_CMD {
   DM_CMD_MDI_SET_BREAKPOINT_EVENT = 192,              /**<  */
   DM_CMD_MDI_END = 255,                               /**<  */
   /* 256 - 511 are SP error Events */
-  DM_EVENT_BEGIN = 512,                /* Total 128 DM events */
-  DM_EVENT_SP_TRACE_BUFFER_FULL = 512, /**< Critical SP trace buffer full event */
+  DM_EVENT_BEGIN = 512, /* Total 128 DM events */
+  DM_EVENT_SP_TRACE_BUFFER_FULL =
+       512, /**< Critical SP trace buffer full event */
   DM_EVENT_END = 639,
 };
 
