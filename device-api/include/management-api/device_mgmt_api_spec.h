@@ -114,6 +114,7 @@ enum DM_CMD {
   DM_CMD_SET_DM_TRACE_CONFIG = 67, /**<  */
   DM_CMD_SET_SHIRE_CACHE_CONFIG = 68, /**<  */
   DM_CMD_GET_SHIRE_CACHE_CONFIG = 69, /**<  */
+  DM_CMD_SET_FRU = 70, /**<  */
   DM_CMD_MDI_BEGIN = 128, /**<  */
   DM_CMD_MDI_SELECT_HART = 128, /**<  */
   DM_CMD_MDI_UNSELECT_HART = 129, /**<  */
