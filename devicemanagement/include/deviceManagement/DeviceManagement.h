@@ -388,29 +388,6 @@ private:
 
 typedef DeviceManagement& (*getDM_t)(IDeviceLayer* devLayer);
 
-struct FRUBoard {
-  std::string mfg;
-  std::string pname;
-  std::string serial;
-  std::string pn;
-  std::string file;
-};
-
-struct FRUProduct {
-  std::string mfg;
-  std::string pn;
-  std::string pname;
-  std::string serial;
-  std::string atag;
-  std::string ver;
-  std::string file;
-};
-
-struct FRUData {
-  FRUBoard board;
-  FRUProduct product;
-};
-
 } // namespace device_management
 
 #endif // ET_DEVICEMANAGEMENT_H
