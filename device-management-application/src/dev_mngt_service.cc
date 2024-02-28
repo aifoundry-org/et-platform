@@ -46,8 +46,8 @@ namespace filesystem = std::experimental::filesystem;
 #include <esperanto/et-trace/decoder.h>
 #include <hostUtils/logging/Logging.h>
 
-#include <nlohmann/json.hpp>
 #include <fstream>
+#include <nlohmann/json.hpp>
 
 #define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
 #define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
@@ -408,12 +408,47 @@ void check_dm_events(DeviceManagement& dm) {
   }
 }
 
+void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
+  std::ifstream fileStream(fileName);
+  if (!fileStream.is_open()) {
+    std::cerr << "Failed to open file: " << fileName << std::endl;
+    return;
+  }
+  nlohmann::json json;
+  fileStream >> json;
 
-void parseFRUDataFromFile(const char* fileName, FRUData& fruData) {
-    std::ifstream fileStream(fileName);
-    nlohmann::json json;
-    fileStream >> json;
-    fruData.board.mfg = json["board"]["mfg"];
+  std::memset(&fruData, 0, sizeof(fruData));
+  if (json.contains("board") && json["board"].is_object()) {
+    const auto& board = json["board"];
+    if (board.contains("mfg"))
+      strncpy(fruData.board.mfg, board["mfg"].get<std::string>().c_str(), sizeof(fruData.board.mfg) - 1);
+    if (board.contains("pname"))
+      strncpy(fruData.board.pname, board["pname"].get<std::string>().c_str(), sizeof(fruData.board.pname) - 1);
+    if (board.contains("serial"))
+      strncpy(fruData.board.serial, board["serial"].get<std::string>().c_str(), sizeof(fruData.board.serial) - 1);
+    if (board.contains("pn"))
+      strncpy(fruData.board.pn, board["pn"].get<std::string>().c_str(), sizeof(fruData.board.pn) - 1);
+    if (board.contains("file"))
+      strncpy(fruData.board.file, board["file"].get<std::string>().c_str(), sizeof(fruData.board.file) - 1);
+  }
+
+  if (json.contains("product") && json["product"].is_object()) {
+    const auto& product = json["product"];
+    if (product.contains("mfg"))
+      strncpy(fruData.product.mfg, product["mfg"].get<std::string>().c_str(), sizeof(fruData.product.mfg) - 1);
+    if (product.contains("pn"))
+      strncpy(fruData.product.pn, product["pn"].get<std::string>().c_str(), sizeof(fruData.product.pn) - 1);
+    if (product.contains("pname"))
+      strncpy(fruData.product.pname, product["pname"].get<std::string>().c_str(), sizeof(fruData.product.pname) - 1);
+    if (product.contains("serial"))
+      strncpy(fruData.product.serial, product["serial"].get<std::string>().c_str(), sizeof(fruData.product.serial) - 1);
+    if (product.contains("atag"))
+      strncpy(fruData.product.atag, product["atag"].get<std::string>().c_str(), sizeof(fruData.product.atag) - 1);
+    if (product.contains("ver"))
+      strncpy(fruData.product.ver, product["ver"].get<std::string>().c_str(), sizeof(fruData.product.ver) - 1);
+    if (product.contains("file"))
+      strncpy(fruData.product.file, product["file"].get<std::string>().c_str(), sizeof(fruData.product.file) - 1);
+  }
 }
 
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
@@ -436,7 +471,6 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
 
   ret = dm.serviceRequest(node, code, input_buff, input_size, output_buff, output_size, hst_latency.get(),
                           dev_latency.get(), timeout);
-
   if (ret != DM_STATUS_SUCCESS) {
     DM_LOG(INFO) << "Service request failed with return code: " << ret << std::endl;
     return ret;
@@ -447,8 +481,6 @@ int runService(const char* input_buff, const uint32_t input_size, char* output_b
   DM_LOG(INFO) << "Service request succeeded" << std::endl;
   return 0;
 }
-
-
 
 int verifyService() {
   int ret;
@@ -518,7 +550,7 @@ int verifyService() {
     if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
-    
+
     memcpy(&ecid, output_buff, output_size);
     DM_LOG(INFO) << fmt::format("Lot ID       = {} 0x{:016x}", ecid.lot_id_str.data(), ecid.lot_id);
     DM_LOG(INFO) << fmt::format("Wafer ID     = 0x{:02x} ({})", ecid.wafer_id, ecid.wafer_id);
@@ -1247,22 +1279,22 @@ int verifyService() {
 
     const uint32_t output_size = sizeof(uint32_t);
     char output_buff[output_size] = {0};
-
     if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
   } break;
   case DM_CMD::DM_CMD_SET_FRU: {
-    FRUData fruData;
-    parseFRUDataFromFile(fruFileName,fruData);
-    std::cout<<fruData.board.mfg<<std::endl;
-    const uint32_t input_size=sizeof(FRUData);
+    fru_data_t fruData;
+    parseFRUDataFromFile(fruFileName, fruData);
+    const uint32_t input_size = sizeof(fru_data_t);
     char input_buff[input_size];
-    const uint32_t output_size=sizeof(uint32_t);
-    char output_buff[output_size]={0};
-    if ((ret=runService(input_buff,input_size,output_buff,output_size))!=DM_STATUS_SUCCESS) {
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+    std::memcpy(input_buff, &fruData, input_size);
+    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
+
   } break;
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
     const uint32_t output_size = sizeof(device_mgmt_api::fused_public_keys_t);
@@ -2300,9 +2332,8 @@ int main(int argc, char** argv) {
       }
       if (strcmp(optarg, "DM_CMD_SET_FRU") == 0) {
         fruFileName = argv[optind];
-        std::cout<<fruFileName<<std::endl;
       }
-    break;
+      break;
 
       break;
 
