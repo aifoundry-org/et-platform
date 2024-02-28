@@ -15,7 +15,8 @@
 #include <etsoc/isa/hart.h>
 #include <trace/trace_umode.h>
 
-#define PER_HART_MEMORY_ALLOC 1024
+#define PER_HART_MEMORY_ALLOC 0x400000ULL
+#define CACHE_LINE_SIZE 64
 
 typedef struct {
     uint64_t start_address;
@@ -39,8 +40,6 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
 {
   AddressRange hart_memory_range;
 
-  uint64_t start_ts = et_get_timestamp();
-  et_printf("Kernel start TS: %ld", start_ts);
 
   // To be able enabled for debug only
   //et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
@@ -50,16 +49,33 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
   uint32_t hart_id = get_hart_id();
   uint64_t value = 0;
 
-  // Assuming kernel_params_ptr is properly initialized
-  hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * PER_HART_MEMORY_ALLOC;
-  hart_memory_range.end_address   = hart_memory_range.start_address + kernel_params_ptr->num_cache_lines * 64;
+  /* Assuming kernel_params_ptr is properly initialized
+   Run 2 scenarios
+  1) Only run on first hart from each Shire
+  if (hart_id % 64 != 0)
+  {
+  	  return 0
+  }
 
-  for (uint64_t addr = hart_memory_range.start_address; addr < hart_memory_range.end_address; addr += 8) {
+  2) Only run on first hart from each Neigh
+  if (hart_id % 16 != 0)
+  {
+  	  return 0
+  }
+   */
+
+  hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * PER_HART_MEMORY_ALLOC;
+  hart_memory_range.end_address   = hart_memory_range.start_address + PER_HART_MEMORY_ALLOC;
+
+  uint64_t start_ts = et_get_timestamp();
+
+  /* Note to extract SC and DDR Perf counters during the following loop execution */
+  for (uint64_t addr = hart_memory_range.start_address; addr < hart_memory_range.end_address; addr += CACHE_LINE_SIZE) {
        value = *((uint64_t*)addr);
   }
 
-  uint64_t delta_us = (et_get_timestamp() - start_ts) / 40;
-  et_printf("Kernel exec dur: %ld Measured B/W: %ld MB/s ", et_get_delta_timestamp(start_ts), (kernel_params_ptr->num_cache_lines * 64 *1000000)/(1024 * delta_us));
+  uint64_t delta_us = et_get_delta_timestamp(start_ts);
+  et_printf("Kernel exec dur: %ld Measured B/W: %ld MB/s ", delta_us, (PER_HART_MEMORY_ALLOC / delta_us));
 
 
   return 0;
