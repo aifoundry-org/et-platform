@@ -410,14 +410,12 @@ void check_dm_events(DeviceManagement& dm) {
 
 void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
   std::ifstream fileStream(fileName);
+  nlohmann::json json;
   if (!fileStream.is_open()) {
-    std::cerr << "Failed to open file: " << fileName << std::endl;
+    DM_LOG(INFO) << "Failed to open file: " << node << std::endl;
     return;
   }
-  nlohmann::json json;
   fileStream >> json;
-
-  std::memset(&fruData, 0, sizeof(fruData));
   if (json.contains("board") && json["board"].is_object()) {
     const auto& board = json["board"];
     if (board.contains("mfg"))
@@ -431,7 +429,6 @@ void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
     if (board.contains("file"))
       strncpy(fruData.board.file, board["file"].get<std::string>().c_str(), sizeof(fruData.board.file) - 1);
   }
-
   if (json.contains("product") && json["product"].is_object()) {
     const auto& product = json["product"];
     if (product.contains("mfg"))
