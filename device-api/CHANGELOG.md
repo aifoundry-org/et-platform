@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 -[CS-226] Added 2 new Comamnds to read/write FRU from Host Device Management Service
+- Enable Clang format part of CI
 ### Changed
 ### Deprecated
 ### Removed
