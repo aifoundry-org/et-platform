@@ -21,6 +21,7 @@ find_package(deviceManagement REQUIRED)
 find_package(glog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(esperantoTrace REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 
@@ -66,6 +67,7 @@ target_link_libraries(dev_mngt_service
         deviceManagement::DM
         esperantoTrace::et_trace
         hostUtils::logging
+        nlohmann_json::nlohmann_json
         $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
         deviceLayer::deviceLayer
 )

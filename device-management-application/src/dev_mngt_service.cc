@@ -39,15 +39,13 @@ namespace filesystem = std::experimental::filesystem;
 #include <getopt.h>
 #include <glog/logging.h>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <regex>
 #include <string>
 #include <unistd.h>
 #define ET_TRACE_DECODER_IMPL
 #include <esperanto/et-trace/decoder.h>
 #include <hostUtils/logging/Logging.h>
-
-#include <fstream>
-#include <nlohmann/json.hpp>
 
 #define DM_LOG(severity) ET_LOG(DEV_MNGT_SERVICE, severity) // severity levels: INFO, WARNING and FATAL respectively
 #define DM_DLOG(severity) ET_DLOG(DEV_MNGT_SERVICE, severity)
@@ -408,44 +406,35 @@ void check_dm_events(DeviceManagement& dm) {
   }
 }
 
-void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
+void fillDataFromJSON(const nlohmann::json& json, fru_data_t& fruData) {
+  for (const auto& [key, value] : json.items()) {
+    if (key == "mfg") {
+      fruData.board.mfg = value.get<std::string>();
+    } else if (key == "pname") {
+      fruData.board.pname = value.get<std::string>();
+    } else if (key == "serial") {
+      fruData.board.serial = value.get<std::string>();
+    } else if (key == "pn") {
+      fruData.board.pn = value.get<std::string>();
+    } else if (key == "file") {
+      fruData.board.file = value.get<std::string>();
+    } else {
+      DM_VLOG(WARNING) << "Invalid key value: " << key << std::endl;
+    }
+  }
+}
+
+void parseFRUDataFromFile(const char* fileName, fru_data_t& fruData) {
   std::ifstream fileStream(fileName);
   nlohmann::json json;
+
   if (!fileStream.is_open()) {
-    DM_LOG(INFO) << "Failed to open file: " << node << std::endl;
+    DM_VLOG(WARNING) << "Failed to open file: " << fileName << std::endl;
     return;
   }
+
   fileStream >> json;
-  if (json.contains("board") && json["board"].is_object()) {
-    const auto& board = json["board"];
-    if (board.contains("mfg"))
-      strncpy(fruData.board.mfg, board["mfg"].get<std::string>().c_str(), sizeof(fruData.board.mfg) - 1);
-    if (board.contains("pname"))
-      strncpy(fruData.board.pname, board["pname"].get<std::string>().c_str(), sizeof(fruData.board.pname) - 1);
-    if (board.contains("serial"))
-      strncpy(fruData.board.serial, board["serial"].get<std::string>().c_str(), sizeof(fruData.board.serial) - 1);
-    if (board.contains("pn"))
-      strncpy(fruData.board.pn, board["pn"].get<std::string>().c_str(), sizeof(fruData.board.pn) - 1);
-    if (board.contains("file"))
-      strncpy(fruData.board.file, board["file"].get<std::string>().c_str(), sizeof(fruData.board.file) - 1);
-  }
-  if (json.contains("product") && json["product"].is_object()) {
-    const auto& product = json["product"];
-    if (product.contains("mfg"))
-      strncpy(fruData.product.mfg, product["mfg"].get<std::string>().c_str(), sizeof(fruData.product.mfg) - 1);
-    if (product.contains("pn"))
-      strncpy(fruData.product.pn, product["pn"].get<std::string>().c_str(), sizeof(fruData.product.pn) - 1);
-    if (product.contains("pname"))
-      strncpy(fruData.product.pname, product["pname"].get<std::string>().c_str(), sizeof(fruData.product.pname) - 1);
-    if (product.contains("serial"))
-      strncpy(fruData.product.serial, product["serial"].get<std::string>().c_str(), sizeof(fruData.product.serial) - 1);
-    if (product.contains("atag"))
-      strncpy(fruData.product.atag, product["atag"].get<std::string>().c_str(), sizeof(fruData.product.atag) - 1);
-    if (product.contains("ver"))
-      strncpy(fruData.product.ver, product["ver"].get<std::string>().c_str(), sizeof(fruData.product.ver) - 1);
-    if (product.contains("file"))
-      strncpy(fruData.product.file, product["file"].get<std::string>().c_str(), sizeof(fruData.product.file) - 1);
-  }
+  fillDataFromJSON(json, fruData);
 }
 
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
@@ -1283,15 +1272,11 @@ int verifyService() {
   case DM_CMD::DM_CMD_SET_FRU: {
     fru_data_t fruData;
     parseFRUDataFromFile(fruFileName, fruData);
-    const uint32_t input_size = sizeof(fru_data_t);
-    char input_buff[input_size];
-    const uint32_t output_size = sizeof(uint32_t);
-    char output_buff[output_size] = {0};
-    std::memcpy(input_buff, &fruData, input_size);
-    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+
+    if ((ret = runService(reinterpret_cast<char*>(&fruData), sizeof(fruData), &ret, sizeof(ret))) !=
+        DM_STATUS_SUCCESS) {
       return ret;
     }
-
   } break;
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
     const uint32_t output_size = sizeof(device_mgmt_api::fused_public_keys_t);

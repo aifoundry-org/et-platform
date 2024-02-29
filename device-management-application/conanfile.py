@@ -51,6 +51,7 @@ class DeviceManagementApplicationConan(ConanFile):
         self.requires("fmt/8.0.1")
         self.requires("glog/0.4.0")
         self.requires("ftxui/5.0.0")
+        self.requires("nlohmann_json/3.9.1")
 
     def export_sources(self):
         copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
