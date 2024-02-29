@@ -406,35 +406,41 @@ void check_dm_events(DeviceManagement& dm) {
   }
 }
 
-void fillDataFromJSON(const nlohmann::json& json, fru_data_t& fruData) {
-  for (const auto& [key, value] : json.items()) {
-    if (key == "mfg") {
-      fruData.board.mfg = value.get<std::string>();
-    } else if (key == "pname") {
-      fruData.board.pname = value.get<std::string>();
-    } else if (key == "serial") {
-      fruData.board.serial = value.get<std::string>();
-    } else if (key == "pn") {
-      fruData.board.pn = value.get<std::string>();
-    } else if (key == "file") {
-      fruData.board.file = value.get<std::string>();
-    } else {
-      DM_VLOG(WARNING) << "Invalid key value: " << key << std::endl;
-    }
+void fillDataFromJSON(const nlohmann::json& key, char* destination, size_t destSize) {
+  if (key.is_string()) {
+    std::string value = key.get<std::string>();
+    std::strncpy(destination, value.c_str(), destSize);
+    destination[destSize - 1] = '\0';
   }
 }
 
-void parseFRUDataFromFile(const char* fileName, fru_data_t& fruData) {
+void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
   std::ifstream fileStream(fileName);
   nlohmann::json json;
-
   if (!fileStream.is_open()) {
-    DM_VLOG(WARNING) << "Failed to open file: " << fileName << std::endl;
+    DM_LOG(WARNING) << "Failed to open file: " << fileName << std::endl;
     return;
   }
-
   fileStream >> json;
-  fillDataFromJSON(json, fruData);
+  if (json.contains("board") && json["board"].is_object()) {
+    const auto& board = json["board"];
+    fillDataFromJSON(board["mfg"], fruData.board.mfg, sizeof(fruData.board.mfg));
+    fillDataFromJSON(board["pname"], fruData.board.pname, sizeof(fruData.board.pname));
+    fillDataFromJSON(board["serial"], fruData.board.serial, sizeof(fruData.board.serial));
+    fillDataFromJSON(board["pn"], fruData.board.pn, sizeof(fruData.board.pn));
+    fillDataFromJSON(board["file"], fruData.board.file, sizeof(fruData.board.file));
+  }
+
+  if (json.contains("product") && json["product"].is_object()) {
+    const auto& product = json["product"];
+    fillDataFromJSON(product["mfg"], fruData.product.mfg, sizeof(fruData.product.mfg));
+    fillDataFromJSON(product["pn"], fruData.product.pn, sizeof(fruData.product.pn));
+    fillDataFromJSON(product["pname"], fruData.product.pname, sizeof(fruData.product.pname));
+    fillDataFromJSON(product["serial"], fruData.product.serial, sizeof(fruData.product.serial));
+    fillDataFromJSON(product["atag"], fruData.product.atag, sizeof(fruData.product.atag));
+    fillDataFromJSON(product["ver"], fruData.product.ver, sizeof(fruData.product.ver));
+    fillDataFromJSON(product["file"], fruData.product.file, sizeof(fruData.product.file));
+  }
 }
 
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
@@ -1272,9 +1278,12 @@ int verifyService() {
   case DM_CMD::DM_CMD_SET_FRU: {
     fru_data_t fruData;
     parseFRUDataFromFile(fruFileName, fruData);
-
-    if ((ret = runService(reinterpret_cast<char*>(&fruData), sizeof(fruData), &ret, sizeof(ret))) !=
-        DM_STATUS_SUCCESS) {
+    const uint32_t input_size = sizeof(fru_data_t);
+    char input_buff[input_size];
+    const uint32_t output_size = sizeof(uint32_t);
+    char output_buff[output_size] = {0};
+    std::memcpy(input_buff, &fruData, input_size);
+    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
       return ret;
     }
   } break;
