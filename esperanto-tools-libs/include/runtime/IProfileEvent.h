@@ -73,8 +73,10 @@ enum class Class {
   CmaCopy,
   CmaWait,
   MemcpyDeviceToDevice,
+  SyncTime,
   COUNT
 };
+
 enum class ResponseType { DMARead, DMAWrite, Kernel, DMAP2P, COUNT };
 Class class_from_string(const std::string& str);
 Type type_from_string(const std::string& str);
@@ -90,9 +92,11 @@ public:
   using Cycles = uint64_t;
   using Clock = std::chrono::steady_clock;
   using TimePoint = std::chrono::time_point<Clock>;
+  using SystemClock = std::chrono::system_clock;
+  using SystemTimePoint = std::chrono::time_point<SystemClock>;
   using Duration = TimePoint::duration;
-  using ExtraValues =
-    std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration, DeviceProperties, Version>;
+  using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration,
+                                   DeviceProperties, Version, SystemTimePoint, std::string>;
   using ExtraMetadata = std::unordered_map<std::string, ExtraValues>;
 
   ProfileEvent() = default;
@@ -119,6 +123,8 @@ public:
   std::optional<Cycles> getDeviceCmdWaitDur() const;
   std::optional<Cycles> getDeviceCmdExecDur() const;
   std::optional<DeviceProperties> getDeviceProperties() const;
+  std::optional<SystemTimePoint> getSystemTimeStamp() const;
+  std::optional<uint64_t> getServerPID() const;
 
   void setType(Type t);
   void setClass(Class c);
@@ -138,6 +144,8 @@ public:
   void setDeviceCmdWaitDur(uint64_t wait_dur);
   void setDeviceCmdExecDur(uint64_t exec_dur);
   void setDeviceProperties(DeviceProperties props);
+  void setSystemTimeStamp(SystemTimePoint systemTimeStamp = SystemClock::now());
+  void setServerPID(uint64_t serverPID);
 
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 

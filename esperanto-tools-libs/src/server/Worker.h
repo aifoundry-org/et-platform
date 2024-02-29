@@ -37,7 +37,9 @@ public:
   void onKernelAborted(EventId event, std::byte* context, size_t size, std::function<void()> freeResources);
 
   void sendProfilerEvent(const profiling::ProfileEvent& event) {
-    sendResponse({resp::Type::TRACING_EVENT, req::ASYNC_RUNTIME_EVENT, event});
+    resp::Response response{resp::Type::TRACING_EVENT, req::ASYNC_RUNTIME_EVENT, event};
+    std::get<profiling::ProfileEvent>(response.payload_).setServerPID(pid_);
+    sendResponse(response);
   }
 
 private:
@@ -71,5 +73,7 @@ private:
   std::recursive_mutex mutex_;
   int socket_;
   bool running_ = true;
+
+  pid_t pid_;
 };
 } // namespace rt

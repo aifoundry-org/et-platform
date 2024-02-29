@@ -55,6 +55,7 @@ std::string getString(Class cls) {
     STR_PROFILING_CLASS(CmaCopy)
     STR_PROFILING_CLASS(CmaWait)
     STR_PROFILING_CLASS(MemcpyDeviceToDevice)
+    STR_PROFILING_CLASS(SyncTime)
 
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
@@ -121,6 +122,7 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::EndProfiling)] = Class::EndProfiling;
     s_map[getString(Class::CmaCopy)] = Class::CmaCopy;
     s_map[getString(Class::CmaWait)] = Class::CmaWait;
+    s_map[getString(Class::SyncTime)] = Class::SyncTime;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });
@@ -221,6 +223,12 @@ std::optional<uint64_t> ProfileEvent::getDeviceCmdExecDur() const {
 std::optional<DeviceProperties> ProfileEvent::getDeviceProperties() const {
   return getExtra<DeviceProperties>("device_properties");
 }
+std::optional<ProfileEvent::SystemTimePoint> ProfileEvent::getSystemTimeStamp() const {
+  return getExtra<SystemTimePoint>("system_timepoint");
+}
+std::optional<uint64_t> ProfileEvent::getServerPID() const {
+  return getExtra<uint64_t>("server_pid");
+}
 
 std::optional<EventId> ProfileEvent::getParentId() const {
   return getExtra<EventId>("parent_id");
@@ -290,6 +298,14 @@ void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
 
 void ProfileEvent::setDeviceProperties(DeviceProperties props) {
   addExtra("device_properties", props);
+}
+
+void ProfileEvent::setSystemTimeStamp(SystemTimePoint systemTimeStamp) {
+  addExtra("system_timepoint", systemTimeStamp);
+}
+
+void ProfileEvent::setServerPID(uint64_t serverPID) {
+  addExtra("server_pid", serverPID);
 }
 
 template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {

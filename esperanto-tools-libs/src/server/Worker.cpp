@@ -70,6 +70,7 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
   : runtime_(runtime)
   , server_(server)
   , socket_(socket) {
+  pid_ = getpid();
 
   runtime_.attach(this);
   cmaCopyFunction_ = [pid = credentials.pid](const std::byte* src, std::byte* dst, size_t size, CmaCopyType type) {
@@ -436,6 +437,12 @@ void Worker::processRequest(const req::Request& request) {
     if (profiler != nullptr) {
       profiler->enableRemote();
     }
+
+    // Send clock synchronization profiling event
+    profiling::ProfileEvent syncClockProfileEvent{profiling::Type::Instant, profiling::Class::SyncTime};
+    syncClockProfileEvent.setSystemTimeStamp();
+    sendProfilerEvent(syncClockProfileEvent);
+
     sendResponse({resp::Type::ENABLE_TRACING, request.id_, std::monostate()});
     break;
   }

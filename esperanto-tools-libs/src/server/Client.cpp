@@ -142,6 +142,11 @@ void Client::onProfilerChanged() {
   if (profiler->isDummy()) {
     sendRequestAndWait(req::Type::DISABLE_TRACING, std::monostate{});
   } else {
+    // Record a clock synchronization profiling event
+    profiling::ProfileEvent syncClockProfileEvent{profiling::Type::Instant, profiling::Class::SyncTime};
+    syncClockProfileEvent.setSystemTimeStamp();
+    profiler->record(syncClockProfileEvent);
+
     sendRequestAndWait(req::Type::ENABLE_TRACING, std::monostate{});
   }
 }
