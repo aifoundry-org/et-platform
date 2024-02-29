@@ -483,6 +483,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     auto wCB = std::make_unique<dm_cmd>();
     wCB->info.cmd_hdr.tag_id = tag_id_++;
     wCB->info.cmd_hdr.msg_id = cmd_code;
+    wCB->payload = std::make_unique<char[]>(inputSize);
 
     switch (cmd_code) {
     case device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_UPDATE: {
@@ -512,7 +513,7 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       }
       auto tmp = reinterpret_cast<char*>(hash.data());
       DV_LOG(INFO) << "Mem copy ";
-      memcpy(wCB->payload, tmp, inputSize);
+      memcpy(wCB->payload.get(), input_buff, inputSize);
       DV_LOG(INFO) << "Size: " << inputSize;
       wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
       DV_LOG(INFO) << "input_buff: " << tmp;
@@ -538,45 +539,45 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_CSR:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_READ_MEM:
     case device_mgmt_api::DM_CMD::DM_CMD_MDI_WRITE_MEM: {
-      memcpy(wCB->payload, input_buff, inputSize);
+      memcpy(wCB->payload.get(), input_buff, inputSize);
       wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
       break;
     }
     default: {
       if (isSet && input_buff && inputSize) {
-        memcpy(wCB->payload, input_buff, inputSize);
+        memcpy(wCB->payload.get(), input_buff, inputSize);
       }
-
       wCB->info.cmd_hdr.size = sizeof(wCB->info) + inputSize;
     } break;
     }
-
     CmdFlagSP flags;
     if (cmd_code == device_mgmt_api::DM_CMD::DM_CMD_MM_RESET) {
       flags.isMmReset_ = true;
     } else if (cmd_code == device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC) {
       flags.isEtsocReset_ = true;
     }
-
     // There will be no response for ETSOC Reset, so do not add response placeholder and stop device functionality
     if (flags.isEtsocReset_) {
       destroyDeviceInstance(lockable->idx, true);
     } else {
       respReceiveFuture = lockable->getRespReceiveFuture(wCB->info.cmd_hdr.tag_id);
     }
+    size_t totalSize = sizeof(wCB->info) + input_size;
+    auto buffer = std::make_unique<std::byte[]>(totalSize);
+    memcpy(buffer.get(), &(wCB->info), sizeof(wCB->info));
+    memcpy(buffer.get() + sizeof(wCB->info), wCB->payload.get(), input_size);
     try {
-      if (!devLayer_->sendCommandServiceProcessor(lockable->idx, reinterpret_cast<std::byte*>(wCB.get()),
-                                                  wCB->info.cmd_hdr.size, flags)) {
+      if (!devLayer_->sendCommandServiceProcessor(lockable->idx, buffer.get(), wCB->info.cmd_hdr.size, flags)) {
         if (flags.isEtsocReset_) {
           createDeviceInstance(lockable->idx);
         }
+
         return -EIO;
       }
     } catch (const dev::Exception& ex) {
       auto eptr = std::make_exception_ptr(ex);
       std::rethrow_exception(eptr);
     }
-
     DV_DLOG(DEBUG) << "Sent cmd: " << wCB->info.cmd_hdr.msg_id << " with header size: " << wCB->info.cmd_hdr.size
                    << std::endl;
 
@@ -587,7 +588,6 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
       createDeviceInstance(lockable->idx);
       return 0;
     }
-
     if (auto status = respReceiveFuture.wait_for(end - std::chrono::steady_clock::now());
         status != std::future_status::ready) {
       return -EAGAIN;
@@ -595,16 +595,13 @@ int DeviceManagement::serviceRequest(const uint32_t device_node, uint32_t cmd_co
 
     auto message = respReceiveFuture.get();
     auto rCB = reinterpret_cast<dm_rsp*>(message.data());
-
     DV_DLOG(DEBUG) << "Read rsp to cmd: " << rCB->info.rsp_hdr.msg_id << " with header size: " << rCB->info.rsp_hdr.size
                    << std::endl;
 
     if (output_buff && output_size) {
       memcpy(output_buff, rCB->payload, output_size);
     }
-
     auto status = rCB->info.rsp_hdr_ext.status;
-
     if (status) {
       DV_LOG(INFO) << "Received incorrect rsp status: " << rCB->info.rsp_hdr_ext.status << std::endl;
       return -EIO;
