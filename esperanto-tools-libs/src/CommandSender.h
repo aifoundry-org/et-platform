@@ -78,6 +78,7 @@ private:
   dev::IDeviceLayer& deviceLayer_;
   profiling::IProfilerRecorder* profiler_;
   CommandSentCallback callback_;
+  int nextCallbackThreadId_ = 0;
   int deviceId_;
   int sqIdx_;
   bool running_ = true;

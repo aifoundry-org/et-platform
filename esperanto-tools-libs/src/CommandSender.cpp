@@ -134,6 +134,8 @@ void CommandSender::cancel(EventId event) {
 }
 
 void CommandSender::runnerFunc() {
+  profiling::IProfilerRecorder::setCurrentThreadName("Device " + std::to_string(deviceId_) + " command sender");
+
   while (running_) {
     try {
       SpinLock lock(mutex_);
@@ -158,8 +160,13 @@ void CommandSender::runnerFunc() {
           profiler_->record(event);
 
           if (callback_) {
-            auto th = std::thread([callback = callback_, cmd] { callback(&cmd); });
+            auto th = std::thread([callback = callback_, cmd, deviceId = deviceId_, threadId = nextCallbackThreadId_] {
+              profiling::IProfilerRecorder::setCurrentThreadName(
+                "Device " + std::to_string(deviceId) + " command sender callback thread " + std::to_string(threadId));
+              callback(&cmd);
+            });
             th.detach();
+            nextCallbackThreadId_++;
           }
           commands_.pop_front();
         } else {

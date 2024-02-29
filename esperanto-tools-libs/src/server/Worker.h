@@ -43,7 +43,7 @@ public:
   }
 
 private:
-  void requestProcessor();
+  void requestProcessor(pid_t clientPID);
   void freeResources();
   void processRequest(const req::Request& request);
 

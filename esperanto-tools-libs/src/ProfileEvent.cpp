@@ -25,6 +25,8 @@
 
 namespace rt::profiling {
 
+thread_local std::string IProfilerRecorder::threadName_;
+
 #define STR_PROFILING_CLASS(CLASS)                                                                                     \
   case rt::profiling::Class::CLASS: {                                                                                  \
     return #CLASS;                                                                                                     \
@@ -56,6 +58,7 @@ std::string getString(Class cls) {
     STR_PROFILING_CLASS(CmaWait)
     STR_PROFILING_CLASS(MemcpyDeviceToDevice)
     STR_PROFILING_CLASS(SyncTime)
+    STR_PROFILING_CLASS(IdentifyThread)
 
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
@@ -123,6 +126,7 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::CmaCopy)] = Class::CmaCopy;
     s_map[getString(Class::CmaWait)] = Class::CmaWait;
     s_map[getString(Class::SyncTime)] = Class::SyncTime;
+    s_map[getString(Class::IdentifyThread)] = Class::IdentifyThread;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });
@@ -185,6 +189,9 @@ std::string ProfileEvent::getThreadId() const {
 ProfileEvent::ExtraMetadata ProfileEvent::getExtras() const {
   return extra_;
 }
+std::thread::id ProfileEvent::getNumericThreadId() const {
+  return numericThreadId_;
+}
 
 std::optional<Version> ProfileEvent::getVersion() const {
   return getExtra<Version>("version");
@@ -226,6 +233,9 @@ std::optional<DeviceProperties> ProfileEvent::getDeviceProperties() const {
 std::optional<ProfileEvent::SystemTimePoint> ProfileEvent::getSystemTimeStamp() const {
   return getExtra<SystemTimePoint>("system_timepoint");
 }
+std::optional<std::string> ProfileEvent::getThreadName() const {
+  return getExtra<std::string>("thread_name");
+}
 std::optional<uint64_t> ProfileEvent::getServerPID() const {
   return getExtra<uint64_t>("server_pid");
 }
@@ -244,6 +254,8 @@ void ProfileEvent::setTimeStamp(TimePoint t) {
   timeStamp_ = t;
 }
 void ProfileEvent::setThreadId(std::thread::id id) {
+  numericThreadId_ = id;
+
   std::stringstream ss;
   ss << id;
   threadId_ = ss.str();
@@ -302,6 +314,10 @@ void ProfileEvent::setDeviceProperties(DeviceProperties props) {
 
 void ProfileEvent::setSystemTimeStamp(SystemTimePoint systemTimeStamp) {
   addExtra("system_timepoint", systemTimeStamp);
+}
+
+void ProfileEvent::setThreadName(std::string const& threadName) {
+  addExtra("thread_name", threadName);
 }
 
 void ProfileEvent::setServerPID(uint64_t serverPID) {

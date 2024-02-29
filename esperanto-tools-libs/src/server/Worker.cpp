@@ -94,7 +94,7 @@ Worker::Worker(int socket, RuntimeImp& runtime, Server& server, ucred credential
                       << std::hex << src << " Dst: " << dst << std::string{" error: "} + strerror(errno);
     }
   };
-  runner_ = std::thread(&Worker::requestProcessor, this);
+  runner_ = std::thread(&Worker::requestProcessor, this, credentials.pid);
 }
 
 Worker::~Worker() {
@@ -121,11 +121,13 @@ rt::profiling::RemoteProfiler* Worker::getProfiler() {
   return dynamic_cast<rt::profiling::RemoteProfiler*>(runtime_.getProfiler());
 }
 
-void Worker::requestProcessor() {
+void Worker::requestProcessor(pid_t clientPID) {
   using namespace std::string_literals;
   auto threadName = "Server::Worker" + std::to_string(workerId_++);
-
   EASY_THREAD_SCOPE(threadName.c_str())
+
+  profiling::IProfilerRecorder::setCurrentThreadName("Worker for client PID " + std::to_string(clientPID));
+
   constexpr size_t kMaxRequestSize = req::kMaxKernelSize + 4096; // 4096 is for all metadata
   auto requestBuffer = std::vector<char>(kMaxRequestSize);
 

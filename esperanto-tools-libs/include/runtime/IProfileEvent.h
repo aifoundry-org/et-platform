@@ -74,6 +74,7 @@ enum class Class {
   CmaWait,
   MemcpyDeviceToDevice,
   SyncTime,
+  IdentifyThread,
   COUNT
 };
 
@@ -110,6 +111,8 @@ public:
   std::string getThreadId() const;
   ExtraMetadata getExtras() const;
 
+  std::thread::id getNumericThreadId() const;
+
   std::optional<Version> getVersion() const;
   std::optional<Duration> getDuration() const;
   std::optional<EventId> getEvent() const;
@@ -124,6 +127,7 @@ public:
   std::optional<Cycles> getDeviceCmdExecDur() const;
   std::optional<DeviceProperties> getDeviceProperties() const;
   std::optional<SystemTimePoint> getSystemTimeStamp() const;
+  std::optional<std::string> getThreadName() const;
   std::optional<uint64_t> getServerPID() const;
 
   void setType(Type t);
@@ -145,6 +149,7 @@ public:
   void setDeviceCmdExecDur(uint64_t exec_dur);
   void setDeviceProperties(DeviceProperties props);
   void setSystemTimeStamp(SystemTimePoint systemTimeStamp = SystemClock::now());
+  void setThreadName(std::string const& threadName);
   void setServerPID(uint64_t serverPID);
 
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
@@ -158,6 +163,8 @@ private:
   TimePoint timeStamp_;
   Type type_;
   Class class_;
+
+  std::thread::id numericThreadId_;
 };
 } // end namespace profiling
 } // end namespace rt

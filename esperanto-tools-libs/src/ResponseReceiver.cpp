@@ -35,6 +35,8 @@ void ResponseReceiver::checkResponses(int deviceId) {
   // Max ioctl size is 14b
   constexpr uint32_t kMaxMsgSize = (1UL << 14) - 1;
 
+  profiling::IProfilerRecorder::setCurrentThreadName("Device " + std::to_string(deviceId) + " response receiver");
+
   std::vector<std::byte> buffer(kMaxMsgSize);
 
   std::random_device rd;
@@ -69,6 +71,8 @@ void ResponseReceiver::checkResponses(int deviceId) {
 }
 
 void ResponseReceiver::checkDevices() {
+  profiling::IProfilerRecorder::setCurrentThreadName("Device checker");
+
   auto devices = deviceLayer_->getDevicesCount();
   auto lastCheck = std::chrono::high_resolution_clock::now() - kCheckDevicesInterval;
   while (runDeviceChecker_) {

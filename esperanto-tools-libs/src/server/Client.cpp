@@ -153,6 +153,9 @@ void Client::onProfilerChanged() {
 
 void Client::responseProcessor() {
   EASY_THREAD_SCOPE("Client::responseProcessor")
+
+  profiling::IProfilerRecorder::setCurrentThreadName("Client response processor");
+
   auto requestBuffer = std::vector<char>(kMaxMessageSize);
   try {
     while (running_) {
@@ -437,6 +440,10 @@ void Client::handShake() {
       std::to_string(Protocol::MINOR) + ", <" + std::to_string(Protocol::MAJOR + 1) +
       ".0. Please update the runtime client library or runtime daemon server.");
   }
+
+  // Start profiling as soon as possible
+  onProfilerChanged();
+
   // get deviceLayerProperties now
   auto devices = getDevices();
   RT_LOG(INFO) << "Num devices: " << devices.size();

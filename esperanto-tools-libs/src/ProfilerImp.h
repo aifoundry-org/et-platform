@@ -52,12 +52,16 @@ public:
 
 private:
   void ioThread(OutputType outputType, std::ostream* stream);
+  std::optional<ProfileEvent> identifyThread();
 
   std::mutex mutex_;
   std::queue<ProfileEvent> events_;
   std::condition_variable cv_;
   std::thread ioThread_;
   bool recording_ = false;
+
+  std::mutex identifiedThreadsMutex_;
+  std::unordered_set<std::thread::id> identifiedThreads_;
 };
 
 } // namespace rt::profiling

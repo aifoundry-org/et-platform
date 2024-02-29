@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - [SW-19991] Forward server tracing events to clients if tracing is enabled
 - [SW-20306] Add time synchronization profiling events
+- [SW-20306] Add thread identification profiling events
 ### Changed
 ### Deprecated
 ### Removed

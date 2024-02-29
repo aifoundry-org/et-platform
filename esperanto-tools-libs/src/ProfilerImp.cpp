@@ -35,12 +35,24 @@ void ProfilerImp::stop() {
 }
 
 void ProfilerImp::record(const ProfileEvent& event) {
-  if (!recording_)
+  if (!recording_) {
     return;
-  SpinLock lock{mutex_};
-  auto wasEmpty = events_.empty();
-  events_.push(event);
-  lock.unlock();
+  }
+
+  auto identifyThreadEvent = identifyThread();
+
+  bool wasEmpty;
+  {
+    SpinLock lock{mutex_};
+    wasEmpty = events_.empty();
+
+    events_.push(event);
+
+    if (identifyThreadEvent.has_value()) {
+      events_.emplace(std::move(identifyThreadEvent.value()));
+    }
+  }
+
   if (wasEmpty) {
     cv_.notify_one();
   }
@@ -52,7 +64,28 @@ ProfilerImp::~ProfilerImp() {
   }
 }
 
+std::optional<ProfileEvent> ProfilerImp::identifyThread() {
+  if (threadName_.empty()) {
+    return std::nullopt;
+  }
+
+  SpinLock lock(identifiedThreadsMutex_);
+  auto [it, inserted] = identifiedThreads_.emplace(std::this_thread::get_id());
+  (void)it;
+  lock.unlock();
+
+  if (inserted) {
+    ProfileEvent identifyThreadEvent{Type::Instant, Class::IdentifyThread};
+    identifyThreadEvent.setThreadName(threadName_);
+    return identifyThreadEvent;
+  } else {
+    return std::nullopt;
+  }
+}
+
 void ProfilerImp::ioThread(OutputType outputType, std::ostream* stream) {
+  profiling::IProfilerRecorder::setCurrentThreadName("Profiler IO thread");
+
   std::variant<std::monostate, cereal::JSONOutputArchive, cereal::PortableBinaryOutputArchive> archive;
   switch (outputType) {
   case OutputType::Json:
@@ -64,6 +97,7 @@ void ProfilerImp::ioThread(OutputType outputType, std::ostream* stream) {
   default:
     throw Exception("Unknown profiler output type");
   }
+
   SpinLock lock{mutex_};
   while (recording_ || !events_.empty()) {
     if (events_.empty()) {

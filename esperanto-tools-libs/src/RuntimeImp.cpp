@@ -418,6 +418,9 @@ void RuntimeImp::handleKernelAbortedCallback(EventId event) {
 
   RT_LOG(INFO) << "Executing kernel abort callback";
   auto th = std::thread([event, exceptionContext, this] {
+    static std::atomic<int> threadId = 0;
+    profiling::IProfilerRecorder::setCurrentThreadName("Kernel aborted callback thread " + std::to_string(threadId++));
+
     kernelAbortedCallback_(event, exceptionContext, kExceptionBufferSize,
                            [this, event] { executionContextCache_->releaseBuffer(event); });
     RT_LOG(INFO) << "Dispatching event " << int(event);

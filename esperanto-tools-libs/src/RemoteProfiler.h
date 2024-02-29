@@ -18,6 +18,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace rt {
 class Worker;
@@ -46,10 +47,15 @@ public:
   void disableRemote();
 
 private:
+  inline void registerThread();
+  std::string getThreadName(std::thread::id threadId);
+
   Worker* getWorker(StreamId streamId);
 
   void recordRequestProfilingEvent(EventId eventId, StreamId streamId, const ProfileEvent& event);
   void recordResponseProfilingEvent(EventId eventId, const ProfileEvent& event);
+
+  void sendProfilingEvent(Worker* worker, const ProfileEvent& event);
 
   std::atomic<bool> enabled_;
   std::unique_ptr<IProfilerRecorder> localProfiler_;
@@ -60,6 +66,12 @@ private:
   mutable std::mutex eventToStreamAndEraliesMutex_;
   std::unordered_map<EventId, StreamId> eventToStream_;
   std::unordered_map<EventId, ProfileEvent> earlyProfilingEvents_;
+
+  std::mutex threadIdNamesMutex_;
+  std::unordered_map<std::thread::id, std::string> threadIdNames_;
+
+  std::mutex workerAccessedThreadsMutex_;
+  std::unordered_map<Worker*, std::unordered_set<std::thread::id>> workerAccessedThreads_;
 
   static thread_local Worker* threadsWorker_;
 };

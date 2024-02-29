@@ -52,9 +52,18 @@ class ProfileEvent;
 class IProfilerRecorder : public IProfiler {
 public:
   virtual void record(const ProfileEvent& event) = 0;
+
   virtual bool isDummy() const {
     return false;
   }
+
+  // Set up the name of the current thread
+  static void setCurrentThreadName(std::string&& threadName) {
+    threadName_ = std::move(threadName);
+  }
+
+protected:
+  static thread_local std::string threadName_;
 };
 
 } // namespace profiling

@@ -111,6 +111,9 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
 
 void Server::listen() {
   EASY_THREAD_SCOPE("Server::listener")
+
+  profiling::IProfilerRecorder::setCurrentThreadName("Listener thread");
+
   while (running_) {
     pollfd pfd;
     pfd.events = POLLIN;
