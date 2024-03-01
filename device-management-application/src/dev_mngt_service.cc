@@ -406,41 +406,23 @@ void check_dm_events(DeviceManagement& dm) {
   }
 }
 
-void fillDataFromJSON(const nlohmann::json& key, char* destination, size_t destSize) {
-  if (key.is_string()) {
-    std::string value = key.get<std::string>();
-    std::strncpy(destination, value.c_str(), destSize);
-    destination[destSize - 1] = '\0';
-  }
-}
-
 void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
-  std::ifstream fileStream(fileName);
-  nlohmann::json json;
+  std::ifstream fileStream(fileName, std::ios::binary);
   if (!fileStream.is_open()) {
-    DM_LOG(WARNING) << "Failed to open file: " << fileName << std::endl;
+    std::cerr << "Failed to open file: " << fileName << std::endl;
     return;
   }
-  fileStream >> json;
-  if (json.contains("board") && json["board"].is_object()) {
-    const auto& board = json["board"];
-    fillDataFromJSON(board["mfg"], fruData.board.mfg, sizeof(fruData.board.mfg));
-    fillDataFromJSON(board["pname"], fruData.board.pname, sizeof(fruData.board.pname));
-    fillDataFromJSON(board["serial"], fruData.board.serial, sizeof(fruData.board.serial));
-    fillDataFromJSON(board["pn"], fruData.board.pn, sizeof(fruData.board.pn));
-    fillDataFromJSON(board["file"], fruData.board.file, sizeof(fruData.board.file));
+
+  // Read the data into the buffer
+  fileStream.read(reinterpret_cast<char*>(fruData.buffer), sizeof(struct fru_data_t));
+
+  if (fileStream.fail()) {
+    std::cerr << "Failed to read file: " << fileName << std::endl;
+    return;
   }
 
-  if (json.contains("product") && json["product"].is_object()) {
-    const auto& product = json["product"];
-    fillDataFromJSON(product["mfg"], fruData.product.mfg, sizeof(fruData.product.mfg));
-    fillDataFromJSON(product["pn"], fruData.product.pn, sizeof(fruData.product.pn));
-    fillDataFromJSON(product["pname"], fruData.product.pname, sizeof(fruData.product.pname));
-    fillDataFromJSON(product["serial"], fruData.product.serial, sizeof(fruData.product.serial));
-    fillDataFromJSON(product["atag"], fruData.product.atag, sizeof(fruData.product.atag));
-    fillDataFromJSON(product["ver"], fruData.product.ver, sizeof(fruData.product.ver));
-    fillDataFromJSON(product["file"], fruData.product.file, sizeof(fruData.product.file));
-  }
+  // Close the file
+  fileStream.close();
 }
 
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
@@ -1276,35 +1258,37 @@ int verifyService() {
     }
   } break;
   case DM_CMD::DM_CMD_GET_FRU: {
+    // Declaration of fruData and output_buff
     fru_data_t fruData;
-    const uint32_t output_size = sizeof(struct fru_data_t);
-    char output_buff[output_size] = {0};
-    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
-      return ret;
+    const size_t output_size = sizeof(fru_data_t);
+    std::vector<char> output_buff(output_size, 0);
+
+    // Run service with nullptr as input buffer and output buffer
+    if ((ret = runService(nullptr, 0, output_buff.data(), output_size)) != DM_STATUS_SUCCESS) {
+      return ret; // Return error code if service execution fails
     }
-    memcpy(&fruData, output_buff, output_size);
-    DM_LOG(INFO) << "Board - mfg:" << fruData.board.mfg;
-    DM_LOG(INFO) << "Board - pname:" << fruData.board.pname;
-    DM_LOG(INFO) << "Board - serial:" << fruData.board.serial;
-    DM_LOG(INFO) << "Board - pn:" << fruData.board.pn;
-    DM_LOG(INFO) << "Board - file:" << fruData.board.file;
-    DM_LOG(INFO) << "Product - mfg:" << fruData.product.mfg;
-    DM_LOG(INFO) << "Product - pn:" << fruData.product.pn;
-    DM_LOG(INFO) << "Product - pname:" << fruData.product.pname;
-    DM_LOG(INFO) << "Product - serial:" << fruData.product.serial;
-    DM_LOG(INFO) << "Product - atag:" << fruData.product.atag;
-    DM_LOG(INFO) << "Product - ver:" << fruData.product.ver;
+
+    // Copy data from output buffer to fruData
+    std::memcpy(&fruData, output_buff.data(), output_size);
   } break;
   case DM_CMD::DM_CMD_SET_FRU: {
+    // Read FRU data from file
     fru_data_t fruData;
     parseFRUDataFromFile(fruFileName, fruData);
-    const uint32_t input_size = sizeof(fru_data_t);
-    char input_buff[input_size];
-    const uint32_t output_size = sizeof(uint32_t);
-    char output_buff[output_size] = {0};
-    std::memcpy(input_buff, &fruData, input_size);
-    if ((ret = runService(input_buff, input_size, output_buff, output_size)) != DM_STATUS_SUCCESS) {
-      return ret;
+
+    // Prepare input buffer
+    const size_t input_size = sizeof(fru_data_t);
+    std::vector<char> input_buff(input_size);
+    std::memcpy(input_buff.data(), &fruData, input_size);
+
+    // Prepare output buffer
+    const size_t output_size = sizeof(uint32_t);
+    std::vector<char> output_buff(output_size, 0);
+
+    // Run service with input and output buffers
+    int ret = runService(input_buff.data(), input_size, output_buff.data(), output_size);
+    if (ret != 0) {
+      return ret; // Return error code if service execution fails
     }
   } break;
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
@@ -2118,6 +2102,17 @@ void printSCConfigUsage(char* argv) {
             << " -z 80,16,32 (Default Cache partition values in MB)" << std::endl;
 }
 
+void printFRUUsage(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "-z <FRU binary file>" << std::endl;
+  std::cout << "\t\t"
+            << "Update PMIC NVM with FRU data in accompanying file" << std::endl;
+  std::cout << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FRU << std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
@@ -2144,6 +2139,7 @@ void printUsage(char* argv) {
   printVoltageUsage(argv);
   printPartIdUsage(argv);
   printSCConfigUsage(argv);
+  printFRUUsage(argv);
 }
 
 bool validTraceOperation() {
