@@ -49,6 +49,7 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_SET_SP_BOOT_ROOT_CERT", device_mgmt_api::DM_CMD::DM_CMD_SET_SP_BOOT_ROOT_CERT},
   {"DM_CMD_SET_SW_BOOT_ROOT_CERT", device_mgmt_api::DM_CMD::DM_CMD_SET_SW_BOOT_ROOT_CERT},
   {"DM_CMD_SET_FRU", device_mgmt_api::DM_CMD::DM_CMD_SET_FRU},
+  {"DM_CMD_GET_FRU", device_mgmt_api::DM_CMD::DM_CMD_GET_FRU},
   {"DM_CMD_RESET_ETSOC", device_mgmt_api::DM_CMD::DM_CMD_RESET_ETSOC},
   {"DM_CMD_SET_FIRMWARE_VERSION_COUNTER", device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_VERSION_COUNTER},
   {"DM_CMD_SET_FIRMWARE_VALID", device_mgmt_api::DM_CMD::DM_CMD_SET_FIRMWARE_VALID},
