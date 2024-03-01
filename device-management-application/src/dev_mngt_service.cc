@@ -1275,6 +1275,26 @@ int verifyService() {
       return ret;
     }
   } break;
+  case DM_CMD::DM_CMD_GET_FRU: {
+    fru_data_t fruData;
+    const uint32_t output_size = sizeof(struct fru_data_t);
+    char output_buff[output_size] = {0};
+    if ((ret = runService(nullptr, 0, output_buff, output_size)) != DM_STATUS_SUCCESS) {
+      return ret;
+    }
+    memcpy(&fruData, output_buff, output_size);
+    DM_LOG(INFO) << "Board - mfg:" << fruData.board.mfg;
+    DM_LOG(INFO) << "Board - pname:" << fruData.board.pname;
+    DM_LOG(INFO) << "Board - serial:" << fruData.board.serial;
+    DM_LOG(INFO) << "Board - pn:" << fruData.board.pn;
+    DM_LOG(INFO) << "Board - file:" << fruData.board.file;
+    DM_LOG(INFO) << "Product - mfg:" << fruData.product.mfg;
+    DM_LOG(INFO) << "Product - pn:" << fruData.product.pn;
+    DM_LOG(INFO) << "Product - pname:" << fruData.product.pname;
+    DM_LOG(INFO) << "Product - serial:" << fruData.product.serial;
+    DM_LOG(INFO) << "Product - atag:" << fruData.product.atag;
+    DM_LOG(INFO) << "Product - ver:" << fruData.product.ver;
+  } break;
   case DM_CMD::DM_CMD_SET_FRU: {
     fru_data_t fruData;
     parseFRUDataFromFile(fruFileName, fruData);
