@@ -17,6 +17,7 @@
 
 #define PER_HART_MEMORY_ALLOC 0x400000ULL
 #define CACHE_LINE_SIZE 64
+#define PMCS_DUMP_HART 62
 
 typedef struct {
     uint64_t start_address;
@@ -39,7 +40,6 @@ static int isAddressInRange(uint64_t address, AddressRange *range) {
 int64_t entry_point(const Parameters *const kernel_params_ptr)
 {
   AddressRange hart_memory_range;
-
 
   // To be able enabled for debug only
   //et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
@@ -67,16 +67,37 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
   hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * PER_HART_MEMORY_ALLOC;
   hart_memory_range.end_address   = hart_memory_range.start_address + PER_HART_MEMORY_ALLOC;
 
-  uint64_t start_ts = et_get_timestamp();
+  et_trace_pmc_compute(PMCS_DUMP_HART);
+  et_trace_pmc_sc(PMCS_DUMP_HART);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 0);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 1);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 2);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 3);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 4);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 5);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 6);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 7);
 
+  uint64_t start_ts = et_get_timestamp();
   /* Note to extract SC and DDR Perf counters during the following loop execution */
   for (uint64_t addr = hart_memory_range.start_address; addr < hart_memory_range.end_address; addr += CACHE_LINE_SIZE) {
        value = *((uint64_t*)addr);
   }
-
   uint64_t delta_us = et_get_delta_timestamp(start_ts);
-  et_printf("Kernel exec dur: %ld Measured B/W: %ld MB/s ", delta_us, (PER_HART_MEMORY_ALLOC / delta_us));
 
+  et_trace_pmc_compute(PMCS_DUMP_HART);
+  et_trace_pmc_sc(PMCS_DUMP_HART);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 0);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 1);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 2);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 3);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 4);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 5);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 6);
+  et_trace_pmc_ms(PMCS_DUMP_HART, 7);
+
+  uint64_t bytes_read = (PER_HART_MEMORY_ALLOC / CACHE_LINE_SIZE) * sizeof(value);
+  et_printf("H: %u Kernel exec dur: %lu Measured B/W: %lu MB/s \n", hart_id, delta_us, (bytes_read / delta_us));
 
   return 0;
 }
