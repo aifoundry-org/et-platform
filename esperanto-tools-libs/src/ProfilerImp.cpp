@@ -22,6 +22,13 @@ void ProfilerImp::start(std::ostream& outputStream, OutputType outputType) {
   ProfileEvent evt(Type::Instant, Class::StartProfiling);
   evt.setExtras({{"version", kCurrentVersion}});
   record(std::move(evt));
+
+  SpinLock lock{mutex_};
+  while (!delayedEvents_.empty()) {
+    auto& event = delayedEvents_.front();
+    events_.emplace(std::move(event));
+    delayedEvents_.pop();
+  }
 }
 
 void ProfilerImp::stop() {
@@ -55,6 +62,15 @@ void ProfilerImp::record(const ProfileEvent& event) {
 
   if (wasEmpty) {
     cv_.notify_one();
+  }
+}
+
+void ProfilerImp::recordNowOrAtStart(const ProfileEvent& event) {
+  if (!recording_) {
+    SpinLock lock{mutex_};
+    delayedEvents_.emplace(event);
+  } else {
+    record(event);
   }
 }
 

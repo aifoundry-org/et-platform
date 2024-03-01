@@ -145,7 +145,7 @@ void Client::onProfilerChanged() {
     // Record a clock synchronization profiling event
     profiling::ProfileEvent syncClockProfileEvent{profiling::Type::Instant, profiling::Class::SyncTime};
     syncClockProfileEvent.setSystemTimeStamp();
-    profiler->record(syncClockProfileEvent);
+    profiler->recordNowOrAtStart(syncClockProfileEvent);
 
     sendRequestAndWait(req::Type::ENABLE_TRACING, std::monostate{});
   }
@@ -388,7 +388,7 @@ void Client::processResponse(const resp::Response& response) {
   case resp::Type::TRACING_EVENT: {
     CHECK(response.id_ == req::ASYNC_RUNTIME_EVENT) << "Stream error should have request type ASYNC_RUNTIME_EVENT";
     auto& payload = std::get<profiling::ProfileEvent>(response.payload_);
-    getProfiler()->record(payload);
+    getProfiler()->recordNowOrAtStart(payload);
     break;
   }
 
@@ -440,9 +440,6 @@ void Client::handShake() {
       std::to_string(Protocol::MINOR) + ", <" + std::to_string(Protocol::MAJOR + 1) +
       ".0. Please update the runtime client library or runtime daemon server.");
   }
-
-  // Start profiling as soon as possible
-  onProfilerChanged();
 
   // get deviceLayerProperties now
   auto devices = getDevices();

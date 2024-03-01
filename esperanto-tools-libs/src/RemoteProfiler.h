@@ -35,6 +35,7 @@ public:
   void start(std::ostream& outputStream, OutputType outputType) override;
   void stop() override;
   void record(const ProfileEvent& event) override;
+  void recordNowOrAtStart(const ProfileEvent& event) override;
 
   void setLocalProfiler(std::unique_ptr<IProfilerRecorder>&& localProfiler);
   void setThisThreadsWorker(Worker* worker);

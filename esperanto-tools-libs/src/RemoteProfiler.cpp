@@ -82,6 +82,12 @@ void RemoteProfiler::record(const ProfileEvent& event) {
   }
 }
 
+void RemoteProfiler::recordNowOrAtStart(const ProfileEvent& event) {
+  if (localProfiler_) {
+    localProfiler_->recordNowOrAtStart(event);
+  }
+}
+
 void RemoteProfiler::sendProfilingEvent(Worker* worker, const ProfileEvent& event) {
   assert(worker != nullptr);
 

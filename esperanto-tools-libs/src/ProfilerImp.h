@@ -39,6 +39,8 @@ public:
   bool isDummy() const override {
     return true;
   }
+  void recordNowOrAtStart(const ProfileEvent& event) override {
+  }
 };
 
 // Regular implementation
@@ -48,6 +50,7 @@ public:
   void start(std::ostream& outputStream, OutputType outputType) override;
   void stop() override;
   void record(const ProfileEvent& event) override;
+  void recordNowOrAtStart(const ProfileEvent& event) override;
   ~ProfilerImp() override;
 
 private:
@@ -56,6 +59,7 @@ private:
 
   std::mutex mutex_;
   std::queue<ProfileEvent> events_;
+  std::queue<ProfileEvent> delayedEvents_;
   std::condition_variable cv_;
   std::thread ioThread_;
   bool recording_ = false;

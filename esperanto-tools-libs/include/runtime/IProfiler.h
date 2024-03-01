@@ -57,6 +57,9 @@ public:
     return false;
   }
 
+  // Records an event now if profiling has started, or delays it until it starts
+  virtual void recordNowOrAtStart(const ProfileEvent& event) = 0;
+
   // Set up the name of the current thread
   static void setCurrentThreadName(std::string&& threadName) {
     threadName_ = std::move(threadName);
