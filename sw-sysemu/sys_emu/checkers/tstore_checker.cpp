@@ -55,14 +55,14 @@ void tstore_checker::check_and_drain(uint32_t thread_id)
 void tstore_checker::is_empty()
 {
     for (uint32_t thread_id = 0; thread_id < EMU_NUM_THREADS; thread_id++) {
-        auto &pending_list_thread = pending_list[thread_id];
+        const auto& pending_list_thread = pending_list[thread_id];
 
         // Store the size in a variable
         const std::size_t list_size = pending_list_thread.size();
 
         // Check if the list is not empty
         if (list_size != 0) {
-            auto &head_coop = pending_list_thread.front();
+            const auto& head_coop = pending_list_thread.front();
 
             LOG_AGENT(FTL, *this, "tstore_checker::is_empty => found non-resolved cooperative store! addr: %016llX, stride: %llX, coop: %i, lines: %i, cols: %i, thread_id: %i",
                       (long long unsigned int)head_coop.address, (long long unsigned int)head_coop.stride, head_coop.coop, head_coop.lines, head_coop.cols, thread_id);

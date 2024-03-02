@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parametrize benchmarks
 - Improving performance on Tensor Store Checker
 - Optimizing Tensor Store Checker is_empty performance
+- Further TensorStore is_empty performance improvement
 ### Deprecated
 ### Removed
 ### Fixed
