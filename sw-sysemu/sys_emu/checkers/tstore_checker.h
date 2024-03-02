@@ -31,7 +31,7 @@ private:
         uint32_t cols;    // Number of bytes per line
     };
 
-    std::list<coop_tstore> pending_list[EMU_NUM_THREADS];     
+    std::list<coop_tstore> pending_list[EMU_NUM_THREADS];
 
 private:
     bool check_and_drain_head(uint32_t thread_id);
