@@ -15,7 +15,8 @@
 #include <etsoc/isa/hart.h>
 #include <trace/trace_umode.h>
 
-#define PER_HART_MEMORY_ALLOC 0x400000ULL
+#define MINION_FREQ 600
+#define PER_HART_MEMORY_ALLOC 0x40000ULL
 #define CACHE_LINE_SIZE 64
 #define PMCS_DUMP_HART 62
 
@@ -51,18 +52,17 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
 
   /* Assuming kernel_params_ptr is properly initialized
    Run 2 scenarios
-  1) Only run on first hart from each Shire
+  1) Only run on first hart from each Shire 
   if (hart_id % 64 != 0)
   {
-  	  return 0
+  	  return 0;
   }
-
   2) Only run on first hart from each Neigh
   if (hart_id % 16 != 0)
   {
-  	  return 0
+  	  return 0;
   }
-   */
+ */
 
   hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * PER_HART_MEMORY_ALLOC;
   hart_memory_range.end_address   = hart_memory_range.start_address + PER_HART_MEMORY_ALLOC;
@@ -83,7 +83,8 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
   for (uint64_t addr = hart_memory_range.start_address; addr < hart_memory_range.end_address; addr += CACHE_LINE_SIZE) {
        value = *((uint64_t*)addr);
   }
-  uint64_t delta_us = et_get_delta_timestamp(start_ts);
+  uint64_t dur_cycles = et_get_delta_timestamp(start_ts);
+  double dur_time = dur_cycles / MINION_FREQ ;
 
   et_trace_pmc_compute(PMCS_DUMP_HART);
   et_trace_pmc_sc(PMCS_DUMP_HART);
@@ -95,9 +96,9 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
   et_trace_pmc_ms(PMCS_DUMP_HART, 5);
   et_trace_pmc_ms(PMCS_DUMP_HART, 6);
   et_trace_pmc_ms(PMCS_DUMP_HART, 7);
-
-  uint64_t bytes_read = (PER_HART_MEMORY_ALLOC / CACHE_LINE_SIZE) * sizeof(value);
-  et_printf("H: %u Kernel exec dur: %lu Measured B/W: %lu MB/s \n", hart_id, delta_us, (bytes_read / delta_us));
+if (hart_id == 0 ) {
+  et_printf("H: %u Kernel exec dur: %lu Measured B/W: %0.3f MB/s Value: %lu \n", hart_id, dur_cycles, ( PER_HART_MEMORY_ALLOC / dur_time), value & 0x1);
+}
 
   return 0;
 }
