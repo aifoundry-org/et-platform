@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added unit test for Perf
 - Added a test sequence generator
 - Extend instruction sequence to add rv64f, rv64a, rv64d
+- Adding et-common-lib umode library inst_sequence generator
 ### Changed
 - Detect if compiler supports -flto and enable it
 - Change default symbol visibility to "hidden". Export only public interface
