@@ -6,6 +6,7 @@ VERBOSE ?= 1
 include common/include.mk
 
 CPPFLAGS += -Icommon
+CPPFLAGS += -I$(BUILD_DIR)/../Release/et-common-libs/cm-umode/include
 
 # Custom variables
 target = $(BUILD_DIR)/inst_seq.elf
