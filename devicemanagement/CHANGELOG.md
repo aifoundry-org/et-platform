@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 ### Deprecated
 ### Removed
+- Removing UpdateFirmware to reduce execution time, improve survivability of Flash
 ### Fixed
 - Fix type casting in utest
 ### Security

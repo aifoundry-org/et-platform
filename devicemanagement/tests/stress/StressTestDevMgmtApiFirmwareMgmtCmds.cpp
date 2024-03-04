@@ -74,7 +74,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_backToBackUpdateFirmwareIm
   }
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackUpdateFirmwareImageAndResetSingleDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_backToBackUpdateFirmwareImageAndResetSingleDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
@@ -91,7 +91,7 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackUpdateFirmwareImageAndRes
   }
 }
 
-TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackUpdateFirmwareImageAndResetMultiDevice) {
+TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, DISABLED_backToBackUpdateFirmwareImageAndResetMultiDevice) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";

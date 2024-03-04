@@ -71,7 +71,7 @@ TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, getModuleFWRevision) {
   setSpRootCertificate(false);
 }*/
 
-TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImage) {
+TEST_F(FunctionalTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImage) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";

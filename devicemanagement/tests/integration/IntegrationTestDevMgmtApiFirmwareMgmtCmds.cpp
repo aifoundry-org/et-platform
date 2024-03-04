@@ -37,7 +37,7 @@ class IntegrationTestDevMgmtApiFirmwareMgmtCmds : public TestDevMgmtApiSyncCmds 
   }
 };
 
-TEST_F(IntegrationTestDevMgmtApiFirmwareMgmtCmds, updateFirmwareImageAndReset) {
+TEST_F(IntegrationTestDevMgmtApiFirmwareMgmtCmds, DISABLED_updateFirmwareImageAndReset) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     if (isParallelRun()) {
       DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
