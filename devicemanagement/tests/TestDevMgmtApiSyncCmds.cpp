@@ -18,7 +18,6 @@
 #include <cstdio>
 #include <dlfcn.h>
 #include <errno.h>
-#include <experimental/filesystem>
 #include <fcntl.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
@@ -30,7 +29,15 @@
 #include <string>
 #include <unistd.h>
 
-namespace fs = std::experimental::filesystem;
+#if __has_include("filesystem")
+#include <filesystem>
+#elif __has_include("experimental/filesystem")
+#include <experimental/filesystem>
+namespace std {
+namespace filesystem = std::experimental::filesystem;
+}
+#endif
+namespace fs = std::filesystem;
 
 using namespace dev;
 using namespace device_management;
