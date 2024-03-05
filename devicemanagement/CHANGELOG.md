@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removing UpdateFirmware to reduce execution time, improve survivability of Flash
 ### Fixed
 - Fix type casting in utest
+- Fix tests/TestDevMgmtApiSyncCmds.cpp gcc11 compatibility
 ### Security
 
 ## [0.16.0] - 2024-01-30
