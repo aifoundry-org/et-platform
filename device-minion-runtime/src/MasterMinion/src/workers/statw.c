@@ -178,6 +178,13 @@ typedef struct {
     uint64_t prev_l2_l3_write_counter[NUM_SHIRES][BANKS_PER_SC];
 } __attribute__((packed, aligned(8))) pmc_prev_counters;
 
+typedef struct {
+    shire_pmc_cnt_t ms_pmcs[NUM_MEM_SHIRES];
+    shire_pmc_cnt_t avg_ms_pmcs;
+    shire_pmc_cnt_t sc_pmcs[NUM_SHIRES][BANKS_PER_SC];
+    shire_pmc_cnt_t avg_sc_pmcs;
+} pmc_current_counters;
+
 /*! \var STATW_CB
     \brief Global Stat Worker Control Block
     \warning Not thread safe!
@@ -202,6 +209,180 @@ static inline uint64_t statw_recalculate_cma(
     return old_value;
 }
 
+static void statw_sample_pmc_counters(uint64_t shire_mask, pmc_current_counters *pmc_cur)
+{
+    for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
+    {
+        /* Sample PMC MS Counter 0 and 1 (reads, writes). */
+        syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t) & (pmc_cur->ms_pmcs[shire_id]),
+            UNUSED_SYSCALL_ARGS);
+    }
+
+    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
+    {
+        if (!CHECK_BIT_SET(shire_mask, shire_id))
+        {
+            continue;
+        }
+
+        for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
+        {
+            /* Sample PMC SC Counter 0 and 1 (reads, writes). */
+            syscall(SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id,
+                (uintptr_t) & (pmc_cur->sc_pmcs[shire_id][bank_id]));
+        }
+    }
+}
+
+static uint64_t statw_calculate_average(uint64_t new_value, uint64_t average, uint64_t samples)
+{
+    double avg =
+        round(((double)samples * (double)average + (double)new_value) / (double)(samples + 1));
+    return (uint64_t)avg;
+}
+
+static void statw_process_pmc_counters(
+    uint64_t shire_mask, pmc_prev_counters *pmc_cnt, pmc_current_counters *pmc_cur)
+{
+    for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
+    {
+        /* Check for overflow */
+        STATW_PMU_RESET_ON_OVERFLOW(
+            pmc_cur->ms_pmcs[shire_id].cycle_overflow, pmc_cnt->prev_ddr_cycle_counter[shire_id])
+        STATW_PMU_RESET_ON_OVERFLOW(
+            pmc_cur->ms_pmcs[shire_id].pmc0_overflow, pmc_cnt->prev_ddr_read_counter[shire_id])
+        STATW_PMU_RESET_ON_OVERFLOW(
+            pmc_cur->ms_pmcs[shire_id].pmc1_overflow, pmc_cnt->prev_ddr_write_counter[shire_id])
+
+        pmc_cur->avg_ms_pmcs.cycle = statw_calculate_average(
+            pmc_cur->ms_pmcs[shire_id].cycle - pmc_cnt->prev_ddr_cycle_counter[shire_id],
+            pmc_cur->avg_ms_pmcs.cycle, shire_id);
+        pmc_cur->avg_ms_pmcs.pmc0 = statw_calculate_average(
+            pmc_cur->ms_pmcs[shire_id].pmc0 - pmc_cnt->prev_ddr_read_counter[shire_id],
+            pmc_cur->avg_ms_pmcs.pmc0, shire_id);
+        pmc_cur->avg_ms_pmcs.pmc1 = statw_calculate_average(
+            pmc_cur->ms_pmcs[shire_id].pmc1 - pmc_cnt->prev_ddr_write_counter[shire_id],
+            pmc_cur->avg_ms_pmcs.pmc1, shire_id);
+
+        /* Update the previous values */
+        pmc_cnt->prev_ddr_cycle_counter[shire_id] = pmc_cur->ms_pmcs[shire_id].cycle;
+        pmc_cnt->prev_ddr_read_counter[shire_id] = pmc_cur->ms_pmcs[shire_id].pmc0;
+        pmc_cnt->prev_ddr_write_counter[shire_id] = pmc_cur->ms_pmcs[shire_id].pmc1;
+    }
+
+    unsigned int cnt = 0;
+    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
+    {
+        if (!CHECK_BIT_SET(shire_mask, shire_id))
+        {
+            continue;
+        }
+
+        for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
+        {
+            /* Check for overflow */
+            STATW_PMU_RESET_ON_OVERFLOW(pmc_cur->sc_pmcs[shire_id][bank_id].cycle_overflow,
+                pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id])
+            STATW_PMU_RESET_ON_OVERFLOW(pmc_cur->sc_pmcs[shire_id][bank_id].pmc0_overflow,
+                pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id])
+            STATW_PMU_RESET_ON_OVERFLOW(pmc_cur->sc_pmcs[shire_id][bank_id].pmc1_overflow,
+                pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id])
+
+            /* Add checks for bad values */
+            STATW_UTIL_BAD_PMC_CHECK("SC_Cycle", shire_id, bank_id,
+                pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id],
+                pmc_cur->sc_pmcs[shire_id][bank_id].cycle)
+            STATW_UTIL_BAD_PMC_CHECK("SC_Read", shire_id, bank_id,
+                pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
+                pmc_cur->sc_pmcs[shire_id][bank_id].pmc0)
+            STATW_UTIL_BAD_PMC_CHECK("SC_Write", shire_id, bank_id,
+                pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
+                pmc_cur->sc_pmcs[shire_id][bank_id].pmc1)
+
+            pmc_cur->avg_sc_pmcs.cycle =
+                statw_calculate_average(pmc_cur->sc_pmcs[shire_id][bank_id].cycle -
+                                            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id],
+                    pmc_cur->avg_sc_pmcs.cycle, cnt);
+            pmc_cur->avg_sc_pmcs.pmc0 =
+                statw_calculate_average(pmc_cur->sc_pmcs[shire_id][bank_id].pmc0 -
+                                            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
+                    pmc_cur->avg_sc_pmcs.pmc0, cnt);
+            pmc_cur->avg_sc_pmcs.pmc1 =
+                statw_calculate_average(pmc_cur->sc_pmcs[shire_id][bank_id].pmc1 -
+                                            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
+                    pmc_cur->avg_sc_pmcs.pmc1, cnt);
+            cnt++;
+
+            /* Update the previous values */
+            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] =
+                pmc_cur->sc_pmcs[shire_id][bank_id].cycle;
+            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] =
+                pmc_cur->sc_pmcs[shire_id][bank_id].pmc0;
+            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id] =
+                pmc_cur->sc_pmcs[shire_id][bank_id].pmc1;
+        }
+    }
+}
+
+static void statw_update_cma(
+    struct compute_resources_sample *data_sample, pmc_current_counters *pmc_cur)
+{
+    /* Calculate CMA, min and max */
+    /* For DDR BW, multiply the request count by 2 due to double data rate in DDR */
+    STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_read_bw,
+        STATW_PMU_REQ_COUNT_TO_MBPS(
+            pmc_cur->avg_ms_pmcs.pmc0 * 2, DDR_FREQUENCY, pmc_cur->avg_ms_pmcs.cycle),
+        STATW_BW_CMA_SAMPLE_COUNT)
+    STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_write_bw,
+        STATW_PMU_REQ_COUNT_TO_MBPS(
+            pmc_cur->avg_ms_pmcs.pmc1 * 2, DDR_FREQUENCY, pmc_cur->avg_ms_pmcs.cycle),
+        STATW_BW_CMA_SAMPLE_COUNT)
+
+    uint32_t minion_freq_mhz = atomic_load_local_32(&STATW_CB.minion_freq_mhz);
+    STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_read_bw,
+        STATW_PMU_REQ_COUNT_TO_MBPS(
+            pmc_cur->avg_sc_pmcs.pmc0, minion_freq_mhz, pmc_cur->avg_sc_pmcs.cycle),
+        STATW_BW_CMA_SAMPLE_COUNT)
+    STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_write_bw,
+        STATW_PMU_REQ_COUNT_TO_MBPS(
+            pmc_cur->avg_sc_pmcs.pmc1, minion_freq_mhz, pmc_cur->avg_sc_pmcs.cycle),
+        STATW_BW_CMA_SAMPLE_COUNT)
+}
+
+static void statw_init_pmc_cnt(uint64_t shire_mask, pmc_prev_counters *pmc_cnt)
+{
+    /* Initialize the first sample for delta calculations */
+    for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
+    {
+        shire_pmc_cnt_t ms_pmcs = { 0 };
+        /* Sample PMC MS Counter 0 and 1 (reads, writes). */
+        syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)&ms_pmcs, UNUSED_SYSCALL_ARGS);
+        pmc_cnt->prev_ddr_cycle_counter[shire_id] = ms_pmcs.cycle_overflow ? 0 : ms_pmcs.cycle;
+        pmc_cnt->prev_ddr_read_counter[shire_id] = ms_pmcs.pmc0_overflow ? 0 : ms_pmcs.pmc0;
+        pmc_cnt->prev_ddr_write_counter[shire_id] = ms_pmcs.pmc1_overflow ? 0 : ms_pmcs.pmc1;
+    }
+
+    for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
+    {
+        if (!CHECK_BIT_SET(shire_mask, shire_id))
+        {
+            continue;
+        }
+
+        for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
+        {
+            shire_pmc_cnt_t sc_pmcs = { 0 };
+            syscall(SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)&sc_pmcs);
+            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] =
+                sc_pmcs.cycle_overflow ? 0 : sc_pmcs.cycle;
+            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] =
+                sc_pmcs.pmc0_overflow ? 0 : sc_pmcs.pmc0;
+            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id] =
+                sc_pmcs.pmc1_overflow ? 0 : sc_pmcs.pmc1;
+        }
+    }
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -216,9 +397,6 @@ static inline uint64_t statw_recalculate_cma(
 *   INPUTS
 *
 *       shire_mask  Shire mask of the available shires
-*       pmc_cnt     data struct to hold previous cycles values.
-*       ms_pmcs     Memshire pmcs
-*       sc_pmcs     Shire cache pmcs
 *       data_sample data struct containing sampled data
 *
 *   OUTPUTS
@@ -226,133 +404,22 @@ static inline uint64_t statw_recalculate_cma(
 *       None
 *
 ***********************************************************************/
-static void statw_update_pmc_stats(uint64_t shire_mask, pmc_prev_counters *pmc_cnt,
-    shire_pmc_cnt_t *ms_pmcs, shire_pmc_cnt_t *sc_pmcs,
-    struct compute_resources_sample *data_sample)
+static void statw_update_pmc_stats(
+    uint64_t shire_mask, struct compute_resources_sample *data_sample)
 {
+    static pmc_prev_counters pmc_cnt = { 0 };
+    static pmc_current_counters pmc_cur = { 0 };
     /* Check the flag to sample device stats. */
     switch (atomic_load_local_32(&STATW_CB.pmu_sampling_state))
     {
         case STATW_PMU_SAMPLING_START:
-            for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
-            {
-                /* Sample PMC MS Counter 0 and 1 (reads, writes). */
-                syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)ms_pmcs,
-                    UNUSED_SYSCALL_ARGS);
-
-                /* Check for overflow */
-                STATW_PMU_RESET_ON_OVERFLOW(
-                    ms_pmcs->cycle_overflow, pmc_cnt->prev_ddr_cycle_counter[shire_id])
-                STATW_PMU_RESET_ON_OVERFLOW(
-                    ms_pmcs->pmc0_overflow, pmc_cnt->prev_ddr_read_counter[shire_id])
-                STATW_PMU_RESET_ON_OVERFLOW(
-                    ms_pmcs->pmc1_overflow, pmc_cnt->prev_ddr_write_counter[shire_id])
-
-                /* Calulate CMA, min and max */
-                /* For DDR BW, multiply the request count by 2 due to double data rate in DDR */
-                STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_read_bw,
-                    STATW_PMU_REQ_COUNT_TO_MBPS(
-                        (ms_pmcs->pmc0 - pmc_cnt->prev_ddr_read_counter[shire_id]) * 2,
-                        DDR_FREQUENCY, ms_pmcs->cycle - pmc_cnt->prev_ddr_cycle_counter[shire_id]),
-                    STATW_BW_CMA_SAMPLE_COUNT)
-                STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_write_bw,
-                    STATW_PMU_REQ_COUNT_TO_MBPS(
-                        (ms_pmcs->pmc1 - pmc_cnt->prev_ddr_write_counter[shire_id]) * 2,
-                        DDR_FREQUENCY, ms_pmcs->cycle - pmc_cnt->prev_ddr_cycle_counter[shire_id]),
-                    STATW_BW_CMA_SAMPLE_COUNT)
-
-                /* Update the previous values */
-                pmc_cnt->prev_ddr_cycle_counter[shire_id] = ms_pmcs->cycle;
-                pmc_cnt->prev_ddr_read_counter[shire_id] = ms_pmcs->pmc0;
-                pmc_cnt->prev_ddr_write_counter[shire_id] = ms_pmcs->pmc1;
-            }
-
-            for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
-            {
-                if (CHECK_BIT_SET(shire_mask, shire_id))
-                {
-                    for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
-                    {
-                        uint32_t minion_freq_mhz = atomic_load_local_32(&STATW_CB.minion_freq_mhz);
-
-                        /* Sample PMC SC Counter 0 and 1 (reads, writes). */
-                        syscall(
-                            SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)sc_pmcs);
-
-                        /* Check for overflow */
-                        STATW_PMU_RESET_ON_OVERFLOW(sc_pmcs->cycle_overflow,
-                            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id])
-                        STATW_PMU_RESET_ON_OVERFLOW(sc_pmcs->pmc0_overflow,
-                            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id])
-                        STATW_PMU_RESET_ON_OVERFLOW(sc_pmcs->pmc1_overflow,
-                            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id])
-
-                        /* Add checks for bad values */
-                        STATW_UTIL_BAD_PMC_CHECK("SC_Cycle", shire_id, bank_id,
-                            pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id], sc_pmcs->cycle)
-                        STATW_UTIL_BAD_PMC_CHECK("SC_Read", shire_id, bank_id,
-                            pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id], sc_pmcs->pmc0)
-                        STATW_UTIL_BAD_PMC_CHECK("SC_Write", shire_id, bank_id,
-                            pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id], sc_pmcs->pmc1)
-
-                        /* Calculate the stats */
-                        STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_read_bw,
-                            STATW_PMU_REQ_COUNT_TO_MBPS(
-                                sc_pmcs->pmc0 - pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
-                                minion_freq_mhz,
-                                sc_pmcs->cycle -
-                                    pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
-                            STATW_BW_CMA_SAMPLE_COUNT)
-                        STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_write_bw,
-                            STATW_PMU_REQ_COUNT_TO_MBPS(
-                                sc_pmcs->pmc1 -
-                                    pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
-                                minion_freq_mhz,
-                                sc_pmcs->cycle -
-                                    pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id]),
-                            STATW_BW_CMA_SAMPLE_COUNT)
-                        /* Update the previous values */
-                        pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] = sc_pmcs->cycle;
-                        pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] = sc_pmcs->pmc0;
-                        pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id] = sc_pmcs->pmc1;
-                    }
-                }
-            }
+            memset(&pmc_cur, 0, sizeof(pmc_cur));
+            statw_sample_pmc_counters(shire_mask, &pmc_cur);
+            statw_process_pmc_counters(shire_mask, &pmc_cnt, &pmc_cur);
+            statw_update_cma(data_sample, &pmc_cur);
             break;
-
         case STATW_PMU_SAMPLING_RESET_AND_START:
-            /* Initialize the first sample for delta calculations */
-            for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
-            {
-                /* Sample PMC MS Counter 0 and 1 (reads, writes). */
-                syscall(SYSCALL_PMC_MS_SAMPLE_ALL_INT, shire_id, (uintptr_t)ms_pmcs,
-                    UNUSED_SYSCALL_ARGS);
-                pmc_cnt->prev_ddr_cycle_counter[shire_id] =
-                    ms_pmcs->cycle_overflow ? 0 : ms_pmcs->cycle;
-                pmc_cnt->prev_ddr_read_counter[shire_id] = ms_pmcs->pmc0_overflow ? 0 :
-                                                                                    ms_pmcs->pmc0;
-                pmc_cnt->prev_ddr_write_counter[shire_id] = ms_pmcs->pmc1_overflow ? 0 :
-                                                                                     ms_pmcs->pmc1;
-            }
-
-            for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
-            {
-                if (CHECK_BIT_SET(shire_mask, shire_id))
-                {
-                    for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
-                    {
-                        syscall(
-                            SYSCALL_PMC_SC_SAMPLE_ALL_INT, shire_id, bank_id, (uintptr_t)sc_pmcs);
-                        pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] =
-                            sc_pmcs->cycle_overflow ? 0 : sc_pmcs->cycle;
-                        pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id] =
-                            sc_pmcs->pmc0_overflow ? 0 : sc_pmcs->pmc0;
-                        pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id] =
-                            sc_pmcs->pmc1_overflow ? 0 : sc_pmcs->pmc1;
-                    }
-                }
-            }
-
+            statw_init_pmc_cnt(shire_mask, &pmc_cnt);
             /* Start PMU sampling */
             STATW_Update_PMU_Sampling_State(STATW_PMU_SAMPLING_START);
             break;
@@ -793,12 +860,9 @@ static void statw_init(struct compute_resources_sample *local_stats_cb)
 __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
 {
     struct compute_resources_sample data_sample = { 0 };
-    pmc_prev_counters pmc_counters = { 0 };
     uint64_t prev_timestamp;
     uint64_t shire_mask;
     struct trace_custom_event_t *entry;
-    shire_pmc_cnt_t sc_pmcs = { 0 };
-    shire_pmc_cnt_t ms_pmcs = { 0 };
 
     statw_init(&data_sample);
     Log_Write(LOG_LEVEL_INFO, "STATW:H[%d]\r\n", hart_id);
@@ -844,7 +908,7 @@ __attribute__((noreturn)) void STATW_Launch(uint32_t hart_id)
             }
 
             /* Fill stats based on PMC stats (Shire Cache and DDR) */
-            statw_update_pmc_stats(shire_mask, &pmc_counters, &ms_pmcs, &sc_pmcs, &data_sample);
+            statw_update_pmc_stats(shire_mask, &data_sample);
 
             /* Read global stats populated by other harts/workers. */
             read_resource_stats_atomically(STATW_RESOURCE_CM, &data_sample.cm_bw);

@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+[SW-20411]: reorganize ddr and sc counter sampling
 ### Security
 
 ## [0.21.0] - 2024-01-30
