@@ -11,14 +11,12 @@
 
 #include <stdint.h>
 #include <stddef.h>
+
 #include <etsoc/common/utils.h>
 #include <etsoc/isa/hart.h>
 #include <trace/trace_umode.h>
 
-#define MINION_FREQ 600
-#define PER_HART_MEMORY_ALLOC 0x40000ULL
 #define CACHE_LINE_SIZE 64
-#define PMCS_DUMP_HART 62
 
 typedef struct {
     uint64_t start_address;
@@ -27,8 +25,8 @@ typedef struct {
 
 typedef struct {
   uint64_t base_addr;
-  uint64_t num_minions;
-  uint64_t num_cache_lines;
+  uint64_t per_hart_mem_alloc;
+  uint64_t minion_freq;
 } Parameters;
 
 int64_t entry_point(const Parameters*);
@@ -42,13 +40,8 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
 {
   AddressRange hart_memory_range;
 
-  // To be able enabled for debug only
-  //et_printf("Hart[%d]:Kernel Param:base_addr:%ld\r\n", get_hart_id(), kernel_params_ptr->base_addr);
-  //et_printf("Hart[%d]:Kernel Param:num_minions:%ld\r\n", get_hart_id(), kernel_params_ptr->num_minions);
-  //et_printf("Hart[%d]:Kernel Param:num_cache_lines:%ld\r\n", get_hart_id(), kernel_params_ptr->num_cache_lines);
-
   uint32_t hart_id = get_hart_id();
-  uint64_t value = 0;
+  volatile uint64_t value = 0;
 
   /* Assuming kernel_params_ptr is properly initialized
    Run 2 scenarios
@@ -64,41 +57,26 @@ int64_t entry_point(const Parameters *const kernel_params_ptr)
   }
  */
 
-  hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * PER_HART_MEMORY_ALLOC;
-  hart_memory_range.end_address   = hart_memory_range.start_address + PER_HART_MEMORY_ALLOC;
+  uint64_t per_hart_mem_alloc = kernel_params_ptr->per_hart_mem_alloc;
+  hart_memory_range.start_address = kernel_params_ptr->base_addr + hart_id * per_hart_mem_alloc;
+  hart_memory_range.end_address   = hart_memory_range.start_address + per_hart_mem_alloc;
 
-  et_trace_pmc_compute(PMCS_DUMP_HART);
-  et_trace_pmc_sc(PMCS_DUMP_HART);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 0);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 1);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 2);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 3);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 4);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 5);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 6);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 7);
+  // To avoid all Minions from accessing the same L3 shire at the same time randomize starting L3 slice
+  // Use simple XOR shift algorithm for pseudo-random number generation
+  uint16_t randSeed = hart_id ^ (hart_id << 5) ^ (hart_id >> 3);
+  hart_memory_range.start_address += (randSeed % 8 * CACHE_LINE_SIZE);
 
+  // Snapshot timestamp prior to execution
   uint64_t start_ts = et_get_timestamp();
-  /* Note to extract SC and DDR Perf counters during the following loop execution */
   for (uint64_t addr = hart_memory_range.start_address; addr < hart_memory_range.end_address; addr += CACHE_LINE_SIZE) {
        value = *((uint64_t*)addr);
   }
+  // Snapshot timestamp upon completion of execution
   uint64_t dur_cycles = et_get_delta_timestamp(start_ts);
-  double dur_time = dur_cycles / MINION_FREQ ;
 
-  et_trace_pmc_compute(PMCS_DUMP_HART);
-  et_trace_pmc_sc(PMCS_DUMP_HART);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 0);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 1);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 2);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 3);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 4);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 5);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 6);
-  et_trace_pmc_ms(PMCS_DUMP_HART, 7);
-if (hart_id == 0 ) {
-  et_printf("H: %u Kernel exec dur: %lu Measured B/W: %0.3f MB/s Value: %lu \n", hart_id, dur_cycles, ( PER_HART_MEMORY_ALLOC / dur_time), value & 0x1);
-}
+  // Convert to time and print bandwidth
+  double dur_time = dur_cycles / kernel_params_ptr->minion_freq ;
+  et_printf("Measured B/W: %0.3f MB/s (Cycles: %lu) \n", (per_hart_mem_alloc / dur_time), dur_cycles);
 
   return 0;
 }
