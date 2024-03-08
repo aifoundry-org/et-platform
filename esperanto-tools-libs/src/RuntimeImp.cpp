@@ -37,10 +37,17 @@
 #include <mutex>
 #include <sstream>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 
 using namespace rt;
 using namespace rt::profiling;
+
+void relocateELF(std::byte* runtimeBaseAddress, ELFIO::elfio& elf, std::byte* elfContents,
+                 ELFIO::Elf64_Addr elfBaseAddr);
+void relocateSection(std::byte* runtimeBaseAddress, std::byte* elfContents,
+                     ELFIO::relocation_section_accessor& reloc_sec, ELFIO::Elf64_Addr elfBaseAddr);
+std::tuple<ELFIO::Elf64_Addr, size_t> getELFBaseAddr(const ELFIO::elfio& elf);
 
 RuntimeImp::~RuntimeImp() {
   RT_LOG(INFO) << "Destroying runtime";
@@ -200,26 +207,26 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
 
   auto stInfo = streamManager_.getStreamInfo(stream);
 
-  auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(data), size), std::ios::binary);
+  std::vector<std::byte> dataCopy(size);
+  std::byte* elfContents = dataCopy.data();
+  std::copy(data, data + size, elfContents);
+
+  auto memStream = std::istringstream(std::string(reinterpret_cast<const char*>(elfContents), size), std::ios::binary);
 
   ELFIO::elfio elf;
   if (!elf.load(memStream)) {
     throw Exception("Error parsing elf");
   }
 
-  auto extraSize = 0UL;
-  for (auto& segment : elf.segments) {
-    if (segment->get_type() & PT_LOAD) {
-      auto fileSize = segment->get_file_size();
-      auto memSize = segment->get_memory_size();
-      extraSize += memSize - fileSize;
-    }
-  }
+  auto [elfBaseAddr, extraSize] = getELFBaseAddr(elf);
 
   // we need to add all the diff between fileSize and memSize to the final size
   // allocate a buffer in the device to load the code
 
   auto deviceBuffer = doMallocDevice(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
+
+  // Handle the elf relocations
+  relocateELF(deviceBuffer, elf, elfContents, elfBaseAddr);
 
   // copy the execution code into the device
   // iterate over all the LOAD segments, writing them to device memory
@@ -247,7 +254,7 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
       // allocate a dmabuffer to do the copy
       std::vector<std::byte> currentBuffer{memSize};
       // first fill with fileSize
-      std::copy(data + offset, data + offset + fileSize, currentBuffer.data());
+      std::copy(elfContents + offset, elfContents + offset + fileSize, currentBuffer.data());
       if (memSize > fileSize) {
         RT_VLOG(LOW) << "Memsize of segment " << segment->get_index() << " is larger than fileSize. Filling with 0s";
         std::fill_n(reinterpret_cast<uint8_t*>(currentBuffer.data()) + fileSize, memSize - fileSize, 0);
@@ -899,4 +906,54 @@ std::unordered_map<DeviceId, uint32_t> RuntimeImp::getAliveEvents() const {
 
 bool RuntimeImp::doIsP2PEnabled(DeviceId one, DeviceId other) const {
   return deviceLayer_->checkP2pDmaCompatibility(static_cast<int>(one), static_cast<int>(other));
+}
+
+void relocateELF(std::byte* runtimeBaseAddress, ELFIO::elfio& elf, std::byte* elfContents,
+                 ELFIO::Elf64_Addr elfBaseAddr) {
+  for (const auto& section : elf.sections) {
+    if (section->get_type() == SHT_RELA) {
+      if (section->get_name().find(".rela.debug") != std::string::npos) {
+        continue; // SW-20381: Handle debug relocations
+      } else {
+        ELFIO::relocation_section_accessor reloc_sec(elf, section);
+        relocateSection(runtimeBaseAddress, elfContents, reloc_sec, elfBaseAddr);
+      }
+    }
+  }
+}
+
+void relocateSection(std::byte* runtimeBaseAddress, std::byte* elfContents,
+                     ELFIO::relocation_section_accessor& reloc_sec, ELFIO::Elf64_Addr elfBaseAddr) {
+  static constexpr uint32_t RISCV_64_RELOCATION_TYPE = 2;
+
+  // SW-20451: A base offset of 0x1000 is taken up when the ELF is loaded on the device
+  static constexpr uint32_t BASE_OFFSET = 0x1000;
+  for (ELFIO::Elf_Xword i = 0; i < reloc_sec.get_entries_num(); ++i) {
+    ELFIO::Elf64_Addr offset;
+    ELFIO::Elf_Word symbol_index;
+    ELFIO::Elf_Word type;
+    ELFIO::Elf_Sxword addend;
+    reloc_sec.get_entry(i, offset, symbol_index, type, addend);
+    if (type == RISCV_64_RELOCATION_TYPE) {
+      // Resolve the relocation here
+      auto target_ptr = reinterpret_cast<uint64_t*>(elfContents + offset - elfBaseAddr + BASE_OFFSET);
+      *target_ptr += reinterpret_cast<uint64_t>(runtimeBaseAddress) - elfBaseAddr + BASE_OFFSET;
+    }
+  }
+}
+
+std::tuple<ELFIO::Elf64_Addr, size_t> getELFBaseAddr(const ELFIO::elfio& elf) {
+  ELFIO::Elf64_Addr elfBaseAddr = std::numeric_limits<ELFIO::Elf64_Addr>::max();
+  auto extraSize = 0UL;
+  for (auto& segment : elf.segments) {
+    if (segment->get_type() & PT_LOAD) {
+      if (segment->get_physical_address() < elfBaseAddr) {
+        elfBaseAddr = segment->get_physical_address();
+      }
+      auto fileSize = segment->get_file_size();
+      auto memSize = segment->get_memory_size();
+      extraSize += memSize - fileSize;
+    }
+  }
+  return std::make_tuple(elfBaseAddr, extraSize);
 }
