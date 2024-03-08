@@ -1564,4 +1564,39 @@ struct fru_data_t
     struct fru_product_t product;
 } __attribute__((packed, aligned(8)));
 
+/*! \struct device_mgmt_set_fru_cmd_t
+    \brief Command to set the fru information
+*/
+struct device_mgmt_set_fru_cmd_t
+{
+    dev_mgmt_cmd_header_t command_info; /**< Command header */
+    struct fru_data_t fru_data;         /**< FRU information struct */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_set_fru_rsp_t
+    \brief Response for set fru command
+*/
+struct device_mgmt_set_fru_rsp_t
+{
+    struct dev_mgmt_rsp_header_t rsp_hdr;
+    uint64_t dummy; /**< Dummy Field */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_get_fru_cmd_t
+    \brief Command to get the fru information
+*/
+struct device_mgmt_get_fru_cmd_t
+{
+    dev_mgmt_cmd_header_t command_info; /**< Command header */
+    uint64_t dummy;                     /**< Dummy Field */
+} __attribute__((packed, aligned(8)));
+
+/*! \struct device_mgmt_get_fru_rsp_t
+    \brief Response for get fru command
+*/
+struct device_mgmt_get_fru_rsp_t
+{
+    struct dev_mgmt_rsp_header_t rsp_hdr;
+    struct fru_data_t fru_data; /**< FRU information struct */
+} __attribute__((packed, aligned(8)));
 #endif /* ET_DEVICE_MGMT_API_RPC_TYPES_H */
