@@ -35,6 +35,7 @@ using TimeDuration = Clock::duration;
 #define INVALID_INPUT_SIZE (0)
 #define INVALID_OUTPUT_SIZE (0)
 #define ECID_LOT_ID_LENGTH 6
+#define FRU_SIZE 726
 
 DECLARE_bool(enable_trace_dump);
 DECLARE_bool(enable_bin_trace_dump);
@@ -59,6 +60,8 @@ protected:
   // Functional tests asset tracking service
   void getModuleManufactureName(bool singleDevice);
   void getModulePartNumber(bool singleDevice);
+  void getFRUTest(bool singleDevice);
+  void setFRUTest(bool singleDevice);
   void setAndGetModulePartNumber(bool singleDevice);
   void getModuleSerialNumber(bool singleDevice);
   void getASICChipRevision(bool singleDevice);

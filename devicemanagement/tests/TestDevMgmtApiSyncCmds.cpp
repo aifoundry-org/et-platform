@@ -635,6 +635,62 @@ void TestDevMgmtApiSyncCmds::getModulePartNumber(bool singleDevice) {
   }
 }
 
+void TestDevMgmtApiSyncCmds::getFRUTest(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
+
+  auto getFRU = [&](int deviceIdx) -> bool {
+    char fruData[FRU_SIZE];
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_FRU, nullptr, 0, fruData, sizeof(fruData),
+                          hst_latency.get(), dev_latency.get(),
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      DV_LOG(INFO) << "Service Request Failed for Device: " << deviceIdx;
+      return false;
+    }
+
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    return true;
+  };
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    ASSERT_TRUE(getFRU(deviceIdx)) << "getFRU() failed!";
+  }
+}
+
+void TestDevMgmtApiSyncCmds::setFRUTest(bool singleDevice) {
+  getDM_t dmi = getInstance();
+  ASSERT_TRUE(dmi);
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
+
+  auto setFRU = [&](int deviceIdx) -> bool {
+    char fruData[FRU_SIZE];
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_FRU, fruData, sizeof(fruData), nullptr, 0,
+                          hst_latency.get(), dev_latency.get(),
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      DV_LOG(INFO) << "Service Request Failed for Device: " << deviceIdx;
+      return false;
+    }
+
+    DV_LOG(INFO) << "Service Request Completed for Device: " << deviceIdx;
+    return true;
+  };
+
+  auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
+  for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
+    ASSERT_TRUE(setFRU(deviceIdx)) << "setFRU() failed!";
+  }
+}
+
 void TestDevMgmtApiSyncCmds::setAndGetModulePartNumber(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);

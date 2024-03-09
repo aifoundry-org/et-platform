@@ -391,36 +391,4 @@ typedef DeviceManagement& (*getDM_t)(IDeviceLayer* devLayer);
 
 } // namespace device_management
 
-/*! \struct fru_board_t
-    \brief fru board information
-*/
-struct fru_board_t {
-  char mfg[64];
-  char pname[64];
-  char serial[64];
-  char pn[64];
-  char file[64];
-} __attribute__((packed, aligned(8)));
-
-/*! \struct fru_product_t
-    \brief fru product information
-*/
-struct fru_product_t {
-  char mfg[64];
-  char pn[64];
-  char pname[64];
-  char serial[64];
-  char atag[64];
-  char ver[64];
-  char file[64];
-} __attribute__((packed, aligned(8)));
-
-/*! \struct fru_data_t
-    \brief fru information
-*/
-struct fru_data_t {
-  struct fru_board_t board;
-  struct fru_product_t product;
-} __attribute__((packed, aligned(8)));
-
 #endif // ET_DEVICEMANAGEMENT_H
