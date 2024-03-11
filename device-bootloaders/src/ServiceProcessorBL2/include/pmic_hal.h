@@ -140,13 +140,13 @@
 /* Register: pmic_i2c.gpio_rw                                              */
 #define PMIC_I2C_GPIO_RW_ADDRESS      0x14u
 #define PMIC_I2C_GPIO_RW_BYTE_ADDRESS 0x14u
-/* Register: pmic_i2c.pmbstats_rw                                              */
+/* Register: pmic_i2c.pmbstats_rw                                          */
 #define PMIC_I2C_PMB_RW_ADDRESS      0x15u
 #define PMIC_I2C_PMB_RW_BYTE_ADDRESS 0x15u
-/* Register: pmic_i2c.fw_mgmtcmd_rw                                         */
+/* Register: pmic_i2c.fw_mgmtcmd_rw                                        */
 #define PMIC_I2C_FW_MGMTCMD_ADDRESS      0x16u
 #define PMIC_I2C_FW_MGMTCMD_BYTE_ADDRESS 0x16u
-/* Register: pmic_i2c.fw_mgmtdata_rw                                         */
+/* Register: pmic_i2c.fw_mgmtdata_rw                                       */
 #define PMIC_I2C_FW_MGMTDATA_ADDRESS      0x17u
 #define PMIC_I2C_FW_MGMTDATA_BYTE_ADDRESS 0x17u
 /* Register: pmic_i2c.vddqlp_voltage                                       */
@@ -227,6 +227,12 @@
 /* Register: pmic_i2c.minion_g17_voltage                                   */
 #define PMIC_I2C_MINION_G17_VOLTAGE_ADDRESS      0x31u
 #define PMIC_I2C_MINION_G17_VOLTAGE_BYTE_ADDRESS 0x31u
+/* Register: pmic_i2c.fru_ops_cmd                                          */
+#define PMIC_I2C_FRU_OPS_CMD_ADDRESS      0x32u
+#define PMIC_I2C_FRU_OPS_CMD_BYTE_ADDRESS 0x32u
+/* Register: pmic_i2c.fru_data_cmd                                         */
+#define PMIC_I2C_FRU_DATA_CMD_ADDRESS      0x33u
+#define PMIC_I2C_FRU_DATA_CMD_BYTE_ADDRESS 0x33u
 
 /* Address Space for Addressmap: pmic_i2c_firmware                         */
 /* Register: pmic_i2c_firmware.src_hash                                    */
@@ -706,6 +712,28 @@
 #define PMIC_I2C_MINION_G17_VOLTAGE_RESET_MASK   0xffu
 #define PMIC_I2C_MINION_G17_VOLTAGE_READ_MASK    0xffu
 #define PMIC_I2C_MINION_G17_VOLTAGE_WRITE_MASK   0xffu
+/* Register type: pmic_i2c::fru_ops_cmd                                    */
+/* Register template: pmic_i2c::fru_ops_cmd                                */
+/* Field member: pmic_i2c::fru_ops_cmd                                     */
+#define PMIC_I2C_FRU_OPS_CMD_OFFSET       0x32u
+#define PMIC_I2C_FRU_OPS_CMD_BYTE_OFFSET  0x32u
+#define PMIC_I2C_FRU_OPS_CMD_READ_ACCESS  1u
+#define PMIC_I2C_FRU_OPS_CMD_WRITE_ACCESS 1u
+#define PMIC_I2C_FRU_OPS_CMD_RESET_VALUE  0x00u
+#define PMIC_I2C_FRU_OPS_CMD_RESET_MASK   0xffu
+#define PMIC_I2C_FRU_OPS_CMD_READ_MASK    0xffu
+#define PMIC_I2C_FRU_OPS_CMD_WRITE_MASK   0xffu
+/* Register type: pmic_i2c::fru_data_cmd                                   */
+/* Register template: pmic_i2c::fru_data_cmd                               */
+/* Field member: pmic_i2c::fru_data_cmd                                    */
+#define PMIC_I2C_FRU_DATA_CMD_OFFSET       0x33u
+#define PMIC_I2C_FRU_DATA_CMD_BYTE_OFFSET  0x33u
+#define PMIC_I2C_FRU_DATA_CMD_READ_ACCESS  1u
+#define PMIC_I2C_FRU_DATA_CMD_WRITE_ACCESS 1u
+#define PMIC_I2C_FRU_DATA_CMD_RESET_VALUE  0x00u
+#define PMIC_I2C_FRU_DATA_CMD_RESET_MASK   0xffu
+#define PMIC_I2C_FRU_DATA_CMD_READ_MASK    0xffu
+#define PMIC_I2C_FRU_DATA_CMD_WRITE_MASK   0xffu
 
 /* Register member: pmic_i2c.pmb_stats                                     */
 #define PMIC_I2C_PMB_STATS_SNAPSHOT_VALUE 0x43u
@@ -1446,6 +1474,34 @@
 #define PMIC_I2C_MINION_G17_VOLTAGE_VOLTAGE_GET(x)       ((x)&0xffu)
 #define PMIC_I2C_MINION_G17_VOLTAGE_VOLTAGE_SET(x)       ((x)&0xffu)
 #define PMIC_I2C_MINION_G17_VOLTAGE_VOLTAGE_MODIFY(r, x) ((x)&0xffu)
+
+/* Register type: pmic_i2c::fru_ops_cmd                                    */
+/* Register template: pmic_i2c::fru_ops_cmd                                */
+/* Field member: pmic_i2c::fru_ops_cmd                                     */
+#define PMIC_I2C_FRU_OPS_CMD_CMD_MSB          7u
+#define PMIC_I2C_FRU_OPS_CMD_CMD_LSB          0u
+#define PMIC_I2C_FRU_OPS_CMD_CMD_WIDTH        8u
+#define PMIC_I2C_FRU_OPS_CMD_CMD_READ_ACCESS  1u
+#define PMIC_I2C_FRU_OPS_CMD_CMD_WRITE_ACCESS 1u
+#define PMIC_I2C_FRU_OPS_CMD_CMD_RESET        0x00u
+#define PMIC_I2C_FRU_OPS_CMD_CMD_FIELD_MASK   0xffu
+#define PMIC_I2C_FRU_OPS_CMD_CMD_GET(x)       ((x)&0xffu)
+#define PMIC_I2C_FRU_OPS_CMD_CMD_SET(x)       ((x)&0xffu)
+#define PMIC_I2C_FRU_OPS_CMD_CMD_MODIFY(r, x) ((x)&0xffu)
+
+/* Register type: pmic_i2c::fru_data_cmd                                   */
+/* Register template: pmic_i2c::fru_data_cmd                               */
+/* Field member: pmic_i2c::fru_data_cmd                                    */
+#define PMIC_I2C_FRU_DATA_CMD_CMD_MSB          7u
+#define PMIC_I2C_FRU_DATA_CMD_CMD_LSB          0u
+#define PMIC_I2C_FRU_DATA_CMD_CMD_WIDTH        8u
+#define PMIC_I2C_FRU_DATA_CMD_CMD_READ_ACCESS  1u
+#define PMIC_I2C_FRU_DATA_CMD_CMD_WRITE_ACCESS 1u
+#define PMIC_I2C_FRU_DATA_CMD_CMD_RESET        0x00u
+#define PMIC_I2C_FRU_DATA_CMD_CMD_FIELD_MASK   0xffu
+#define PMIC_I2C_FRU_DATA_CMD_CMD_GET(x)       ((x)&0xffu)
+#define PMIC_I2C_FRU_DATA_CMD_CMD_SET(x)       ((x)&0xffu)
+#define PMIC_I2C_FRU_DATA_CMD_CMD_MODIFY(r, x) ((x)&0xffu)
 
 /* Addressmap type: pmic_i2c_firmware                                      */
 /* Addressmap template: pmic_i2c_firmware                                  */

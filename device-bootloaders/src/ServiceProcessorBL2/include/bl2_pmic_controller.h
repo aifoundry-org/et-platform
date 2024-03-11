@@ -481,6 +481,21 @@ int pmic_reset_wdog_timer(void);
 */
 int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw);
 
+/*! \fn int pmic_read_fru(struct fru_data_t *fru_data)
+    \brief This function gets the FRU data from the NVM.
+    \param fru_data_t Value of FRU data. 
+    \return The function call status, pass/fail.
+*/
+int pmic_read_fru(struct fru_data_t *fru_data);
+
+/*! \fn int pmic_set_fru(const struct fru_data_t *fru_data)
+    \brief This function sets the FRU data to the NVM.
+    \param fru_data_t Value of FRU data. 
+    \return The function call status, pass/fail.
+*/
+
+int pmic_set_fru(const struct fru_data_t *fru_data);
+
 /*! \fn int I2C_PMIC_Initialize(uint8_t i2c_id)
     \brief This function initializes PMIC
     \param i2c_id - I2C bus ID
