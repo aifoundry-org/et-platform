@@ -325,27 +325,27 @@ static void statw_process_pmc_counters(
 }
 
 static void statw_update_cma(
-    struct compute_resources_sample *data_sample, pmc_current_counters *pmc_cur)
+    struct compute_resources_sample *data_sample, const pmc_current_counters *pmc_cur)
 {
     /* Calculate CMA, min and max */
-    /* For DDR BW, multiply the request count by 2 due to double data rate in DDR */
+    /* Take into account average for whole SOC: num of MemShire and banks * Compute Shire Cache B/W */
     STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_read_bw,
         STATW_PMU_REQ_COUNT_TO_MBPS(
-            pmc_cur->avg_ms_pmcs.pmc0 * 2, DDR_FREQUENCY, pmc_cur->avg_ms_pmcs.cycle),
+            pmc_cur->avg_ms_pmcs.pmc0 * NUM_MEM_SHIRES, DDR_FREQUENCY, pmc_cur->avg_ms_pmcs.cycle),
         STATW_BW_CMA_SAMPLE_COUNT)
     STATW_RECALC_CMA_MIN_MAX(data_sample->ddr_write_bw,
         STATW_PMU_REQ_COUNT_TO_MBPS(
-            pmc_cur->avg_ms_pmcs.pmc1 * 2, DDR_FREQUENCY, pmc_cur->avg_ms_pmcs.cycle),
+            pmc_cur->avg_ms_pmcs.pmc1 * NUM_MEM_SHIRES, DDR_FREQUENCY, pmc_cur->avg_ms_pmcs.cycle),
         STATW_BW_CMA_SAMPLE_COUNT)
 
     uint32_t minion_freq_mhz = atomic_load_local_32(&STATW_CB.minion_freq_mhz);
     STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_read_bw,
-        STATW_PMU_REQ_COUNT_TO_MBPS(
-            pmc_cur->avg_sc_pmcs.pmc0, minion_freq_mhz, pmc_cur->avg_sc_pmcs.cycle),
+        STATW_PMU_REQ_COUNT_TO_MBPS(pmc_cur->avg_sc_pmcs.pmc0 * BANKS_PER_SC * NUM_SHIRES,
+            minion_freq_mhz, pmc_cur->avg_sc_pmcs.cycle),
         STATW_BW_CMA_SAMPLE_COUNT)
     STATW_RECALC_CMA_MIN_MAX(data_sample->l2_l3_write_bw,
-        STATW_PMU_REQ_COUNT_TO_MBPS(
-            pmc_cur->avg_sc_pmcs.pmc1, minion_freq_mhz, pmc_cur->avg_sc_pmcs.cycle),
+        STATW_PMU_REQ_COUNT_TO_MBPS(pmc_cur->avg_sc_pmcs.pmc1 * BANKS_PER_SC * NUM_SHIRES,
+            minion_freq_mhz, pmc_cur->avg_sc_pmcs.cycle),
         STATW_BW_CMA_SAMPLE_COUNT)
 }
 
