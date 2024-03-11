@@ -209,7 +209,7 @@ static inline uint64_t statw_recalculate_cma(
     return old_value;
 }
 
-static void statw_sample_pmc_counters(uint64_t shire_mask, pmc_current_counters *pmc_cur)
+static void statw_sample_pmc_counters(pmc_current_counters *pmc_cur)
 {
     for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
     {
@@ -220,11 +220,6 @@ static void statw_sample_pmc_counters(uint64_t shire_mask, pmc_current_counters 
 
     for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
     {
-        if (!CHECK_BIT_SET(shire_mask, shire_id))
-        {
-            continue;
-        }
-
         for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
         {
             /* Sample PMC SC Counter 0 and 1 (reads, writes). */
@@ -241,8 +236,7 @@ static uint64_t statw_calculate_average(uint64_t new_value, uint64_t average, ui
     return (uint64_t)avg;
 }
 
-static void statw_process_pmc_counters(
-    uint64_t shire_mask, pmc_prev_counters *pmc_cnt, pmc_current_counters *pmc_cur)
+static void statw_process_pmc_counters(pmc_prev_counters *pmc_cnt, pmc_current_counters *pmc_cur)
 {
     for (uint64_t shire_id = 0; shire_id < NUM_MEM_SHIRES; shire_id++)
     {
@@ -270,14 +264,8 @@ static void statw_process_pmc_counters(
         pmc_cnt->prev_ddr_write_counter[shire_id] = pmc_cur->ms_pmcs[shire_id].pmc1;
     }
 
-    unsigned int cnt = 0;
     for (uint64_t shire_id = 0; shire_id < NUM_SHIRES; shire_id++)
     {
-        if (!CHECK_BIT_SET(shire_mask, shire_id))
-        {
-            continue;
-        }
-
         for (uint64_t bank_id = 0; bank_id < BANKS_PER_SC; bank_id++)
         {
             /* Check for overflow */
@@ -302,16 +290,15 @@ static void statw_process_pmc_counters(
             pmc_cur->avg_sc_pmcs.cycle =
                 statw_calculate_average(pmc_cur->sc_pmcs[shire_id][bank_id].cycle -
                                             pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id],
-                    pmc_cur->avg_sc_pmcs.cycle, cnt);
+                    pmc_cur->avg_sc_pmcs.cycle, shire_id * BANKS_PER_SC + bank_id);
             pmc_cur->avg_sc_pmcs.pmc0 =
                 statw_calculate_average(pmc_cur->sc_pmcs[shire_id][bank_id].pmc0 -
                                             pmc_cnt->prev_l2_l3_read_counter[shire_id][bank_id],
-                    pmc_cur->avg_sc_pmcs.pmc0, cnt);
+                    pmc_cur->avg_sc_pmcs.pmc0, shire_id * BANKS_PER_SC + bank_id);
             pmc_cur->avg_sc_pmcs.pmc1 =
                 statw_calculate_average(pmc_cur->sc_pmcs[shire_id][bank_id].pmc1 -
                                             pmc_cnt->prev_l2_l3_write_counter[shire_id][bank_id],
-                    pmc_cur->avg_sc_pmcs.pmc1, cnt);
-            cnt++;
+                    pmc_cur->avg_sc_pmcs.pmc1, shire_id * BANKS_PER_SC + bank_id);
 
             /* Update the previous values */
             pmc_cnt->prev_l2_l3_cycle_counter[shire_id][bank_id] =
@@ -414,8 +401,8 @@ static void statw_update_pmc_stats(
     {
         case STATW_PMU_SAMPLING_START:
             memset(&pmc_cur, 0, sizeof(pmc_cur));
-            statw_sample_pmc_counters(shire_mask, &pmc_cur);
-            statw_process_pmc_counters(shire_mask, &pmc_cnt, &pmc_cur);
+            statw_sample_pmc_counters(&pmc_cur);
+            statw_process_pmc_counters(&pmc_cnt, &pmc_cur);
             statw_update_cma(data_sample, &pmc_cur);
             break;
         case STATW_PMU_SAMPLING_RESET_AND_START:
