@@ -35,6 +35,24 @@ TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleManufactureName) {
   }
 }
 
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getFRUTest) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getFRUTest(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, setFRUTest) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    setFRUTest(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
 TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePartNumber) {
   if (targetInList({Target::FullBoot, Target::Silicon})) {
     getModulePartNumber(false /* Multiple devices */);
