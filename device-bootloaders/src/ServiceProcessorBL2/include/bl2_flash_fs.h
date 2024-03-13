@@ -184,6 +184,17 @@ int flash_fs_get_part_number(char *part_number);
 */
 int flash_fs_set_part_number(uint32_t part_number);
 
+/*! \fn int flash_fs_set_vmin_lut(const uint8_t *mnn_voltage, const uint8_t *sram_voltage, const uint8_t *noc_voltage, const uint8_t *pcl_voltage)
+    \brief This function sets ET-SOC vmin lut.
+    \param mnn_voltage - mnn voltage value
+    \param sram_voltage - sram voltage value
+    \param noc_voltage - noc voltage value
+    \param pcl_voltage - pcl voltage value
+    \return The function call status, pass/fail.
+*/
+int flash_fs_set_vmin_lut(const uint8_t *mnn_voltage, const uint8_t *sram_voltage,
+                          const uint8_t *noc_voltage, const uint8_t *pcl_voltage);
+
 /*! \fn int flash_fs_get_serial_number(char *ser_number, )
     \brief This function returns ET-SOC serial number.
     \param ser_number - serial number
@@ -207,6 +218,22 @@ int flash_fs_get_module_rev(char *module_rev);
     \return The function call status, pass/fail.
 */
 int flash_fs_get_form_factor(char *form_factor);
+
+/*! \fn int flash_fs_get_mnn_vmin_for_freq(char *vmin_lut)
+    \brief This function returns ET-SOC mnn vmin lut value.
+    \param freq - intput freqency
+    \param vmin - vmin output
+    \return The function call status, pass/fail.
+*/
+int flash_fs_get_mnn_vmin_for_freq(uint16_t freq, uint8_t *vmin);
+
+/*! \fn int flash_fs_get_sram_vmin_for_freq(char *vmin_lut)
+    \brief This function returns ET-SOC sram vmin lut value.
+    \param freq - intput freqency
+    \param vmin - vmin output
+    \return The function call status, pass/fail.
+*/
+int flash_fs_get_sram_vmin_for_freq(uint16_t freq, uint8_t *vmin);
 
 /*! \fn int flash_fs_get_fw_release_rev(char *fw_release_rev)
     \brief This function returns ET-SOC firmware release revision.

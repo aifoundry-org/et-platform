@@ -413,22 +413,30 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.manuf_name:  %s\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.manuf_name);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.part_num:    0x%08x\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.part_num);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.serial_num:  0x%016lx\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.serial_num);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.module_rev:  0x%08x\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.module_rev);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.form_factor: 0x%02x\n",
+    Log_Write(
+        LOG_LEVEL_CRITICAL,
+        "asset_config_data:\n\tmanuf_name:  %s\n\tpart_num:    0x%08x\n\tserial_num:  0x%016lx\n",
+        flash_fs_bl2_info->asset_config_data.persistent_config.manuf_name,
+        flash_fs_bl2_info->asset_config_data.persistent_config.part_num,
+        flash_fs_bl2_info->asset_config_data.persistent_config.serial_num);
+    Log_Write(LOG_LEVEL_CRITICAL, "\tmodule_rev:  0x%08x\n\tform_factor: 0x%02x\n",
+              flash_fs_bl2_info->asset_config_data.persistent_config.module_rev,
               flash_fs_bl2_info->asset_config_data.persistent_config.form_factor);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.mnn_volt: 0x%02x\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.mnn_volt);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.sram_volt: 0x%02x\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.sram_volt);
-    Log_Write(LOG_LEVEL_DEBUG, "asset_config_data.noc_volt: 0x%02x\n",
-              flash_fs_bl2_info->asset_config_data.persistent_config.noc_volt);
+    for (uint32_t i = 0; i < 4; i++)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "\tvmin_lut[%d]: mnn.freq: 0x%02x, mnn.volt: 0x%02x\n", i,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mnn.freq,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mnn.volt);
+        Log_Write(LOG_LEVEL_CRITICAL, "\tvmin_lut[%d]: sram.freq: 0x%02x, sram.volt: 0x%02x\n", i,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].sram.freq,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].sram.volt);
+        Log_Write(LOG_LEVEL_CRITICAL, "\tvmin_lut[%d]: noc.freq: 0x%02x, nov.volt: 0x%02x\n", i,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].noc.freq,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].noc.volt);
+        Log_Write(LOG_LEVEL_CRITICAL, "\tvmin_lut[%d]: pcl.freq: 0x%02x, pcl.volt: 0x%02x\n", i,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].pcl.freq,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].pcl.volt);
+    }
     return 0;
 }
 
@@ -1573,6 +1581,180 @@ int flash_fs_set_part_number(uint32_t part_number)
 *
 *   FUNCTION
 *
+*       flash_fs_set_vmin_lut
+*
+*   DESCRIPTION
+*
+*       This function sets ET-SOC vmin lut.
+*
+*   INPUTS
+*
+*       mnn_voltage          mnn voltage value
+*       sram_voltage         sram voltage value
+*       noc_voltage          noc voltage value
+*       pcl_voltage          pcl voltage value
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+
+int flash_fs_set_vmin_lut(const uint8_t *mnn_voltage, const uint8_t *sram_voltage,
+                          const uint8_t *noc_voltage, const uint8_t *pcl_voltage)
+{
+    int status = STATUS_SUCCESS;
+    uint32_t partition_address;
+    uint32_t config_data_address;
+    uint32_t scratch_buffer_size;
+    ESPERANTO_CONFIG_DATA_t *cfg_data;
+    void *scratch_buffer;
+
+    /* Since Flash sector size is 4KB, get scratch buffer to use */
+    scratch_buffer = get_scratch_buffer(&scratch_buffer_size);
+    if (scratch_buffer_size < SPI_FLASH_SECTOR_SIZE)
+    {
+        return ERROR_INSUFFICIENT_MEMORY;
+    }
+
+    if (0 == sg_flash_fs_bl2_info.active_partition)
+    {
+        partition_address = 0;
+    }
+    else if (1 == sg_flash_fs_bl2_info.active_partition)
+    {
+        partition_address = sg_flash_fs_bl2_info.flash_size / 2;
+    }
+    else
+    {
+        return ERROR_SPI_FLASH_NO_VALID_PARTITION;
+    }
+
+    config_data_address = partition_address + sg_flash_fs_bl2_info.configuration_region_address;
+
+    /* Read the whole sector */
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_data_address,
+                                   (uint8_t *)scratch_buffer, SPI_FLASH_SECTOR_SIZE))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset config region!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* Update the vmin */
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buffer) +
+                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
+
+    if (mnn_voltage != NULL)
+    {
+        cfg_data->persistent_config.vmin_lut[0].mnn.volt = *mnn_voltage;
+    }
+    if (sram_voltage != NULL)
+    {
+        cfg_data->persistent_config.vmin_lut[0].sram.volt = *sram_voltage;
+    }
+    if (noc_voltage != NULL)
+    {
+        cfg_data->persistent_config.vmin_lut[0].noc.volt = *noc_voltage;
+    }
+    if (pcl_voltage != NULL)
+    {
+        cfg_data->persistent_config.vmin_lut[0].pcl.volt = *pcl_voltage;
+    }
+
+    /* Erase the asset config region. */
+    if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_data_address))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: failed to erase asset config data!\n");
+        return ERROR_SPI_FLASH_SE_FAILED;
+    }
+
+    /* Write back the updated sector */
+    if (0 != flash_fs_write_partition(config_data_address, scratch_buffer, SPI_FLASH_SECTOR_SIZE,
+                                      SPI_FLASH_PAGE_SIZE))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: spi_flash_program() failed!\n");
+        return ERROR_SPI_FLASH_PP_FAILED;
+    }
+
+    memset(scratch_buffer, 0, scratch_buffer_size);
+
+    /* Read configuration data for validation */
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id,
+                                   config_data_address +
+                                       (uint32_t)sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                       (uint32_t)sizeof(ESPERANTO_CONFIG_HEADER_t),
+                                   (uint8_t *)&scratch_buffer, sizeof(ESPERANTO_CONFIG_DATA_t)))
+    {
+        MESSAGE_ERROR("flash_fs_set_part_number: failed to read asset_config_data!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)&scratch_buffer;
+
+    /* verify if voltage was updated sucessfully, then update it in global data*/
+    if (mnn_voltage != NULL)
+    {
+        if (cfg_data->persistent_config.vmin_lut[0].mnn.volt != *mnn_voltage)
+        {
+            MESSAGE_ERROR("flash_fs_set_vmin_lut: mnn voltage value mismatch!\n");
+            status |= ERROR_SPI_FLASH_BL2_INFO_PARTNUM_MISMATCH;
+        }
+        else
+        {
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt =
+                cfg_data->persistent_config.vmin_lut[0].mnn.volt;
+        }
+    }
+
+    if (sram_voltage != NULL)
+    {
+        if (cfg_data->persistent_config.vmin_lut[0].sram.volt != *sram_voltage)
+        {
+            MESSAGE_ERROR("flash_fs_set_vmin_lut: sram voltage value mismatch!\n");
+            status |= ERROR_SPI_FLASH_BL2_INFO_PARTNUM_MISMATCH;
+        }
+        else
+        {
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt =
+                cfg_data->persistent_config.vmin_lut[0].sram.volt;
+        }
+    }
+
+    if (noc_voltage != NULL)
+    {
+        if (cfg_data->persistent_config.vmin_lut[0].noc.volt != *noc_voltage)
+        {
+            MESSAGE_ERROR("flash_fs_set_vmin_lut: noc voltage value mismatch!\n");
+            status |= ERROR_SPI_FLASH_BL2_INFO_PARTNUM_MISMATCH;
+        }
+        else
+        {
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].noc.volt =
+                cfg_data->persistent_config.vmin_lut[0].noc.volt;
+        }
+    }
+
+    if (pcl_voltage != NULL)
+    {
+        if (cfg_data->persistent_config.vmin_lut[0].pcl.volt != *pcl_voltage)
+        {
+            MESSAGE_ERROR("flash_fs_set_vmin_lut: pcl voltage value mismatch!\n");
+            status |= ERROR_SPI_FLASH_BL2_INFO_PARTNUM_MISMATCH;
+        }
+        else
+        {
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].pcl.volt =
+                cfg_data->persistent_config.vmin_lut[0].pcl.volt;
+        }
+    }
+
+    return status;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       flash_fs_get_serial_number
 *
 *   DESCRIPTION
@@ -1648,6 +1830,78 @@ int flash_fs_get_form_factor(char *form_factor)
     memcpy(form_factor, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.form_factor),
            sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.form_factor));
     return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_mnn_vmin_for_freq
+*
+*   DESCRIPTION
+*
+*       This function returns lut value of vmin for input frequency.
+*
+*   INPUTS
+*
+*       freq              frequency
+*
+*   OUTPUTS
+*
+*       vmin              vmin lut value
+*
+***********************************************************************/
+int flash_fs_get_mnn_vmin_for_freq(uint16_t freq, uint8_t *vmin)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.freq == freq)
+        {
+            memcpy(
+                vmin,
+                &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.volt),
+                sizeof(
+                    sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.volt));
+            return 0;
+        }
+    }
+    return ERROR_SPI_FLASH_PERSIST_WRONG_FREQ;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_sram_vmin_for_freq
+*
+*   DESCRIPTION
+*
+*       This function returns lut value of vmin for input frequency.
+*
+*   INPUTS
+*
+*       freq              frequency
+*
+*   OUTPUTS
+*
+*       vmin              vmin lut value
+*
+***********************************************************************/
+int flash_fs_get_sram_vmin_for_freq(uint16_t freq, uint8_t *vmin)
+{
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.freq == freq)
+        {
+            memcpy(
+                vmin,
+                &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.volt),
+                sizeof(
+                    sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.volt));
+            return 0;
+        }
+    }
+    return ERROR_SPI_FLASH_PERSIST_WRONG_FREQ;
 }
 
 /************************************************************************

@@ -67,6 +67,22 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_NON_PERSISTENT_DATA
     uint16_t l3_size;
 } ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t;
 
+typedef struct __attribute__((__packed__)) ESPERANTO_FREQ_VOLT
+{
+    uint16_t freq;
+    uint8_t volt;
+} ESPERANTO_FREQ_VOLT_t;
+
+typedef struct __attribute__((__packed__)) ESPERANTO_VMIN_LUT_SINGLE_POINT
+{
+    ESPERANTO_FREQ_VOLT_t mnn;
+    ESPERANTO_FREQ_VOLT_t sram;
+    ESPERANTO_FREQ_VOLT_t noc;
+    ESPERANTO_FREQ_VOLT_t pcl;
+} ESPERANTO_VMIN_LUT_SINGLE_POINT_t;
+
+#define NUMBER_OF_VMIN_LUT_POINTS 4
+
 /* Esperanto flash persistant config data, this data will be kept same on every fw update */
 typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
 {
@@ -75,9 +91,10 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
     uint32_t module_rev;
     uint32_t part_num;
     uint8_t form_factor;
-    uint8_t mnn_volt;
-    uint8_t sram_volt;
-    uint8_t noc_volt;
+    //3D LUT of frequency/vmin pairs for MNN, SRAM, NOC, and PCL.
+    //Packing per point rather than per regulator type provides
+    //fw backward compatibility if number of points is increased.
+    ESPERANTO_VMIN_LUT_SINGLE_POINT_t vmin_lut[NUMBER_OF_VMIN_LUT_POINTS];
 } ESPERANTO_CONFIG_PERSISTENT_DATA_t;
 
 /* Esperanto flash config data */
@@ -85,10 +102,11 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
     ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
     ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
-    uint8_t padding[18];
+    uint8_t padding[37];
 } ESPERANTO_CONFIG_DATA_t;
 
-static_assert(64 == sizeof(ESPERANTO_CONFIG_DATA_t), "sizeof(ESPERANTO_CONFIG_DATA_t) is not 64!");
+static_assert(128 == sizeof(ESPERANTO_CONFIG_DATA_t),
+              "sizeof(ESPERANTO_CONFIG_DATA_t) is not 128!");
 
 /* Esperanto flash config header */
 typedef struct ESPERANTO_CONFIG_HEADER

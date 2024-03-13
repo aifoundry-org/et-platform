@@ -37,9 +37,6 @@
 #define SECONDS_IN_MINUTE 60
 
 // Defines the Boot voltages for the respective Voltage Domains
-#define MINION_BOOT_VOLTAGE 0x32U // 500 mV
-#define SRAM_BOOT_VOLTAGE   0x64U // 730 mV
-#define NOC_BOOT_VOLTAGE    0x2FU // 485 mV
 #define DDR_BOOT_VOLTAGE    0x6EU // 800 mV
 
 #if defined(LINUX_MODE) && LINUX_MODE == 1
@@ -61,7 +58,7 @@
     \def MNN_BOOT_FREQUENCY
     \brief Defines the boot frequency. This constant represents the boot frequency in Mhz.
 */
-#define MNN_BOOT_FREQUENCY 600U
+#define MNN_BOOT_FREQUENCY 600
 
 /*!
     \def SRAM_BOOT_FREQUENCY
@@ -358,14 +355,15 @@ int update_pmb_stats(bool reset);
 */
 void print_system_operating_point(void);
 
-/*! \fn void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v)
+/*! \fn void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v)
     \brief This function set the boot voltages for the main 3 supplies
     \param mnn_v Minion Voltage value
     \param sram_v SRAM Voltage value
     \param noc_v NOC Voltage value
+    \param pcl_v PCL Voltage value
     \returns none
 */
-void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v);
+void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v);
 
 /*! \fn void Thermal_Pwr_Mgmt_Get_Minion_Temperature(void)
     \brief This function returns minion temperature

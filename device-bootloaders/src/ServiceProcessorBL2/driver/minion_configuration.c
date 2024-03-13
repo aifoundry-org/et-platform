@@ -264,12 +264,12 @@ static StaticTimer_t MM_Timer_Buffer;
 /*! \def THROTTLE_FREQUENCY_STEP
     \brief The change in frequency per step in megahertz.
 */
-#define THROTTLE_FREQUENCY_STEP 50U
+#define THROTTLE_FREQUENCY_STEP 50
 
 /*! \def THROTTLE_VOLTAGE_STEP_MV
     \brief The change in voltage per step in millivolts.
 */
-#define THROTTLE_VOLTAGE_STEP_MV 10U
+#define THROTTLE_VOLTAGE_STEP_MV 10
 
 static uint64_t gs_active_shire_mask = 0;
 static uint64_t gs_active_compute_minion_mask = 0;
@@ -1030,13 +1030,15 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 {
     /* Lookup table of frequency-voltage pairs */
-    int minion_mv = MINION_BOOT_VOLTAGE;
+    uint8_t minion_boot_voltage_mv = 0;
+    (void)flash_fs_get_mnn_vmin_for_freq(MNN_BOOT_FREQUENCY, &minion_boot_voltage_mv);
+    int minion_mv = minion_boot_voltage_mv;
 
     /* Check if target frequency is below boot frequency*/
     if (target_frequency < MNN_BOOT_FREQUENCY)
     {
         /* Calculate minion voltage based on reduced frequency*/
-        minion_mv = (int)(MINION_HEX_TO_MILLIVOLT(MINION_BOOT_VOLTAGE) -
+        minion_mv = (int)(MINION_HEX_TO_MILLIVOLT(minion_boot_voltage_mv) -
                           (((MNN_BOOT_FREQUENCY - target_frequency) / THROTTLE_FREQUENCY_STEP) *
                            THROTTLE_VOLTAGE_STEP_MV));
         minion_mv = (minion_mv < MINION_VOLTAGE_MIN_LIMIT) ? MINION_VOLTAGE_MIN_LIMIT : minion_mv;
@@ -1044,7 +1046,7 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
     else
     {
         /* Throttle up operation, calculate minion voltage based on increased frequency*/
-        minion_mv = (int)(MINION_HEX_TO_MILLIVOLT(MINION_BOOT_VOLTAGE) +
+        minion_mv = (int)(MINION_HEX_TO_MILLIVOLT(minion_boot_voltage_mv) +
                           (((target_frequency - MNN_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
                            THROTTLE_VOLTAGE_STEP_MV));
         minion_mv = (minion_mv > MINION_VOLTAGE_MAX_LIMIT) ? MINION_VOLTAGE_MAX_LIMIT : minion_mv;
@@ -1075,13 +1077,15 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
 {
     /* Lookup table of frequency-voltage pairs */
-    int l2cache_mv = SRAM_BOOT_VOLTAGE;
+    uint8_t l2cache_boot_voltage_mv = 0;
+    (void)flash_fs_get_mnn_vmin_for_freq(SRAM_BOOT_FREQUENCY, &l2cache_boot_voltage_mv);
+    int l2cache_mv = l2cache_boot_voltage_mv;
 
     /* Check if target frequency is below boot frequency*/
     if (target_frequency < SRAM_BOOT_FREQUENCY)
     {
         /* Calculate L2Cache voltage based on reduced frequency*/
-        l2cache_mv = (int)(SRAM_HEX_TO_MILLIVOLT(SRAM_BOOT_VOLTAGE) -
+        l2cache_mv = (int)(SRAM_HEX_TO_MILLIVOLT(l2cache_boot_voltage_mv) -
                            (((SRAM_BOOT_FREQUENCY - target_frequency) / THROTTLE_FREQUENCY_STEP) *
                             THROTTLE_VOLTAGE_STEP_MV));
         l2cache_mv = (l2cache_mv < L2CACHE_VOLTAGE_MIN_LIMIT) ? L2CACHE_VOLTAGE_MIN_LIMIT :
@@ -1090,7 +1094,7 @@ int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
     else
     {
         /* Throttle up operation, calculate minion voltage based on increased frequency*/
-        l2cache_mv = (int)(SRAM_HEX_TO_MILLIVOLT(SRAM_BOOT_VOLTAGE) +
+        l2cache_mv = (int)(SRAM_HEX_TO_MILLIVOLT(l2cache_boot_voltage_mv) +
                            (((target_frequency - SRAM_BOOT_FREQUENCY) / THROTTLE_FREQUENCY_STEP) *
                             THROTTLE_VOLTAGE_STEP_MV));
         l2cache_mv = (l2cache_mv > L2CACHE_VOLTAGE_MAX_LIMIT) ? L2CACHE_VOLTAGE_MAX_LIMIT :
