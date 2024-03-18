@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -[CS-226] Enable new FRU_GET command
 -[CS-226] Added aditional structures to support FRU commands
 ### Changed
+- Make FRU raw format
 ### Deprecated
 ### Removed
 ### Fixed

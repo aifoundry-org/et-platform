@@ -1529,39 +1529,12 @@ struct device_mgmt_mdi_bp_event_t
     uint8_t pad[4];              /**< Padding for alignment */
 } __attribute__((packed, aligned(8)));
 
-/*! \struct fru_board_t
-    \brief fru board information
-*/
-struct fru_board_t
-{
-    char mfg[64];
-    char pname[64];
-    char serial[64];
-    char pn[64];
-    char file[64];
-} __attribute__((packed, aligned(8)));
-
-/*! \struct fru_product_t
-    \brief fru product information
-*/
-struct fru_product_t
-{
-    char mfg[64];
-    char pn[64];
-    char pname[64];
-    char serial[64];
-    char atag[64];
-    char ver[64];
-    char file[64];
-} __attribute__((packed, aligned(8)));
-
 /*! \struct fru_data_t
     \brief fru information
 */
 struct fru_data_t
 {
-    struct fru_board_t board;
-    struct fru_product_t product;
+    uint8_t buffer[256]; // Fixed-size array member
 } __attribute__((packed, aligned(8)));
 
 /*! \struct device_mgmt_set_fru_cmd_t
