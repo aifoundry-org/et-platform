@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Optimize NOC remap algorithm
 - Make FRU data raw binary
+- Calculate NOC base/mask addresses to reduce image size
 ### Deprecated
 ### Removed
 ### Fixed
