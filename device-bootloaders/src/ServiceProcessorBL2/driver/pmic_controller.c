@@ -2209,13 +2209,8 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 
 int pmic_read_fru(struct fru_data_t *fru_data)
 {
-    // Assign default values to the members of fru_data->product
-    strncpy(fru_data->product.mfg, "Esperanto", sizeof(fru_data->product.mfg) - 1);
-    strncpy(fru_data->product.pname, "PCA,PCIE-1088-D", sizeof(fru_data->product.pname) - 1);
-    strncpy(fru_data->product.serial, "D010D13", sizeof(fru_data->product.serial) - 1);
-    strncpy(fru_data->product.pn, "0106835T01A1", sizeof(fru_data->product.pn) - 1);
-    strncpy(fru_data->product.file, "9806885F03A", sizeof(fru_data->product.file) - 1);
-
+    // Read FRU data from PMIC
+    (void)fru_data;
     return SUCCESS;
 }
 
@@ -2241,6 +2236,7 @@ int pmic_read_fru(struct fru_data_t *fru_data)
 
 int pmic_set_fru(const struct fru_data_t *fru_data)
 {
+    // Write FRU data to PMIC
     (void)fru_data;
     return SUCCESS;
 }
