@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18887] Added NOC shire re-map functionality
 - [SW-20169] Add more logs for fw update
 - [SW-226] Added initial support for GET and SET FRU commands
+- [SW-20541]: use a dedicated BL2_CODE_REGION_SIZE per BL2 build target
 ### Changed
 - Optimize NOC remap algorithm
 - Make FRU data raw binary

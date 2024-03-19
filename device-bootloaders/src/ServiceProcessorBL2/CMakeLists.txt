@@ -14,7 +14,6 @@ set(FILE_REVISION_NUMBER    ${PROJECT_VERSION_PATCH})
 
 add_subdirectory(include)
 
-set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/common/sections.ld)
 set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/bl_layout.ld)
 set(ZEBU_TARGET SP_RAM)
 
@@ -27,28 +26,38 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
         set(LINUX_MODE 0)
+        set(BL2_CODE_REGION_SIZE 466K)
     elseif (BL2_BUILD_VARIANT STREQUAL "testframework")
         # Test Frame work version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 1)
         set(LINUX_MODE 1) #this must be enabled in testframework because of maxion tests
+        set(BL2_CODE_REGION_SIZE 466K)
     elseif (BL2_BUILD_VARIANT STREQUAL "production")
         # Production version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
         set(LINUX_MODE 0)
+        set(BL2_CODE_REGION_SIZE 466K)
     elseif (BL2_BUILD_VARIANT STREQUAL "linux")
         #Linux version
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
         set(LINUX_MODE 1)
+        set(BL2_CODE_REGION_SIZE 466K)
     else()
         # Debug enabled
         set(FAST_BOOT 1)
         set(TEST_FRAMEWORK 0)
         set(LINUX_MODE 0)
+        set(BL2_CODE_REGION_SIZE 466K)
     endif()
 
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/common/sections.ld.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/common/sections_${BL2_BUILD_VARIANT}.ld"
+        @ONLY)
+    set(LINKER_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/common/sections_${BL2_BUILD_VARIANT}.ld)
 
     if (LINUX_MODE STREQUAL "1")
         set(MAXION_SOURCES 
