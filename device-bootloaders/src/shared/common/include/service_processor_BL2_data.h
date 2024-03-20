@@ -79,6 +79,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_VMIN_LUT_SINGLE_POINT
     ESPERANTO_FREQ_VOLT_t sram;
     ESPERANTO_FREQ_VOLT_t noc;
     ESPERANTO_FREQ_VOLT_t pcl;
+    ESPERANTO_FREQ_VOLT_t ddr;
 } ESPERANTO_VMIN_LUT_SINGLE_POINT_t;
 
 #define NUMBER_OF_VMIN_LUT_POINTS 4
@@ -91,7 +92,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
     uint32_t module_rev;
     uint32_t part_num;
     uint8_t form_factor;
-    //3D LUT of frequency/vmin pairs for MNN, SRAM, NOC, and PCL.
+    //3D LUT of frequency/vmin pairs for MNN, SRAM, NOC, PCL and DDR.
     //Packing per point rather than per regulator type provides
     //fw backward compatibility if number of points is increased.
     ESPERANTO_VMIN_LUT_SINGLE_POINT_t vmin_lut[NUMBER_OF_VMIN_LUT_POINTS];
@@ -102,7 +103,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
     ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
     ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
-    uint8_t padding[37];
+    uint8_t padding[25];
 } ESPERANTO_CONFIG_DATA_t;
 
 static_assert(128 == sizeof(ESPERANTO_CONFIG_DATA_t),

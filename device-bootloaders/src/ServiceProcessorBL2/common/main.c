@@ -370,19 +370,9 @@ static void taskMain(void *pvParameters)
 
     /* Set System Boot Voltages - this should be done before bringing up Minions */
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
-    set_system_voltages(
-        g_service_processor_bl2_data.flash_fs_bl2_info.asset_config_data.persistent_config
-            .vmin_lut[0]
-            .mnn.volt,
-        g_service_processor_bl2_data.flash_fs_bl2_info.asset_config_data.persistent_config
-            .vmin_lut[0]
-            .sram.volt,
-        g_service_processor_bl2_data.flash_fs_bl2_info.asset_config_data.persistent_config
-            .vmin_lut[0]
-            .noc.volt,
-        g_service_processor_bl2_data.flash_fs_bl2_info.asset_config_data.persistent_config
-            .vmin_lut[0]
-            .pcl.volt);
+    set_system_voltages(flash_fs_get_mnn_boot_voltage(), flash_fs_get_sram_boot_voltage(),
+                        flash_fs_get_noc_boot_voltage(), flash_fs_get_pcl_boot_voltage(),
+                        flash_fs_get_ddr_boot_voltage());
 
     // Launch Master Minion Runtime
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Enable_Master_Shire_Threads\n");

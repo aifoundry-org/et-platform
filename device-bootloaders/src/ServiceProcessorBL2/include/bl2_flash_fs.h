@@ -27,6 +27,15 @@
 */
 #define SUBBANK(size_mb) (uint16_t)((size_mb * 1024) / (NUM_COMPUTE_SHIRES * NEIGH_PER_SHIRE))
 
+typedef struct
+{
+    const uint8_t *mnn_voltage;
+    const uint8_t *sram_voltage;
+    const uint8_t *noc_voltage;
+    const uint8_t *pcl_voltage;
+    const uint8_t *ddr_voltage;
+} voltageLUT_t;
+
 /*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     \brief This function initialize partition infos.
     \param flash_fs_bl2_info - bl2 flash info struct to initialize
@@ -184,16 +193,12 @@ int flash_fs_get_part_number(char *part_number);
 */
 int flash_fs_set_part_number(uint32_t part_number);
 
-/*! \fn int flash_fs_set_vmin_lut(const uint8_t *mnn_voltage, const uint8_t *sram_voltage, const uint8_t *noc_voltage, const uint8_t *pcl_voltage)
+/*! \fn int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT)
     \brief This function sets ET-SOC vmin lut.
-    \param mnn_voltage - mnn voltage value
-    \param sram_voltage - sram voltage value
-    \param noc_voltage - noc voltage value
-    \param pcl_voltage - pcl voltage value
+    \param vminLUT - pointer to struct with voltage values
     \return The function call status, pass/fail.
 */
-int flash_fs_set_vmin_lut(const uint8_t *mnn_voltage, const uint8_t *sram_voltage,
-                          const uint8_t *noc_voltage, const uint8_t *pcl_voltage);
+int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT);
 
 /*! \fn int flash_fs_get_serial_number(char *ser_number, )
     \brief This function returns ET-SOC serial number.
@@ -219,21 +224,65 @@ int flash_fs_get_module_rev(char *module_rev);
 */
 int flash_fs_get_form_factor(char *form_factor);
 
-/*! \fn int flash_fs_get_mnn_vmin_for_freq(char *vmin_lut)
-    \brief This function returns ET-SOC mnn vmin lut value.
-    \param freq - intput freqency
-    \param vmin - vmin output
-    \return The function call status, pass/fail.
+/*! \fn int flash_fs_get_mnn_boot_freq(void)
+    \brief This function returns ET-SOC mnn boot freqency.
+    \return frequency.
 */
-int flash_fs_get_mnn_vmin_for_freq(uint16_t freq, uint8_t *vmin);
+uint16_t flash_fs_get_mnn_boot_freq(void);
 
-/*! \fn int flash_fs_get_sram_vmin_for_freq(char *vmin_lut)
-    \brief This function returns ET-SOC sram vmin lut value.
-    \param freq - intput freqency
-    \param vmin - vmin output
-    \return The function call status, pass/fail.
+/*! \fn int flash_fs_get_mnn_boot_voltage(void)
+    \brief This function returns ET-SOC mnn boot voltage.
+    \return voltage.
 */
-int flash_fs_get_sram_vmin_for_freq(uint16_t freq, uint8_t *vmin);
+uint8_t flash_fs_get_mnn_boot_voltage(void);
+
+/*! \fn int flash_fs_get_sram_boot_freq(void)
+    \brief This function returns ET-SOC sram boot freqency.
+    \return frequency.
+*/
+uint16_t flash_fs_get_sram_boot_freq(void);
+
+/*! \fn int flash_fs_get_sram_boot_voltage(void)
+    \brief This function returns ET-SOC sram boot voltage.
+    \return voltage.
+*/
+uint8_t flash_fs_get_sram_boot_voltage(void);
+
+/*! \fn int flash_fs_get_noc_boot_freq(void)
+    \brief This function returns ET-SOC NOC boot freqency.
+    \return frequency.
+*/
+uint16_t flash_fs_get_noc_boot_freq(void);
+
+/*! \fn int flash_fs_get_noc_boot_voltage(void)
+    \brief This function returns ET-SOC NOC boot voltage.
+    \return voltage.
+*/
+uint8_t flash_fs_get_noc_boot_voltage(void);
+
+/*! \fn int flash_fs_get_pcl_boot_freq(void)
+    \brief This function returns ET-SOC PCL boot freqency.
+    \return frequency.
+*/
+uint16_t flash_fs_get_pcl_boot_freq(void);
+
+/*! \fn int flash_fs_get_pcl_boot_voltage(void)
+    \brief This function returns ET-SOC PCL boot voltage.
+    \return voltage.
+*/
+uint8_t flash_fs_get_pcl_boot_voltage(void);
+
+/*! \fn int flash_fs_get_ddr_boot_freq(void)
+    \brief This function returns ET-SOC DDR boot freqency.
+    \return frequency.
+*/
+uint16_t flash_fs_get_ddr_boot_freq(void);
+
+/*! \fn int flash_fs_get_ddr_boot_voltage(void)
+    \brief This function returns ET-SOC DDR boot voltage.
+    \return voltage.
+*/
+uint8_t flash_fs_get_ddr_boot_voltage(void);
 
 /*! \fn int flash_fs_get_fw_release_rev(char *fw_release_rev)
     \brief This function returns ET-SOC firmware release revision.

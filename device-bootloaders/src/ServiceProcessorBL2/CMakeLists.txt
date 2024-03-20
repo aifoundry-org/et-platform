@@ -44,7 +44,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 0)
         set(LINUX_MODE 1)
-        set(BL2_CODE_REGION_SIZE 468K)
+        set(BL2_CODE_REGION_SIZE 469K)
     else()
         # Debug enabled
         set(FAST_BOOT 1)

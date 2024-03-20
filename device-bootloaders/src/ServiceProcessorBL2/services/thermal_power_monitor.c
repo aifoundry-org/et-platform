@@ -303,6 +303,7 @@ static void pwr_svc_set_module_voltage(uint16_t tag, uint64_t req_start_time, vo
         (struct device_mgmt_set_module_voltage_cmd_t *)buffer;
     struct device_mgmt_set_module_voltage_rsp_t dm_rsp;
     int32_t status = 0;
+    voltageLUT_t vminLUT = { NULL };
 
     status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(set_voltage_cmd->type, set_voltage_cmd->value);
     if (STATUS_SUCCESS != status)
@@ -314,34 +315,52 @@ static void pwr_svc_set_module_voltage(uint16_t tag, uint64_t req_start_time, vo
     switch (set_voltage_cmd->type)
     {
         case MODULE_MINION:
-            status = flash_fs_set_vmin_lut(&(set_voltage_cmd->value), NULL, NULL, NULL);
+            vminLUT.mnn_voltage = &set_voltage_cmd->value;
+            status = flash_fs_set_vmin_lut_boot_voltages(&vminLUT);
             if (STATUS_SUCCESS != status)
             {
-                Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error %d: flash_fs_set_vmin_lut \r\n",
+                Log_Write(LOG_LEVEL_ERROR,
+                          " thermal pwr mgmt error %d: flash_fs_set_vmin_lut_boot_voltages \r\n",
                           status);
             }
             break;
         case MODULE_L2CACHE:
-            status = flash_fs_set_vmin_lut(NULL, &(set_voltage_cmd->value), NULL, NULL);
+            vminLUT.sram_voltage = &set_voltage_cmd->value;
+            status = flash_fs_set_vmin_lut_boot_voltages(&vminLUT);
             if (STATUS_SUCCESS != status)
             {
-                Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error %d: flash_fs_set_vmin_lut \r\n",
+                Log_Write(LOG_LEVEL_ERROR,
+                          " thermal pwr mgmt error %d: flash_fs_set_vmin_lut_boot_voltages \r\n",
                           status);
             }
             break;
         case MODULE_NOC:
-            status = flash_fs_set_vmin_lut(NULL, NULL, &(set_voltage_cmd->value), NULL);
+            vminLUT.noc_voltage = &set_voltage_cmd->value;
+            status = flash_fs_set_vmin_lut_boot_voltages(&vminLUT);
             if (STATUS_SUCCESS != status)
             {
-                Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error %d: flash_fs_set_vmin_lut \r\n",
+                Log_Write(LOG_LEVEL_ERROR,
+                          " thermal pwr mgmt error %d: flash_fs_set_vmin_lut_boot_voltages \r\n",
                           status);
             }
             break;
         case MODULE_PCIE_LOGIC:
-            status = flash_fs_set_vmin_lut(NULL, NULL, NULL, &(set_voltage_cmd->value));
+            vminLUT.pcl_voltage = &set_voltage_cmd->value;
+            status = flash_fs_set_vmin_lut_boot_voltages(&vminLUT);
             if (STATUS_SUCCESS != status)
             {
-                Log_Write(LOG_LEVEL_ERROR, " thermal pwr mgmt error %d: flash_fs_set_vmin_lut \r\n",
+                Log_Write(LOG_LEVEL_ERROR,
+                          " thermal pwr mgmt error %d: flash_fs_set_vmin_lut_boot_voltages \r\n",
+                          status);
+            }
+            break;
+        case MODULE_DDR:
+            vminLUT.ddr_voltage = &set_voltage_cmd->value;
+            status = flash_fs_set_vmin_lut_boot_voltages(&vminLUT);
+            if (STATUS_SUCCESS != status)
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                          " thermal pwr mgmt error %d: flash_fs_set_vmin_lut_boot_voltages \r\n",
                           status);
             }
             break;
