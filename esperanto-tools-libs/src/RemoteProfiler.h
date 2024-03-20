@@ -72,7 +72,8 @@ private:
   std::unordered_map<std::thread::id, std::string> threadIdNames_;
 
   std::mutex workerAccessedThreadsMutex_;
-  std::unordered_map<Worker*, std::unordered_set<std::thread::id>> workerAccessedThreads_;
+  // For each worker, the ID of each thread that has emited an event and wether it has already been identified
+  std::unordered_map<Worker*, std::unordered_map<std::thread::id, bool>> workerAccessedThreads_;
 
   static thread_local Worker* threadsWorker_;
 };

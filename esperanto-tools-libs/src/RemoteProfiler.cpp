@@ -96,19 +96,24 @@ void RemoteProfiler::sendProfilingEvent(Worker* worker, const ProfileEvent& even
   // Check if the thread needs to be identified to the worker
   SpinLock lock(workerAccessedThreadsMutex_);
   auto& accessedThreads = workerAccessedThreads_[worker];
-  auto [it, created] = accessedThreads.emplace(threadId);
-  (void)it;
+  auto [it, created] = accessedThreads.emplace(threadId, false);
+  bool alreadyIdentified = it->second;
   lock.unlock();
 
   // Identify the thread to the worker if not already done
-  if (created) {
-    ProfileEvent identifyThreadEvent{Type::Instant, Class::IdentifyThread};
-    identifyThreadEvent.setThreadId(threadId);
+  if (created or (not alreadyIdentified)) {
     auto threadName = getThreadName(threadId);
     if (not threadName.empty()) {
+      ProfileEvent identifyThreadEvent{Type::Instant, Class::IdentifyThread};
+      identifyThreadEvent.setThreadId(threadId);
       identifyThreadEvent.setThreadName(std::move(threadName));
+      worker->sendProfilerEvent(identifyThreadEvent);
+
+      // Mark the thread as identified
+      lock.lock();
+      workerAccessedThreads_[worker][threadId] = true;
+      lock.unlock();
     }
-    worker->sendProfilerEvent(identifyThreadEvent);
   }
 
   // Send the actual profiling event to the worker
