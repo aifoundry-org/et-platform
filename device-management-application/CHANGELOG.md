@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- Fixed bug in read FRU bin file
 ### Security
 
 ## [1.16.0] - 2024-01-30

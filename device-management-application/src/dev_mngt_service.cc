@@ -407,14 +407,16 @@ void check_dm_events(DeviceManagement& dm) {
 }
 
 void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
-  std::ifstream fileStream(fileName, std::ios::binary);
+  std::ifstream fileStream(fileName, std::ios::binary | std::ios::ate);
   if (!fileStream.is_open()) {
     std::cerr << "Failed to open file: " << fileName << std::endl;
     return;
   }
-
+  std::streamsize fileSize = fileStream.tellg();
+  fileStream.seekg(0, std::ios::beg);
+  std::streamsize bytesToRead = std::min(fileSize, static_cast<std::streamsize>(sizeof(fruData.buffer)));
   // Read the data into the buffer
-  fileStream.read(reinterpret_cast<char*>(fruData.buffer), sizeof(struct fru_data_t));
+  fileStream.read(reinterpret_cast<char*>(fruData.buffer), bytesToRead);
 
   if (fileStream.fail()) {
     std::cerr << "Failed to read file: " << fileName << std::endl;
