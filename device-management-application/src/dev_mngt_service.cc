@@ -1259,7 +1259,7 @@ int verifyService() {
   } break;
   case DM_CMD::DM_CMD_GET_FRU: {
     // Declaration of fruData and output_buff
-    fru_data_t fruData;
+    fru_data_t fruData = {0};
     const size_t output_size = sizeof(fru_data_t);
     std::vector<char> output_buff(output_size, 0);
 
@@ -1273,7 +1273,7 @@ int verifyService() {
   } break;
   case DM_CMD::DM_CMD_SET_FRU: {
     // Read FRU data from file
-    fru_data_t fruData;
+    fru_data_t fruData = {0};
     parseFRUDataFromFile(fruFileName, fruData);
 
     // Prepare input buffer

@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [CS-226] Add support for FRU
 ### Changed
 - Make FRU raw data
+- Initialize fruData
 ### Deprecated
 ### Removed
 ### Fixed
