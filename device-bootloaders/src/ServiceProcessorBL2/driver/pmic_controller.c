@@ -2209,8 +2209,36 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 
 int pmic_read_fru(struct fru_data_t *fru_data)
 {
-    // Read FRU data from PMIC
-    (void)fru_data;
+    int status;
+    uint8_t cmd = PMIC_I2C_FRU_OPS_CMD_SET_OFFSET;
+    uint8_t offset = 0;
+
+    // READ FRU data from PMIC
+    status = set_pmic_reg(PMIC_I2C_FRU_OPS_CMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    status = set_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &offset, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    cmd = PMIC_I2C_FRU_OPS_CMD_READ_FRU_DATA_BYTE;
+    status = set_pmic_reg(PMIC_I2C_FRU_OPS_CMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    for (unsigned int i = 0; i < sizeof(fru_data->buffer); i++)
+    {
+        status = get_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &(fru_data->buffer[i]), 1);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+    }
     return SUCCESS;
 }
 
@@ -2236,8 +2264,44 @@ int pmic_read_fru(struct fru_data_t *fru_data)
 
 int pmic_set_fru(const struct fru_data_t *fru_data)
 {
+    int status;
+    uint8_t cmd = PMIC_I2C_FRU_OPS_CMD_SET_OFFSET;
+    uint8_t data = 0;
+
     // Write FRU data to PMIC
-    (void)fru_data;
+    status = set_pmic_reg(PMIC_I2C_FRU_OPS_CMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    status = set_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &data, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    cmd = PMIC_I2C_FRU_OPS_CMD_WRITE_FRU_DATA_BYTE;
+    status = set_pmic_reg(PMIC_I2C_FRU_OPS_CMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    for (unsigned int i = 0; i < sizeof(fru_data->buffer); i++)
+    {
+        status = set_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &(fru_data->buffer[i]), 1);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+    }
+
+    cmd = PMIC_I2C_FRU_OPS_CMD_WRITE_COMMIT;
+    status = set_pmic_reg(PMIC_I2C_FRU_OPS_CMD_ADDRESS, &cmd, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
     return SUCCESS;
 }
 

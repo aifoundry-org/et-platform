@@ -93,6 +93,13 @@
 #define PMIC_I2C_FW_MGMTCMD_STATUS_ERROR    0x40
 #define PMIC_I2C_FW_MGMTCMD_STATUS_BUSY     0x80
 
+/* Enumeration: pmic_i2c_fru_ops_cmd subcommand */
+#define PMIC_I2C_FRU_OPS_CMD_SET_OFFSET          2
+#define PMIC_I2C_FRU_OPS_CMD_GET_OFFSET          3
+#define PMIC_I2C_FRU_OPS_CMD_READ_FRU_DATA_BYTE  4
+#define PMIC_I2C_FRU_OPS_CMD_WRITE_FRU_DATA_BYTE 5
+#define PMIC_I2C_FRU_OPS_CMD_WRITE_COMMIT        6
+
 /* ####################################################################### */
 /*        ADDRESS MACROS                                                   */
 /* ####################################################################### */
