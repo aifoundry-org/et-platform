@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - [CS-226] Add support for FRU
+- add DM_CMD_GET_FRU output file
 ### Changed
 - Make FRU raw data
 - Initialize fruData

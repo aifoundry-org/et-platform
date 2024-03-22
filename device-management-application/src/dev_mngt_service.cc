@@ -1260,8 +1260,6 @@ int verifyService() {
     }
   } break;
   case DM_CMD::DM_CMD_GET_FRU: {
-    // Declaration of fruData and output_buff
-    fru_data_t fruData = {0};
     const size_t output_size = sizeof(fru_data_t);
     std::vector<char> output_buff(output_size, 0);
 
@@ -1270,8 +1268,18 @@ int verifyService() {
       return ret; // Return error code if service execution fails
     }
 
-    // Copy data from output buffer to fruData
-    std::memcpy(&fruData, output_buff.data(), output_size);
+    std::string fileName = "dev" + std::to_string(node) + "_fru.bin";
+    fs::path filePath = fs::path(fileName);
+
+    std::ofstream fruData(filePath, std::ios::binary | std::ios::trunc);
+
+    if (fruData.is_open()) {
+      fruData.write(output_buff.data(), output_size);
+      fruData.close();
+      DM_LOG(INFO) << "Saving FRU contents to file: " << fileName << std::endl;
+    } else {
+      DM_LOG(INFO) << "Unable to open file: " << fileName << std::endl;
+    }
   } break;
   case DM_CMD::DM_CMD_SET_FRU: {
     // Read FRU data from file
