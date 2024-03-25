@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-19030] Extended flash config to have mxn voltage values and increase lut size
 ### Changed
 ### Deprecated
 ### Removed

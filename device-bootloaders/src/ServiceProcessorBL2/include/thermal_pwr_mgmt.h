@@ -36,13 +36,6 @@
 #define SECONDS_IN_HOUR   3600
 #define SECONDS_IN_MINUTE 60
 
-// Defines the Boot voltages for the respective Voltage Domains
-#if defined(LINUX_MODE) && LINUX_MODE == 1
-#define MXN_BOOT_VOLTAGE 0x78U // 850 mV
-#else
-#define MXN_BOOT_VOLTAGE 0x46U // 600 mV
-#endif
-
 /* define to convert Hex value to millivolt*/
 #define MINION_HEX_TO_MILLIVOLT(hex_val)                                                     \
     PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, \

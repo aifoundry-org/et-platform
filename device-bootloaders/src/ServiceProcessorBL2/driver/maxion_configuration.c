@@ -31,6 +31,7 @@
 #include "bl2_reset.h"
 #include "thermal_pwr_mgmt.h"
 #include "bl_error_code.h"
+#include "bl2_flash_fs.h"
 #include "etsoc/isa/io.h"
 
 #include "delays.h"
@@ -180,7 +181,7 @@ int Maxion_Init(uint8_t pllModeUncore, uint8_t pllModeCore)
     int status = 0;
 
     /* Setting the MAXION voltages */
-    Maxion_SetVoltage(MXN_BOOT_VOLTAGE);
+    Maxion_SetVoltage(flash_fs_get_mxn_boot_voltage());
 
     Maxion_Reset_Cold_Release();
 

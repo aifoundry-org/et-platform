@@ -80,6 +80,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_VMIN_LUT_SINGLE_POINT
     ESPERANTO_FREQ_VOLT_t noc;
     ESPERANTO_FREQ_VOLT_t pcl;
     ESPERANTO_FREQ_VOLT_t ddr;
+    ESPERANTO_FREQ_VOLT_t mxn;
 } ESPERANTO_VMIN_LUT_SINGLE_POINT_t;
 
 #define NUMBER_OF_VMIN_LUT_POINTS 4
@@ -103,7 +104,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
     ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
     ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
-    uint8_t padding[25];
+    uint8_t padding[13];
 } ESPERANTO_CONFIG_DATA_t;
 
 static_assert(128 == sizeof(ESPERANTO_CONFIG_DATA_t),

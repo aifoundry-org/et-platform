@@ -364,6 +364,16 @@ static void pwr_svc_set_module_voltage(uint16_t tag, uint64_t req_start_time, vo
                           status);
             }
             break;
+        case MODULE_MAXION:
+            vminLUT.mxn_voltage = &set_voltage_cmd->value;
+            status = flash_fs_set_vmin_lut_boot_voltages(&vminLUT);
+            if (STATUS_SUCCESS != status)
+            {
+                Log_Write(LOG_LEVEL_ERROR,
+                          " thermal pwr mgmt error %d: flash_fs_set_vmin_lut_boot_voltages \r\n",
+                          status);
+            }
+            break;
         default:
             break;
     }

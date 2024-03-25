@@ -34,6 +34,7 @@ typedef struct
     const uint8_t *noc_voltage;
     const uint8_t *pcl_voltage;
     const uint8_t *ddr_voltage;
+    const uint8_t *mxn_voltage;
 } voltageLUT_t;
 
 /*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
@@ -283,6 +284,18 @@ uint16_t flash_fs_get_ddr_boot_freq(void);
     \return voltage.
 */
 uint8_t flash_fs_get_ddr_boot_voltage(void);
+
+/*! \fn int flash_fs_get_mxn_boot_freq(void)
+    \brief This function returns ET-SOC Maxion boot freqency.
+    \return frequency.
+*/
+uint16_t flash_fs_get_mxn_boot_freq(void);
+
+/*! \fn int flash_fs_get_mxn_boot_voltage(void)
+    \brief This function returns ET-SOC Maxion boot voltage.
+    \return voltage.
+*/
+uint8_t flash_fs_get_mxn_boot_voltage(void);
 
 /*! \fn int flash_fs_get_fw_release_rev(char *fw_release_rev)
     \brief This function returns ET-SOC firmware release revision.

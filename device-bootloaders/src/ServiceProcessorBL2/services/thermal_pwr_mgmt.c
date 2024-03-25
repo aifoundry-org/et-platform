@@ -2466,17 +2466,6 @@ void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t p
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_DDR, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding DDR    -> 0x%X (0x%X)\n", ddr_v, voltage);
-
-    /* Setting the MAXION voltages */
-    pmic_set_voltage(MODULE_MAXION, MXN_BOOT_VOLTAGE);
-    US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MODULE_MAXION, &voltage);
-
-#if defined(LINUX_MODE) && LINUX_MODE == 1
-    Log_Write(LOG_LEVEL_INFO, "Overriding MAXION -> 850mV(0x%X)\n", voltage);
-#else
-    Log_Write(LOG_LEVEL_INFO, "Overriding MAXION -> 600mV(0x%X)\n", voltage);
-#endif
 }
 
 /************************************************************************

@@ -1653,6 +1653,7 @@ int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT)
     const uint8_t *noc_voltage = vminLUT->noc_voltage;
     const uint8_t *pcl_voltage = vminLUT->pcl_voltage;
     const uint8_t *ddr_voltage = vminLUT->ddr_voltage;
+    const uint8_t *mxn_voltage = vminLUT->mxn_voltage;
 
     /* Since Flash sector size is 4KB, get scratch buffer to use */
     scratch_buffer = get_scratch_buffer(&scratch_buffer_size);
@@ -1698,6 +1699,10 @@ int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT)
     if (ddr_voltage != NULL)
     {
         cfg_data->persistent_config.vmin_lut[0].ddr.volt = *ddr_voltage;
+    }
+    if (mxn_voltage != NULL)
+    {
+        cfg_data->persistent_config.vmin_lut[0].mxn.volt = *mxn_voltage;
     }
 
     status = flash_fs_update_sector_and_read_back_for_validation(
@@ -1779,6 +1784,20 @@ int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT)
         {
             sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.volt =
                 cfg_data->persistent_config.vmin_lut[0].ddr.volt;
+        }
+    }
+
+    if (mxn_voltage != NULL)
+    {
+        if (cfg_data->persistent_config.vmin_lut[0].mxn.volt != *mxn_voltage)
+        {
+            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: mxn voltage value mismatch!\n");
+            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
+        }
+        else
+        {
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.volt =
+                cfg_data->persistent_config.vmin_lut[0].mxn.volt;
         }
     }
 
@@ -2115,6 +2134,54 @@ uint16_t flash_fs_get_ddr_boot_freq(void)
 uint8_t flash_fs_get_ddr_boot_voltage(void)
 {
     return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.volt;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_mxn_boot_freq
+*
+*   DESCRIPTION
+*
+*       This function returns lut value of maxion boot frequency.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       freq              boot frequency lut value
+*
+***********************************************************************/
+uint16_t flash_fs_get_mxn_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.freq;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_get_mxn_boot_voltage
+*
+*   DESCRIPTION
+*
+*       This function returns lut value of maxion boot volltage.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       vmin              boot vmin lut value
+*
+***********************************************************************/
+uint8_t flash_fs_get_mxn_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.volt;
 }
 
 /************************************************************************
