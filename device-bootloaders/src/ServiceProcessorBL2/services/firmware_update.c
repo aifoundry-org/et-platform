@@ -754,10 +754,11 @@ static int32_t dm_svc_firmware_update(void)
     }
 
     Log_Write(LOG_LEVEL_CRITICAL, "[ETFP] Programming SP config region\n");
-    if (0 !=
-        flash_fs_write_config_region(1 - sp_bl2_data->flash_fs_bl2_info.active_partition, false))
+    ret = flash_fs_write_config_region(1 - sp_bl2_data->flash_fs_bl2_info.active_partition, false);
+    if (ret != 0)
     {
-        Log_Write(LOG_LEVEL_ERROR, "flash_fs_write_config_region: failed to write config data\n");
+        Log_Write(LOG_LEVEL_ERROR,
+                  "flash_fs_write_config_region: failed to write config data, ret: %d\n", ret);
         return ERROR_FW_UPDATE_WRITE_CFG_REGION;
     }
 

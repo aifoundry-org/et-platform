@@ -2269,8 +2269,21 @@ int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
     if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_reg_address,
                                    (uint8_t *)scratch_buff, SPI_FLASH_SECTOR_SIZE))
     {
-        MESSAGE_ERROR("flash_fs_write_config_region: failed to read asset config region!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* Check if config data can be perserved due to config region compatibility */
+    ESPERANTO_CONFIG_HEADER_t cfg_header;
+    memcpy((void *)&cfg_header,
+           (void *)((uint8_t *)scratch_buff + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t)),
+           sizeof(ESPERANTO_CONFIG_HEADER_t));
+
+    if (sg_flash_fs_bl2_info.asset_config_header.version > cfg_header.version)
+    {
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "Config data version of update fw image is not commpatible with current fw image, data can't be be perserved!\n");
+        return 0;
     }
 
     /* Update the config region data in buffer */
@@ -2294,7 +2307,6 @@ int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
     /* Erase the asset config region. */
     if (0 != spi_flash_sector_erase(sg_flash_fs_bl2_info.flash_id, config_reg_address))
     {
-        MESSAGE_ERROR("flash_fs_write_config_region: failed to erase asset config data!\n");
         return ERROR_SPI_FLASH_SE_FAILED;
     }
 
@@ -2302,7 +2314,6 @@ int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
     if (0 != flash_fs_write_partition(config_reg_address, scratch_buff, SPI_FLASH_SECTOR_SIZE,
                                       SPI_FLASH_PAGE_SIZE))
     {
-        MESSAGE_ERROR("flash_fs_write_config_region: spi_flash_program() failed!\n");
         return ERROR_SPI_FLASH_PP_FAILED;
     }
 
@@ -2312,7 +2323,6 @@ int flash_fs_write_config_region(uint32_t partition, bool write_non_persistant)
     if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_reg_address,
                                    (uint8_t *)scratch_buff, SPI_FLASH_SECTOR_SIZE))
     {
-        MESSAGE_ERROR("flash_fs_write_config_region: failed to read asset config region!\n");
         return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
     }
 
