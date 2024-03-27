@@ -65,6 +65,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_NON_PERSISTENT_DATA
     uint16_t scp_size;
     uint16_t l2_size;
     uint16_t l3_size;
+    uint32_t sp_pmic_interface_ver; //TODO SW-19027: reserved for future use
 } ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t;
 
 typedef struct __attribute__((__packed__)) ESPERANTO_FREQ_VOLT
@@ -83,7 +84,7 @@ typedef struct __attribute__((__packed__)) ESPERANTO_VMIN_LUT_SINGLE_POINT
     ESPERANTO_FREQ_VOLT_t mxn;
 } ESPERANTO_VMIN_LUT_SINGLE_POINT_t;
 
-#define NUMBER_OF_VMIN_LUT_POINTS 4
+#define NUMBER_OF_VMIN_LUT_POINTS 11
 
 /* Esperanto flash persistant config data, this data will be kept same on every fw update */
 typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
@@ -93,9 +94,9 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_PERSISTENT_DATA
     uint32_t module_rev;
     uint32_t part_num;
     uint8_t form_factor;
-    //3D LUT of frequency/vmin pairs for MNN, SRAM, NOC, PCL and DDR.
-    //Packing per point rather than per regulator type provides
-    //fw backward compatibility if number of points is increased.
+    //3D LUT of frequency/vmin pairs for MNN, SRAM, NOC, PCL, DDR, MXN.
+    //Packing per point rather than per regulator type provides that persisted
+    //data is perserved during fw update if number of points is increased.
     ESPERANTO_VMIN_LUT_SINGLE_POINT_t vmin_lut[NUMBER_OF_VMIN_LUT_POINTS];
 } ESPERANTO_CONFIG_PERSISTENT_DATA_t;
 
@@ -104,11 +105,11 @@ typedef struct __attribute__((__packed__)) ESPERANTO_CONFIG_DATA
 {
     ESPERANTO_CONFIG_PERSISTENT_DATA_t persistent_config;
     ESPERANTO_CONFIG_NON_PERSISTENT_DATA_t non_persistent_config;
-    uint8_t padding[13];
+    uint8_t padding[11];
 } ESPERANTO_CONFIG_DATA_t;
 
-static_assert(128 == sizeof(ESPERANTO_CONFIG_DATA_t),
-              "sizeof(ESPERANTO_CONFIG_DATA_t) is not 128!");
+static_assert(256 == sizeof(ESPERANTO_CONFIG_DATA_t),
+              "sizeof(ESPERANTO_CONFIG_DATA_t) is not 256!");
 
 /* Esperanto flash config header */
 typedef struct ESPERANTO_CONFIG_HEADER

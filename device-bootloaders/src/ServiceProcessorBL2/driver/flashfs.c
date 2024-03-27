@@ -480,21 +480,25 @@ static int flash_fs_preload_config_data(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
               flash_fs_bl2_info->asset_config_data.persistent_config.form_factor);
     for (uint32_t i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
     {
-        Log_Write(LOG_LEVEL_DEBUG, "\tvmin_lut[%d]: mnn.freq: 0x%02x, mnn.volt: 0x%02x\n", i,
+        Log_Write(LOG_LEVEL_DEBUG, "\tvmin_lut[%d]:\n", i);
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "\tmnn.freq: %4d, mnn.volt: 0x%02x\n\tsrm.freq: %4d, srm.volt: 0x%02x\n",
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mnn.freq,
-                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mnn.volt);
-        Log_Write(LOG_LEVEL_DEBUG, "\tvmin_lut[%d]: sram.freq: 0x%02x, sram.volt: 0x%02x\n", i,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mnn.volt,
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].sram.freq,
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].sram.volt);
-        Log_Write(LOG_LEVEL_DEBUG, "\tvmin_lut[%d]: noc.freq: 0x%02x, nov.volt: 0x%02x\n", i,
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "\tnoc.freq: %4d, noc.volt: 0x%02x\n\tpcl.freq: %4d, pcl.volt: 0x%02x\n",
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].noc.freq,
-                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].noc.volt);
-        Log_Write(LOG_LEVEL_DEBUG, "\tvmin_lut[%d]: pcl.freq: 0x%02x, pcl.volt: 0x%02x\n", i,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].noc.volt,
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].pcl.freq,
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].pcl.volt);
-        Log_Write(LOG_LEVEL_DEBUG, "\tvmin_lut[%d]: ddr.freq: 0x%02x, ddr.volt: 0x%02x\n", i,
+        Log_Write(LOG_LEVEL_DEBUG,
+                  "\tddr.freq: %4d, ddr.volt: 0x%02x\n\tmxn.freq: %4d, mxn.volt: 0x%02x\n",
                   flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].ddr.freq,
-                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].ddr.volt);
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].ddr.volt,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mxn.freq,
+                  flash_fs_bl2_info->asset_config_data.persistent_config.vmin_lut[i].mxn.volt);
     }
     return 0;
 }
