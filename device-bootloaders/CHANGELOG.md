@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.18.0] - 2024-03-27
+### Added
 - [SW-18887] Added NOC shire re-map functionality
 - [SW-20169] Add more logs for fw update
 - [SW-226] Added initial support for GET and SET FRU commands
