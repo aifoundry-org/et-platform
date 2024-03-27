@@ -207,8 +207,8 @@ void graph_init() {
   ddrItems = {ddrR, ddrW};
 
   // SC BW
-  scbR = std::make_shared<PerfMeasure>("SC Bank BW Read");
-  scbW = std::make_shared<PerfMeasure>("SC Bank BW Write");
+  scbR = std::make_shared<PerfMeasure>("SC BW Read");
+  scbW = std::make_shared<PerfMeasure>("SC BW Write");
   scItems = {scbR, scbW};
 
   // PCI BW
@@ -435,7 +435,7 @@ Component scViewRenderer() {
   auto scView = Renderer([&] {
     auto c = setupCanvas(scItems, CANVAS_SC_BW_MIN, CANVAS_SC_BW_MAX, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(scItems, "MB/sec:");
-    return plotGraph(c, "SC Bank BW Measurements", yAxis);
+    return plotGraph(c, "SC BW Measurements", yAxis);
   });
   return scView;
 }

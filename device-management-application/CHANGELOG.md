@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make FRU raw data
 - Initialize fruData
 - [SW-20572]: split DDR SC and PCI BW to separate plots
+- [SW-20572]: rename SC Bank BW -> SC BW
 ### Deprecated
 ### Removed
 ### Fixed

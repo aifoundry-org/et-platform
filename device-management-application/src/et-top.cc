@@ -812,7 +812,7 @@ void EtTop::displayStats(void) {
   displayComputeStat("Throughput  Kernel/sec   ", mmStats_.computeResources.cm_bw);
   displayComputeStat("DDR BW      Read  (MB/s) ", mmStats_.computeResources.ddr_read_bw);
   displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.ddr_write_bw);
-  displayComputeStat("SC Bank BW  Read  (MB/s) ", mmStats_.computeResources.l2_l3_read_bw);
+  displayComputeStat("SC BW       Read  (MB/s) ", mmStats_.computeResources.l2_l3_read_bw);
   displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.l2_l3_write_bw);
   displayComputeStat("PCI DMA BW  Read  (MB/s) ", mmStats_.computeResources.pcie_dma_read_bw);
   displayComputeStat("            Write (MB/s) ", mmStats_.computeResources.pcie_dma_write_bw);
