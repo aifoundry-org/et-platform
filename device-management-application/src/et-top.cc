@@ -739,13 +739,16 @@ void EtTop::displayStatsGraph(void) {
   displayFreqDetails_ = true;
   displayVoltDetails_ = true;
   auto powerView = powerViewRenderer();
-  auto computeView = computeViewRenderer();
+  auto ddrView = ddrViewRenderer();
+  auto scView = scViewRenderer();
+  auto pciView = pciViewRenderer();
   auto tempView = tempViewRenderer();
   auto freqView = freqViewRenderer();
   auto voltView = voltViewRenderer();
   auto utilizationView = utilizationViewRenderer();
   auto throughputView = throughputViewRenderer();
-  renderMainDisplay(powerView, computeView, tempView, freqView, voltView, utilizationView, throughputView, this);
+  renderMainDisplay(powerView, ddrView, scView, pciView, tempView, freqView, voltView, utilizationView, throughputView,
+                    this);
 
   displayFreqDetails_ = false;
   displayVoltDetails_ = false;

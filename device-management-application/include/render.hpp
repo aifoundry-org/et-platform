@@ -34,8 +34,14 @@ using namespace ftxui;
 #define CANVAS_POWER_MIN 0
 #define CANVAS_POWER_MAX 75
 
-#define CANVAS_COMPUTE_MIN 0
-#define CANVAS_COMPUTE_MAX 15000
+#define CANVAS_DDR_BW_MIN 0
+#define CANVAS_DDR_BW_MAX 120000
+
+#define CANVAS_SC_BW_MIN 0
+#define CANVAS_SC_BW_MAX 1200000
+
+#define CANVAS_PCI_BW_MIN 0
+#define CANVAS_PCI_BW_MAX 15000
 
 #define CANVAS_THROUGHPUT_MIN 0
 #define CANVAS_THROUGHPUT_MAX 2000
@@ -127,14 +133,17 @@ private:
 
 float adjustValue(float value, float l, float h, float height);
 Component powerViewRenderer();
-Component computeViewRenderer();
+Component ddrViewRenderer();
+Component scViewRenderer();
+Component pciViewRenderer();
 Component utilizationViewRenderer();
 Component throughputViewRenderer();
 Component tempViewRenderer();
 Component freqViewRenderer();
 Component voltViewRenderer();
 Component exitComponent();
-void renderMainDisplay(Component powerView, Component computeView, Component tempView, Component freqView,
-                       Component voltView, Component utilizationView, Component throughputView, EtTop* etTop);
+void renderMainDisplay(Component powerView, Component ddrView, Component scView, Component pciView, Component tempView,
+                       Component freqView, Component voltView, Component utilizationView, Component throughputView,
+                       EtTop* etTop);
 
 void graph_init();

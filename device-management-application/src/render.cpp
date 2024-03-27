@@ -21,14 +21,20 @@ std::shared_ptr<PerfMeasure> pwrSram;
 std::shared_ptr<PerfMeasure> pwrNoc;
 std::vector<std::shared_ptr<PerfMeasure>> powerItems;
 
-// Compute
+// DDR BW
 std::shared_ptr<PerfMeasure> ddrR;
 std::shared_ptr<PerfMeasure> ddrW;
+std::vector<std::shared_ptr<PerfMeasure>> ddrItems;
+
+// SC BW
 std::shared_ptr<PerfMeasure> scbR;
 std::shared_ptr<PerfMeasure> scbW;
+std::vector<std::shared_ptr<PerfMeasure>> scItems;
+
+// PCI BW
 std::shared_ptr<PerfMeasure> pciR;
 std::shared_ptr<PerfMeasure> pciW;
-std::vector<std::shared_ptr<PerfMeasure>> computeItems;
+std::vector<std::shared_ptr<PerfMeasure>> pciItems;
 
 // Throughput
 std::shared_ptr<PerfMeasure> tpt;
@@ -195,14 +201,20 @@ void graph_init() {
   pwrNoc = std::make_shared<PerfMeasure>("NOC");
   powerItems = {pwrCard, pwrMinion, pwrSram, pwrNoc};
 
-  // Compute
+  // DDR BW
   ddrR = std::make_shared<PerfMeasure>("DDR BW Read");
   ddrW = std::make_shared<PerfMeasure>("DDR BW Write");
+  ddrItems = {ddrR, ddrW};
+
+  // SC BW
   scbR = std::make_shared<PerfMeasure>("SC Bank BW Read");
   scbW = std::make_shared<PerfMeasure>("SC Bank BW Write");
+  scItems = {scbR, scbW};
+
+  // PCI BW
   pciR = std::make_shared<PerfMeasure>("PCI DMA BW Read");
   pciW = std::make_shared<PerfMeasure>("PCI DMA BW Write");
-  computeItems = {ddrR, ddrW, scbR, scbW, pciR, pciW};
+  pciItems = {pciR, pciW};
 
   // Throughput
   tpt = std::make_shared<PerfMeasure>("Throughput");
@@ -345,12 +357,12 @@ void getAllData(const struct mm_stats_t& mmStats_, const struct sp_stats_t& spSt
   pwrSram->setData(cWIDTH, POWER_MW_TO_W(op.sram.power.avg));
   pwrNoc->setData(cWIDTH, POWER_MW_TO_W(op.noc.power.avg));
 
-  ddrR->setData(cWIDTH, mmStats_.computeResources.ddr_read_bw.avg);
-  ddrW->setData(cWIDTH, mmStats_.computeResources.ddr_write_bw.avg);
-  scbR->setData(cWIDTH, mmStats_.computeResources.l2_l3_read_bw.avg);
-  scbW->setData(cWIDTH, mmStats_.computeResources.l2_l3_write_bw.avg);
-  pciR->setData(cWIDTH, mmStats_.computeResources.pcie_dma_read_bw.avg);
-  pciW->setData(cWIDTH, mmStats_.computeResources.pcie_dma_write_bw.avg);
+  ddrR->setData(cWIDTH / 3, mmStats_.computeResources.ddr_read_bw.avg);
+  ddrW->setData(cWIDTH / 3, mmStats_.computeResources.ddr_write_bw.avg);
+  scbR->setData(cWIDTH / 3, mmStats_.computeResources.l2_l3_read_bw.avg);
+  scbW->setData(cWIDTH / 3, mmStats_.computeResources.l2_l3_write_bw.avg);
+  pciR->setData(cWIDTH / 3, mmStats_.computeResources.pcie_dma_read_bw.avg);
+  pciW->setData(cWIDTH / 3, mmStats_.computeResources.pcie_dma_write_bw.avg);
 
   tpt->setData((cWIDTH / 2), mmStats_.computeResources.cm_bw.avg);
 
@@ -399,23 +411,48 @@ Component powerViewRenderer() {
 }
 
 /**
- * @brief Plots the computation measurements on a line graph.
+ * @brief Plots the ddr BW measurements on a line graph.
  * Renders and displays the transition in computation measurements
  * for various components overtime
- * @return The rendered computeView graph as a component.
+ * @return The rendered ddrView graph as a component.
  */
-Component computeViewRenderer() {
-  auto computeView = Renderer([&] {
-    cWIDTH = getScreenWidth();
-    cHEIGHT = getHalfScreenHeight();
-    if (cWIDTH == -1 || cHEIGHT == -1) {
-      return hbox();
-    }
-    auto c = setupCanvas(computeItems, CANVAS_COMPUTE_MIN, CANVAS_COMPUTE_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(computeItems, "MB/sec:");
-    return plotGraph(c, "Compute Measurements", yAxis);
+Component ddrViewRenderer() {
+  auto ddrView = Renderer([&] {
+    auto c = setupCanvas(ddrItems, CANVAS_DDR_BW_MIN, CANVAS_DDR_BW_MAX, cHEIGHT, (cWIDTH / 3));
+    auto yAxis = setupYAxis(ddrItems, "MB/sec:");
+    return plotGraph(c, "DDR BW Measurements", yAxis);
   });
-  return computeView;
+  return ddrView;
+}
+
+/**
+ * @brief Plots the sc BW measurements on a line graph.
+ * Renders and displays the transition in computation measurements
+ * for various components overtime
+ * @return The rendered scView graph as a component.
+ */
+Component scViewRenderer() {
+  auto scView = Renderer([&] {
+    auto c = setupCanvas(scItems, CANVAS_SC_BW_MIN, CANVAS_SC_BW_MAX, cHEIGHT, (cWIDTH / 3));
+    auto yAxis = setupYAxis(scItems, "MB/sec:");
+    return plotGraph(c, "SC Bank BW Measurements", yAxis);
+  });
+  return scView;
+}
+
+/**
+ * @brief Plots the pci BW measurements on a line graph.
+ * Renders and displays the transition in computation measurements
+ * for various components overtime
+ * @return The rendered pciView graph as a component.
+ */
+Component pciViewRenderer() {
+  auto pciView = Renderer([&] {
+    auto c = setupCanvas(pciItems, CANVAS_PCI_BW_MIN, CANVAS_PCI_BW_MAX, cHEIGHT, (cWIDTH / 3));
+    auto yAxis = setupYAxis(pciItems, "MB/sec:");
+    return plotGraph(c, "PCI BW Measurements", yAxis);
+  });
+  return pciView;
 }
 
 /**
@@ -518,7 +555,9 @@ void handleResize(int sig) {
  * as a line graph. It generates various views which are displayed according to the
  * tab selected
  * @param powerView Component object used to plot power related metrics
- * @param computeView Component object used to plot computation related metrics
+ * @param ddrView Component object used to plot DDR BW related metrics
+ * @param scView Component object used to plot SC BW related metrics
+ * @param pciView Component object used to plot PCI BW related metrics
  * @param tempView Component object used to plot temp related metrics
  * @param freqView Component object used to plot freq related metrics
  * @param voltView Component object used to plot volt related metrics
@@ -526,8 +565,9 @@ void handleResize(int sig) {
  * @param throughputView Component object used to plot throughput related metrics
  * @param etTop EtTop object to call EtTop member functions
  */
-void renderMainDisplay(Component powerView, Component computeView, Component tempView, Component freqView,
-                       Component voltView, Component utilizationView, Component throughputView, EtTop* etTop) {
+void renderMainDisplay(Component powerView, Component ddrView, Component scView, Component pciView, Component tempView,
+                       Component freqView, Component voltView, Component utilizationView, Component throughputView,
+                       EtTop* etTop) {
   auto screen = ScreenInteractive::Fullscreen();
   int shift = 0;
 
@@ -540,7 +580,8 @@ void renderMainDisplay(Component powerView, Component computeView, Component tem
   auto freqVoltView = Container::Vertical({freqView, voltView});
 
   auto throughputUtilizationView = Container::Horizontal({throughputView, utilizationView}) | flex;
-  auto throughputUtilizationComputeView = Container::Vertical({computeView, throughputUtilizationView});
+  auto bandwithUtilizationView = Container::Horizontal({ddrView, scView, pciView}) | flex;
+  auto throughputUtilizationComputeView = Container::Vertical({bandwithUtilizationView, throughputUtilizationView});
   auto exitView = exitComponent(screen);
 
   auto tabContent = Container::Tab(
