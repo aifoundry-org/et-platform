@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.17.0] - 2024-03-27
+### Added
 - [CS-226] Add support for FRU commands 
 - Add GET/SET FRU tests
 ### Changed
