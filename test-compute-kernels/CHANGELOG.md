@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.12.0] - 2024-03-27
+### Added
+### Changed
 - Improved B/W test
 ### Deprecated
 ### Removed
