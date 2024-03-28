@@ -1,8 +1,8 @@
 [requires]
-deviceApi/2.1.0
+deviceApi/2.2.0
 
-device-minion-runtime/0.21.0
-device-bootloaders/0.17.0
+device-minion-runtime/0.22.0
+device-bootloaders/0.18.0
 
 # overrides
 esperantoTrace/2.0.0
