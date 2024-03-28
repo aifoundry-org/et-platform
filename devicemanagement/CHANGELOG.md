@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [CS-226] Add support for FRU commands 
 - Add GET/SET FRU tests
 ### Changed
+- Initialize FRU test data
 ### Deprecated
 ### Removed
 - Removing UpdateFirmware to reduce execution time, improve survivability of Flash

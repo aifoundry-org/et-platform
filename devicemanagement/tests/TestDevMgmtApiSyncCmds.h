@@ -35,7 +35,7 @@ using TimeDuration = Clock::duration;
 #define INVALID_INPUT_SIZE (0)
 #define INVALID_OUTPUT_SIZE (0)
 #define ECID_LOT_ID_LENGTH 6
-#define FRU_SIZE 726
+#define FRU_SIZE 256
 
 DECLARE_bool(enable_trace_dump);
 DECLARE_bool(enable_bin_trace_dump);
