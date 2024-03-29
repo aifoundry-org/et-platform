@@ -69,6 +69,7 @@ using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
 char* fruFileName = nullptr;
+char* vminLutFileName = nullptr;
 class DMLib {
 public:
   DMLib() {
@@ -406,7 +407,7 @@ void check_dm_events(DeviceManagement& dm) {
   }
 }
 
-void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
+void readDataFromFile(const char* fileName, char outputBuf[], uint32_t sizeBytes) {
   std::ifstream fileStream(fileName, std::ios::binary | std::ios::ate);
   if (!fileStream.is_open()) {
     std::cerr << "Failed to open file: " << fileName << std::endl;
@@ -414,9 +415,9 @@ void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
   }
   std::streamsize fileSize = fileStream.tellg();
   fileStream.seekg(0, std::ios::beg);
-  std::streamsize bytesToRead = std::min(fileSize, static_cast<std::streamsize>(sizeof(fruData.buffer)));
+  std::streamsize bytesToRead = std::min(fileSize, static_cast<std::streamsize>(sizeBytes));
   // Read the data into the buffer
-  fileStream.read(reinterpret_cast<char*>(fruData.buffer), bytesToRead);
+  fileStream.read(outputBuf, bytesToRead);
 
   if (fileStream.fail()) {
     std::cerr << "Failed to read file: " << fileName << std::endl;
@@ -425,6 +426,19 @@ void parseFRUDataFromFile(const char* fileName, struct fru_data_t& fruData) {
 
   // Close the file
   fileStream.close();
+}
+
+void writeDataToFile(std::string fileName, char inputBuf[], uint32_t sizeBytes) {
+  fs::path filePath = fs::path(fileName);
+  std::ofstream fileStream(filePath, std::ios::binary | std::ios::trunc);
+
+  if (fileStream.is_open()) {
+    fileStream.write(inputBuf, sizeBytes);
+    fileStream.close();
+    DM_LOG(INFO) << "Saving buffer contents to file: " << fileName << std::endl;
+  } else {
+    DM_LOG(INFO) << "Unable to open file: " << fileName << std::endl;
+  }
 }
 
 int runService(const char* input_buff, const uint32_t input_size, char* output_buff, const uint32_t output_size) {
@@ -1259,7 +1273,9 @@ int verifyService() {
       return ret;
     }
   } break;
+
   case DM_CMD::DM_CMD_GET_FRU: {
+    // Prepare buffer
     const size_t output_size = sizeof(fru_data_t);
     std::vector<char> output_buff(output_size, 0);
 
@@ -1268,23 +1284,16 @@ int verifyService() {
       return ret; // Return error code if service execution fails
     }
 
+    // Write FRU data to file
     std::string fileName = "dev" + std::to_string(node) + "_fru.bin";
-    fs::path filePath = fs::path(fileName);
+    writeDataToFile(fileName, output_buff.data(), output_size);
 
-    std::ofstream fruData(filePath, std::ios::binary | std::ios::trunc);
-
-    if (fruData.is_open()) {
-      fruData.write(output_buff.data(), output_size);
-      fruData.close();
-      DM_LOG(INFO) << "Saving FRU contents to file: " << fileName << std::endl;
-    } else {
-      DM_LOG(INFO) << "Unable to open file: " << fileName << std::endl;
-    }
   } break;
+
   case DM_CMD::DM_CMD_SET_FRU: {
     // Read FRU data from file
     fru_data_t fruData = {0};
-    parseFRUDataFromFile(fruFileName, fruData);
+    readDataFromFile(fruFileName, reinterpret_cast<char*>(fruData.buffer), sizeof(fruData.buffer));
 
     // Prepare input buffer
     const size_t input_size = sizeof(fru_data_t);
@@ -1301,6 +1310,44 @@ int verifyService() {
       return ret; // Return error code if service execution fails
     }
   } break;
+
+  case DM_CMD::DM_CMD_GET_VMIN_LUT: {
+    // Prepare buffer
+    const size_t output_size = sizeof(struct asset_info_t);
+    std::vector<char> output_buff(output_size, 0);
+
+    // Run service with nullptr as input buffer and output buffer
+    if ((ret = runService(nullptr, 0, output_buff.data(), output_size)) != DM_STATUS_SUCCESS) {
+      return ret; // Return error code if service execution fails
+    }
+
+    // Write VMIN LUT data to file
+    std::string fileName = "dev" + std::to_string(node) + "_vmin_lut.bin";
+    writeDataToFile(fileName, output_buff.data(), output_size);
+
+  } break;
+
+  case DM_CMD::DM_CMD_SET_VMIN_LUT: {
+    // Read VMIN LUT data from file
+    struct asset_info_t vminLutData = {0};
+    readDataFromFile(vminLutFileName, vminLutData.asset, sizeof(vminLutData.asset));
+
+    // Prepare input buffer
+    const size_t input_size = sizeof(struct asset_info_t);
+    std::vector<char> input_buff(input_size);
+    std::memcpy(input_buff.data(), &vminLutData, input_size);
+
+    // Prepare output buffer
+    const size_t output_size = sizeof(uint32_t);
+    std::vector<char> output_buff(output_size, 0);
+
+    // Run service with input and output buffers
+    int ret = runService(input_buff.data(), input_size, output_buff.data(), output_size);
+    if (ret != 0) {
+      return ret; // Return error code if service execution fails
+    }
+  } break;
+
   case DM_CMD::DM_CMD_GET_FUSED_PUBLIC_KEYS: {
     const uint32_t output_size = sizeof(device_mgmt_api::fused_public_keys_t);
     char output_buff[output_size] = {0};
@@ -2123,12 +2170,29 @@ void printFRUUsage(char* argv) {
             << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FRU << std::endl;
 }
 
+void printSetVminLutUsage(char* argv) {
+  std::cout << std::endl;
+  std::cout << "\t"
+            << "<VMIN LUT binary file>" << std::endl;
+  std::cout << "\t\t"
+            << "Save Vmin LUT frequency (in MHz) and voltage (in mV) pairs for MINION, L2CACHE, "
+               "NOC, PCIE_LOGIC, DDR, MAXION to persistent memory"
+            << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_VMIN_LUT
+            << " vminLut.bin (Binary file containing frequency/voltage pairs in MHz and mV)" << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " "
+            << "DM_CMD_SET_VMIN_LUT"
+            << " vminLut.bin (Binary file containing frequency/voltage pairs in MHz and mV)" << std::endl;
+}
+
 void printUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "Usage: " << argv << " -o ncode | -m command [-n node] [-u nmsecs] [-h]"
             << "[-c ncount | -p npower | -r nreset | -s nspeed | -w nwidth | -l nlevel | -e nswtemp | -i npath | -f "
                "minionfreq,nocfreq | -g get_slot_name | -t tracebuf | -v module,voltage | -d partid | -V | -z <L2 SCP "
-               "size>, <L2 size>, <L3 size> ]"
+               "size>, <L2 size>, <L3 size> | <fru_binary_file> | <vmin_lut_binary_file> "
             << std::endl;
   printCode(argv);
   printCommand(argv);
@@ -2150,6 +2214,7 @@ void printUsage(char* argv) {
   printPartIdUsage(argv);
   printSCConfigUsage(argv);
   printFRUUsage(argv);
+  printSetVminLutUsage(argv);
 }
 
 bool validTraceOperation() {
@@ -2337,6 +2402,11 @@ int main(int argc, char** argv) {
       if (!(code_flag = validCode())) {
         return -EINVAL;
       }
+
+      if (std::stoul(optarg) == DM_CMD::DM_CMD_SET_VMIN_LUT) {
+        vminLutFileName = argv[optind];
+      }
+
       break;
 
     case 'm':
@@ -2350,7 +2420,10 @@ int main(int argc, char** argv) {
       if (strcmp(optarg, "DM_CMD_SET_FRU") == 0) {
         fruFileName = argv[optind];
       }
-      break;
+
+      if (strcmp(optarg, "DM_CMD_SET_VMIN_LUT") == 0) {
+        vminLutFileName = argv[optind];
+      }
 
       break;
 
