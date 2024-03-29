@@ -101,6 +101,8 @@ static std::unordered_map<std::string, device_mgmt_api::DM_CMD> const commandCod
   {"DM_CMD_SET_STATS_RUN_CONTROL", device_mgmt_api::DM_CMD::DM_CMD_SET_STATS_RUN_CONTROL},
   {"DM_CMD_SET_SHIRE_CACHE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_SET_SHIRE_CACHE_CONFIG},
   {"DM_CMD_GET_SHIRE_CACHE_CONFIG", device_mgmt_api::DM_CMD::DM_CMD_GET_SHIRE_CACHE_CONFIG},
+  {"DM_CMD_SET_VMIN_LUT", device_mgmt_api::DM_CMD::DM_CMD_SET_VMIN_LUT},
+  {"DM_CMD_GET_VMIN_LUT", device_mgmt_api::DM_CMD::DM_CMD_GET_VMIN_LUT},
   {"DM_CMD_MDI_SELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_SELECT_HART},
   {"DM_CMD_MDI_UNSELECT_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_UNSELECT_HART},
   {"DM_CMD_MDI_RESET_HART", device_mgmt_api::DM_CMD::DM_CMD_MDI_RESET_HART},
