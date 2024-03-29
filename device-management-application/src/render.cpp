@@ -528,7 +528,7 @@ Component freqViewRenderer() {
 Component voltViewRenderer() {
   auto voltView = Renderer([&] {
     auto c = setupCanvas(voltItems, CANVAS_VOLTAGE_MIN, CANVAS_VOLTAGE_MAX, cHEIGHT, cWIDTH);
-    auto yAxis = setupYAxis(freqItems, "mV:");
+    auto yAxis = setupYAxis(voltItems, "mV:");
     return plotGraph(c, "Voltage Measurements", yAxis);
   });
   return voltView;
