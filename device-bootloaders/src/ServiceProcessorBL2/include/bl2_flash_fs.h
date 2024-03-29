@@ -225,6 +225,20 @@ int flash_fs_get_module_rev(char *module_rev);
 */
 int flash_fs_get_form_factor(char *form_factor);
 
+/*! \fn int flash_fs_get_vmin_lut(char *vmin_lut)
+    \brief This function returns ET-SOC vmin lut.
+    \param vmin_lut - vmin lut
+    \return The function call status, pass/fail.
+*/
+int flash_fs_get_vmin_lut(char *vmin_lut);
+
+/*! \fn int flash_fs_set_vmin_lut(const struct vmin_lut_point_t *lut)
+    \brief This function sets ET-SOC vmin lut.
+    \param lut - pointer to struct containing lut values
+    \return The function call status, pass/fail.
+*/
+int flash_fs_set_vmin_lut(const struct vmin_lut_point_t *lut);
+
 /*! \fn int flash_fs_get_mnn_boot_freq(void)
     \brief This function returns ET-SOC mnn boot freqency.
     \return frequency.

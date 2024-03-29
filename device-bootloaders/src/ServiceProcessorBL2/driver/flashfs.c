@@ -1904,6 +1904,59 @@ int flash_fs_get_form_factor(char *form_factor)
 *
 *   FUNCTION
 *
+*       flash_fs_get_vmin_lut
+*
+*   DESCRIPTION
+*
+*       This function returns ET-SOC vmin lut.
+*
+*   INPUTS
+*
+*       none
+*
+*   OUTPUTS
+*
+*       vmin_lut          vmin lut
+*
+***********************************************************************/
+int flash_fs_get_vmin_lut(char *vmin_lut)
+{
+    memcpy(vmin_lut, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut),
+           NUMBER_OF_VMIN_LUT_POINTS * sizeof(ESPERANTO_VMIN_LUT_SINGLE_POINT_t));
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       flash_fs_set_vmin_lut
+*
+*   DESCRIPTION
+*
+*       This function sets ET-SOC vmin lut.
+*
+*   INPUTS
+*
+*       lut             pointer to struct containing lut values
+*
+*   OUTPUTS
+*
+*       status          return status
+*
+***********************************************************************/
+int flash_fs_set_vmin_lut(const struct vmin_lut_point_t *lut)
+{
+    (void)lut;
+    //TODO
+
+    return 0;
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       flash_fs_get_mnn_boot_freq
 *
 *   DESCRIPTION

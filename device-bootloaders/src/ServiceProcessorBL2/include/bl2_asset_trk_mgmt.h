@@ -101,4 +101,18 @@ int get_memory_size(char *mem_size);
 */
 int get_memory_type(char *mem_type);
 
+/*! \fn int get_vmin_lut(char *vmin_lut)
+    \brief Interface to get vmin lut
+    \param *vmin_lut  Pointer to vmin lut variable
+    \returns Status indicating success or negative error
+*/
+int get_vmin_lut(char *vmin_lut);
+
+/*! \fn int set_vmin_lut(const struct vmin_lut_point_t *lut)
+    \brief Interface to set vmin lut.
+    \param lut  pointer to struct containing lut values
+    \returns Status indicating success or negative error
+*/
+int set_vmin_lut(const struct vmin_lut_point_t *lut);
+
 #endif

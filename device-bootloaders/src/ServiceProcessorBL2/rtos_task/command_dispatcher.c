@@ -141,6 +141,8 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
         {
             case DM_CMD_GET_MODULE_MANUFACTURE_NAME ... DM_CMD_GET_MODULE_MEMORY_TYPE:
             case DM_CMD_SET_MODULE_PART_NUMBER:
+            case DM_CMD_SET_VMIN_LUT:
+            case DM_CMD_GET_VMIN_LUT:
                 /* Process asset tracking service request cmd */
                 asset_tracking_process_request(tag_id, msg_id, (void *)buffer);
                 break;

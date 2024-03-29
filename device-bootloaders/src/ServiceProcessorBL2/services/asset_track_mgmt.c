@@ -25,6 +25,8 @@
     get_memory_details
     get_memory_size
     get_memory_type
+    get_vmin_lut
+    set_vmin_lut
 */
 /***********************************************************************/
 #include "bl2_asset_trk_mgmt.h"
@@ -102,4 +104,14 @@ int get_memory_size(char *mem_size)
 int get_memory_type(char *mem_type)
 {
     return ddr_get_memory_type(mem_type);
+}
+
+int get_vmin_lut(char *vmin_lut)
+{
+    return flash_fs_get_vmin_lut(vmin_lut);
+}
+
+int set_vmin_lut(const struct vmin_lut_point_t *lut)
+{
+    return flash_fs_set_vmin_lut(lut);
 }
