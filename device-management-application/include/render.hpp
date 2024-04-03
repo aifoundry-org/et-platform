@@ -23,42 +23,6 @@
 using namespace ftxui;
 
 /**
- * @brief Performance measure range constants for graph representation.
- *
- * These constants define the boundaries in which we expect the performance
- * measure values to fall when plotting them on the graph. They shouldn't be
- * confused with actual device-specific thresholds. These values differ from
- * the true device thresholds to ensure the graph remains comprehensible.
- */
-
-#define CANVAS_POWER_MIN 0
-#define CANVAS_POWER_MAX 75
-
-#define CANVAS_DDR_BW_MIN 0
-#define CANVAS_DDR_BW_MAX 120000
-
-#define CANVAS_SC_BW_MIN 0
-#define CANVAS_SC_BW_MAX 1200000
-
-#define CANVAS_PCI_BW_MIN 0
-#define CANVAS_PCI_BW_MAX 15000
-
-#define CANVAS_THROUGHPUT_MIN 0
-#define CANVAS_THROUGHPUT_MAX 2000
-
-#define CANVAS_UTILIZATION_MIN 0
-#define CANVAS_UTILIZATION_MAX 100
-
-#define CANVAS_TEMPERATURE_MIN 0
-#define CANVAS_TEMPERATURE_MAX 75
-
-#define CANVAS_FREQUENCY_MIN 150
-#define CANVAS_FREQUENCY_MAX 1100
-
-#define CANVAS_VOLTAGE_MIN 305
-#define CANVAS_VOLTAGE_MAX 1000
-
-/**
  * @brief Constants for screen dimension adjustments.
  *
  * When determining the screen's dimensions, values obtained by querying
@@ -131,16 +95,16 @@ private:
   ScreenInteractive& screen_;
 };
 
-float adjustValue(float value, float l, float h, float height);
-Component powerViewRenderer();
-Component ddrViewRenderer();
-Component scViewRenderer();
-Component pciViewRenderer();
-Component utilizationViewRenderer();
-Component throughputViewRenderer();
-Component tempViewRenderer();
-Component freqViewRenderer();
-Component voltViewRenderer();
+float adjustValue(float value, float l, float &h, float height);
+Component powerViewRenderer(int maxPower);
+Component ddrViewRenderer(int maxDDR);
+Component scViewRenderer(int maxSc);
+Component pciViewRenderer(int maxPci);
+Component utilizationViewRenderer(int maxUtil);
+Component throughputViewRenderer(int maxThroughput);
+Component tempViewRenderer(int maxTemp);
+Component freqViewRenderer(int maxFreq);
+Component voltViewRenderer(int maxVolt);
 Component exitComponent();
 void renderMainDisplay(Component powerView, Component ddrView, Component scView, Component pciView, Component tempView,
                        Component freqView, Component voltView, Component utilizationView, Component throughputView,
