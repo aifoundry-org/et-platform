@@ -5,11 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
+
 ## [unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+
+## [0.14.0]
 ### Added
 - [SW-19991] Forward server tracing events to clients if tracing is enabled
 - [SW-20306] Add time synchronization profiling events
 - [SW-20306] Add thread identification profiling events
+- [SW-20387] Added support for handling relocations at host runtime
 ### Changed
 ### Deprecated
 ### Removed
