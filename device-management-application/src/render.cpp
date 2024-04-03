@@ -71,15 +71,15 @@ std::shared_ptr<PerfMeasure> voltVddqlp;
 std::shared_ptr<PerfMeasure> voltDdr;
 std::vector<std::shared_ptr<PerfMeasure>> voltItems;
 
-float maxPower_t {};
-float maxDDR_t {};
-float maxSc_t {};
-float maxPci_t {};
-float maxTemp_t {};
-float maxFreq_t {};
-float maxVolt_t {};
-float maxUtil_t {};
-float maxThroughput_t {};
+float maxPower_t{};
+float maxDDR_t{};
+float maxSc_t{};
+float maxPci_t{};
+float maxTemp_t{};
+float maxFreq_t{};
+float maxVolt_t{};
+float maxUtil_t{};
+float maxThroughput_t{};
 /**
  * @brief Adjusts a value for graphical representation.
  * Scales the input value based on graph height and given range limits.
@@ -90,16 +90,16 @@ float maxThroughput_t {};
  * @return Adjusted value for graph.
  */
 
-float adjustValue(float incomingValue,float currentMin, float &currentMax, float windowHeight) {
-    float topMargin = 0.05 * windowHeight;
-    float adjustedWindowHeight =  windowHeight - topMargin;
+float adjustValue(float incomingValue, float& currentMax, float windowHeight) {
+  float topMargin = 0.05 * windowHeight;
+  float adjustedWindowHeight = windowHeight - topMargin;
 
-    if (incomingValue == 0.0) {
-        return windowHeight;
-    }
-    currentMax = std::max(currentMax, incomingValue);
-    double scaledValue = windowHeight - ((incomingValue - currentMin) / (currentMax - currentMin) * adjustedWindowHeight);
-    return scaledValue;
+  if (incomingValue == 0.0) {
+    return windowHeight;
+  }
+  currentMax = std::max(currentMax, incomingValue);
+  double scaledValue = windowHeight - ((incomingValue - 0) / (currentMax - 0) * adjustedWindowHeight);
+  return scaledValue;
 }
 
 /**
@@ -280,14 +280,14 @@ int cHEIGHT = DEFAULT_DIM_SIZE;
  * @return Initialized canvas with the plotted graph.
  */
 
-Canvas setupCanvas(std::vector<std::shared_ptr<PerfMeasure>>& items, int low, float &high, int height, int width) {
+Canvas setupCanvas(std::vector<std::shared_ptr<PerfMeasure>>& items, float& high, int height, int width) {
   auto c = Canvas(cWIDTH, cWIDTH);
   size_t i = 0;
   for (auto& perfMeasure : items) {
     const auto& data = perfMeasure->getData(); // Get the data from PerfMeasure
     if (!data.empty() && i < colors.size()) {
       for (size_t x = 0; x < data.size() - 1; x++) {
-        c.DrawPointLine(x, adjustValue(data[x], low, high, height), x + 1, adjustValue(data[x + 1], low, high, height),
+        c.DrawPointLine(x, adjustValue(data[x], high, height), x + 1, adjustValue(data[x + 1], high, height),
                         colors[i]);
       }
       i++;
@@ -319,7 +319,6 @@ Element setupYAxis(std::vector<std::shared_ptr<PerfMeasure>>& items, std::string
       vboxElements.push_back(hbox({
         text("■") | ftxui::color(colors[i]),
         text(" " + item->getName() + " " + std::to_string(data[data.size() - 1])),
-        //text(" " + item->getName() + " " + std::to_string(cHEIGHT)),
       }));
       vboxElements.push_back(filler() | size(WIDTH, LESS_THAN, 1));
       i++;
@@ -408,14 +407,14 @@ void getAllData(const struct mm_stats_t& mmStats_, const struct sp_stats_t& spSt
  * overtime
  * @return The rendered powerView graph as a component.
  */
-Component powerViewRenderer(int maxPower) {
-   auto powerView = Renderer([&] {
+Component powerViewRenderer() {
+  auto powerView = Renderer([&] {
     cWIDTH = getScreenWidth();
     cHEIGHT = getHalfScreenHeight();
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    auto c = setupCanvas(powerItems,0, maxPower_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(powerItems, maxPower_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(powerItems, "Watts:");
     return plotGraph(c, "Power Measurements", yAxis);
   });
@@ -428,9 +427,9 @@ Component powerViewRenderer(int maxPower) {
  * for various components overtime
  * @return The rendered ddrView graph as a component.
  */
-Component ddrViewRenderer(int maxDDR) {
+Component ddrViewRenderer() {
   auto ddrView = Renderer([&] {
-    auto c = setupCanvas(ddrItems,0, maxDDR_t, cHEIGHT, (cWIDTH / 3));
+    auto c = setupCanvas(ddrItems, maxDDR_t, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(ddrItems, "MB/sec:");
     return plotGraph(c, "DDR BW Measurements", yAxis);
   });
@@ -443,9 +442,9 @@ Component ddrViewRenderer(int maxDDR) {
  * for various components overtime
  * @return The rendered scView graph as a component.
  */
-Component scViewRenderer(int maxSc) {
+Component scViewRenderer() {
   auto scView = Renderer([&] {
-    auto c = setupCanvas(scItems,0, maxSc_t, cHEIGHT, (cWIDTH / 3));
+    auto c = setupCanvas(scItems, maxSc_t, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(scItems, "MB/sec:");
     return plotGraph(c, "SC BW Measurements", yAxis);
   });
@@ -458,9 +457,9 @@ Component scViewRenderer(int maxSc) {
  * for various components overtime
  * @return The rendered pciView graph as a component.
  */
-Component pciViewRenderer(int maxPci) {
+Component pciViewRenderer() {
   auto pciView = Renderer([&] {
-    auto c = setupCanvas(pciItems,0 , maxPci_t, cHEIGHT, (cWIDTH / 3));
+    auto c = setupCanvas(pciItems, maxPci_t, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(pciItems, "MB/sec:");
     return plotGraph(c, "PCI BW Measurements", yAxis);
   });
@@ -473,9 +472,9 @@ Component pciViewRenderer(int maxPci) {
  * by various components overtime
  * @return The rendered throughputView graph as a component.
  */
-Component throughputViewRenderer(int maxThroughput) {
+Component throughputViewRenderer() {
   auto throughputView = Renderer([&] {
-    auto c = setupCanvas(throughputItems, 0, maxThroughput_t, cHEIGHT, (cWIDTH / 2));
+    auto c = setupCanvas(throughputItems, maxThroughput_t, cHEIGHT, (cWIDTH / 2));
     auto yAxis = setupYAxis(throughputItems, "Kernel/sec:");
     return plotGraph(c, "Throughput Measurements", yAxis);
   });
@@ -488,9 +487,9 @@ Component throughputViewRenderer(int maxThroughput) {
  * elements overtime
  * @return The rendered utilizationView graph as a component.
  */
-Component utilizationViewRenderer(int maxUtil) {
+Component utilizationViewRenderer() {
   auto utilizationView = Renderer([&] {
-    auto c = setupCanvas(utilizationItems, 0, maxUtil_t, cHEIGHT, (cWIDTH / 2));
+    auto c = setupCanvas(utilizationItems, maxUtil_t, cHEIGHT, (cWIDTH / 2));
     auto yAxis = setupYAxis(utilizationItems, "Percent (%):");
     return plotGraph(c, "Utilization Measurements", yAxis);
   });
@@ -502,9 +501,9 @@ Component utilizationViewRenderer(int maxUtil) {
  * Renders and displays the transition in temperature values overtime
  * @return The rendered tempView graph as a component.
  */
-Component tempViewRenderer(int maxTemp) {
+Component tempViewRenderer() {
   auto tempView = Renderer([&] {
-    auto c = setupCanvas(tempItems, 0, maxTemp_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(tempItems, maxTemp_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(tempItems, "Celsius:");
     return plotGraph(c, "Temperature Measurements", yAxis);
   });
@@ -517,14 +516,14 @@ Component tempViewRenderer(int maxTemp) {
  * elements overtime
  * @return The rendered freqView graph as a component.
  */
-Component freqViewRenderer(int maxFreq) {
+Component freqViewRenderer() {
   auto freqView = Renderer([&] {
     cWIDTH = getScreenWidth();
     cHEIGHT = getHalfScreenHeight();
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    auto c = setupCanvas(freqItems, 0, maxFreq_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(freqItems, maxFreq_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(freqItems, "MHz:");
     return plotGraph(c, "Frequency Measurements", yAxis);
   });
@@ -537,9 +536,9 @@ Component freqViewRenderer(int maxFreq) {
  * elements overtime
  * @return The rendered voltView graph as a component.
  */
-Component voltViewRenderer(int maxVolt) {
+Component voltViewRenderer() {
   auto voltView = Renderer([&] {
-    auto c = setupCanvas(voltItems, 0, maxVolt_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(voltItems, maxVolt_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(voltItems, "mV:");
     return plotGraph(c, "Voltage Measurements", yAxis);
   });

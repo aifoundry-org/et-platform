@@ -95,16 +95,16 @@ private:
   ScreenInteractive& screen_;
 };
 
-float adjustValue(float value, float l, float &h, float height);
-Component powerViewRenderer(int maxPower);
-Component ddrViewRenderer(int maxDDR);
-Component scViewRenderer(int maxSc);
-Component pciViewRenderer(int maxPci);
-Component utilizationViewRenderer(int maxUtil);
-Component throughputViewRenderer(int maxThroughput);
-Component tempViewRenderer(int maxTemp);
-Component freqViewRenderer(int maxFreq);
-Component voltViewRenderer(int maxVolt);
+float adjustValue(float value, float l, float& h, float height);
+Component powerViewRenderer();
+Component ddrViewRenderer();
+Component scViewRenderer();
+Component pciViewRenderer();
+Component utilizationViewRenderer();
+Component throughputViewRenderer();
+Component tempViewRenderer();
+Component freqViewRenderer();
+Component voltViewRenderer();
 Component exitComponent();
 void renderMainDisplay(Component powerView, Component ddrView, Component scView, Component pciView, Component tempView,
                        Component freqView, Component voltView, Component utilizationView, Component throughputView,

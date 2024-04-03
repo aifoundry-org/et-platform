@@ -738,24 +738,15 @@ void EtTop::displayStatsGraph(void) {
   graph_init();
   displayFreqDetails_ = true;
   displayVoltDetails_ = true;
-  int maxPower {};
-  auto powerView = powerViewRenderer(maxPower);
-  int maxDDR {};
-  auto ddrView = ddrViewRenderer(maxDDR);
-  int maxSc {};
-  auto scView = scViewRenderer(maxSc);
-  int maxPci {};
-  auto pciView = pciViewRenderer(maxPci);
-  int maxTemp {};
-  auto tempView = tempViewRenderer(maxTemp);
-  int maxFreq {};
-  auto freqView = freqViewRenderer(maxFreq);
-  int maxVolt {};
-  auto voltView = voltViewRenderer(maxVolt);
-  int maxUtil {};
-  auto utilizationView = utilizationViewRenderer(maxUtil);
-  int maxThroughput {};
-  auto throughputView = throughputViewRenderer(maxThroughput);
+  auto powerView = powerViewRenderer();
+  auto ddrView = ddrViewRenderer();
+  auto scView = scViewRenderer();
+  auto pciView = pciViewRenderer();
+  auto tempView = tempViewRenderer();
+  auto freqView = freqViewRenderer();
+  auto voltView = voltViewRenderer();
+  auto utilizationView = utilizationViewRenderer();
+  auto throughputView = throughputViewRenderer();
   renderMainDisplay(powerView, ddrView, scView, pciView, tempView, freqView, voltView, utilizationView, throughputView,
                     this);
 
