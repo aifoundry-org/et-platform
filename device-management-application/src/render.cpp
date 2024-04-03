@@ -91,11 +91,14 @@ float maxThroughput_t {};
  */
 
 float adjustValue(float incomingValue,float currentMin, float &currentMax, float windowHeight) {
+    float topMargin = 0.05 * windowHeight;
+    float adjustedWindowHeight =  windowHeight - topMargin;
+
     if (incomingValue == 0.0) {
         return windowHeight;
     }
     currentMax = std::max(currentMax, incomingValue);
-    double scaledValue = windowHeight - ((incomingValue - currentMin) / (currentMax - currentMin) * windowHeight);
+    double scaledValue = windowHeight - ((incomingValue - currentMin) / (currentMax - currentMin) * adjustedWindowHeight);
     return scaledValue;
 }
 
@@ -412,7 +415,7 @@ Component powerViewRenderer(int maxPower) {
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    auto c = setupCanvas(powerItems, CANVAS_POWER_MIN, maxPower_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(powerItems,0, maxPower_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(powerItems, "Watts:");
     return plotGraph(c, "Power Measurements", yAxis);
   });
@@ -427,7 +430,7 @@ Component powerViewRenderer(int maxPower) {
  */
 Component ddrViewRenderer(int maxDDR) {
   auto ddrView = Renderer([&] {
-    auto c = setupCanvas(ddrItems, CANVAS_DDR_BW_MIN, maxDDR_t, cHEIGHT, (cWIDTH / 3));
+    auto c = setupCanvas(ddrItems,0, maxDDR_t, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(ddrItems, "MB/sec:");
     return plotGraph(c, "DDR BW Measurements", yAxis);
   });
@@ -442,7 +445,7 @@ Component ddrViewRenderer(int maxDDR) {
  */
 Component scViewRenderer(int maxSc) {
   auto scView = Renderer([&] {
-    auto c = setupCanvas(scItems, CANVAS_SC_BW_MIN, maxSc_t, cHEIGHT, (cWIDTH / 3));
+    auto c = setupCanvas(scItems,0, maxSc_t, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(scItems, "MB/sec:");
     return plotGraph(c, "SC BW Measurements", yAxis);
   });
@@ -457,7 +460,7 @@ Component scViewRenderer(int maxSc) {
  */
 Component pciViewRenderer(int maxPci) {
   auto pciView = Renderer([&] {
-    auto c = setupCanvas(pciItems, CANVAS_PCI_BW_MIN, maxPci_t, cHEIGHT, (cWIDTH / 3));
+    auto c = setupCanvas(pciItems,0 , maxPci_t, cHEIGHT, (cWIDTH / 3));
     auto yAxis = setupYAxis(pciItems, "MB/sec:");
     return plotGraph(c, "PCI BW Measurements", yAxis);
   });
@@ -472,7 +475,7 @@ Component pciViewRenderer(int maxPci) {
  */
 Component throughputViewRenderer(int maxThroughput) {
   auto throughputView = Renderer([&] {
-    auto c = setupCanvas(throughputItems, CANVAS_THROUGHPUT_MIN, maxThroughput_t, cHEIGHT, (cWIDTH / 2));
+    auto c = setupCanvas(throughputItems, 0, maxThroughput_t, cHEIGHT, (cWIDTH / 2));
     auto yAxis = setupYAxis(throughputItems, "Kernel/sec:");
     return plotGraph(c, "Throughput Measurements", yAxis);
   });
@@ -487,7 +490,7 @@ Component throughputViewRenderer(int maxThroughput) {
  */
 Component utilizationViewRenderer(int maxUtil) {
   auto utilizationView = Renderer([&] {
-    auto c = setupCanvas(utilizationItems, CANVAS_UTILIZATION_MIN, maxUtil_t, cHEIGHT, (cWIDTH / 2));
+    auto c = setupCanvas(utilizationItems, 0, maxUtil_t, cHEIGHT, (cWIDTH / 2));
     auto yAxis = setupYAxis(utilizationItems, "Percent (%):");
     return plotGraph(c, "Utilization Measurements", yAxis);
   });
@@ -501,7 +504,7 @@ Component utilizationViewRenderer(int maxUtil) {
  */
 Component tempViewRenderer(int maxTemp) {
   auto tempView = Renderer([&] {
-    auto c = setupCanvas(tempItems, CANVAS_TEMPERATURE_MIN, maxTemp_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(tempItems, 0, maxTemp_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(tempItems, "Celsius:");
     return plotGraph(c, "Temperature Measurements", yAxis);
   });
@@ -521,7 +524,7 @@ Component freqViewRenderer(int maxFreq) {
     if (cWIDTH == -1 || cHEIGHT == -1) {
       return hbox();
     }
-    auto c = setupCanvas(freqItems, CANVAS_FREQUENCY_MIN, maxFreq_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(freqItems, 0, maxFreq_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(freqItems, "MHz:");
     return plotGraph(c, "Frequency Measurements", yAxis);
   });
@@ -536,7 +539,7 @@ Component freqViewRenderer(int maxFreq) {
  */
 Component voltViewRenderer(int maxVolt) {
   auto voltView = Renderer([&] {
-    auto c = setupCanvas(voltItems, CANVAS_VOLTAGE_MIN, maxVolt_t, cHEIGHT, cWIDTH);
+    auto c = setupCanvas(voltItems, 0, maxVolt_t, cHEIGHT, cWIDTH);
     auto yAxis = setupYAxis(voltItems, "mV:");
     return plotGraph(c, "Voltage Measurements", yAxis);
   });
