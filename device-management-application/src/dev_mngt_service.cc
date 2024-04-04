@@ -1276,7 +1276,7 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_GET_FRU: {
     // Prepare buffer
-    const size_t output_size = sizeof(fru_data_t);
+    const size_t output_size = sizeof(struct asset_info_t);
     std::vector<char> output_buff(output_size, 0);
 
     // Run service with nullptr as input buffer and output buffer
@@ -1292,11 +1292,11 @@ int verifyService() {
 
   case DM_CMD::DM_CMD_SET_FRU: {
     // Read FRU data from file
-    fru_data_t fruData = {0};
-    readDataFromFile(fruFileName, reinterpret_cast<char*>(fruData.buffer), sizeof(fruData.buffer));
+    struct asset_info_t fruData = {0};
+    readDataFromFile(fruFileName, reinterpret_cast<char*>(fruData.asset), sizeof(fruData.asset));
 
     // Prepare input buffer
-    const size_t input_size = sizeof(fru_data_t);
+    const size_t input_size = sizeof(struct asset_info_t);
     std::vector<char> input_buff(input_size);
     std::memcpy(input_buff.data(), &fruData, input_size);
 
@@ -1763,9 +1763,9 @@ bool validVoltage() {
   std::tie(volt_type, base, multiplier, divider) = moduleMap.at(m[1].str());
 
   auto voltage = std::stoul(m[2].str());
-  if (voltage > std::numeric_limits<uint16_t>::max()) {
-    DM_VLOG(LOW) << "Aborting, Voltage : " << voltage << " is not valid ( 0 - " << std::numeric_limits<uint16_t>::max()
-                 << " )" << std::endl;
+  if ((voltage > std::numeric_limits<uint16_t>::max()) || (voltage < base)) {
+    DM_VLOG(LOW) << "Aborting, Voltage : " << voltage << " is not valid ( " << base << " - "
+                 << std::numeric_limits<uint16_t>::max() << " )" << std::endl;
     return false;
   }
   volt_enc = static_cast<decltype(volt_enc)>(VOLTAGE2BIN(voltage, base, multiplier, divider));
@@ -2132,7 +2132,7 @@ void printVoltageUsage(char* argv) {
 void printPartIdUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-" << (char)long_options[17].val << ", --" << long_options[17].name << "=module,voltage" << std::endl;
+            << "-" << (char)long_options[17].val << ", --" << long_options[17].name << "=partID" << std::endl;
   std::cout << "\t\t"
             << "Set Part ID" << std::endl;
   std::cout << std::endl;
@@ -2162,7 +2162,7 @@ void printSCConfigUsage(char* argv) {
 void printFRUUsage(char* argv) {
   std::cout << std::endl;
   std::cout << "\t"
-            << "-z <FRU binary file>" << std::endl;
+            << "<FRU binary file>" << std::endl;
   std::cout << "\t\t"
             << "Update PMIC NVM with FRU data in accompanying file" << std::endl;
   std::cout << std::endl;
@@ -2401,6 +2401,9 @@ int main(int argc, char** argv) {
       }
       if (!(code_flag = validCode())) {
         return -EINVAL;
+      }
+      if (std::stoul(optarg) == DM_CMD::DM_CMD_SET_FRU) {
+        fruFileName = argv[optind];
       }
 
       if (std::stoul(optarg) == DM_CMD::DM_CMD_SET_VMIN_LUT) {
