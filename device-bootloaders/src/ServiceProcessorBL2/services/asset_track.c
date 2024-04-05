@@ -77,12 +77,12 @@ static int32_t asset_svc_getmemorytype(char *mem_type)
 
 static int32_t asset_svc_getvminlut(char *vmin_lut)
 {
-    return get_vmin_lut(vmin_lut);
+    return flash_fs_get_vmin_lut(vmin_lut);
 }
 
 static int32_t asset_svc_setvminlut(const struct device_mgmt_set_vmin_lut_cmd_t *dm_cmd)
 {
-    return set_vmin_lut(dm_cmd->lut);
+    return flash_fs_set_vmin_lut(dm_cmd->vmin_lut.asset);
 }
 
 static int32_t asset_svc_getfruinfo(char *fru_data)
@@ -196,8 +196,7 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id, const void
         case DM_CMD_GET_FRU:
             ret = asset_svc_getfruinfo(req_asset_info);
             break;
-        case DM_CMD_SET_FRU:
-        {
+        case DM_CMD_SET_FRU: {
             const struct device_mgmt_set_fru_cmd_t *set_fru_cmd = buffer;
             ret = asset_svc_setfruinfo(set_fru_cmd);
             break;

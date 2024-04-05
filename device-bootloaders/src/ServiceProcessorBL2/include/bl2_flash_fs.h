@@ -27,16 +27,6 @@
 */
 #define SUBBANK(size_mb) (uint16_t)((size_mb * 1024) / (NUM_COMPUTE_SHIRES * NEIGH_PER_SHIRE))
 
-typedef struct
-{
-    const uint8_t *mnn_voltage;
-    const uint8_t *sram_voltage;
-    const uint8_t *noc_voltage;
-    const uint8_t *pcl_voltage;
-    const uint8_t *ddr_voltage;
-    const uint8_t *mxn_voltage;
-} voltageLUT_t;
-
 /*! \fn int flash_fs_init(FLASH_FS_BL2_INFO_t *flash_fs_bl2_info)
     \brief This function initialize partition infos.
     \param flash_fs_bl2_info - bl2 flash info struct to initialize
@@ -194,13 +184,6 @@ int flash_fs_get_part_number(char *part_number);
 */
 int flash_fs_set_part_number(uint32_t part_number);
 
-/*! \fn int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT)
-    \brief This function sets ET-SOC vmin lut.
-    \param vminLUT - pointer to struct with voltage values
-    \return The function call status, pass/fail.
-*/
-int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT);
-
 /*! \fn int flash_fs_get_serial_number(char *ser_number, )
     \brief This function returns ET-SOC serial number.
     \param ser_number - serial number
@@ -232,12 +215,12 @@ int flash_fs_get_form_factor(char *form_factor);
 */
 int flash_fs_get_vmin_lut(char *vmin_lut);
 
-/*! \fn int flash_fs_set_vmin_lut(const struct vmin_lut_point_t *lut)
+/*! \fn int flash_fs_set_vmin_lut(const char *lut)
     \brief This function sets ET-SOC vmin lut.
-    \param lut - pointer to struct containing lut values
+    \param vmin_lut - pointer to struct containing lut values
     \return The function call status, pass/fail.
 */
-int flash_fs_set_vmin_lut(const struct vmin_lut_point_t *lut);
+int flash_fs_set_vmin_lut(const char *vmin_lut);
 
 /*! \fn int flash_fs_get_mnn_boot_freq(void)
     \brief This function returns ET-SOC mnn boot freqency.

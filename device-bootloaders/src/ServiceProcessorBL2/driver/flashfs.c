@@ -30,12 +30,25 @@
         flash_fs_get_manufacturer_name
         flash_fs_get_part_number
         flash_fs_set_part_number
-        flash_fs_set_vmin_lut_boot_voltages
         flash_fs_get_serial_number
         flash_fs_get_module_rev
         flash_fs_get_memory_size
         flash_fs_get_form_factor
         flash_fs_scan_partition
+        flash_fs_get_vmin_lut
+        flash_fs_set_vmin_lut
+        flash_fs_get_mnn_boot_freq
+        flash_fs_get_mnn_boot_voltage
+        flash_fs_get_sram_boot_freq
+        flash_fs_get_sram_boot_voltage
+        flash_fs_get_noc_boot_freq
+        flash_fs_get_noc_boot_voltage
+        flash_fs_get_pcl_boot_freq
+        flash_fs_get_pcl_boot_voltage
+        flash_fs_get_ddr_boot_freq
+        flash_fs_get_ddr_boot_voltage
+        flash_fs_get_mxn_boot_freq
+        flash_fs_get_mxn_boot_voltage
 */
 /***********************************************************************/
 
@@ -1628,201 +1641,6 @@ int flash_fs_set_part_number(uint32_t part_number)
 *
 *   FUNCTION
 *
-*       flash_fs_set_vmin_lut_boot_voltages
-*
-*   DESCRIPTION
-*
-*       This function sets ET-SOC vmin lut.
-*
-*   INPUTS
-*
-*   vminLUT   pointer to struct holding voltages
-*
-*   OUTPUTS
-*
-*       none
-*
-***********************************************************************/
-
-int flash_fs_set_vmin_lut_boot_voltages(const voltageLUT_t *vminLUT)
-{
-    int status = STATUS_SUCCESS;
-    uint32_t config_region_address;
-    uint32_t scratch_buffer_size;
-    ESPERANTO_CONFIG_DATA_t *cfg_data;
-    void *scratch_buffer;
-
-    const uint8_t *mnn_voltage = vminLUT->mnn_voltage;
-    const uint8_t *sram_voltage = vminLUT->sram_voltage;
-    const uint8_t *noc_voltage = vminLUT->noc_voltage;
-    const uint8_t *pcl_voltage = vminLUT->pcl_voltage;
-    const uint8_t *ddr_voltage = vminLUT->ddr_voltage;
-    const uint8_t *mxn_voltage = vminLUT->mxn_voltage;
-
-    /* Since Flash sector size is 4KB, get scratch buffer to use */
-    scratch_buffer = get_scratch_buffer(&scratch_buffer_size);
-    if (scratch_buffer_size < SPI_FLASH_SECTOR_SIZE)
-    {
-        return ERROR_INSUFFICIENT_MEMORY;
-    }
-
-    status = get_config_region_address(&config_region_address);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
-    /* Read the whole sector */
-    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_region_address,
-                                   (uint8_t *)scratch_buffer, SPI_FLASH_SECTOR_SIZE))
-    {
-        MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: failed to read asset config region!\n");
-        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
-    }
-
-    /* Update the vmin */
-    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buffer) +
-                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
-                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
-    if (mnn_voltage != NULL)
-    {
-        cfg_data->persistent_config.vmin_lut[0].mnn.volt = *mnn_voltage;
-    }
-    if (sram_voltage != NULL)
-    {
-        cfg_data->persistent_config.vmin_lut[0].sram.volt = *sram_voltage;
-    }
-    if (noc_voltage != NULL)
-    {
-        cfg_data->persistent_config.vmin_lut[0].noc.volt = *noc_voltage;
-    }
-    if (pcl_voltage != NULL)
-    {
-        cfg_data->persistent_config.vmin_lut[0].pcl.volt = *pcl_voltage;
-    }
-    if (ddr_voltage != NULL)
-    {
-        cfg_data->persistent_config.vmin_lut[0].ddr.volt = *ddr_voltage;
-    }
-    if (mxn_voltage != NULL)
-    {
-        cfg_data->persistent_config.vmin_lut[0].mxn.volt = *mxn_voltage;
-    }
-
-    status = flash_fs_update_sector_and_read_back_for_validation(
-        sg_flash_fs_bl2_info.flash_id, config_region_address, scratch_buffer, scratch_buffer_size);
-    if (status != STATUS_SUCCESS)
-    {
-        return status;
-    }
-
-    /* verify if voltage was updated sucessfully, then update it in global data */
-    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buffer) +
-                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
-                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
-
-    if (mnn_voltage != NULL)
-    {
-        if (cfg_data->persistent_config.vmin_lut[0].mnn.volt != *mnn_voltage)
-        {
-            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: mnn voltage value mismatch!\n");
-            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
-        }
-        else
-        {
-            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt =
-                cfg_data->persistent_config.vmin_lut[0].mnn.volt;
-        }
-    }
-
-    if (sram_voltage != NULL)
-    {
-        if (cfg_data->persistent_config.vmin_lut[0].sram.volt != *sram_voltage)
-        {
-            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: sram voltage value mismatch!\n");
-            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
-        }
-        else
-        {
-            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt =
-                cfg_data->persistent_config.vmin_lut[0].sram.volt;
-        }
-    }
-
-    if (noc_voltage != NULL)
-    {
-        if (cfg_data->persistent_config.vmin_lut[0].noc.volt != *noc_voltage)
-        {
-            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: noc voltage value mismatch!\n");
-            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
-        }
-        else
-        {
-            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].noc.volt =
-                cfg_data->persistent_config.vmin_lut[0].noc.volt;
-        }
-    }
-
-    if (pcl_voltage != NULL)
-    {
-        if (cfg_data->persistent_config.vmin_lut[0].pcl.volt != *pcl_voltage)
-        {
-            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: pcl voltage value mismatch!\n");
-            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
-        }
-        else
-        {
-            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].pcl.volt =
-                cfg_data->persistent_config.vmin_lut[0].pcl.volt;
-        }
-    }
-
-    if (ddr_voltage != NULL)
-    {
-        if (cfg_data->persistent_config.vmin_lut[0].ddr.volt != *ddr_voltage)
-        {
-            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: ddr voltage value mismatch!\n");
-            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
-        }
-        else
-        {
-            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.volt =
-                cfg_data->persistent_config.vmin_lut[0].ddr.volt;
-        }
-    }
-
-    if (mxn_voltage != NULL)
-    {
-        if (cfg_data->persistent_config.vmin_lut[0].mxn.volt != *mxn_voltage)
-        {
-            MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: mxn voltage value mismatch!\n");
-            status |= ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
-        }
-        else
-        {
-            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.volt =
-                cfg_data->persistent_config.vmin_lut[0].mxn.volt;
-        }
-    }
-
-    /* Compare with the persistent data in flash with bl2 global data */
-    if (memcmp(((uint8_t *)scratch_buffer) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
-                   sizeof(ESPERANTO_CONFIG_HEADER_t),
-               (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.persistent_config),
-               sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t)))
-    {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "flash_fs_set_vmin_lut_boot_voltages: persistant data validation failed!\n");
-        return ERROR_SPI_FLASH_BL2_INFO_CFG_PERS_MISMATCH;
-    }
-
-    return status;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
 *       flash_fs_get_serial_number
 *
 *   DESCRIPTION
@@ -1898,347 +1716,6 @@ int flash_fs_get_form_factor(char *form_factor)
     memcpy(form_factor, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.form_factor),
            sizeof(sg_flash_fs_bl2_info.asset_config_data.persistent_config.form_factor));
     return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_vmin_lut
-*
-*   DESCRIPTION
-*
-*       This function returns ET-SOC vmin lut.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       vmin_lut          vmin lut
-*
-***********************************************************************/
-int flash_fs_get_vmin_lut(char *vmin_lut)
-{
-    memcpy(vmin_lut, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut),
-           NUMBER_OF_VMIN_LUT_POINTS * sizeof(ESPERANTO_VMIN_LUT_SINGLE_POINT_t));
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_set_vmin_lut
-*
-*   DESCRIPTION
-*
-*       This function sets ET-SOC vmin lut.
-*
-*   INPUTS
-*
-*       lut             pointer to struct containing lut values
-*
-*   OUTPUTS
-*
-*       status          return status
-*
-***********************************************************************/
-int flash_fs_set_vmin_lut(const struct vmin_lut_point_t *lut)
-{
-    (void)lut;
-    //TODO
-
-    return 0;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_mnn_boot_freq
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of minion boot frequency.
-*
-*   INPUTS
-*
-*       none              
-*
-*   OUTPUTS
-*
-*       freq              boot frequency lut value
-*
-***********************************************************************/
-uint16_t flash_fs_get_mnn_boot_freq(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.freq;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_mnn_boot_voltage
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of minion boot voltage.
-*
-*   INPUTS
-*
-*       none              
-*
-*   OUTPUTS
-*
-*       vmin              boot vmin lut value
-*
-***********************************************************************/
-uint8_t flash_fs_get_mnn_boot_voltage(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_sram_boot_freq
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of sram boot frequency.
-*
-*   INPUTS
-*
-*       none              
-*
-*   OUTPUTS
-*
-*       freq              boot frequency lut value
-*
-***********************************************************************/
-uint16_t flash_fs_get_sram_boot_freq(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.freq;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_sram_boot_voltage
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of sram boot volltage.
-*
-*   INPUTS
-*
-*       none              
-*
-*   OUTPUTS
-*
-*       vmin              boot vmin lut value
-*
-***********************************************************************/
-uint8_t flash_fs_get_sram_boot_voltage(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_noc_boot_freq
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of noc boot frequency.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       freq              boot frequency lut value
-*
-***********************************************************************/
-uint16_t flash_fs_get_noc_boot_freq(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].noc.freq;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_noc_boot_voltage
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of noc boot volltage.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       vmin              boot vmin lut value
-*
-***********************************************************************/
-uint8_t flash_fs_get_noc_boot_voltage(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].noc.volt;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_pcl_boot_freq
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of pcl boot frequency.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       freq              boot frequency lut value
-*
-***********************************************************************/
-uint16_t flash_fs_get_pcl_boot_freq(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].pcl.freq;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_pcl_boot_voltage
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of pcl boot volltage.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       vmin              boot vmin lut value
-*
-***********************************************************************/
-uint8_t flash_fs_get_pcl_boot_voltage(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].pcl.volt;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_ddr_boot_freq
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of ddr boot frequency.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       freq              boot frequency lut value
-*
-***********************************************************************/
-uint16_t flash_fs_get_ddr_boot_freq(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.freq;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_ddr_boot_voltage
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of ddr boot volltage.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       vmin              boot vmin lut value
-*
-***********************************************************************/
-uint8_t flash_fs_get_ddr_boot_voltage(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.volt;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_mxn_boot_freq
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of maxion boot frequency.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       freq              boot frequency lut value
-*
-***********************************************************************/
-uint16_t flash_fs_get_mxn_boot_freq(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.freq;
-}
-
-/************************************************************************
-*
-*   FUNCTION
-*
-*       flash_fs_get_mxn_boot_voltage
-*
-*   DESCRIPTION
-*
-*       This function returns lut value of maxion boot volltage.
-*
-*   INPUTS
-*
-*       none
-*
-*   OUTPUTS
-*
-*       vmin              boot vmin lut value
-*
-***********************************************************************/
-uint8_t flash_fs_get_mxn_boot_voltage(void)
-{
-    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.volt;
 }
 
 /************************************************************************
@@ -2593,6 +2070,155 @@ int flash_fs_scan_partition(uint32_t partition)
 
     /* Scan the parition regions for correctness and load info to global data */
     return flash_fs_scan_regions(partition_size, partition_info);
+}
+
+// ***************************************************************
+// *** VMI LUT related functions                               ***
+// ***************************************************************
+int flash_fs_get_vmin_lut(char *vmin_lut)
+{
+    uint32_t vmin_lut_size_bytes =
+        NUMBER_OF_VMIN_LUT_POINTS * sizeof(ESPERANTO_VMIN_LUT_SINGLE_POINT_t);
+    memcpy(vmin_lut, &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut),
+           vmin_lut_size_bytes);
+    return 0;
+}
+
+int flash_fs_set_vmin_lut(const char *vmin_lut)
+{
+    int status = STATUS_SUCCESS;
+    uint32_t config_region_address;
+    uint32_t scratch_buffer_size;
+    ESPERANTO_CONFIG_DATA_t *cfg_data;
+    void *scratch_buffer;
+    uint32_t vmin_lut_size_bytes =
+        NUMBER_OF_VMIN_LUT_POINTS * sizeof(ESPERANTO_VMIN_LUT_SINGLE_POINT_t);
+
+    //todo validate lut
+
+    /* Since Flash sector size is 4KB, get scratch buffer to use */
+    scratch_buffer = get_scratch_buffer(&scratch_buffer_size);
+    if (scratch_buffer_size < SPI_FLASH_SECTOR_SIZE)
+    {
+        return ERROR_INSUFFICIENT_MEMORY;
+    }
+
+    status = get_config_region_address(&config_region_address);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* Read the whole sector */
+    if (0 != spi_flash_normal_read(sg_flash_fs_bl2_info.flash_id, config_region_address,
+                                   (uint8_t *)scratch_buffer, SPI_FLASH_SECTOR_SIZE))
+    {
+        MESSAGE_ERROR("flash_fs_set_vmin_lut_boot_voltages: failed to read asset config region!\n");
+        return ERROR_SPI_FLASH_NORMAL_RD_FAILED;
+    }
+
+    /* Update the vmin lut*/
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buffer) +
+                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
+    memcpy(cfg_data->persistent_config.vmin_lut, vmin_lut, vmin_lut_size_bytes);
+
+    status = flash_fs_update_sector_and_read_back_for_validation(
+        sg_flash_fs_bl2_info.flash_id, config_region_address, scratch_buffer, scratch_buffer_size);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    /* verify if voltage was updated sucessfully, then update it in global data */
+    cfg_data = (ESPERANTO_CONFIG_DATA_t *)(((uint8_t *)scratch_buffer) +
+                                           sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                                           sizeof(ESPERANTO_CONFIG_HEADER_t));
+    if (memcmp(cfg_data->persistent_config.vmin_lut, vmin_lut, vmin_lut_size_bytes) == 0)
+    {
+        memcpy(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut, vmin_lut,
+               vmin_lut_size_bytes);
+    }
+    else
+    {
+        MESSAGE_ERROR("flash_fs_set_vmin_lut: vmin lut mismatch!\n");
+        return ERROR_SPI_FLASH_BL2_INFO_VMIN_MISMATCH;
+    }
+
+    /* Compare the persistent data in flash with bl2 global data */
+    if (memcmp(((uint8_t *)scratch_buffer) + sizeof(ESPERANTO_RAW_IMAGE_FILE_HEADER_t) +
+                   sizeof(ESPERANTO_CONFIG_HEADER_t),
+               (uint8_t *)&(sg_flash_fs_bl2_info.asset_config_data.persistent_config),
+               sizeof(ESPERANTO_CONFIG_PERSISTENT_DATA_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "flash_fs_set_vmin_lut: persistant data validation failed!\n");
+        return ERROR_SPI_FLASH_BL2_INFO_CFG_PERS_MISMATCH;
+    }
+
+    return status;
+}
+
+//NOTE: Boot frequency and voltage values are stored at [0] index of VMIN LUT.
+//This will be changed in the future.
+
+uint16_t flash_fs_get_mnn_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.freq;
+}
+
+uint8_t flash_fs_get_mnn_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt;
+}
+
+uint16_t flash_fs_get_sram_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.freq;
+}
+
+uint8_t flash_fs_get_sram_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt;
+}
+
+uint16_t flash_fs_get_noc_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].noc.freq;
+}
+
+uint8_t flash_fs_get_noc_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].noc.volt;
+}
+
+uint16_t flash_fs_get_pcl_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].pcl.freq;
+}
+
+uint8_t flash_fs_get_pcl_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].pcl.volt;
+}
+
+uint16_t flash_fs_get_ddr_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.freq;
+}
+
+uint8_t flash_fs_get_ddr_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].ddr.volt;
+}
+
+uint16_t flash_fs_get_mxn_boot_freq(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.freq;
+}
+
+uint8_t flash_fs_get_mxn_boot_voltage(void)
+{
+    return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.volt;
 }
 
 #pragma GCC pop_options
