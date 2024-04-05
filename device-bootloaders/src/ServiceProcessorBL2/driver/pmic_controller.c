@@ -2199,7 +2199,8 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 *
 *   INPUTS
 *
-*       fru_data_t  Pointer to data to load result to
+*       fru_data  Pointer to data to load result to
+*       size      Size of FRU data in bytes
 *
 *   OUTPUTS
 *
@@ -2207,7 +2208,7 @@ int pmic_read_average_soc_power(uint16_t *avg_pwr_10mw)
 *
 ***********************************************************************/
 
-int pmic_read_fru(struct fru_data_t *fru_data)
+int pmic_read_fru(uint8_t *fru_data, uint32_t size)
 {
     int status;
     uint8_t cmd = PMIC_I2C_FRU_OPS_CMD_SET_OFFSET;
@@ -2231,9 +2232,9 @@ int pmic_read_fru(struct fru_data_t *fru_data)
     {
         return status;
     }
-    for (unsigned int i = 0; i < sizeof(fru_data->buffer); i++)
+    for (unsigned int i = 0; i < size; i++)
     {
-        status = get_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &(fru_data->buffer[i]), 1);
+        status = get_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &(fru_data[i]), 1);
         if (status != STATUS_SUCCESS)
         {
             return status;
@@ -2254,7 +2255,8 @@ int pmic_read_fru(struct fru_data_t *fru_data)
 *
 *   INPUTS
 *
-*       fru_data_t  Pointer to payload to write
+*       fru_data  Pointer to payload to write
+*       size      Size of payload to write
 *
 *   OUTPUTS
 *
@@ -2262,7 +2264,7 @@ int pmic_read_fru(struct fru_data_t *fru_data)
 *
 ***********************************************************************/
 
-int pmic_set_fru(const struct fru_data_t *fru_data)
+int pmic_set_fru(const uint8_t *fru_data, uint32_t size)
 {
     int status;
     uint8_t cmd = PMIC_I2C_FRU_OPS_CMD_SET_OFFSET;
@@ -2286,9 +2288,9 @@ int pmic_set_fru(const struct fru_data_t *fru_data)
         return status;
     }
 
-    for (unsigned int i = 0; i < sizeof(fru_data->buffer); i++)
+    for (unsigned int i = 0; i < size; i++)
     {
-        status = set_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &(fru_data->buffer[i]), 1);
+        status = set_pmic_reg(PMIC_I2C_FRU_DATA_CMD_ADDRESS, &(fru_data[i]), 1);
         if (status != STATUS_SUCCESS)
         {
             return status;

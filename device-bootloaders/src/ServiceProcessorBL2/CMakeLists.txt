@@ -129,7 +129,6 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_exception.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/bl2_scratch_buffer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/services/minion_debug.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/services/fru.c
         ${MAXION_SOURCES}
         ${PROJECT_BINARY_DIR}/src/Maxion/Bootrom/maxion_bootrom.h
     )

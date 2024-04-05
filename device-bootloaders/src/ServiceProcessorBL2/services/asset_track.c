@@ -17,6 +17,7 @@
 */
 /***********************************************************************/
 #include "bl2_asset_trk.h"
+#include "bl2_pmic_controller.h"
 
 static int32_t asset_svc_getmanufacturername(char *mfg_name)
 {
@@ -82,6 +83,18 @@ static int32_t asset_svc_getvminlut(char *vmin_lut)
 static int32_t asset_svc_setvminlut(const struct device_mgmt_set_vmin_lut_cmd_t *dm_cmd)
 {
     return set_vmin_lut(dm_cmd->lut);
+}
+
+static int32_t asset_svc_getfruinfo(char *fru_data)
+{
+    /* Read FRU data from PMIC NVM */
+    return pmic_read_fru((uint8_t *)fru_data, sizeof(struct asset_info_t));
+}
+
+static int32_t asset_svc_setfruinfo(const struct device_mgmt_set_fru_cmd_t *dm_cmd)
+{
+    /* Write FRU data to PMIC NVM */
+    return pmic_set_fru((const uint8_t *)(dm_cmd->fru_data.asset), sizeof(struct asset_info_t));
 }
 
 static void asset_tracking_send_response(tag_id_t tag_id, msg_id_t msg_id, uint64_t req_start_time,
@@ -178,6 +191,15 @@ void asset_tracking_process_request(tag_id_t tag_id, msg_id_t msg_id, const void
         case DM_CMD_SET_VMIN_LUT: {
             const struct device_mgmt_set_vmin_lut_cmd_t *set_module_vmin_lut_cmd = buffer;
             ret = asset_svc_setvminlut(set_module_vmin_lut_cmd);
+            break;
+        }
+        case DM_CMD_GET_FRU:
+            ret = asset_svc_getfruinfo(req_asset_info);
+            break;
+        case DM_CMD_SET_FRU:
+        {
+            const struct device_mgmt_set_fru_cmd_t *set_fru_cmd = buffer;
+            ret = asset_svc_setfruinfo(set_fru_cmd);
             break;
         }
 

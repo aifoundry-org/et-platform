@@ -23,7 +23,6 @@
 #include "minion_configuration.h"
 #include "bl2_perf.h"
 #include "bl2_timer.h"
-#include "bl2_fru.h"
 #include "trace.h"
 #include "command_dispatcher.h"
 #include "mdi_debug_task.h"
@@ -143,6 +142,8 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
             case DM_CMD_SET_MODULE_PART_NUMBER:
             case DM_CMD_SET_VMIN_LUT:
             case DM_CMD_GET_VMIN_LUT:
+            case DM_CMD_SET_FRU:
+            case DM_CMD_GET_FRU:
                 /* Process asset tracking service request cmd */
                 asset_tracking_process_request(tag_id, msg_id, (void *)buffer);
                 break;
@@ -195,10 +196,6 @@ static inline int8_t pc_vq_process_pending_command(vq_cb_t *vq_cached, vq_cb_t *
             case DM_CMD_SET_SHIRE_CACHE_CONFIG ... DM_CMD_GET_SHIRE_CACHE_CONFIG:
                 /* Process cache controls cmds*/
                 cache_control_process_cmd(tag_id, msg_id, (void *)buffer);
-                break;
-            case DM_CMD_SET_FRU ... DM_CMD_GET_FRU:
-                /* Process FRU cmds */
-                fru_process_request(tag_id, msg_id, (void *)buffer);
                 break;
             default:
                 Log_Write(LOG_LEVEL_ERROR, "[PC VQ] Invalid message id: %d\r\n", msg_id);
