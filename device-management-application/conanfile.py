@@ -43,7 +43,7 @@ class DeviceManagementApplicationConan(ConanFile):
         cmake_layout(self)
 
     def requirements(self):
-        self.requires("deviceManagement/0.17.0")
+        self.requires("deviceManagement/0.18.0-alpha")
         self.requires("esperantoTrace/2.0.0")
         self.requires("deviceLayer/3.0.0")
         self.requires("hostUtils/0.3.0")

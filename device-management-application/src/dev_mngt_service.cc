@@ -2167,7 +2167,12 @@ void printFRUUsage(char* argv) {
             << "Update PMIC NVM with FRU data in accompanying file" << std::endl;
   std::cout << std::endl;
   std::cout << "\t\t"
-            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FRU << std::endl;
+            << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_FRU
+            << " fru.bin (Binary file containing FRU data)" << std::endl;
+  std::cout << "\t\t"
+            << "Ex. " << argv << " -" << (char)long_options[1].val << " "
+            << "DM_CMD_SET_FRU"
+            << " fru.bin (Binary file containing FRU data)" << std::endl;
 }
 
 void printSetVminLutUsage(char* argv) {
@@ -2180,11 +2185,11 @@ void printSetVminLutUsage(char* argv) {
             << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[0].val << " " << DM_CMD::DM_CMD_SET_VMIN_LUT
-            << " vminLut.bin (Binary file containing frequency/voltage pairs in MHz and mV)" << std::endl;
+            << " vminLut.bin (Binary file containing frequency[MHz]/voltage[encoded] pairs)" << std::endl;
   std::cout << "\t\t"
             << "Ex. " << argv << " -" << (char)long_options[1].val << " "
             << "DM_CMD_SET_VMIN_LUT"
-            << " vminLut.bin (Binary file containing frequency/voltage pairs in MHz and mV)" << std::endl;
+            << " vminLut.bin (Binary file containing frequency[MHz]/voltage[encoded] pairs)" << std::endl;
 }
 
 void printUsage(char* argv) {
