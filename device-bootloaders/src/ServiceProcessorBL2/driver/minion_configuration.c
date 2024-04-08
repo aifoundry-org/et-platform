@@ -261,16 +261,6 @@ static StaticTimer_t MM_Timer_Buffer;
 */
 #define MM_COMPUTE_THREADS 0xFFFFFFFFU
 
-/*! \def THROTTLE_FREQUENCY_STEP
-    \brief The change in frequency per step in megahertz.
-*/
-#define THROTTLE_FREQUENCY_STEP 50
-
-/*! \def THROTTLE_VOLTAGE_STEP_MV
-    \brief The change in voltage per step in millivolts.
-*/
-#define THROTTLE_VOLTAGE_STEP_MV 10
-
 static uint64_t gs_active_shire_mask = 0;
 static uint64_t gs_active_compute_minion_mask = 0;
 static uint64_t gs_dlls_initialized = 0;

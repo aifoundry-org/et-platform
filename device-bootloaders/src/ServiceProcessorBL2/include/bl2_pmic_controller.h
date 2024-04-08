@@ -167,6 +167,60 @@ typedef struct imageMetadata_
 #define PMIC_HEX_TO_MILLIVOLT(hex_val, base, multiplier, divider) \
     (((hex_val * multiplier) / divider) + base)
 
+#define SRM_MIN_VAL_mV (660) // 0x52
+#define SRM_MAX_VAL_mV (850) // 0x78
+#define PMIC_SRM_MIN_VAL                                                                        \
+    PMIC_MILLIVOLT_TO_HEX(SRM_MIN_VAL_mV, PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_SRM_MAX_VAL                                                                        \
+    PMIC_MILLIVOLT_TO_HEX(SRM_MAX_VAL_mV, PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define DDR_MIN_VAL_mV (700) // 0x5A
+#define DDR_MAX_VAL_mV (870) // 0x7C
+#define PMIC_DDR_MIN_VAL                                                                      \
+    PMIC_MILLIVOLT_TO_HEX(DDR_MIN_VAL_mV, PMIC_DDR_VOLTAGE_BASE, PMIC_DDR_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_DDR_MAX_VAL                                                                      \
+    PMIC_MILLIVOLT_TO_HEX(DDR_MAX_VAL_mV, PMIC_DDR_VOLTAGE_BASE, PMIC_DDR_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define PCL_MIN_VAL_mV (731.25) // 0x15
+#define PCL_MAX_VAL_mV (800)    // 0x20
+#define PMIC_PCL_MIN_VAL                                                \
+    PMIC_MILLIVOLT_TO_HEX(PCL_MIN_VAL_mV, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
+                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
+#define PMIC_PCL_MAX_VAL                                                \
+    PMIC_MILLIVOLT_TO_HEX(PCL_MAX_VAL_mV, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
+                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
+
+#define MXN_MIN_VAL_mV (600) // 0x46
+#define MXN_MAX_VAL_mV (870) // 0x7C
+#define PMIC_MXN_MIN_VAL                                            \
+    PMIC_MILLIVOLT_TO_HEX(MXN_MIN_VAL_mV, PMIC_MAXION_VOLTAGE_BASE, \
+                          PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_MXN_MAX_VAL                                            \
+    PMIC_MILLIVOLT_TO_HEX(MXN_MAX_VAL_mV, PMIC_MAXION_VOLTAGE_BASE, \
+                          PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define NOC_MIN_VAL_mV (400) // 0x1E
+#define NOC_MAX_VAL_mV (600) // 0x46
+#define PMIC_NOC_MIN_VAL                                                                      \
+    PMIC_MILLIVOLT_TO_HEX(NOC_MIN_VAL_mV, PMIC_NOC_VOLTAGE_BASE, PMIC_NOC_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_NOC_MAX_VAL                                                                      \
+    PMIC_MILLIVOLT_TO_HEX(NOC_MAX_VAL_mV, PMIC_NOC_VOLTAGE_BASE, PMIC_NOC_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define MNN_MIN_VAL_mV (400) // 0x1E
+#define MNN_MAX_VAL_mV (620) // 0x4A
+#define PMIC_MNN_MIN_VAL                                            \
+    PMIC_MILLIVOLT_TO_HEX(MNN_MIN_VAL_mV, PMIC_MINION_VOLTAGE_BASE, \
+                          PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_MNN_MAX_VAL                                            \
+    PMIC_MILLIVOLT_TO_HEX(MNN_MAX_VAL_mV, PMIC_MINION_VOLTAGE_BASE, \
+                          PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+
 /*! \def EXTRACT_BYTE(byte_idx, org_val)
     \brief Macro definition to extract the specified byte from a variable.
 */

@@ -18,6 +18,7 @@
 /***********************************************************************/
 #include "bl2_asset_trk.h"
 #include "bl2_pmic_controller.h"
+#include "thermal_pwr_mgmt.h"
 
 static int32_t asset_svc_getmanufacturername(char *mfg_name)
 {
@@ -82,6 +83,12 @@ static int32_t asset_svc_getvminlut(char *vmin_lut)
 
 static int32_t asset_svc_setvminlut(const struct device_mgmt_set_vmin_lut_cmd_t *dm_cmd)
 {
+    int status = Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(dm_cmd->vmin_lut.asset);
+    if (status != 0)
+    {
+        return status;
+    }
+
     return flash_fs_set_vmin_lut(dm_cmd->vmin_lut.asset);
 }
 

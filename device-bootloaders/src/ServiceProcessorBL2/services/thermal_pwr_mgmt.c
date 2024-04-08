@@ -62,6 +62,7 @@
 #include "mem_controller.h"
 #include "delays.h"
 #include "bl2_flash_fs.h"
+#include "service_processor_BL2_data.h"
 
 volatile struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 volatile struct pmic_power_reg_t g_pmic_power_reg __attribute__((section(".data")));
@@ -3058,4 +3059,82 @@ void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state)
 {
     /* update Master Minion(MM) state*/
     mm_state = state;
+}
+
+static int validate_vmin_lut_freq_volt(uint16_t freq, uint16_t freq_step, uint8_t voltage_enc,
+                                       uint8_t voltage_min, uint8_t voltage_max)
+{
+    if (freq % freq_step != 0)
+    {
+        return THERMAL_PWR_MGMT_INVALID_FREQ;
+    }
+    if (((voltage_enc == 0) || ((voltage_enc >= voltage_min) || (voltage_enc <= voltage_max))) ==
+        false)
+    {
+        return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+    }
+
+    return 0;
+}
+
+int Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(const char *vmin_lut)
+{
+    int status = 0;
+    const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *lutEntry =
+        (const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *)vmin_lut;
+    for (uint32_t i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++, lutEntry++)
+    {
+        //validate minion values
+        status = validate_vmin_lut_freq_volt(lutEntry->mnn.freq, THROTTLE_FREQUENCY_STEP,
+                                             lutEntry->mnn.volt, PMIC_MNN_MIN_VAL,
+                                             PMIC_MNN_MAX_VAL);
+        if (status != 0)
+        {
+            break;
+        }
+
+        //validate sram values
+        status = validate_vmin_lut_freq_volt(lutEntry->sram.freq, THROTTLE_FREQUENCY_STEP,
+                                             lutEntry->sram.volt, PMIC_SRM_MIN_VAL,
+                                             PMIC_SRM_MAX_VAL);
+        if (status != 0)
+        {
+            break;
+        }
+
+        //validate noc values
+        status = validate_vmin_lut_freq_volt(lutEntry->noc.freq, THROTTLE_FREQUENCY_STEP,
+                                             lutEntry->noc.volt, PMIC_NOC_MIN_VAL,
+                                             PMIC_NOC_MAX_VAL);
+        if (status != 0)
+        {
+            break;
+        }
+
+        //validate pcl values
+        status = validate_vmin_lut_freq_volt(lutEntry->pcl.freq, 1, lutEntry->pcl.volt,
+                                             PMIC_PCL_MIN_VAL, PMIC_PCL_MAX_VAL);
+        if (status != 0)
+        {
+            break;
+        }
+
+        //validate ddr values
+        status = validate_vmin_lut_freq_volt(lutEntry->ddr.freq, 1, lutEntry->ddr.volt,
+                                             PMIC_DDR_MIN_VAL, PMIC_DDR_MAX_VAL);
+        if (status != 0)
+        {
+            break;
+        }
+
+        //validate maxion values
+        status = validate_vmin_lut_freq_volt(lutEntry->mxn.freq, 1, lutEntry->mxn.volt,
+                                             PMIC_MXN_MIN_VAL, PMIC_MXN_MAX_VAL);
+        if (status != 0)
+        {
+            break;
+        }
+    }
+
+    return status;
 }

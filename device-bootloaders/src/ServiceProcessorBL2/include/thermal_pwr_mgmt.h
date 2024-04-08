@@ -101,6 +101,16 @@
 /* define to convert power to milliwats*/
 #define POWER_IN_MW(pwr) (pwr * 1000)
 
+/*! \def THROTTLE_FREQUENCY_STEP
+    \brief The change in frequency per step in megahertz.
+*/
+#define THROTTLE_FREQUENCY_STEP 50
+
+/*! \def THROTTLE_VOLTAGE_STEP_MV
+    \brief The change in voltage per step in millivolts.
+*/
+#define THROTTLE_VOLTAGE_STEP_MV 10
+
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
     \param none
@@ -422,4 +432,12 @@ int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode);
     \returns None
 */
 void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state);
+
+/*! \fn int Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(char *vmin_lut)
+    \brief This function validates vmin lut frequency and voltage values
+    before they are written to persisted memory.
+    \return The function call status, pass/fail
+*/
+int Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(const char *vmin_lut);
+
 #endif

@@ -2094,8 +2094,6 @@ int flash_fs_set_vmin_lut(const char *vmin_lut)
     uint32_t vmin_lut_size_bytes =
         NUMBER_OF_VMIN_LUT_POINTS * sizeof(ESPERANTO_VMIN_LUT_SINGLE_POINT_t);
 
-    //todo validate lut
-
     /* Since Flash sector size is 4KB, get scratch buffer to use */
     scratch_buffer = get_scratch_buffer(&scratch_buffer_size);
     if (scratch_buffer_size < SPI_FLASH_SECTOR_SIZE)
