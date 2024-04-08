@@ -22,7 +22,7 @@
 */
 struct asset_info_t
 {
-    char asset[24]; /**<  */
+    char asset[256]; /**<  */
 
 } __attribute__((packed));
 
@@ -1529,47 +1529,22 @@ struct device_mgmt_mdi_bp_event_t
     uint8_t pad[4];              /**< Padding for alignment */
 } __attribute__((packed, aligned(8)));
 
-/*! \struct fru_data_t
-    \brief fru information
-*/
-struct fru_data_t
-{
-    uint8_t buffer[256]; // Fixed-size array member
-} __attribute__((packed, aligned(8)));
-
 /*! \struct device_mgmt_set_fru_cmd_t
     \brief Command to set the fru information
 */
 struct device_mgmt_set_fru_cmd_t
 {
     dev_mgmt_cmd_header_t command_info; /**< Command header */
-    struct fru_data_t fru_data;         /**< FRU information struct */
+    struct asset_info_t fru_data;       /**< FRU information struct */
 } __attribute__((packed, aligned(8)));
 
-/*! \struct device_mgmt_set_fru_rsp_t
-    \brief Response for set fru command
+/*! \struct device_mgmt_set_vmin_lut_cmd_t
+    \brief Command to set vmin lut
 */
-struct device_mgmt_set_fru_rsp_t
-{
-    struct dev_mgmt_rsp_header_t rsp_hdr;
-    uint64_t dummy; /**< Dummy Field */
-} __attribute__((packed, aligned(8)));
-
-/*! \struct device_mgmt_get_fru_cmd_t
-    \brief Command to get the fru information
-*/
-struct device_mgmt_get_fru_cmd_t
+struct device_mgmt_set_vmin_lut_cmd_t
 {
     dev_mgmt_cmd_header_t command_info; /**< Command header */
-    uint64_t dummy;                     /**< Dummy Field */
+    struct asset_info_t vmin_lut;       /**< LUT frequency/voltage values */
 } __attribute__((packed, aligned(8)));
 
-/*! \struct device_mgmt_get_fru_rsp_t
-    \brief Response for get fru command
-*/
-struct device_mgmt_get_fru_rsp_t
-{
-    struct dev_mgmt_rsp_header_t rsp_hdr;
-    struct fru_data_t fru_data; /**< FRU information struct */
-} __attribute__((packed, aligned(8)));
 #endif /* ET_DEVICE_MGMT_API_RPC_TYPES_H */
