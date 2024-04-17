@@ -811,7 +811,7 @@ void TestDevMgmtApiSyncCmds::getModuleSerialNumber(bool singleDevice) {
 
     // Skip validation if loopback driver
     if (getTestTarget() != Target::Loopback) {
-      memcpy(&ecid, output_buff, output_size);
+      memcpy(&ecid, output_buff, sizeof(ecid_t));
       printf("  Lot ID       = %s (0x%016lx)\n", ecid.lot_id_str, ecid.lot_id);
       printf("  Wafer ID     = 0x%02x (%d)\n", ecid.wafer_id, ecid.wafer_id);
       printf("  X Coordinate = 0x%02x (%d)\n", ecid.x_coordinate, ecid.x_coordinate);
