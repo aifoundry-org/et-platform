@@ -541,7 +541,7 @@ int verifyService() {
       return ret;
     }
 
-    memcpy(&ecid, output_buff, output_size);
+    memcpy(&ecid, output_buff, sizeof(ecid));
     DM_LOG(INFO) << fmt::format("Lot ID       = {} 0x{:016x}", ecid.lot_id_str.data(), ecid.lot_id);
     DM_LOG(INFO) << fmt::format("Wafer ID     = 0x{:02x} ({})", ecid.wafer_id, ecid.wafer_id);
     DM_LOG(INFO) << fmt::format("X Coordinate = 0x{:02x} ({})", ecid.x_coordinate, ecid.x_coordinate);

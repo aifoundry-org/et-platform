@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-19030] Fix mempcy size
 ### Security
 
 ## [1.17.0] - 2024-03-27
