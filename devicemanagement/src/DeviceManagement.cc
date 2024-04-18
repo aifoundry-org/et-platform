@@ -233,7 +233,7 @@ bool DeviceManagement::isValidDeviceNode(const uint32_t device_node) {
 }
 
 int DeviceManagement::getDevicesCount() {
-  devLayer_->getDevicesCount();
+  return devLayer_->getDevicesCount();
 }
 
 bool DeviceManagement::isSetCommand(itCmd& cmd) {
