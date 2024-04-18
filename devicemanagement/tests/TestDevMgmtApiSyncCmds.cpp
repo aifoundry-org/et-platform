@@ -1279,11 +1279,11 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyThrottleState(bool singleDevice) 
       if (getTestTarget() != Target::Loopback) {
         // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
         device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
-        printf("throttle_residency %s (in usecs):\n", throttle_state_name[throttle_state]);
-        printf("\tcumulative: %d\n", residency->cumulative);
-        printf("\taverage: %d\n", residency->average);
-        printf("\tmaximum: %d\n", residency->maximum);
-        printf("\tminimum: %d\n", residency->minimum);
+        printf("throttle_residency %s (in usecs):\n", throttle_state_name[throttle_state].c_str());
+        printf("\tcumulative: %ld\n", residency->cumulative);
+        printf("\taverage: %ld\n", residency->average);
+        printf("\tmaximum: %ld\n", residency->maximum);
+        printf("\tminimum: %ld\n", residency->minimum);
       }
     }
   }
@@ -1816,11 +1816,11 @@ void TestDevMgmtApiSyncCmds::getModuleResidencyPowerState(bool singleDevice) {
       if (getTestTarget() != Target::Loopback) {
         // Note: Throttle time could vary. So there cannot be expected value for throttle time in the test
         device_mgmt_api::residency_t* residency = (device_mgmt_api::residency_t*)output_buff;
-        printf("power_residency %s (in usecs):\n", power_state_name[power_state]);
-        printf("\tcumulative: %d\n", residency->cumulative);
-        printf("\taverage: %d\n", residency->average);
-        printf("\tmaximum: %d\n", residency->maximum);
-        printf("\tminimum: %d\n", residency->minimum);
+        printf("power_residency %s (in usecs):\n", power_state_name[power_state].c_str());
+        printf("\tcumulative: %ld\n", residency->cumulative);
+        printf("\taverage: %ld\n", residency->average);
+        printf("\tmaximum: %ld\n", residency->maximum);
+        printf("\tminimum: %ld\n", residency->minimum);
       }
     }
   }
