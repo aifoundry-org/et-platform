@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 
+## [0.6.0]
+### Added
+### Changed
+- [SW-18005] Update conanfile.py and CI for gitlab.com
+-  Always install latest ecpt
+- Update .gitlab-ci.yml
+### Deprecated
+### Removed
+### Fixed
+
 ## [0.1.0] - 2022-06-13
 ### Added
 - Initial release
