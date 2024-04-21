@@ -5,7 +5,7 @@ import os
 
 class CMakeModulesConan(ConanFile):
     name = "cmake-modules"
-    version = "0.6.0"
+    version = "0.7.0"
     license = "esperanto"
     author = "Pau Farre <pau.farre@esperantotech.com>"
     url = "https://gitlab.com/esperantotech/software/cmake-modules"
