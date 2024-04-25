@@ -85,6 +85,28 @@ check-on-top-of-master:
 ###############################################################################
 ###############################################################################
 
+capture-graph:
+  extends:
+    - .template_job
+    - .pod_medium
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: .pre
+  rules:
+    - *release_or_development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      conan remote disable conan-tmp
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release-shared --build missing --lockfile-out=deps_base.lock --base
+  artifacts:
+    when: always
+    expire_in: 2d
+    paths:
+      - deps_base.lock
+
+###############################################################################
+###############################################################################
+###############################################################################
+
 # Smoke job that executes unit-tests in Release/Debug to capture problems early
 unit_tests:conan:sysemu:
   extends:
@@ -92,7 +114,8 @@ unit_tests:conan:sysemu:
     - .template_job
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: smoke
-  needs: 
+  needs:
+    - capture-graph 
     - job: clang-format
       optional: true
   rules:
@@ -107,7 +130,8 @@ unit_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing --lockfile=deps_base.lock --lockfile-out=${BUILD_TYPE}.lock
+      conan install . --lockfile=${BUILD_TYPE}.lock --build=missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -184,28 +208,6 @@ build:conan:
 ###############################################################################
 ###############################################################################
 
-capture-graph:
-  extends:
-    - .template_job
-    - .pod_medium
-    - .template-conan-linux-ubuntu22.04-gcc11
-  stage: .pre
-  rules:
-    - *release_or_development_job_rule
-  variables:
-    CMD_SCRIPT: |
-      conan remote disable conan-tmp
-      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release-shared --build missing --lockfile-out=deps_base.lock --base
-  artifacts:
-    when: always
-    expire_in: 2d
-    paths:
-      - deps_base.lock
-
-###############################################################################
-###############################################################################
-###############################################################################
-
 quality:sonarqube-check:
   stage: build
   extends:
@@ -247,7 +249,7 @@ quality:sonarqube-check:
       - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/lib
   script:
       - conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-debug-shared --build missing --lockfile=deps_base.lock --lockfile-out=Debug.lock
-      - conan install . --lockfile=Debug.lock
+      - conan install . --lockfile=Debug.lock --build=missing
       - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -G "Unix Makefiles"
       - source build/Debug/generators/conanrun.sh
       - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build/Debug all -j ${CPU_COUNT}
@@ -265,6 +267,7 @@ tests:conan:sysemu:
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: test
   needs:
+    - capture-graph
     - job: unit_tests:conan:sysemu
       optional: true
   rules:
@@ -280,7 +283,8 @@ tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing --lockfile=deps_base.lock --lockfile-out=${BUILD_TYPE}.lock
+      conan install . --lockfile=${BUILD_TYPE}.lock --build=missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -288,25 +292,6 @@ tests:conan:sysemu:
       # SW-18081: Enable ut_mp tests again
       sudo ctest -L 'Generic' -L 'MP' -E ut_mp --output-on-failure
 
-# FIXME Enable running the sonarqube job in this repo when the Conan image will have the correct 
-# dependencies (java, sonar-scanner)
-#
-# sonarqube:
-#   extends:
-#     - .template_job
-#     - .template_sonarqube_job
-#     - .pod_large
-#     - .template-conan-linux-ubuntu22.04-gcc11
-#   stage: test
-#   variables:
-#     CMD_CONFIG_BUILD: |
-#       mkdir build
-#       cd build
-#       conan install .. -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release --build missing
-#       cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake-build-release/conan/conan_toolchain.cmake
-#     CMD_BUILD: |
-#       ${BUILD_WRAPPER} --out-dir build_wrapper_output_directory cmake --build ./build -j ${CPU_COUNT}
-    
 # NIGHTLY 
 # - tests are repeated 10 times to catch flacky tests
 # - larger pod to execute more tests in parallel
@@ -328,7 +313,7 @@ nightly_torture_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build=missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
@@ -373,4 +358,3 @@ on_success:promote:
       cd conan
       python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_promote
-
