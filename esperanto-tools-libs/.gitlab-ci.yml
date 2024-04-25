@@ -214,6 +214,8 @@ quality:sonarqube-check:
     - .template-conan-linux-ubuntu22.04-gcc11
   needs:
     - capture-graph
+    - job: unit_tests:conan:sysemu
+      optional: true
   rules:
     - *development_job_rule
   tags:
