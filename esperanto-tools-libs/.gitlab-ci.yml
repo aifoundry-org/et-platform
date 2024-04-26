@@ -115,7 +115,6 @@ unit_tests:conan:sysemu:
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: smoke
   needs:
-    - capture-graph 
     - job: clang-format
       optional: true
   rules:
@@ -267,7 +266,6 @@ tests:conan:sysemu:
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: test
   needs:
-    - capture-graph
     - job: unit_tests:conan:sysemu
       optional: true
   rules:
