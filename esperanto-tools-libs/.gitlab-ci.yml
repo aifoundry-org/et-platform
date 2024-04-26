@@ -247,9 +247,9 @@ quality:sonarqube-check:
       - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/lib
   script:
       - conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-debug-shared --build missing --lockfile=deps_base.lock --lockfile-out=Debug.lock
-      - conan install . --lockfile=Debug.lock --build=missing
+      - conan install . --lockfile=Debug.lock --build=missing -g VirtualRunEnv
       - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -G "Unix Makefiles"
-      - source build/Debug/generators/conanbuild.sh
+      - source build/Debug/generators/conanrun.sh
       - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build/Debug all -j ${CPU_COUNT}
       - sonar-scanner
 
