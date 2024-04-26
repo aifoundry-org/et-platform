@@ -129,8 +129,7 @@ unit_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing --lockfile=deps_base.lock --lockfile-out=${BUILD_TYPE}.lock
-      conan install . --lockfile=${BUILD_TYPE}.lock --build=missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}
