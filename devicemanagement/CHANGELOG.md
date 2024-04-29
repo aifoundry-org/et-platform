@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.18.0] - 2024-04-29
+### Added
 - [SW-19030] Add new commands DM_CMD_SET_VMIN_LUT and DM_CMD_GET_VMIN_LUT to the commandCodeTable
 ### Changed
 ### Deprecated
