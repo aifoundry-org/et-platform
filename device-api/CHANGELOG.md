@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 ## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [2.3.0] - 2024-04-29
 - [SW-19030] Add commands to set/get vmin lut to/from etsoc persisted storage 
 - [SW-19030] Reuse asset buffer for fru and vmin lut commands 
 ### Added
