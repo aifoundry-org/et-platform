@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.19.0] - 2024-04-29
+### Added
 - [SW-19030] Extended flash config to have mxn voltage values and increase lut size
 - [SW-19030] Add dm service commands to set/get vmin lut
 ### Changed
