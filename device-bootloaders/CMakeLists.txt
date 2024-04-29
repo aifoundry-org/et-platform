@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.15)
-project(EsperantoBootLoader VERSION 0.19.0 LANGUAGES C ASM)
+project(EsperantoBootLoader VERSION 0.20.0 LANGUAGES C ASM)
 
 cmake_policy(SET CMP0118 NEW)
 
