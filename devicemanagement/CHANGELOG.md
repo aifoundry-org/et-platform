@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-19030] Fix memcpy size
 - [SW-20671]: add missing return statement
+- Updated rules for test which require multi device
 ### Security
 
 ## [0.17.0] - 2024-03-27

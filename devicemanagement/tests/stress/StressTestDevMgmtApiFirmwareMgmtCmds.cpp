@@ -127,6 +127,12 @@ TEST_F(StressTestDevMgmtApiFirmwareMgmtCmds, backToBackResetSOCMultiDevice) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
     return;
   }
+
+  if (devLayer_->getDevicesCount() <= 1) {
+    DV_LOG(INFO) << "Skipping the test since this is multi device test";
+    return;
+  }
+
   auto iteration = (getTestTarget() == Target::Loopback ? 30 : 10) / devLayer_->getDevicesCount();
   for (int i = 0; i < iteration; i++) {
     resetSOC(false /* Multiple Devices */);
