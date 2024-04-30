@@ -9,8 +9,8 @@ CPPFLAGS += -Icommon
 CPPFLAGS += -I$(BUILD_DIR)/../Release/et-common-libs/cm-umode/include
 
 # Custom variables
-target = $(BUILD_DIR)/inst_seq.elf
-srcs = src/inst_seq.c
+target = $(BUILD_DIR)/$(TARGET).elf
+srcs = src/$(SRC).c
 objs = $(srcs:%=$(BUILD_DIR)/objs/%.o)
 deps = $(objs:%.o=%.d)
 
@@ -23,6 +23,3 @@ $(target): $(objs)
 
 clean:
 	@rm -rf $(BUILD_DIR)
-
-
-

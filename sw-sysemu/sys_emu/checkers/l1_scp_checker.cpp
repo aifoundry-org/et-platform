@@ -79,7 +79,7 @@ void l1_scp_checker::l1_scp_read(uint32_t thread, uint32_t idx, tensor_op_type t
     uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
     uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
     uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
-
+    LOG_AGENT(DEBUG, *this, "Line state is %s for shire: %i, minion %i, line: %i", to_string(minion_scp_info[minion_id].l1_scp_line_status[idx]).c_str(), shire, minion, idx);
     auto &status = minion_scp_info[minion_id].l1_scp_line_status[idx];
     if(  (status != l1_scp_status::Valid)
       && (status != l1_scp_status::InUse))
@@ -153,6 +153,7 @@ void l1_scp_checker::tensor_wait(uint32_t thread, bemu::Hart::Waiting id)
   uint32_t minion_id = thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = thread / EMU_THREADS_PER_SHIRE;
+  LOG_AGENT(DEBUG, *this, "INSIDE l1_scp_checker::tensor_wait  => shire: %i, minion: %i, id: %i (%s)", shire, minion, (int) id, to_string(id).c_str());
   L1_SCP_CHECKER_LOG(minion_id, LOG_AGENT(DEBUG, *this, "l1_scp_checker::tensor_wait => shire: %i, minion: %i, id: %i (%s)", shire, minion, (int) id, to_string(id).c_str()));
 
   // For TensorLoad waits

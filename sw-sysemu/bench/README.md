@@ -19,10 +19,11 @@ conan install riscv-gnu-toolchain/20220720@ -pr:b=default -pr:h=linux-ubuntu22.0
 source toolchain/conanrun.sh
 ```
 
-Then go to `sw-sysemu/bench/device_kernels` folder and compile tests
+Then go to `tools/sw-sysemu` folder and compile tests
+Here, run a shell script that will compile multiple source/instruction files
 
 ```
-make
+./make.sh
 ```
 Device elfs will be present in `build/device_kernels/` dir.
 
@@ -42,6 +43,9 @@ cmake --build --preset release
 
 ## Run kernel with sw-sysemu for benchmarking
 The benchmark will be available in `build/Release/bench/bench`.
+
+## Run benchmark with a script
+Optionally, you can run `./run_benchmark.sh` from `tools/sw-sysemu` that will compile the src files, benchmarks, and then run the executable.
 
 ## Building debug, other versions of executable
 Replace Release with other build types (Debug, RelWithDebInfo, etc..) according to the value passed in `-s:h sw-sysemu:build_type`.

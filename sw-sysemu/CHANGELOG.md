@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Adding Tensor Instructions to standalone test
 ### Changed
 ### Deprecated
 ### Removed
@@ -28,8 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added dummy micro-benchmark
 - Added unit test for Perf
 - Added a test sequence generator
-- Extend instruction sequence to add rv64f, rv64a, rv64d
+- Extend instruction sequence to add rv64f, rv64i, rv64m, tensors
 - Adding et-common-lib umode library inst_sequence generator
+- Shell scripts to compile multiple tests/benchmark and run benchmarks
 ### Changed
 - Detect if compiler supports -flto and enable it
 - Change default symbol visibility to "hidden". Export only public interface
@@ -38,8 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improving performance on Tensor Store Checker
 - Optimizing Tensor Store Checker is_empty performance
 - Further TensorStore is_empty performance improvement
+- Split benchmark into different instruction categories 
 ### Deprecated
 ### Removed
+- rv64a, rv64d instructions generation (buggy)
 ### Fixed
 ### Security
 
