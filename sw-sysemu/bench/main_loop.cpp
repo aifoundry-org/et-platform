@@ -59,30 +59,31 @@ public:
 };
 
 BENCHMARK_DEFINE_F(FWBenchmark, BM_main_internal_fw_boot)(benchmark::State& state) {
-    int status = EXIT_SUCCESS;
-    for (auto _ : state) {
-        // Run the benchmark
-        benchmark::DoNotOptimize(status = emu->main_internal());
-        benchmark::ClobberMemory();
-        if (status != EXIT_SUCCESS) {
-            state.SkipWithError("Failed to run emulator!");
-            break; // Needed to skip the rest of the iteration.
-        }
-    }
-};
-BENCHMARK_REGISTER_F(FWBenchmark, BM_main_internal_fw_boot)
-    ->ArgsProduct({{false, true}, {false, true}})
-    ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
+     int status = EXIT_SUCCESS;
+     for (auto _ : state) {
+         // Run the benchmark
+         benchmark::DoNotOptimize(status = emu->main_internal());
+         benchmark::ClobberMemory();
+         if (status != EXIT_SUCCESS) {
+             state.SkipWithError("Failed to run emulator!");
+             break; // Needed to skip the rest of the iteration.
+         }
+     }
+ };
+ BENCHMARK_REGISTER_F(FWBenchmark, BM_main_internal_fw_boot)
+     ->ArgsProduct({{false, true}, {false, true}})
+     ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
 
 
-class InstBenchmark : public SysEmuBenchmark {
+/* RISCV Instructions: rv64f*/
+class Inst_RV64F_Benchmark : public SysEmuBenchmark {
 public:
-    InstBenchmark()
-        : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"inst_seq.elf"}})
+    Inst_RV64F_Benchmark()
+        : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"rv64f.elf"}})
     {}
 };
 
-BENCHMARK_DEFINE_F(InstBenchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
+BENCHMARK_DEFINE_F(Inst_RV64F_Benchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
     int status = EXIT_SUCCESS;
     for (auto _ : state) {
         // Run the benchmark
@@ -94,11 +95,138 @@ BENCHMARK_DEFINE_F(InstBenchmark, BM_main_internal_inst_seq)(benchmark::State& s
         }
     }
 };
-BENCHMARK_REGISTER_F(InstBenchmark, BM_main_internal_inst_seq)
+
+
+BENCHMARK_REGISTER_F(Inst_RV64F_Benchmark, BM_main_internal_inst_seq)
     ->ArgsProduct({{false, true}, {false, true}})
     ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
 
-} // end anonymous namespace
+/* RISCV Instructions: rv64i*/
+class Inst_RV64I_Benchmark : public SysEmuBenchmark {
+public:
+    Inst_RV64I_Benchmark()
+        : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"rv64i.elf"}})
+    {}
+};
+
+BENCHMARK_DEFINE_F(Inst_RV64I_Benchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
+    int status = EXIT_SUCCESS;
+    for (auto _ : state) {
+        // Run the benchmark
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        benchmark::ClobberMemory();
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
+    }
+};
+
+BENCHMARK_REGISTER_F(Inst_RV64I_Benchmark, BM_main_internal_inst_seq)
+    ->ArgsProduct({{false, true}, {false, true}})
+    ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
+
+/* RISCV Instructions: rv64m*/
+class Inst_RV64M_Benchmark : public SysEmuBenchmark {
+public:
+    Inst_RV64M_Benchmark()
+        : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"rv64m.elf"}})
+    {}
+};
+
+BENCHMARK_DEFINE_F(Inst_RV64M_Benchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
+    int status = EXIT_SUCCESS;
+    for (auto _ : state) {
+        // Run the benchmark
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        benchmark::ClobberMemory();
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
+    }
+};
+
+BENCHMARK_REGISTER_F(Inst_RV64M_Benchmark, BM_main_internal_inst_seq)
+    ->ArgsProduct({{false, true}, {false, true}})
+    ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
+
+/* RISCV Instructions: rv64d*/
+class Inst_RV64D_Benchmark : public SysEmuBenchmark {
+public:
+    Inst_RV64D_Benchmark()
+        : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"rv64d.elf"}})
+    {}
+};
+
+BENCHMARK_DEFINE_F(Inst_RV64D_Benchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
+    int status = EXIT_SUCCESS;
+    for (auto _ : state) {
+        // Run the benchmark
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        benchmark::ClobberMemory();
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
+    }
+};
+
+BENCHMARK_REGISTER_F(Inst_RV64D_Benchmark, BM_main_internal_inst_seq)
+    ->ArgsProduct({{false, true}, {false, true}})
+    ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
+
+/* RISCV Instructions: tensors*/
+class Inst_TENSORS_Benchmark : public SysEmuBenchmark {
+public:
+    Inst_TENSORS_Benchmark()
+        : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"tensors.elf"}})
+    {}
+};
+
+BENCHMARK_DEFINE_F(Inst_TENSORS_Benchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
+    int status = EXIT_SUCCESS;
+    for (auto _ : state) {
+        // Run the benchmark
+        benchmark::DoNotOptimize(status = emu->main_internal());
+        benchmark::ClobberMemory();
+        if (status != EXIT_SUCCESS) {
+            state.SkipWithError("Failed to run emulator!");
+            break; // Needed to skip the rest of the iteration.
+        }
+    }
+};
+
+BENCHMARK_REGISTER_F(Inst_TENSORS_Benchmark, BM_main_internal_inst_seq)
+    ->ArgsProduct({{false, true}, {false, true}})
+    ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
+
+/* RISCV Instructions: rv64a*/
+// class Inst_RV64A_Benchmark : public SysEmuBenchmark {
+// public:
+//     Inst_RV64A_Benchmark()
+//         : SysEmuBenchmark({std::string{DEVICE_KERNELS_DIR} + std::string{"rv64a.elf"}})
+//     {}
+// };
+
+// BENCHMARK_DEFINE_F(Inst_RV64A_Benchmark, BM_main_internal_inst_seq)(benchmark::State& state) {
+//     int status = EXIT_SUCCESS;
+//     for (auto _ : state) {
+//         // Run the benchmark
+//         benchmark::DoNotOptimize(status = emu->main_internal());
+//         benchmark::ClobberMemory();
+//         if (status != EXIT_SUCCESS) {
+//             state.SkipWithError("Failed to run emulator!");
+//             break; // Needed to skip the rest of the iteration.
+//         }
+//     }
+// };
+
+// BENCHMARK_REGISTER_F(Inst_RV64A_Benchmark, BM_main_internal_inst_seq)
+//     ->ArgsProduct({{false, true}, {false, true}})
+//     ->ArgNames({"mem_check+l1_scp_check+l2_scp_check+flb_check", "tstore_check"});
+
+}  // end anonymous namespace
 
 // Run the benchmark
 BENCHMARK_MAIN();

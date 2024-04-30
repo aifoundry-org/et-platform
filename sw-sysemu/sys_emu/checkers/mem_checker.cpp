@@ -97,7 +97,6 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
              || ((l1_minion_control[minion] == 0) && (location == COH_MINION))                        // Cache is shared and access is minion
              || (!it_minion->second.thread_mask_write[thread_id^1] && (location == COH_MINION))       // Access is minion and other thread is not dirty
              || (!it_minion->second.thread_mask_write[0] && !it_minion->second.thread_mask_write[1]); // Data is not dirty and accessing beyond minion
-
     // Shire access must be coherent
     coherent &= !shire_found                                                                                                                                                      // Not in shire
              || ((it_shire->second.l2_dirty_minion_id == 255)       && !it_shire->second.cb_dirty &&                                                   (location == COH_MINION))  // Writing to minion level, no minion has it dirty in L1 and not in CB
@@ -105,13 +104,11 @@ bool mem_checker::write(uint64_t pc, uint64_t address, op_location_t location, u
              || ((it_shire->second.l2_dirty_minion_id == 255)       && !it_shire->second.cb_dirty &&                                                   (location == COH_SHIRE))   // Writing to shire level, no minion has dirty data, CB is clean
              || ((it_shire->second.l2_dirty_minion_id == 255)       && !it_shire->second.l2_dirty && !it_shire->second.cb_dirty_quarter[cb_quarter] && (location == COH_CB))      // CB write, not rewriting same CB quarter, not dirty in minions nor L1
              || ((it_shire->second.l2_dirty_minion_id == 255)       && !it_shire->second.l2_dirty && !it_shire->second.cb_dirty                     && (location == COH_GLOBAL)); // Globals require shire to be no dirty at all
-
     // Global access must be coherent
     coherent &= !global_found                                                                                                                               // Not in global
              || ((it_global->second.l2_dirty_shire_id == 255)      && !it_global->second.cb_dirty)                                                          // Still clean
              || ((it_global->second.l2_dirty_shire_id == shire_id) && !it_global->second.cb_dirty && ((location == COH_MINION) || (location == COH_SHIRE))) // Rewriting in same shire
              || ((it_global->second.l2_dirty_shire_id == 255)      && !it_global->second.cb_dirty_quarter[cb_quarter] && (location == COH_CB));             // CB quarter was still not written and not written in any shire
-
     if(!coherent && !m_waive_writes[thread]) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     bool update_minion = (location == COH_MINION);

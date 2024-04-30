@@ -276,8 +276,7 @@ test:micro-benchmarks:
       conan install conanfile_embedded_elfs.txt -pr:b default -pr:h baremetal-rv64-gcc8.2-release --build missing -g deploy -if=build/${BUILD_TYPE}
       conan install riscv-gnu-toolchain/20220720@ -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release -if=build/toolchain -g VirtualRunEnv
       source build/toolchain/conanrun.sh
-      cd bench/device_kernels/
-      make
+      ./make.sh
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o sw-sysemu:lto=False -o sw-sysemu:preload_elfs=False -o sw-sysemu:with_benchmarks=True --build missing --lockfile-out=${BUILD_TYPE}.lock
