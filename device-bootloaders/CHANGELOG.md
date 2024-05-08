@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2024-05-08
 ### Added
 ### Changed
-- [SW-20745] (CI) Added quality:sonarqube-check stage and fix
+- [SW-20745] (CI) Added quality:sonarqube-check stage and fix syntax
 ### Deprecated
 ### Removed
 ### Fixed
