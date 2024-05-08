@@ -120,7 +120,7 @@ generate_build:conan:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: generate_build
   needs:
     - job: verify_project_changes
@@ -180,7 +180,7 @@ build:conan:
 #     - .template_job
 #     - .template_sonarqube_job
 #     - .pod_large
-#     - .template-conan-linux-ubuntu18.04-gcc7
+#     - .template-conan-linux-ubuntu22.04-gcc11
 #   stage: basic_test
 #   variables:
 #     CMD_CONFIG_BUILD: |
@@ -213,7 +213,7 @@ on_success:promote:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: deploy
   needs:
     - generate_build:conan
