@@ -19,7 +19,7 @@ include:
 
 default:
   interruptible: true
-  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-22.04-et-sw-platform:0.0.8
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-22.04-et-sw-platform:0.0.12
 
 stages:
   - generate_build
