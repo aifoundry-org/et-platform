@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [Unreleased] - 2024-04-30
+### Added
+### Changed
+- [SW-20745] (CI) Added quality:sonarqube-check stage
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [0.19.0] - 2024-04-29
 ### Added
 - [SW-19030] Extended flash config to have mxn voltage values and increase lut size
