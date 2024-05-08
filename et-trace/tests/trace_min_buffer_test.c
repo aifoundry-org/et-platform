@@ -25,7 +25,7 @@ int main(int argc, const char **argv)
     srand(uargs.seed);
 
     struct trace_control_block_t cb = { 0 };
-    struct trace_buffer_std_header_t *buf = malloc(trace_size);
+    struct trace_buffer_std_header_t *buf = malloc(sizeof(struct trace_buffer_std_header_t));
     if (!buf)
     {
         return -1;
