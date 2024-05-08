@@ -120,7 +120,7 @@ smoke_tests:conan:sysemu:
   needs: 
     - job: capture-graph
     - job: verify_project_changes
-          optional: true
+      optional: true
   rules:
     - *development_job_rule
   parallel:
