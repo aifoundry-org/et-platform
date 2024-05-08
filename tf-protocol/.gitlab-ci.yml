@@ -47,7 +47,7 @@ generate_build:conan:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: generate_build
 
   variables:
@@ -91,7 +91,7 @@ on_success:promote:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: deploy
   needs:
     - generate_build:conan
