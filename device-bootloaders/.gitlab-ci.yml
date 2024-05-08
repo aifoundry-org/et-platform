@@ -232,11 +232,11 @@ quality:sonarqube-check:
       - export PATH=$PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/bin
       - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/lib
   script:
-      - conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-debug --build missing --lockfile=deps_base.lock --lockfile-out=Debug.lock
-      - conan install . --lockfile=Debug.lock --build=missing -g VirtualRunEnv
-      - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -G "Unix Makefiles"
-      - source build/Debug/generators/conanrun.sh
-      - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build/Debug all -j ${CPU_COUNT}
+      - conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build missing --lockfile=deps_base.lock --lockfile-out=Releaseb.lock
+      - conan install . --lockfile=Release.lock --build=missing -g VirtualRunEnv
+      - cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -G "Unix Makefiles"
+      - source build/Release/generators/conanrun.sh
+      - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build/Release all -j ${CPU_COUNT}
       - sonar-scanner
 
 ###############################################################################
