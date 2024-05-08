@@ -56,7 +56,7 @@ verify_project_changes:
     - .template_job
     - .pod_nano
     - .verify_merge_request
-  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/centos-7.9.2009-et-sw-platform:0.3.7
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-22.04-et-sw-platform:0.0.12
   stage: .pre
   rules:
     - *development_job_rule
@@ -71,7 +71,7 @@ generate_build:conan:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: generate_build
   needs:
     - job: verify_project_changes
@@ -114,7 +114,7 @@ test:conan:
   extends:
     - .pod_medium
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: test
   parallel:
     matrix:
@@ -142,7 +142,7 @@ on_success:promote:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan-linux-ubuntu18.04-gcc7
+    - .template-conan-linux-ubuntu22.04-gcc11
   stage: deploy
   needs:
     - generate_build:conan
