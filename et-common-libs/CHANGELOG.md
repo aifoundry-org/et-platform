@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Updated GITLAB ci config
+- [CI] updated docker to ubuntu 22.04
 ### Deprecated
 ### Removed
 ### Fixed
