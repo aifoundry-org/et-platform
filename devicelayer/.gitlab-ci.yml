@@ -4,6 +4,7 @@ include:
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
+      - pods/medium-pod.yaml
       - pods/large-pod.yaml
       - jobs/generic-k8s-job.yaml
       - jobs/sonarqube-job.yaml
@@ -117,8 +118,9 @@ smoke_tests:conan:sysemu:
     - .template-conan-linux-ubuntu18.04-gcc7
   stage: smoke
   needs: 
+    - job: capture-graph
     - job: verify_project_changes
-      optional: true
+          optional: true
   rules:
     - *development_job_rule
   parallel:
@@ -130,7 +132,8 @@ smoke_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b default -pr:h linux-ubuntu18.04-x86_64-gcc7-$${BUILD_TYPE_LOWER} -o deviceLayer:with_tests=True --build missing
+      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER}-shared -o deviceLayer:with_tests=True --build=missing --lockfile=deps_base.lock --lockfile-out=${BUILD_TYPE}.lock
+      conan install . --lockfile-out=${BUILD_TYPE}.lock --build=missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}/tests/integration
