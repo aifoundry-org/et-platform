@@ -117,7 +117,7 @@ capture-graph:
   variables:
     CMD_SCRIPT: |
       conan remote disable conan-tmp
-      conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-release-shared --build missing --lockfile-out=deps_base.lock --base
+      conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build=missing --lockfile-out=deps_base.lock --base
   artifacts:
     when: always
     expire_in: 2d
@@ -232,7 +232,7 @@ quality:sonarqube-check:
       - export PATH=$PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/bin
       - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/lib
   script:
-      - conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-debug-shared --build missing --lockfile=deps_base.lock --lockfile-out=Debug.lock
+      - conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-debug --build missing --lockfile=deps_base.lock --lockfile-out=Debug.lock
       - conan install . --lockfile=Debug.lock --build=missing -g VirtualRunEnv
       - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -G "Unix Makefiles"
       - source build/Debug/generators/conanrun.sh

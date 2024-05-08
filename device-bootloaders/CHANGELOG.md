@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
-## [Unreleased] - 2024-04-30
+## [Unreleased] - 2024-05-08
 ### Added
 ### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage
