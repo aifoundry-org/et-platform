@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fixes of pipeline
+- Changed Debug to release in sonarqube
 ### Deprecated
 ### Removed
 ### Fixed
