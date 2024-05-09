@@ -1,17 +1,17 @@
 include:
-  - project: software/gitlab-ci-common
+  - project: esperantotech/software/gitlab-ci-common
     ref: 62dd746e59efef47d61463c22bc84254e1437ebe
     file:
       - pods/nano-pod.yaml
       - jobs/generic-k8s-job.yaml
       - rules/generic-workflow-conan.yaml
 
-  - project: software/gitlab-ci-common
+  - project: esperantotech/software/gitlab-ci-common
     ref: master
     file:
       - jobs/conan-jobs.yaml
 
-  - project: software/sw-platform
+  - project: esperantotech/software/sw-platform
     ref: develop/system-sw
     file:
       - gitlab-ci/system-sw/misc/verify-merge-request.yaml
