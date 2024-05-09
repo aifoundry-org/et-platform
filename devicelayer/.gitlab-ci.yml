@@ -133,8 +133,9 @@ smoke_tests:conan:sysemu:
       sudo apt install ninja-build
       conan remote disable conan-tmp
       conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER}-shared -o deviceLayer:with_tests=True --build=missing --lockfile=deps_base.lock --lockfile-out=${BUILD_TYPE}.lock
-      conan install . --lockfile=${BUILD_TYPE}.lock --build=missing
+      conan install . --lockfile=${BUILD_TYPE}.lock --build=missing -g VirtualRunEnv
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      source build/${BUILD_TYPE}/generators/conanrun.sh
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}/tests/integration
       ctest --output-on-failure

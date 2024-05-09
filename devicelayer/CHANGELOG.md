@@ -6,11 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-## [Unreleased] - 2024-08-05
+## [Unreleased] - 2024-05-09
 ### Added
 ### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fixes of pipeline
 - Changed Debug to release in sonarqube
+- Fixed LD_LIBRARY_PATH problem
 ### Deprecated
 ### Removed
 ### Fixed
