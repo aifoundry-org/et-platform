@@ -102,6 +102,26 @@ clang-format:
       git fetch origin master
       git clang-format --diff origin/master -- * | grep -e "clang-format did not modify any files$" -e "^no modified files to format$"
 
+####
+
+capture-graph:
+  extends:
+    - .template_job
+    - .pod_medium
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: .pre
+  rules:
+    - *release_or_development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      conan remote disable conan-tmp
+      conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build=missing --lockfile-out=deps_base.lock --base
+  artifacts:
+    when: always
+    expire_in: 2d
+    paths:
+      - deps_base.lock
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -168,6 +188,54 @@ build:conan:
       - artifact: conan/build_pipeline.yml
         job: generate_build:conan
     strategy: depend
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+quality:sonarqube-check:
+  stage: build
+  extends:
+    - .template_job
+    - .pod_medium
+    - .template-conan-linux-ubuntu22.04-gcc11
+  needs:
+    - capture-graph
+  rules:
+    - *release_or_development_job_rule
+  tags:
+    - k8s
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
+    GIT_SUBMODULE_DEPTH: 1
+    GIT_SUBMODULE_STRATEGY: recursive
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
+    SONAR_BUILD_WRAPPER_URL: "https://sc-sonarq01.esperanto.ai/static/cpp"
+    SONAR_SCANNER_URL: "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli"
+    SONAR_SCANNER_ARCHIVE_NAME: "sonar-scanner-cli-4.8.0.2856-linux.zip"
+    SONAR_SCANNER_UNZIPED_NAME: "sonar-scanner-4.8.0.2856-linux"
+    SONAR_BUILD_WRAPPER: "build-wrapper-linux-x86"
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  before_script:
+      - sudo apt-get update -qq
+      - sudo apt-get install -qq -y --no-install-recommends zip unzip
+      - wget ${SONAR_BUILD_WRAPPER_URL}/${SONAR_BUILD_WRAPPER}.zip
+      - unzip ${SONAR_BUILD_WRAPPER}.zip
+      - wget ${SONAR_SCANNER_URL}/${SONAR_SCANNER_ARCHIVE_NAME}
+      - unzip ${SONAR_SCANNER_ARCHIVE_NAME}
+      - export PATH=$PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/bin
+      - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/lib
+  script:
+      - conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build missing --lockfile=deps_base.lock --lockfile-out=Release.lock
+      - conan install . --lockfile=Release.lock --build=missing -g VirtualRunEnv
+      - cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -G "Unix Makefiles"
+      - source build/Release/generators/conanrun.sh
+      - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build/Release all -j ${CPU_COUNT}
+      - sonar-scanner
 
 ###############################################################################
 ###############################################################################

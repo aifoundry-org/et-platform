@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [[_TOC_]]
 
 
+## [Unreleased] - 2024-05-09
+### Added
+### Changed
+- [SW-20745] (CI) Added quality:sonarqube-check stage
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [Unreleased]
 ### Added
 ### Changed
