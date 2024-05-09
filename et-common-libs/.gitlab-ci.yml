@@ -18,7 +18,7 @@ include:
       - jobs/conan-jobs.yaml
 
   - project: esperantotech/software/sw-platform
-    ref: develop/system-sw
+    ref: shankar/gitlab-ci 
     file:
       - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
@@ -33,10 +33,8 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: develop/system-sw
+  SW_PLATFORM_BRANCH: shankar/gitlab-ci
   PIPELINE_CI_SUBPROJECT: et-common-libs
-  TRIG_ON_TAGS_PUSH: 'true'
-  EXTRA_OPTION_SUBPROJECT: $CI_PIPELINE_SOURCE
 
 # Only run job in these cases:
 # - if it's a tag pipeline
@@ -103,11 +101,9 @@ create-sw-platform-branch:
   stage: generate_build
   needs:
     - job: verify_project_changes
-      optional: true
     - job: clang-format
-      optional: true
   rules:
-    - *release_or_development_job_rule
+    - *development_job_rule
 
 generate_build:conan:
   extends:
@@ -144,7 +140,7 @@ create-sw-platform-trigger:
   needs:
     - create-sw-platform-branch
   rules:
-    - *release_or_development_job_rule
+    - *development_job_rule
 
 build:conan:
   extends:
@@ -171,7 +167,7 @@ tests:integration-repo:
     - create-sw-platform-trigger
     - build:conan
   rules:
-    - *release_or_development_job_rule
+    - *development_job_rule
   trigger:
     strategy: depend
     include:
