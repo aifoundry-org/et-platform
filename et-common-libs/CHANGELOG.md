@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 ### Security
 
+## [Unreleased] - 2024-05-09
+### Added
+### Changed
+- [SW-20745] (CI) Added quality:sonarqube-check stage
+### Deprecated
+### Removed
+### Fixed
+### Security
+
 ## [0.22.0] - 2024-01-30
 ### Added
 - [SW-19066] Add system calls for flushing entire L1 and L2
