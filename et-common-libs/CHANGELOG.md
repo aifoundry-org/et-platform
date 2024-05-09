@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage
+- Changed Ubuntu image from 18 to 22
 ### Deprecated
 ### Removed
 ### Fixed
