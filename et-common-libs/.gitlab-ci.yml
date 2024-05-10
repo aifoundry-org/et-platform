@@ -18,7 +18,7 @@ include:
       - jobs/conan-jobs.yaml
 
   - project: esperantotech/software/sw-platform
-    ref: shankar/gitlab-ci 
+    ref: develop/system-sw
     file:
       - gitlab-ci/system-sw/misc/verify-merge-request.yaml
 
@@ -33,7 +33,7 @@ default:
 
 variables:
   # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
-  SW_PLATFORM_BRANCH: shankar/gitlab-ci
+  SW_PLATFORM_BRANCH: develop/system-sw
   PIPELINE_CI_SUBPROJECT: et-common-libs
 
 # Only run job in these cases:
