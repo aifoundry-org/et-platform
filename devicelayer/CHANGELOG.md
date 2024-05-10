@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fixes of pipeline
 - Changed Debug to release in sonarqube
 - Fixed LD_LIBRARY_PATH problem
-- Change Ubuntu from 18 to 22
+- Change Ubuntu from 18 to 22 and fix
 ### Deprecated
 ### Removed
 ### Fixed
