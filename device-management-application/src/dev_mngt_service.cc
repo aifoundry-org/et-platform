@@ -2412,7 +2412,13 @@ int main(int argc, char** argv) {
       }
 
       if (std::stoul(optarg) == DM_CMD::DM_CMD_SET_VMIN_LUT) {
-        vminLutFileName = argv[optind];
+        // Check if the file exists
+        if (fs::exists(argv[optind])) {
+          vminLutFileName = argv[optind];
+        } else {
+          DM_LOG(FATAL) << "Error: File '" << argv[optind] << "' does not exist.\n" << std::endl;
+          return -EINVAL;
+        }
       }
 
       break;

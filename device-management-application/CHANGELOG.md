@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [CI] updated docker to ubuntu 22.04
+- Handling error in case input file is invalid for VMIN_LUT
 ### Deprecated
 ### Removed
 ### Fixed
