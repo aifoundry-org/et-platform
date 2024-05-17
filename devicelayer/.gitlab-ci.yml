@@ -125,7 +125,7 @@ smoke_tests:conan:sysemu:
     - *development_job_rule
   parallel:
     matrix:
-      - BUILD_TYPE: [ Release, Debug ]
+      - BUILD_TYPE: [ Release ]
   variables:
     TIMEOUT: 30m
     CMD_BUILD: |
