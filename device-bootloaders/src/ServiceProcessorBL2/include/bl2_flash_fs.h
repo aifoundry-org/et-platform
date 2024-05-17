@@ -294,6 +294,62 @@ uint16_t flash_fs_get_mxn_boot_freq(void);
 */
 uint8_t flash_fs_get_mxn_boot_voltage(void);
 
+/*! \fn int flash_fs_get_minion_freq_volt_min_max_limit(uint8_t *volt_min_limit, uint8_t *volt_max_limit, uint16_t *freq_min_limit, uint16_t *freq_max_limit)
+    \brief This function sets minion voltage and freqeuncy min and max limits from vmin lut.
+    \param volt_min_limit - pointer to variable containing voltage min limit
+    \param volt_max_limit - pointer to variable containing voltage max limit
+    \param freq_min_limit - pointer to variable containing frequency min limit
+    \param freq_max_limit - pointer to variable containing frequency max limit
+    \return status.
+*/
+int flash_fs_get_minion_freq_volt_min_max_limit(uint8_t *volt_min_limit, uint8_t *volt_max_limit,
+                                                uint16_t *freq_min_limit, uint16_t *freq_max_limit);
+
+/*! \fn int flash_fs_get_sram_freq_volt_min_max_limit(uint8_t *volt_min_limit, uint8_t *volt_max_limit, uint16_t *freq_min_limit, uint16_t *freq_max_limit)
+    \brief This function sets sram voltage and freqeuncy min and max limits from vmin lut.
+    \param volt_min_limit - pointer to variable containing voltage min limit
+    \param volt_max_limit - pointer to variable containing voltage max limit
+    \param freq_min_limit - pointer to variable containing frequency min limit
+    \param freq_max_limit - pointer to variable containing frequency max limit
+    \return status.
+*/
+int flash_fs_get_sram_freq_volt_min_max_limit(uint8_t *volt_min_limit, uint8_t *volt_max_limit,
+                                              uint16_t *freq_min_limit, uint16_t *freq_max_limit);
+
+/*! \fn flash_fs_get_minion_voltage_for_freq(uint16_t freq, uint8_t *vmin)
+    \brief This function returns vmin lut minion voltage pair for given frequency.
+    \param freq - input frequency
+    \param vmin - pointer to variable holding output voltage
+    \return status.
+*/
+int flash_fs_get_minion_voltage_for_freq(uint16_t freq, uint8_t *vmin);
+
+/*! \fn flash_fs_get_sram_voltage_for_freq(uint16_t freq, uint8_t *vmin)
+    \brief This function returns vmin lut sram voltage pair for given frequency.
+    \param freq - input frequency
+    \param vmin - pointer to variable holding output voltage
+    \return status.
+*/
+int flash_fs_get_sram_voltage_for_freq(uint16_t freq, uint8_t *vmin);
+
+/*! \fn int flash_fs_get_vmin_lut_minion_next_frequency_point(uint16_t curr_freq, uint16_t max_freq, uint16_t *next_freq)
+    \brief This function next minion frequency point in vmin lut.
+    \param curr_freq - input frequency
+    \param max_freq - max supported frequency
+    \param next_freq - pointer to variable holding output frequency
+    \return status.
+*/
+int flash_fs_get_vmin_lut_minion_next_frequency_point(uint16_t curr_freq, uint16_t max_freq,
+                                                      uint16_t *next_freq);
+
+/*! \fn flash_fs_get_vmin_lut_minion_previous_frequency_point(uint16_t curr_freq, uint16_t *prev_freq)
+    \brief This function previous minion frequency point in vmin lut.
+    \param curr_freq - input frequency
+    \param prev_freq - pointer to variable holding output frequency
+    \return status.
+*/
+int flash_fs_get_vmin_lut_minion_previous_frequency_point(uint16_t curr_freq, uint16_t *prev_freq);
+
 /*! \fn int flash_fs_get_fw_release_rev(char *fw_release_rev)
     \brief This function returns ET-SOC firmware release revision.
     \param fw_release_rev - to get firmware release revision

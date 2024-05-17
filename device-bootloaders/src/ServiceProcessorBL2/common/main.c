@@ -138,7 +138,7 @@ static inline void display_pmic_fw_info(void)
 static void taskMain(void *pvParameters)
 {
     uint64_t minion_shires_mask;
-    int status;
+    int status = STATUS_SUCCESS;
     (void)pvParameters;
 
     // Disable buffering on stdout
@@ -369,10 +369,8 @@ static void taskMain(void *pvParameters)
     DIR_Cache_Size_Init();
 
     /* Set System Boot Voltages - this should be done before bringing up Minions */
-    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_voltages\n");
-    set_system_voltages(flash_fs_get_mnn_boot_voltage(), flash_fs_get_sram_boot_voltage(),
-                        flash_fs_get_noc_boot_voltage(), flash_fs_get_pcl_boot_voltage(),
-                        flash_fs_get_ddr_boot_voltage());
+    Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_boot_voltages\n");
+    set_system_boot_voltages();
 
     // Launch Master Minion Runtime
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Enable_Master_Shire_Threads\n");

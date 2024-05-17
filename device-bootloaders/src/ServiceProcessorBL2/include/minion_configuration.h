@@ -94,21 +94,23 @@
 */
 int Minion_Shire_Update_Voltage(uint8_t voltage);
 
-/*! \fn Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
+/*! \fn Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex)
     \brief This function returns a voltage operating value given
             a freq value
     \param Target Minion Frequency
-    \return Target Minion Voltage
+    \param pointer to output voltage
+    \return status
 */
-int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency);
+int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex);
 
-/*! \fn int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
+/*! \fn int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex)
     \brief This function returns a voltage operating value given
             a freq value
     \param Target Minion Frequency
-    \return Target L2cache Voltage
+    \param pointer to output voltage
+    \return status
 */
-int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency);
+int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex);
 
 /*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
     \brief This function provide support to program the

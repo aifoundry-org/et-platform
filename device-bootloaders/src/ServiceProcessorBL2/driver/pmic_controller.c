@@ -1406,6 +1406,69 @@ int pmic_get_voltage(module_e voltage_type, uint8_t *voltage)
     }
 }
 
+static int pmic_validate_voltage(module_e voltage_type, uint8_t voltage)
+{
+#if !FAST_BOOT
+    uint8_t min_val;
+    uint8_t max_val;
+
+    switch (voltage_type)
+    {
+        case MODULE_DDR:
+            min_val = PMIC_DDR_MIN_VAL;
+            max_val = PMIC_DDR_MAX_VAL;
+            break;
+        case MODULE_L2CACHE:
+            min_val = PMIC_SRM_MIN_VAL;
+            max_val = PMIC_SRM_MAX_VAL;
+            break;
+        case MODULE_MAXION:
+            min_val = PMIC_MXN_MIN_VAL;
+            max_val = PMIC_MXN_MAX_VAL;
+            break;
+        case MODULE_MINION:
+            min_val = PMIC_MNN_MIN_VAL;
+            max_val = PMIC_MNN_MAX_VAL;
+            break;
+        case MODULE_PCIE:
+            min_val = PMIC_PCIE_MIN_VAL;
+            max_val = PMIC_PCIE_MAX_VAL;
+            break;
+        case MODULE_NOC:
+            min_val = PMIC_NOC_MIN_VAL;
+            max_val = PMIC_NOC_MAX_VAL;
+            break;
+        case MODULE_PCIE_LOGIC:
+            min_val = PMIC_PCL_MIN_VAL;
+            max_val = PMIC_PCL_MAX_VAL;
+            break;
+        case MODULE_VDDQLP:
+            min_val = PMIC_VDDQLP_MIN_VAL;
+            max_val = PMIC_VDDQLP_MAX_VAL;
+            break;
+        case MODULE_VDDQ:
+            min_val = PMIC_VDDQ_MIN_VAL;
+            max_val = PMIC_VDDQ_MAX_VAL;
+            break;
+        default: {
+            MESSAGE_ERROR("Error invalid voltage type to validate voltage");
+            return ERROR_PMIC_I2C_INVALID_VOLTAGE_TYPE;
+        }
+    }
+    if ((voltage < min_val) || (voltage > max_val))
+    {
+        MESSAGE_ERROR("Module %d: voltage value 0x%x is out of bounds (min, max)=(0x%x, 0x%x)\n",
+                      voltage_type, voltage, min_val, max_val);
+        return ERROR_PMIC_I2C_INVALID_ARGUMENTS;
+    }
+#else
+    (void)voltage_type;
+    (void)voltage;
+#endif
+
+    return STATUS_SUCCESS;
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -1430,6 +1493,12 @@ int pmic_get_voltage(module_e voltage_type, uint8_t *voltage)
 int pmic_set_voltage(module_e voltage_type, uint8_t voltage)
 {
     uint8_t val;
+
+    int status = pmic_validate_voltage(voltage_type, voltage);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
 
     switch (voltage_type)
     {

@@ -33,6 +33,7 @@
 #include "bl_error_code.h"
 #include "bl2_flash_fs.h"
 #include "etsoc/isa/io.h"
+#include "bl2_main.h"
 
 #include "delays.h"
 #include <string.h>
@@ -181,7 +182,19 @@ int Maxion_Init(uint8_t pllModeUncore, uint8_t pllModeCore)
     int status = 0;
 
     /* Setting the MAXION voltages */
-    Maxion_SetVoltage(flash_fs_get_mxn_boot_voltage());
+    if (Thermal_Pwr_Mgmt_Validate_Vmin_Lut((const char *)&(
+            get_service_processor_bl2_data()
+                ->flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0])) ==
+        STATUS_SUCCESS)
+    {
+        Maxion_SetVoltage(flash_fs_get_mxn_boot_voltage());
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_WARNING,
+                  "Invalid VMIN LUT! System will use predefined default boot voltages!\n");
+        Maxion_SetVoltage(MXN_DEFAULT_BOOT_VOLTAGE);
+    }
 
     Maxion_Reset_Cold_Release();
 

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fix syntax
 ### Deprecated
 ### Removed
+[SW-20904] Remove hardcoded voltage and frequency values and get them from vmin lut
 ### Fixed
 ### Security
 

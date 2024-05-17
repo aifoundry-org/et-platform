@@ -83,13 +83,19 @@ static int32_t asset_svc_getvminlut(char *vmin_lut)
 
 static int32_t asset_svc_setvminlut(const struct device_mgmt_set_vmin_lut_cmd_t *dm_cmd)
 {
-    int status = Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(dm_cmd->vmin_lut.asset);
-    if (status != 0)
+    int status = Thermal_Pwr_Mgmt_Validate_Vmin_Lut(dm_cmd->vmin_lut.asset);
+    if (status != STATUS_SUCCESS)
     {
         return status;
     }
 
-    return flash_fs_set_vmin_lut(dm_cmd->vmin_lut.asset);
+    status = flash_fs_set_vmin_lut(dm_cmd->vmin_lut.asset);
+    if (status == STATUS_SUCCESS)
+    {
+        //Update min/max values in global data
+        status = Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut();
+    }
+    return status;
 }
 
 static int32_t asset_svc_getfruinfo(char *fru_data)

@@ -34,7 +34,7 @@
        get_throttle_residency
        get_power_residency
        set_power_event_cb
-       set_system_voltages
+       set_system_boot_voltages
        Thermal_Pwr_Mgmt_Get_Minion_Temperature
        Thermal_Pwr_Mgmt_Get_System_Temperature
        Thermal_Pwr_Mgmt_Get_Minion_Power
@@ -43,6 +43,8 @@
        Thermal_Pwr_Mgmt_Get_System_Power
        Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats
        Thermal_Pwr_Mgmt_Init_OP_Stats
+       Thermal_Pwr_Mgmt_Validate_Vmin_Lut
+       Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut
 */
 /***********************************************************************/
 #include <math.h>
@@ -64,6 +66,72 @@
 #include "bl2_flash_fs.h"
 #include "service_processor_BL2_data.h"
 
+//Min and max values used to validate VMIN LUT
+#define VMIN_LUT_MNN_MIN_VAL_mV 460
+#define VMIN_LUT_SRM_MIN_VAL_mV 670
+#define VMIN_LUT_NOC_MIN_VAL_mV 485
+#define VMIN_LUT_PCL_MIN_VAL_mV 775
+#define VMIN_LUT_DDR_MIN_VAL_mV 800
+#define VMIN_LUT_MXN_MIN_VAL_mV 600
+
+#define VMIN_LUT_MNN_MIN_VAL_VOLTAGE                                         \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_MNN_MIN_VAL_mV, PMIC_MINION_VOLTAGE_BASE, \
+                          PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_SRM_MIN_VAL_VOLTAGE                                       \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_SRM_MIN_VAL_mV, PMIC_SRAM_VOLTAGE_BASE, \
+                          PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_NOC_MIN_VAL_VOLTAGE                                      \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_NOC_MIN_VAL_mV, PMIC_NOC_VOLTAGE_BASE, \
+                          PMIC_NOC_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_PCL_MIN_VAL_VOLTAGE                                             \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_PCL_MIN_VAL_mV, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
+                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_DDR_MIN_VAL_VOLTAGE                                      \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_DDR_MIN_VAL_mV, PMIC_DDR_VOLTAGE_BASE, \
+                          PMIC_DDR_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_MXN_MIN_VAL_VOLTAGE                                         \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_MXN_MIN_VAL_mV, PMIC_MAXION_VOLTAGE_BASE, \
+                          PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define VMIN_LUT_MNN_MAX_VAL_mV 620
+#define VMIN_LUT_SRM_MAX_VAL_mV 850
+#define VMIN_LUT_NOC_MAX_VAL_mV 600
+#define VMIN_LUT_PCL_MAX_VAL_mV 815
+#define VMIN_LUT_DDR_MAX_VAL_mV 850
+#define VMIN_LUT_MXN_MAX_VAL_mV 850
+
+#define VMIN_LUT_MNN_MAX_VAL_VOLTAGE                                         \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_MNN_MAX_VAL_mV, PMIC_MINION_VOLTAGE_BASE, \
+                          PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_SRM_MAX_VAL_VOLTAGE                                       \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_SRM_MAX_VAL_mV, PMIC_SRAM_VOLTAGE_BASE, \
+                          PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_NOC_MAX_VAL_VOLTAGE                                      \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_NOC_MAX_VAL_mV, PMIC_NOC_VOLTAGE_BASE, \
+                          PMIC_NOC_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_PCL_MAX_VAL_VOLTAGE                                             \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_PCL_MAX_VAL_mV, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
+                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_DDR_MAX_VAL_VOLTAGE                                      \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_DDR_MAX_VAL_mV, PMIC_DDR_VOLTAGE_BASE, \
+                          PMIC_DDR_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define VMIN_LUT_MXN_MAX_VAL_VOLTAGE                                         \
+    PMIC_MILLIVOLT_TO_HEX(VMIN_LUT_MXN_MAX_VAL_mV, PMIC_MAXION_VOLTAGE_BASE, \
+                          PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define VMIN_LUT_MNN_MIN_VAL_FREQUENCY 300
+#define VMIN_LUT_MNN_MAX_VAL_FREQUENCY 800
+#define VMIN_LUT_SRM_MIN_VAL_FREQUENCY 300
+#define VMIN_LUT_SRM_MAX_VAL_FREQUENCY 800
+#define VMIN_LUT_NOC_MIN_VAL_FREQUENCY 300
+#define VMIN_LUT_NOC_MAX_VAL_FREQUENCY 500
+#define VMIN_LUT_PCL_MIN_VAL_FREQUENCY 100
+#define VMIN_LUT_PCL_MAX_VAL_FREQUENCY 2000
+#define VMIN_LUT_DDR_MIN_VAL_FREQUENCY 100
+#define VMIN_LUT_DDR_MAX_VAL_FREQUENCY 2000
+#define VMIN_LUT_MXN_MIN_VAL_FREQUENCY 100
+#define VMIN_LUT_MXN_MAX_VAL_FREQUENCY 2000
+
 volatile struct soc_power_reg_t g_soc_power_reg __attribute__((section(".data")));
 volatile struct pmic_power_reg_t g_pmic_power_reg __attribute__((section(".data")));
 
@@ -83,6 +151,14 @@ static StaticTask_t g_staticTask_ptr;
 static uint64_t power_state_change_time = 0;
 
 static uint64_t mm_state = MM_STATE_IDLE;
+
+struct vmin_lut_limits_t
+{
+    uint16_t mnn_frequency_min_limit;
+    uint16_t mnn_frequency_max_limit;
+    uint8_t mnn_voltage_min_limit;
+    uint8_t mnn_voltage_max_limit;
+};
 
 struct soc_power_reg_t
 {
@@ -104,6 +180,7 @@ struct soc_power_reg_t
     dm_event_isr_callback event_cb;
     power_throttle_state_e power_throttle_state;
     uint8_t active_power_management;
+    struct vmin_lut_limits_t vmin_lut_limits;
 };
 
 struct pmic_power_reg_t
@@ -1575,6 +1652,28 @@ int set_power_event_cb(dm_event_isr_callback event_cb)
     return 0;
 }
 
+int Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut(void)
+{
+    int status = STATUS_SUCCESS;
+    uint8_t volt_min = 0;
+    uint8_t volt_max = 0;
+    uint16_t freq_min = 0;
+    uint16_t freq_max = 0;
+
+    status =
+        flash_fs_get_minion_freq_volt_min_max_limit(&volt_min, &volt_max, &freq_min, &freq_max);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+    g_soc_power_reg.vmin_lut_limits.mnn_voltage_min_limit = volt_min;
+    g_soc_power_reg.vmin_lut_limits.mnn_voltage_max_limit = volt_max;
+    g_soc_power_reg.vmin_lut_limits.mnn_frequency_min_limit = freq_min;
+    g_soc_power_reg.vmin_lut_limits.mnn_frequency_max_limit = freq_max;
+
+    return status;
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -1596,10 +1695,33 @@ int set_power_event_cb(dm_event_isr_callback event_cb)
 ***********************************************************************/
 int init_thermal_pwr_mgmt_service(void)
 {
-    int status = 0;
-
+    int status = STATUS_SUCCESS;
     g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_IDLE;
     g_soc_power_reg.active_power_management = ACTIVE_POWER_MANAGEMENT_TURN_ON;
+
+#if !FAST_BOOT
+    if (Thermal_Pwr_Mgmt_Validate_Vmin_Lut((const char *)&(
+            get_service_processor_bl2_data()
+                ->flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0])) !=
+        STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_WARNING,
+                  "WARNING init_thermal_pwr_mgmt_service: Invalid VMIN LUT, disabling DVFS!\n");
+        g_soc_power_reg.active_power_management = ACTIVE_POWER_MANAGEMENT_TURN_OFF;
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "init_thermal_pwr_mgmt_service: VMIN LUT valid.\n");
+        //Set min/max values from vmin lut to global data
+        if (Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut() != STATUS_SUCCESS)
+        {
+            Log_Write(
+                LOG_LEVEL_WARNING,
+                "\n\nWARNING Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut failed, disabling DVFS!\n\n");
+            g_soc_power_reg.active_power_management = ACTIVE_POWER_MANAGEMENT_TURN_OFF;
+        }
+    }
+#endif
 
     /* Create the power management task - use for throttling and DVFS */
     g_pm_handle = xTaskCreateStatic(thermal_power_task_entry, "TT_TASK", TT_TASK_STACK_SIZE, NULL,
@@ -1660,7 +1782,7 @@ static int set_minion_operating_point(uint16_t new_freq,
                                       struct trace_event_power_status_t *power_status)
 {
     uint8_t hpdpll_mode = 0;
-    uint8_t new_voltage = 0;
+    uint8_t new_voltage_hex = 0;
     int status = SUCCESS;
 
     if (new_freq == (uint16_t)Get_Minion_Frequency())
@@ -1676,13 +1798,16 @@ static int set_minion_operating_point(uint16_t new_freq,
 
     /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
 
-    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_Voltage_Given_Freq(new_freq),
-                                        PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER,
-                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
-
-    if (new_voltage != g_pmic_power_reg.module_voltage.minion)
+    status = Minion_Get_Voltage_Given_Freq(new_freq, &new_voltage_hex);
+    if (status != STATUS_SUCCESS)
     {
-        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage);
+        Log_Write(LOG_LEVEL_ERROR, "Failed to update Minion shire voltage\n");
+        return status;
+    }
+
+    if (new_voltage_hex != g_pmic_power_reg.module_voltage.minion)
+    {
+        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage_hex);
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to update Minion shire voltage\n");
@@ -1690,17 +1815,20 @@ static int set_minion_operating_point(uint16_t new_freq,
         }
 
         /* Update voltage in global register*/
-        g_pmic_power_reg.module_voltage.minion = new_voltage;
+        g_pmic_power_reg.module_voltage.minion = new_voltage_hex;
     }
 
     /* Set L2cache voltage, it is using same clock as minion */
-    new_voltage = PMIC_MILLIVOLT_TO_HEX(Minion_Get_L2Cache_Voltage_Given_Freq(new_freq),
-                                        PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER,
-                                        PMIC_GENERIC_VOLTAGE_DIVIDER);
-
-    if (new_voltage != g_pmic_power_reg.module_voltage.l2_cache)
+    status = Minion_Get_L2Cache_Voltage_Given_Freq(new_freq, &new_voltage_hex);
+    if (status != STATUS_SUCCESS)
     {
-        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_L2CACHE, new_voltage);
+        Log_Write(LOG_LEVEL_ERROR, "Failed to update L2Cache voltage\n");
+        return status;
+    }
+
+    if (new_voltage_hex != g_pmic_power_reg.module_voltage.l2_cache)
+    {
+        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_L2CACHE, new_voltage_hex);
         if (status != STATUS_SUCCESS)
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to update L2Cache voltage\n");
@@ -1708,7 +1836,7 @@ static int set_minion_operating_point(uint16_t new_freq,
         }
 
         /* Update voltage in global register*/
-        g_pmic_power_reg.module_voltage.l2_cache = new_voltage;
+        g_pmic_power_reg.module_voltage.l2_cache = new_voltage_hex;
     }
 
     status = pwr_svc_find_hpdpll_mode(new_freq, &hpdpll_mode);
@@ -1722,10 +1850,11 @@ static int set_minion_operating_point(uint16_t new_freq,
     if (status != STATUS_SUCCESS)
     {
         Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
-        new_voltage = PMIC_MILLIVOLT_TO_HEX(
-            Minion_Get_Voltage_Given_Freq((uint16_t)Get_Minion_Frequency()),
-            PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER);
-        if (STATUS_SUCCESS != Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage))
+
+        status = Minion_Get_Voltage_Given_Freq((uint16_t)Get_Minion_Frequency(), &new_voltage_hex);
+
+        if ((status != STATUS_SUCCESS) && (STATUS_SUCCESS != Thermal_Pwr_Mgmt_Set_Validate_Voltage(
+                                                                 MODULE_MINION, new_voltage_hex)))
         {
             Log_Write(LOG_LEVEL_ERROR, "Failed to update shire voltage\n");
         }
@@ -1734,7 +1863,7 @@ static int set_minion_operating_point(uint16_t new_freq,
     Update_Minion_Frequency_Global_Reg(new_freq);
 
     power_status->tgt_freq = new_freq;
-    power_status->tgt_voltage = new_voltage;
+    power_status->tgt_voltage = new_voltage_hex;
 
     Trace_Power_Status(Trace_Get_SP_CB(), power_status);
 
@@ -1754,7 +1883,7 @@ static int set_minion_operating_point(uint16_t new_freq,
 *
 *   DESCRIPTION
 *
-*       This function will algorithmically lower down frequency/voltage
+*       This function will lower down frequency/voltage by reading from vmin lut
 *       of the Minion Shire to compensate for Over-Temperature OR
 *       Over-Power operating regions
 *
@@ -1769,11 +1898,17 @@ static int set_minion_operating_point(uint16_t new_freq,
 ***********************************************************************/
 static int reduce_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
-    /* Compute delta freq to compensate for delta Power */
-    uint16_t new_freq = (uint16_t)(
-        ((Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE) < MINION_FREQUENCY_MIN_LIMIT) ?
-            MINION_FREQUENCY_MIN_LIMIT :
-            (Get_Minion_Frequency() - MINION_FREQUENCY_STEP_VALUE));
+    uint16_t minion_curr_frequency = (uint16_t)Get_Minion_Frequency();
+    uint16_t new_freq;
+
+    int status =
+        flash_fs_get_vmin_lut_minion_previous_frequency_point(minion_curr_frequency, &new_freq);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "Failed to find input frequency in vmin lut, new frequency remains unchanged.\n");
+        new_freq = minion_curr_frequency;
+    }
 
     /* Set the operating point*/
     return set_minion_operating_point(new_freq, power_status);
@@ -1787,7 +1922,7 @@ static int reduce_minion_operating_point(struct trace_event_power_status_t *powe
 *
 *   DESCRIPTION
 *
-*       This function will algorithmically increase frequency/voltage
+*       This function will increase frequency/voltage by reading from vmin lut
 *       of the Minion Shire to hit most efficient operating point
 *
 *   INPUTS
@@ -1801,11 +1936,18 @@ static int reduce_minion_operating_point(struct trace_event_power_status_t *powe
 ***********************************************************************/
 static int increase_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
-    /* Compute delta freq to compensate for delta Power */
-    uint16_t new_freq = (uint16_t)(
-        ((Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE) > MINION_FREQUENCY_MAX_LIMIT) ?
-            MINION_FREQUENCY_MAX_LIMIT :
-            (Get_Minion_Frequency() + MINION_FREQUENCY_STEP_VALUE));
+    uint16_t minion_curr_frequency = (uint16_t)Get_Minion_Frequency();
+    uint16_t minion_max_frequency = g_soc_power_reg.vmin_lut_limits.mnn_frequency_max_limit;
+    uint16_t new_freq;
+
+    int status = flash_fs_get_vmin_lut_minion_next_frequency_point(minion_curr_frequency,
+                                                                   minion_max_frequency, &new_freq);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR,
+                  "Failed to find input frequency in vmin lut, new frequency remains unchanged.\n");
+        new_freq = minion_curr_frequency;
+    }
 
     /* Set the operating point*/
     return set_minion_operating_point(new_freq, power_status);
@@ -1861,11 +2003,17 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     uint8_t current_temperature = DEF_SYS_TEMP_VALUE;
     uint16_t soc_pwr_10mW = 0;
     struct trace_event_power_status_t power_status = { 0 };
-    int32_t new_voltage = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY);
     int status = STATUS_SUCCESS;
+    uint8_t new_voltage_hex;
+    uint16_t new_voltage_mv;
+
+    status = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY, &new_voltage_hex);
+    new_voltage_mv = (uint16_t)(PMIC_HEX_TO_MILLIVOLT(new_voltage_hex, PMIC_MINION_VOLTAGE_BASE,
+                                                      PMIC_MINION_VOLTAGE_MULTIPLIER,
+                                                      PMIC_GENERIC_VOLTAGE_DIVIDER));
 
     /* update module frequency */
-    if (SAFE_STATE_FREQUENCY != Get_Minion_Frequency())
+    if ((status != STATUS_SUCCESS) && (SAFE_STATE_FREQUENCY != Get_Minion_Frequency()))
     {
         /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
         status = Thermal_Pwr_Set_Module_Frequency(PLL_ID_MINION_PLL, SAFE_STATE_FREQUENCY,
@@ -1875,7 +2023,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
             Log_Write(LOG_LEVEL_ERROR, "Failed to go to safe state!\n");
         }
 
-        if (new_voltage != g_soc_power_reg.asic_voltage.minion)
+        if (new_voltage_mv != g_soc_power_reg.asic_voltage.minion)
         {
             //NOSONAR Minion_Shire_Voltage_Update(new_voltage);
         }
@@ -1895,7 +2043,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
             {
                 FILL_POWER_STATUS(power_status, throttle_state, power_state,
                                   POWER_10MW_TO_W(soc_pwr_10mW), current_temperature,
-                                  (uint16_t)SAFE_STATE_FREQUENCY, (uint16_t)new_voltage)
+                                  (uint16_t)SAFE_STATE_FREQUENCY, new_voltage_mv)
 
                 Trace_Power_Status(Trace_Get_SP_CB(), &power_status);
             }
@@ -2080,7 +2228,8 @@ void power_throttling(power_throttle_state_e throttle_state)
         {
             case POWER_THROTTLE_STATE_POWER_UP: {
                 if ((POWER_10MW_TO_MW(avg_pwr_10mW) > tdp_level_mW) ||
-                    (Get_Minion_Frequency() == MINION_FREQUENCY_MAX_LIMIT))
+                    (Get_Minion_Frequency() ==
+                     g_soc_power_reg.vmin_lut_limits.mnn_frequency_max_limit))
                 {
                     throttle_condition_met = 1;
                 }
@@ -2090,7 +2239,7 @@ void power_throttling(power_throttle_state_e throttle_state)
             case POWER_THROTTLE_STATE_POWER_SAFE:
                 if ((POWER_10MW_TO_MW(avg_pwr_10mW) <
                      UPPER_POWER_THRESHOLD_GUARDBAND(tdp_level_mW)) ||
-                    (Get_Minion_Frequency() == MINION_FREQUENCY_MIN_LIMIT))
+                    (Get_Minion_Frequency() == SAFE_STATE_FREQUENCY))
                 {
                     throttle_condition_met = 1;
                 }
@@ -2412,30 +2561,8 @@ void dump_power_globals(void)
         g_soc_power_reg.asic_voltage.vddq);
 }
 
-/************************************************************************
-*
-*   FUNCTION
-*
-*       set_system_voltages
-*
-*   DESCRIPTION
-*
-*       Set system voltages
-*
-*   INPUTS
-*
-*       mnn_v       Minion Voltage value
-*       sram_v      SRAM Voltage value
-*       noc_v       NOC Voltage value
-*       pcl_v       PCL Voltage value
-*       ddr_v       DDR Voltage value
-*
-*   OUTPUTS
-*
-*       None
-*
-***********************************************************************/
-void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v, uint8_t ddr_v)
+static void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v,
+                                uint8_t ddr_v)
 {
     uint8_t voltage = 0;
     /* Setting the Neigh voltages */
@@ -2467,6 +2594,61 @@ void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t p
     US_DELAY_GENERIC(5000)
     pmic_get_voltage(MODULE_DDR, &voltage);
     Log_Write(LOG_LEVEL_INFO, "Overriding DDR    -> 0x%X (0x%X)\n", ddr_v, voltage);
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
+*       set_system_boot_voltages
+*
+*   DESCRIPTION
+*
+*       Set system boot voltages for minion, sram, noc, pcl, ddr, and maxion
+*
+*   INPUTS
+*
+*       None
+*
+*   OUTPUTS
+*
+*       None
+*
+***********************************************************************/
+void set_system_boot_voltages(void)
+{
+    bool vmin_lut_validated = false;
+
+#if !FAST_BOOT
+    //Validate VMIN LUT before reading boot values
+    if (Thermal_Pwr_Mgmt_Validate_Vmin_Lut((const char *)&(
+            get_service_processor_bl2_data()
+                ->flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0])) ==
+        STATUS_SUCCESS)
+    {
+        vmin_lut_validated = true;
+    }
+    else
+    {
+        vmin_lut_validated = false;
+        Log_Write(LOG_LEVEL_WARNING, "Invalid VMIN LUT! SOC will be booted with safe voltages!\n");
+    }
+#else
+    vmin_lut_validated = true;
+#endif
+
+    if (vmin_lut_validated)
+    {
+        set_system_voltages(flash_fs_get_mnn_boot_voltage(), flash_fs_get_sram_boot_voltage(),
+                            flash_fs_get_noc_boot_voltage(), flash_fs_get_pcl_boot_voltage(),
+                            flash_fs_get_ddr_boot_voltage());
+    }
+    else
+    {
+        set_system_voltages(MNN_DEFAULT_BOOT_VOLTAGE, SRM_DEFAULT_BOOT_VOLTAGE,
+                            NOC_DEFAULT_BOOT_VOLTAGE, PCL_DEFAULT_BOOT_VOLTAGE,
+                            DDR_DEFAULT_BOOT_VOLTAGE);
+    }
 }
 
 /************************************************************************
@@ -3061,80 +3243,269 @@ void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state)
     mm_state = state;
 }
 
-static int validate_vmin_lut_freq_volt(uint16_t freq, uint16_t freq_step, uint8_t voltage_enc,
-                                       uint8_t voltage_min, uint8_t voltage_max)
+static int validate_vmin_lut_values_unset(uint16_t freq, uint8_t voltage)
 {
-    if (freq % freq_step != 0)
+    if ((freq == 0) && (voltage != 0))
     {
         return THERMAL_PWR_MGMT_INVALID_FREQ;
     }
-    if (((voltage_enc == 0) || ((voltage_enc >= voltage_min) || (voltage_enc <= voltage_max))) ==
-        false)
+
+    if ((freq != 0) && (voltage == 0))
     {
         return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
     }
 
-    return 0;
+    return STATUS_SUCCESS;
 }
 
-int Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(const char *vmin_lut)
+static int validate_vmin_lut_voltage_value_bounds(uint8_t voltage, uint8_t voltage_min,
+                                                  uint8_t voltage_max)
 {
-    int status = 0;
+    if (((voltage == 0) || ((voltage >= voltage_min) && (voltage <= voltage_max))) == false)
+    {
+        return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+static int validate_vmin_lut_frequency_value_bounds(uint16_t freq, uint16_t freq_min,
+                                                    uint16_t freq_max)
+{
+    if (((freq == 0) || ((freq >= freq_min) && (freq <= freq_max))) == false)
+    {
+        return THERMAL_PWR_MGMT_INVALID_FREQ;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+static int validate_vmin_lut_values_bounds_or_unset(uint16_t freq, uint16_t freq_min,
+                                                    uint16_t freq_max, uint8_t voltage,
+                                                    uint8_t voltage_min, uint8_t voltage_max)
+{
+    int status;
+
+    status = validate_vmin_lut_values_unset(freq, voltage);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    status = validate_vmin_lut_voltage_value_bounds(voltage, voltage_min, voltage_max);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    status = validate_vmin_lut_frequency_value_bounds(freq, freq_min, freq_max);
+    if (status != STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+static int vmin_lut_validate_values(const char *vmin_lut)
+{
+    int status = STATUS_SUCCESS;
+
+    if (vmin_lut == NULL)
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
     const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *lutEntry =
         (const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *)vmin_lut;
+
+    //validate that first entry is non-zero value
+    if ((lutEntry->mnn.volt == 0) || (lutEntry->sram.volt == 0) || (lutEntry->noc.volt == 0) ||
+        (lutEntry->pcl.volt == 0) || (lutEntry->ddr.volt == 0) || (lutEntry->mxn.volt == 0))
+    {
+        return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+    }
+    if ((lutEntry->mnn.freq == 0) || (lutEntry->sram.freq == 0) || (lutEntry->noc.freq == 0) ||
+        (lutEntry->pcl.freq == 0) || (lutEntry->ddr.freq == 0) || (lutEntry->mxn.freq == 0))
+    {
+        return THERMAL_PWR_MGMT_INVALID_FREQ;
+    }
+
     for (uint32_t i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++, lutEntry++)
     {
         //validate minion values
-        status = validate_vmin_lut_freq_volt(lutEntry->mnn.freq, THROTTLE_FREQUENCY_STEP,
-                                             lutEntry->mnn.volt, PMIC_MNN_MIN_VAL,
-                                             PMIC_MNN_MAX_VAL);
-        if (status != 0)
+        status = validate_vmin_lut_values_bounds_or_unset(
+            lutEntry->mnn.freq, VMIN_LUT_MNN_MIN_VAL_FREQUENCY, VMIN_LUT_MNN_MAX_VAL_FREQUENCY,
+            lutEntry->mnn.volt, VMIN_LUT_MNN_MIN_VAL_VOLTAGE, VMIN_LUT_MNN_MAX_VAL_VOLTAGE);
+        if (status != STATUS_SUCCESS)
         {
             break;
         }
 
         //validate sram values
-        status = validate_vmin_lut_freq_volt(lutEntry->sram.freq, THROTTLE_FREQUENCY_STEP,
-                                             lutEntry->sram.volt, PMIC_SRM_MIN_VAL,
-                                             PMIC_SRM_MAX_VAL);
-        if (status != 0)
+        status = validate_vmin_lut_values_bounds_or_unset(
+            lutEntry->sram.freq, VMIN_LUT_SRM_MIN_VAL_FREQUENCY, VMIN_LUT_SRM_MAX_VAL_FREQUENCY,
+            lutEntry->sram.volt, VMIN_LUT_SRM_MIN_VAL_VOLTAGE, VMIN_LUT_SRM_MAX_VAL_VOLTAGE);
+        if (status != STATUS_SUCCESS)
         {
             break;
         }
 
         //validate noc values
-        status = validate_vmin_lut_freq_volt(lutEntry->noc.freq, THROTTLE_FREQUENCY_STEP,
-                                             lutEntry->noc.volt, PMIC_NOC_MIN_VAL,
-                                             PMIC_NOC_MAX_VAL);
-        if (status != 0)
+        status = validate_vmin_lut_values_bounds_or_unset(
+            lutEntry->noc.freq, VMIN_LUT_NOC_MIN_VAL_FREQUENCY, VMIN_LUT_NOC_MAX_VAL_FREQUENCY,
+            lutEntry->noc.volt, VMIN_LUT_NOC_MIN_VAL_VOLTAGE, VMIN_LUT_NOC_MAX_VAL_VOLTAGE);
+        if (status != STATUS_SUCCESS)
         {
             break;
         }
 
         //validate pcl values
-        status = validate_vmin_lut_freq_volt(lutEntry->pcl.freq, 1, lutEntry->pcl.volt,
-                                             PMIC_PCL_MIN_VAL, PMIC_PCL_MAX_VAL);
-        if (status != 0)
+        status = validate_vmin_lut_values_bounds_or_unset(
+            lutEntry->pcl.freq, VMIN_LUT_PCL_MIN_VAL_FREQUENCY, VMIN_LUT_PCL_MAX_VAL_FREQUENCY,
+            lutEntry->pcl.volt, VMIN_LUT_PCL_MIN_VAL_VOLTAGE, VMIN_LUT_PCL_MAX_VAL_VOLTAGE);
+        if (status != STATUS_SUCCESS)
         {
             break;
         }
 
         //validate ddr values
-        status = validate_vmin_lut_freq_volt(lutEntry->ddr.freq, 1, lutEntry->ddr.volt,
-                                             PMIC_DDR_MIN_VAL, PMIC_DDR_MAX_VAL);
-        if (status != 0)
+        status = validate_vmin_lut_values_bounds_or_unset(
+            lutEntry->ddr.freq, VMIN_LUT_DDR_MIN_VAL_FREQUENCY, VMIN_LUT_DDR_MAX_VAL_FREQUENCY,
+            lutEntry->ddr.volt, VMIN_LUT_DDR_MIN_VAL_VOLTAGE, VMIN_LUT_DDR_MAX_VAL_VOLTAGE);
+        if (status != STATUS_SUCCESS)
         {
             break;
         }
 
         //validate maxion values
-        status = validate_vmin_lut_freq_volt(lutEntry->mxn.freq, 1, lutEntry->mxn.volt,
-                                             PMIC_MXN_MIN_VAL, PMIC_MXN_MAX_VAL);
-        if (status != 0)
+        status = validate_vmin_lut_values_bounds_or_unset(
+            lutEntry->mxn.freq, VMIN_LUT_MXN_MIN_VAL_FREQUENCY, VMIN_LUT_MXN_MAX_VAL_FREQUENCY,
+            lutEntry->mxn.volt, VMIN_LUT_MXN_MIN_VAL_VOLTAGE, VMIN_LUT_MXN_MAX_VAL_VOLTAGE);
+        if (status != STATUS_SUCCESS)
         {
             break;
         }
     }
 
+    return status;
+}
+
+static int check_if_sorted_ignore_trailing_zero_values(uint8_t curr_volt, uint8_t prev_volt,
+                                                       uint16_t curr_freq, uint16_t prev_freq,
+                                                       bool *trailing_zero_present)
+{
+    if ((prev_volt == 0) && (*trailing_zero_present == true))
+    {
+        return STATUS_SUCCESS;
+    }
+    else
+    {
+        *trailing_zero_present = false;
+    }
+    if (curr_volt > prev_volt)
+    {
+        return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+    }
+    if (curr_freq >= prev_freq)
+    {
+        return THERMAL_PWR_MGMT_INVALID_FREQ;
+    }
+    return STATUS_SUCCESS;
+}
+
+static int vmin_lut_validate_if_sorted(const char *vmin_lut)
+{
+    int status = STATUS_SUCCESS;
+    bool mnn_trailing_zero_elems_present = true;
+    bool srm_trailing_zero_elems_present = true;
+    bool noc_trailing_zero_elems_present = true;
+    bool pcl_trailing_zero_elems_present = true;
+    bool ddr_trailing_zero_elems_present = true;
+    bool mxn_trailing_zero_elems_present = true;
+
+    if (vmin_lut == NULL)
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *lutEntry =
+        (const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *)(vmin_lut +
+                                                    (NUMBER_OF_VMIN_LUT_POINTS - 1) *
+                                                        sizeof(ESPERANTO_VMIN_LUT_SINGLE_POINT_t));
+
+    //validate if voltage and frequency values are sorted in ascending order ignoring trailing zero values
+    //and if frequency values are unique
+    const ESPERANTO_VMIN_LUT_SINGLE_POINT_t *prevLutEntry = lutEntry;
+    lutEntry--;
+    for (uint32_t i = 0; i < NUMBER_OF_VMIN_LUT_POINTS - 1; i++, lutEntry--)
+    {
+        //minion
+        status = check_if_sorted_ignore_trailing_zero_values(
+            lutEntry->mnn.volt, prevLutEntry->mnn.volt, lutEntry->mnn.freq, prevLutEntry->mnn.freq,
+            &mnn_trailing_zero_elems_present);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        //sram
+        status = check_if_sorted_ignore_trailing_zero_values(
+            lutEntry->sram.volt, prevLutEntry->sram.volt, lutEntry->sram.freq,
+            prevLutEntry->sram.freq, &srm_trailing_zero_elems_present);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        //noc
+        status = check_if_sorted_ignore_trailing_zero_values(
+            lutEntry->noc.volt, prevLutEntry->noc.volt, lutEntry->noc.freq, prevLutEntry->noc.freq,
+            &noc_trailing_zero_elems_present);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        //pcl
+        status = check_if_sorted_ignore_trailing_zero_values(
+            lutEntry->pcl.volt, prevLutEntry->pcl.volt, lutEntry->pcl.freq, prevLutEntry->pcl.freq,
+            &pcl_trailing_zero_elems_present);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        //ddr
+        status = check_if_sorted_ignore_trailing_zero_values(
+            lutEntry->ddr.volt, prevLutEntry->ddr.volt, lutEntry->ddr.freq, prevLutEntry->ddr.freq,
+            &ddr_trailing_zero_elems_present);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        //maxion
+        status = check_if_sorted_ignore_trailing_zero_values(
+            lutEntry->mxn.volt, prevLutEntry->mxn.volt, lutEntry->mxn.freq, prevLutEntry->mxn.freq,
+            &mxn_trailing_zero_elems_present);
+        if (status != STATUS_SUCCESS)
+        {
+            return status;
+        }
+
+        prevLutEntry = lutEntry;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+int Thermal_Pwr_Mgmt_Validate_Vmin_Lut(const char *vmin_lut)
+{
+    int status = STATUS_SUCCESS;
+    status = vmin_lut_validate_if_sorted(vmin_lut);
+    if (status == STATUS_SUCCESS)
+    {
+        status = vmin_lut_validate_values(vmin_lut);
+    }
     return status;
 }

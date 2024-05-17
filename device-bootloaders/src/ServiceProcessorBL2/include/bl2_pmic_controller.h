@@ -186,7 +186,7 @@ typedef struct imageMetadata_
                           PMIC_GENERIC_VOLTAGE_DIVIDER)
 
 #define PCL_MIN_VAL_mV (731.25) // 0x15
-#define PCL_MAX_VAL_mV (800)    // 0x20
+#define PCL_MAX_VAL_mV (815)    // 0x22
 #define PMIC_PCL_MIN_VAL                                                \
     PMIC_MILLIVOLT_TO_HEX(PCL_MIN_VAL_mV, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
                           PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
@@ -220,6 +220,33 @@ typedef struct imageMetadata_
 #define PMIC_MNN_MAX_VAL                                            \
     PMIC_MILLIVOLT_TO_HEX(MNN_MAX_VAL_mV, PMIC_MINION_VOLTAGE_BASE, \
                           PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define PCIE_MIN_VAL_mV (1400) // 0x40
+#define PCIE_MAX_VAL_mV (1525) // 0x4A
+#define PMIC_PCIE_MIN_VAL                                                                        \
+    PMIC_MILLIVOLT_TO_HEX(PCIE_MIN_VAL_mV, PMIC_PCIE_VOLTAGE_BASE, PMIC_PCIE_VOLTAGE_MULTIPLIER, \
+                          PMIC_PCIE_VOLTAGE_DIVIDER)
+#define PMIC_PCIE_MAX_VAL                                                                        \
+    PMIC_MILLIVOLT_TO_HEX(PCIE_MAX_VAL_mV, PMIC_PCIE_VOLTAGE_BASE, PMIC_PCIE_VOLTAGE_MULTIPLIER, \
+                          PMIC_PCIE_VOLTAGE_DIVIDER)
+
+#define VDDQLP_MIN_VAL_mV (580) // 0x1C
+#define VDDQLP_MAX_VAL_mV (660) // 0x29
+#define PMIC_VDDQLP_MIN_VAL                                            \
+    PMIC_MILLIVOLT_TO_HEX(VDDQLP_MIN_VAL_mV, PMIC_VDDQLP_VOLTAGE_BASE, \
+                          PMIC_VDDQLP_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_VDDQLP_MAX_VAL                                            \
+    PMIC_MILLIVOLT_TO_HEX(VDDQLP_MAX_VAL_mV, PMIC_VDDQLP_VOLTAGE_BASE, \
+                          PMIC_VDDQLP_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+
+#define VDDQ_MIN_VAL_mV (1000) // 0x4B
+#define VDDQ_MAX_VAL_mV (1120) // 0x57
+#define PMIC_VDDQ_MIN_VAL                                                                        \
+    PMIC_MILLIVOLT_TO_HEX(VDDQ_MIN_VAL_mV, PMIC_VDDQ_VOLTAGE_BASE, PMIC_VDDQ_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PMIC_VDDQ_MAX_VAL                                                                        \
+    PMIC_MILLIVOLT_TO_HEX(VDDQ_MAX_VAL_mV, PMIC_VDDQ_VOLTAGE_BASE, PMIC_VDDQ_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
 
 /*! \def EXTRACT_BYTE(byte_idx, org_val)
     \brief Macro definition to extract the specified byte from a variable.

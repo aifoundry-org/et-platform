@@ -2219,4 +2219,188 @@ uint8_t flash_fs_get_mxn_boot_voltage(void)
     return sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mxn.volt;
 }
 
+int flash_fs_get_minion_freq_volt_min_max_limit(uint8_t *volt_min_limit, uint8_t *volt_max_limit,
+                                                uint16_t *freq_min_limit, uint16_t *freq_max_limit)
+{
+    //Check argumets
+    if ((freq_min_limit == NULL) || (freq_max_limit == NULL) || (volt_min_limit == NULL) ||
+        (volt_max_limit == NULL))
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    //First element must be non-zero value, i.e. vmin lut should not be empty
+    if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.freq == 0)
+    {
+        return THERMAL_PWR_MGMT_INVALID_FREQ;
+    }
+    if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt == 0)
+    {
+        return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+    }
+
+    *freq_min_limit = sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.freq;
+    *freq_max_limit = sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.freq;
+    *volt_min_limit = sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt;
+    *volt_max_limit = sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].mnn.volt;
+
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        //Find  min and max frequency
+        uint16_t curr_freq =
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.freq;
+        if ((curr_freq < *freq_min_limit) && (curr_freq != 0))
+        {
+            *freq_min_limit = curr_freq;
+        }
+        if (curr_freq > *freq_max_limit)
+        {
+            *freq_max_limit = curr_freq;
+        }
+
+        //Find  min and max voltage
+        uint8_t curr_volt =
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.volt;
+        if ((curr_volt < *volt_min_limit) && (curr_volt != 0))
+        {
+            *volt_min_limit = curr_volt;
+        }
+        if (curr_volt > *volt_max_limit)
+        {
+            *volt_max_limit = curr_volt;
+        }
+    }
+
+    return STATUS_SUCCESS;
+}
+
+int flash_fs_get_sram_freq_volt_min_max_limit(uint8_t *volt_min_limit, uint8_t *volt_max_limit,
+                                              uint16_t *freq_min_limit, uint16_t *freq_max_limit)
+{
+    //Check argumets
+    if ((freq_min_limit == NULL) || (freq_max_limit == NULL) || (volt_min_limit == NULL) ||
+        (volt_max_limit == NULL))
+    {
+        return ERROR_INVALID_ARGUMENT;
+    }
+
+    //First element must be non-zero value
+    if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.freq == 0)
+    {
+        return THERMAL_PWR_MGMT_INVALID_FREQ;
+    }
+    if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt == 0)
+    {
+        return THERMAL_PWR_MGMT_INVALID_VOLTAGE;
+    }
+
+    *freq_min_limit =
+        sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.freq;
+    *freq_max_limit =
+        sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.freq;
+    *volt_min_limit =
+        sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt;
+    *volt_max_limit =
+        sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[0].sram.volt;
+
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        //Find  min and max frequency
+        uint16_t curr_freq =
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.freq;
+        if ((curr_freq < *freq_min_limit) && (curr_freq != 0))
+        {
+            *freq_min_limit = curr_freq;
+        }
+        if (curr_freq > *freq_max_limit)
+        {
+            *freq_max_limit = curr_freq;
+        }
+
+        //Find  min and max voltage
+        uint8_t curr_volt =
+            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.volt;
+        if ((curr_volt < *volt_min_limit) && (curr_volt != 0))
+        {
+            *volt_min_limit = curr_volt;
+        }
+        if (curr_volt > *volt_max_limit)
+        {
+            *volt_max_limit = curr_volt;
+        }
+    }
+
+    return STATUS_SUCCESS;
+}
+
+int flash_fs_get_minion_voltage_for_freq(uint16_t freq, uint8_t *vmin)
+{
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.freq == freq)
+        {
+            memcpy(
+                vmin,
+                &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.volt),
+                sizeof(
+                    sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.volt));
+            return STATUS_SUCCESS;
+        }
+    }
+    return THERMAL_PWR_MGMT_INVALID_FREQ;
+}
+
+int flash_fs_get_sram_voltage_for_freq(uint16_t freq, uint8_t *vmin)
+{
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.freq == freq)
+        {
+            memcpy(
+                vmin,
+                &(sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.volt),
+                sizeof(
+                    sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].sram.volt));
+            return STATUS_SUCCESS;
+        }
+    }
+    return THERMAL_PWR_MGMT_INVALID_FREQ;
+}
+
+int flash_fs_get_vmin_lut_minion_next_frequency_point(uint16_t curr_freq, uint16_t max_freq,
+                                                      uint16_t *next_freq)
+{
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.freq ==
+            curr_freq)
+        {
+            *next_freq =
+                (curr_freq == max_freq) ?
+                    curr_freq :
+                    sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i + 1]
+                        .mnn.freq;
+            return STATUS_SUCCESS;
+        }
+    }
+    return THERMAL_PWR_MGMT_INVALID_FREQ;
+}
+
+int flash_fs_get_vmin_lut_minion_previous_frequency_point(uint16_t curr_freq, uint16_t *prev_freq)
+{
+    for (int i = 0; i < NUMBER_OF_VMIN_LUT_POINTS; i++)
+    {
+        if (sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i].mnn.freq ==
+            curr_freq)
+        {
+            *prev_freq =
+                (i == 0) ? curr_freq :
+                           sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i - 1]
+                               .mnn.freq;
+            return STATUS_SUCCESS;
+        }
+    }
+    return THERMAL_PWR_MGMT_INVALID_FREQ;
+}
+
 #pragma GCC pop_options

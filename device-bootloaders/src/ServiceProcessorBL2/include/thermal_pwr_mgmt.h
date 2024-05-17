@@ -36,28 +36,6 @@
 #define SECONDS_IN_HOUR   3600
 #define SECONDS_IN_MINUTE 60
 
-/* define to convert Hex value to millivolt*/
-#define MINION_HEX_TO_MILLIVOLT(hex_val)                                                     \
-    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, \
-                          PMIC_GENERIC_VOLTAGE_DIVIDER)
-
-#define SRAM_HEX_TO_MILLIVOLT(hex_val)                                                   \
-    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER, \
-                          PMIC_GENERIC_VOLTAGE_DIVIDER)
-
-/* minion frequency limits */
-#define MINION_FREQUENCY_MAX_LIMIT  700
-#define MINION_FREQUENCY_MIN_LIMIT  300
-#define MINION_FREQUENCY_STEP_VALUE 50
-
-/* minion voltage limits */
-#define MINION_VOLTAGE_MIN_LIMIT 400
-#define MINION_VOLTAGE_MAX_LIMIT 650
-
-/* L2CACHE voltage limits */
-#define L2CACHE_VOLTAGE_MIN_LIMIT 650
-#define L2CACHE_VOLTAGE_MAX_LIMIT 1000
-
 // Defines for converting power values
 #define POWER_10MW_TO_MW(pwr_10mw) (pwr_10mw * 10)
 #define POWER_10MW_TO_W(pwr_10mw)  (pwr_10mw / 100)
@@ -85,7 +63,17 @@
 /*! \def SAFE_STATE_FREQUENCY
     \brief A macro that provides safe state frequency
 */
-#define SAFE_STATE_FREQUENCY 300
+#define SAFE_STATE_FREQUENCY 300U
+
+/*! \def SAFE_STATE_MNN_VOLTAGE
+    \brief A macro that provides minion voltage for safe state frequency
+*/
+#define SAFE_STATE_MNN_VOLTAGE 0x1E //TODO: to be removed and replaced with vmin lut value
+
+/*! \def SAFE_STATE_L2CACHE_VOLTAGE
+    \brief A macro that provides l2cache voltage for safe state frequency
+*/
+#define SAFE_STATE_L2CACHE_VOLTAGE 0x50 //TODO: to be removed and replaced with vmin lut value
 
 /*! \def POWER_GUARDBAND_SCALE_FACTOR
     \brief A macro that provides power scale factor in percentages.
@@ -101,15 +89,32 @@
 /* define to convert power to milliwats*/
 #define POWER_IN_MW(pwr) (pwr * 1000)
 
-/*! \def THROTTLE_FREQUENCY_STEP
-    \brief The change in frequency per step in megahertz.
-*/
-#define THROTTLE_FREQUENCY_STEP 50
+//Defaulet boot values used to set system boot voltages if vmin lut is invalid
+#define MNN_DEFAULT_BOOT_VOLTAGE_mV 500
+#define SRM_DEFAULT_BOOT_VOLTAGE_mV 750
+#define NOC_DEFAULT_BOOT_VOLTAGE_mV 485
+#define PCL_DEFAULT_BOOT_VOLTAGE_mV 775
+#define DDR_DEFAULT_BOOT_VOLTAGE_mV 800
+#define MXN_DEFAULT_BOOT_VOLTAGE_mV 850
 
-/*! \def THROTTLE_VOLTAGE_STEP_MV
-    \brief The change in voltage per step in millivolts.
-*/
-#define THROTTLE_VOLTAGE_STEP_MV 10
+#define MNN_DEFAULT_BOOT_VOLTAGE                                                 \
+    PMIC_MILLIVOLT_TO_HEX(MNN_DEFAULT_BOOT_VOLTAGE_mV, PMIC_MINION_VOLTAGE_BASE, \
+                          PMIC_MINION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define SRM_DEFAULT_BOOT_VOLTAGE                                               \
+    PMIC_MILLIVOLT_TO_HEX(SRM_DEFAULT_BOOT_VOLTAGE_mV, PMIC_SRAM_VOLTAGE_BASE, \
+                          PMIC_SRAM_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define NOC_DEFAULT_BOOT_VOLTAGE                                              \
+    PMIC_MILLIVOLT_TO_HEX(NOC_DEFAULT_BOOT_VOLTAGE_mV, PMIC_NOC_VOLTAGE_BASE, \
+                          PMIC_NOC_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PCL_DEFAULT_BOOT_VOLTAGE                                                     \
+    PMIC_MILLIVOLT_TO_HEX(PCL_DEFAULT_BOOT_VOLTAGE_mV, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
+                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
+#define DDR_DEFAULT_BOOT_VOLTAGE                                              \
+    PMIC_MILLIVOLT_TO_HEX(DDR_DEFAULT_BOOT_VOLTAGE_mV, PMIC_DDR_VOLTAGE_BASE, \
+                          PMIC_DDR_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define MXN_DEFAULT_BOOT_VOLTAGE                                                 \
+    PMIC_MILLIVOLT_TO_HEX(MXN_DEFAULT_BOOT_VOLTAGE_mV, PMIC_MAXION_VOLTAGE_BASE, \
+                          PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
 
 /*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
     \brief Interface to get the SOC power register
@@ -292,9 +297,8 @@ int get_soc_max_temperature(uint8_t *max_temp);
 */
 int set_power_event_cb(dm_event_isr_callback event_cb);
 
-/*! \fn int init_thermal_pwr_mgmt_service(void)
+/*! \fn int init_thermal_pwr_mgmt_service(bool vmin_lut_validated)
     \brief Initialization function
-    \param none
     \returns Status indicating success or negative error
 */
 int init_thermal_pwr_mgmt_service(void);
@@ -343,17 +347,11 @@ int update_pmb_stats(bool reset);
 */
 void print_system_operating_point(void);
 
-/*! \fn void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v, uint8_t ddr_v)
-    \brief This function set the boot voltages for the main 3 supplies
-    \param mnn_v Minion Voltage value
-    \param sram_v SRAM Voltage value
-    \param noc_v NOC Voltage value
-    \param pcl_v PCL Voltage value
-    \param ddr_v DDR Voltage value
+/*! \fn void set_system_boot_voltages(void)
+    \brief This function set the boot voltages for the main 6 supplies (mnn, sram, noc, pcl, ddr, mxn)
     \returns none
 */
-void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v,
-                         uint8_t ddr_v);
+void set_system_boot_voltages(void);
 
 /*! \fn void Thermal_Pwr_Mgmt_Get_Minion_Temperature(void)
     \brief This function returns minion temperature
@@ -433,11 +431,17 @@ int pwr_svc_find_hpdpll_mode(uint16_t freq, uint8_t *hpdpll_mode);
 */
 void Thermal_Pwr_Mgmt_Update_MM_State(uint64_t state);
 
-/*! \fn int Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(char *vmin_lut)
+/*! \fn int Thermal_Pwr_Mgmt_Validate_Vmin_Lut(char *vmin_lut)
     \brief This function validates vmin lut frequency and voltage values
     before they are written to persisted memory.
     \return The function call status, pass/fail
 */
-int Thermal_Pwr_Mgmt_Validate_Vmin_Lut_Values(const char *vmin_lut);
+int Thermal_Pwr_Mgmt_Validate_Vmin_Lut(const char *vmin_lut);
+
+/*! \fn int Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut(void)
+    \brief This function sets min and max frequency and voltage limits from vmin lut.
+    \return The function call status, pass/fail
+*/
+int Thermal_Pwr_Mgmt_Set_Min_Max_Limits_From_Vmin_Lut(void);
 
 #endif

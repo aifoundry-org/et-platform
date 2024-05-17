@@ -1006,7 +1006,7 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 *
 *   DESCRIPTION
 *
-*       This function returns a voltage operating value given a freq value.
+*       This function returns a voltage (hex) operating value given a freq value.
 *
 *   INPUTS
 *
@@ -1017,32 +1017,23 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 *       voltage          Target Minion Voltage
 *
 ***********************************************************************/
-int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
+int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex)
 {
     /* Lookup table of frequency-voltage pairs */
-    uint8_t minion_boot_voltage_mv = flash_fs_get_mnn_boot_voltage();
-    uint16_t minion_boot_freq = flash_fs_get_mnn_boot_freq();
-    int minion_mv;
 
-    /* Check if target frequency is below boot frequency*/
-    if (target_frequency < minion_boot_freq)
+    int status = STATUS_SUCCESS;
+
+    //TODO: to be removed once vmin lut is updated with all frequencies
+    if (target_frequency == SAFE_STATE_FREQUENCY)
     {
-        /* Calculate minion voltage based on reduced frequency*/
-        minion_mv = MINION_HEX_TO_MILLIVOLT(minion_boot_voltage_mv) -
-                    (((minion_boot_freq - target_frequency) / THROTTLE_FREQUENCY_STEP) *
-                     THROTTLE_VOLTAGE_STEP_MV);
-        minion_mv = (minion_mv < MINION_VOLTAGE_MIN_LIMIT) ? MINION_VOLTAGE_MIN_LIMIT : minion_mv;
+        *minion_voltage_hex = SAFE_STATE_MNN_VOLTAGE;
     }
     else
     {
-        /* Throttle up operation, calculate minion voltage based on increased frequency*/
-        minion_mv = MINION_HEX_TO_MILLIVOLT(minion_boot_voltage_mv) +
-                    (((target_frequency - minion_boot_freq) / THROTTLE_FREQUENCY_STEP) *
-                     THROTTLE_VOLTAGE_STEP_MV);
-        minion_mv = (minion_mv > MINION_VOLTAGE_MAX_LIMIT) ? MINION_VOLTAGE_MAX_LIMIT : minion_mv;
+        status = flash_fs_get_minion_voltage_for_freq(target_frequency, minion_voltage_hex);
     }
 
-    return minion_mv;
+    return status;
 }
 
 /************************************************************************
@@ -1053,7 +1044,7 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 *
 *   DESCRIPTION
 *
-*       This function returns a voltage operating value given a freq value.
+*       This function returns a voltage (hex) operating value given a freq value.
 *
 *   INPUTS
 *
@@ -1064,34 +1055,23 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency)
 *       voltage          Target L2cache Voltage
 *
 ***********************************************************************/
-int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency)
+int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex)
 {
     /* Lookup table of frequency-voltage pairs */
-    uint8_t l2cache_boot_voltage_mv = flash_fs_get_sram_boot_voltage();
-    uint16_t l2cache_boot_freq = flash_fs_get_sram_boot_freq();
-    int l2cache_mv;
 
-    /* Check if target frequency is below boot frequency*/
-    if (target_frequency < l2cache_boot_freq)
+    int status = STATUS_SUCCESS;
+
+    //TODO: to be removed once vmin lut is updated with all frequencies
+    if (target_frequency == SAFE_STATE_FREQUENCY)
     {
-        /* Calculate L2Cache voltage based on reduced frequency*/
-        l2cache_mv = SRAM_HEX_TO_MILLIVOLT(l2cache_boot_voltage_mv) -
-                     (((l2cache_boot_freq - target_frequency) / THROTTLE_FREQUENCY_STEP) *
-                      THROTTLE_VOLTAGE_STEP_MV);
-        l2cache_mv = (l2cache_mv < L2CACHE_VOLTAGE_MIN_LIMIT) ? L2CACHE_VOLTAGE_MIN_LIMIT :
-                                                                l2cache_mv;
+        *sram_voltage_hex = SAFE_STATE_L2CACHE_VOLTAGE;
     }
     else
     {
-        /* Throttle up operation, calculate minion voltage based on increased frequency*/
-        l2cache_mv = SRAM_HEX_TO_MILLIVOLT(l2cache_boot_voltage_mv) +
-                     (((target_frequency - l2cache_boot_freq) / THROTTLE_FREQUENCY_STEP) *
-                      THROTTLE_VOLTAGE_STEP_MV);
-        l2cache_mv = (l2cache_mv > L2CACHE_VOLTAGE_MAX_LIMIT) ? L2CACHE_VOLTAGE_MAX_LIMIT :
-                                                                l2cache_mv;
+        status = flash_fs_get_sram_voltage_for_freq(target_frequency, sram_voltage_hex);
     }
 
-    return l2cache_mv;
+    return status;
 }
 
 /************************************************************************
