@@ -12,14 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated GITLAB ci config
 - [CI] update docker to ubuntu 22.04
 - Update GITLAB to use develop/system-sw
-### Deprecated
-### Removed
-### Fixed
-### Security
-
-## [Unreleased] - 2024-05-09
-### Added
-### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage
 - Changed Ubuntu image from 18 to 22
 ### Deprecated
