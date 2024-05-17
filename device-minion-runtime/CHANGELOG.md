@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- [SW-20965] (CI) Added Sonarqube should report Error in pipeline if reported failure
 ### Changed
 ### Deprecated
 ### Removed
