@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.23.0] - 2024-05-17
+### Added
+### Changed
 - Updated GITLAB ci config
 - [CI] update docker to ubuntu 22.04
 - Update GITLAB to use develop/system-sw
