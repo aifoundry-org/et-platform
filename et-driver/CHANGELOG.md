@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-- [CI] Update docker tag
 ### Deprecated
 ### Removed
 ### Fixed
@@ -18,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.18.0] - 2023-04-27
 ### Added
 ### Changed
+- [CI] Update docker tag
 - Migrated to Ubuntu22
 ### Deprecated
 ### Removed
