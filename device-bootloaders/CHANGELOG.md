@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.20.0] - 2024-05-17
+### Added
+### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fix syntax
 - [CI] updated docker to ubuntu 22.04
 ### Deprecated
