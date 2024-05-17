@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.18.0] - 2024-05-17
+### Added
 - Adding Tensor Instructions to standalone test
 ### Changed
 - [CI] updated docker to ubuntu 22.04
