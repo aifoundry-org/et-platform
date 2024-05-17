@@ -9,16 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-- [CI] updated docker to ubuntu 22.04
-### Deprecated
-### Removed
-### Fixed
-### Security
-
-## [Unreleased] - 2024-05-08
-### Added
-### Changed
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fix syntax
+- [CI] updated docker to ubuntu 22.04
 ### Deprecated
 ### Removed
 [SW-20904] Remove hardcoded voltage and frequency values and get them from vmin lut
