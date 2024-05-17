@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - [CI] updated docker to ubuntu 22.04
+- Unreleased 2.1.0
 ### Deprecated
 ### Removed
 ### Fixed
