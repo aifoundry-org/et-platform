@@ -8,7 +8,7 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 cmake_minimum_required(VERSION 3.15)
-project(EsperantoFlashTool VERSION 1.5.0 LANGUAGES C)
+project(EsperantoFlashTool VERSION 1.6.0 LANGUAGES C)
 
 include(GNUInstallDirs)
 
