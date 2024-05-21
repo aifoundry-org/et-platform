@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] -- 2024-05-21
 ### Added
-- [SW-20965] (CI) Added Sonarqube should report Error in pipeline if reported failure
+- [SW-20965] (CI) Added sonar.qualitygate.wait property for pipeline
 ### Changed
 ### Deprecated
 ### Removed
