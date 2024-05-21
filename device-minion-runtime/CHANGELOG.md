@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-## [Unreleased]
+## [Unreleased] -- 2024-05-21
 ### Added
 - [SW-20965] (CI) Added Sonarqube should report Error in pipeline if reported failure
 ### Changed
