@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-## [Unreleased] -- 2024-05-21
+## [Unreleased] -- 2024-05-22
 ### Added
 - [SW-20965] (CI) Added sonar.qualitygate.wait property for pipeline
 ### Changed
