@@ -167,7 +167,7 @@ static void mm_to_cm_iface_handle_message(
                 Log_Write(LOG_LEVEL_DEBUG, "TID[%u]:MM->CM: Launching Kernel on Shire 0x%llx\r\n",
                     msg_header.tag_id, 1ULL << shire);
 
-                mm_to_cm_message_kernel_params_t kernel;
+                mm_to_cm_message_kernel_params_t kernel = { 0 };
                 kernel.kw_base_id = launch->kernel.kw_base_id;
                 kernel.slot_index = launch->kernel.slot_index;
                 kernel.flags = launch->kernel.flags;
