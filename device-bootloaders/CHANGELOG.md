@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+- [SW-20641] Maded changes to include fru information in the sp output
 ### Deprecated
 ### Removed
 ### Fixed

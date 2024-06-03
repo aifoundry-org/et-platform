@@ -49,7 +49,7 @@
 #include "bl2_asset_trk.h"
 #include "minion_debug.h"
 #include "command_dispatcher.h"
-
+#include "fru_defines.h"
 #include "trace.h"
 #include "log.h"
 
@@ -104,12 +104,60 @@ static TaskHandle_t gs_taskHandleMain;
 static StackType_t gs_stackMain[MAIN_TASK_STACK_SIZE];
 static StaticTask_t gs_taskBufferMain;
 
+static void extract_fru_string(char *output, uint8_t *data, size_t *offset, size_t data_length)
+{
+    if (*offset >= data_length)
+    {
+        return;
+    }
+    // Length is in the lower 6 bits
+    uint8_t length = data[*offset] & 0x3F;
+    (*offset)++;
+    memcpy(output, &data[*offset], (size_t)length);
+    output[length] = '\0';
+    *offset += length;
+}
+
+static void traverse_fru_field(uint8_t *data, size_t *offset)
+{
+    // Length is in the lower 6 bits
+    uint8_t length = data[*offset] & 0x3F;
+    (*offset) += 1 + (size_t)length;
+}
+
+static void get_fru_field_data(char *output, uint8_t *data, int field, int field_id)
+{
+    size_t dataLength = sizeof(struct asset_info_t);
+    const size_t base_offset = (field == FRU_BOARD_AREA) ? *(data + BOARD_OFFSET_INDEX) :
+                                                           *(data + PRODUCT_OFFSET_INDEX);
+    if (base_offset > dataLength)
+    {
+        return;
+    }
+    size_t offset = base_offset * FRU_INFO_MULTIPLIER +
+                    ((field == FRU_BOARD_AREA) ? BOARD_START_GAP : PRODUCT_START_GAP);
+
+    if (offset > dataLength)
+    {
+        return;
+    }
+
+    for (int i = 0; i < field_id; i++)
+    {
+        traverse_fru_field(data, &offset);
+    }
+    extract_fru_string(output, data, &offset, dataLength);
+}
+
 static inline void display_pmic_fw_info(void)
 {
     uint8_t major;
     uint8_t minor;
     uint8_t revision;
+    struct asset_info_t fru_data;
     uint32_t pmic_fw_hash;
+    char manufacturer[250];
+    char serial_number[250];
 
     // Read PMIC version and display
     if (0 != pmic_get_fw_version(&major, &minor, &revision))
@@ -132,6 +180,17 @@ static inline void display_pmic_fw_info(void)
         Log_Write(LOG_LEVEL_CRITICAL, "MAIN:[txt]PMIC FW Hash: %c%c%c%c\n",
                   EXTRACT_BYTE(0, pmic_fw_hash), EXTRACT_BYTE(1, pmic_fw_hash),
                   EXTRACT_BYTE(2, pmic_fw_hash), EXTRACT_BYTE(3, pmic_fw_hash));
+    }
+    if (0 != pmic_read_fru((uint8_t *)&fru_data, sizeof(struct asset_info_t)))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "MAIN:[txt]PMIC read FRU error!\n");
+    }
+    else
+    {
+        get_fru_field_data(manufacturer, (uint8_t *)&fru_data, FRU_BOARD_AREA, BOARD_MFG);
+        Log_Write(LOG_LEVEL_CRITICAL, "Manufacturer: %s\n", manufacturer);
+        get_fru_field_data(serial_number, (uint8_t *)&fru_data, FRU_BOARD_AREA, BOARD_SERIAL);
+        Log_Write(LOG_LEVEL_CRITICAL, "Serial Number: %s\n", serial_number);
     }
 }
 
