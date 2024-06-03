@@ -80,6 +80,7 @@
 #include "bl_error_code.h"
 #include "log.h"
 #include "delays.h"
+#include "sp_host_iface.h"
 
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
@@ -680,6 +681,169 @@ static int pmic_get_command_comm_fault_details(uint32_t *command_comm_fault_deta
 *
 *   FUNCTION
 *
+*       Pmic_Controller_Handle_Pmic_Error_Event
+*
+*   DESCRIPTION
+*
+*       Called after PMIC interrupt in context of "dm_event_task_entry" task
+        to handle cause of the interrupt.
+*
+*   INPUTS
+*
+*       message Pointer to event message structure
+*
+*   OUTPUTS
+*
+*       none
+*
+***********************************************************************/
+void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
+{
+    int status;
+    uint8_t int_cause = 0;
+    uint8_t reg_value = 0;
+    uint16_t reg_value_16 = 0;
+    uint32_t reg_value_32 = 0;
+
+    if (0 != pmic_get_int_cause(&int_cause))
+    {
+        MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC read int cause failed!\n");
+    }
+
+    if (int_cause == 0)
+    {
+        Log_Write(LOG_LEVEL_CRITICAL,
+                  "Pmic_Controller_Handle_Pmic_Error_Event: Unknown interrupt cause!\n");
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 0, 0)
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push over-temperature event to CQ failed!\n");
+        }
+        return;
+    }
+
+    /* Generate PMIC Error */
+    if (PMIC_I2C_INT_CAUSE_OV_TEMP_GET(int_cause))
+    {
+        event_control_block.thermal_pwr_event_cb(int_cause);
+
+        if (0 != pmic_get_temperature(&reg_value))
+        {
+            MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_temperature failed!");
+        }
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB,
+                           reg_value)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push over-temperature event to CQ failed!\n");
+        }
+    }
+
+    if (PMIC_I2C_INT_CAUSE_OV_POWER_GET(int_cause))
+    {
+        event_control_block.thermal_pwr_event_cb(int_cause);
+
+        if (0 != pmic_read_instantaneous_soc_power(&reg_value_16))
+        {
+            MESSAGE_ERROR(
+                "Pmic_Controller_Handle_Pmic_Error_Event: PMIC read instantenous soc power failed!");
+        }
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB,
+                           reg_value_16)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push over-power event to CQ failed!\n");
+        }
+    }
+
+    if (PMIC_I2C_INT_CAUSE_PWR_FAIL_GET(int_cause))
+    {
+        if (0 != pmic_get_input_voltage(&reg_value))
+        {
+            MESSAGE_ERROR(
+                "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_input_voltage failed!");
+        }
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
+                           reg_value)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push power fail event to CQ failed!\n");
+        }
+    }
+
+    if (PMIC_I2C_INT_CAUSE_MINION_DROOP_GET(int_cause))
+    {
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MINION_DROOP_LSB, 0)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push minion droop event to CQ failed!\n");
+        }
+    }
+
+    if (PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_GET(int_cause))
+    {
+        if (0 != pmic_get_command_comm_fault_details(&reg_value_32))
+        {
+            MESSAGE_ERROR(
+                "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_command_comm_fault failed!");
+        }
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_LSB,
+                           reg_value_32)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push comm fault event to CQ failed!\n");
+        }
+    }
+
+    if (PMIC_I2C_INT_CAUSE_REG_COM_FAIL_GET(int_cause))
+    {
+        if (0 != pmic_get_reg_comm_fault_details(&reg_value_32))
+        {
+            MESSAGE_ERROR(
+                "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_reg_comm_fault failed!");
+        }
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_COM_FAIL_LSB,
+                           reg_value_32)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push reg comm fault to CQ failed!\n");
+        }
+    }
+
+    if (PMIC_I2C_INT_CAUSE_REG_FAULT_GET(int_cause))
+    {
+        if (0 != pmic_get_reg_fault_details(&reg_value_32))
+        {
+            MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_reg_fault failed!");
+        }
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_FAULT_LSB,
+                           reg_value_32)
+
+        status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
+        if (status)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Push reg fault event to CQ failed!\n");
+        }
+    }
+}
+
+/************************************************************************
+*
+*   FUNCTION
+*
 *       pmic_error_isr
 *
 *   DESCRIPTION
@@ -698,105 +862,15 @@ static int pmic_get_command_comm_fault_details(uint32_t *command_comm_fault_deta
 
 void pmic_error_isr(void)
 {
-    uint8_t int_cause = 0;
     struct event_message_t message;
-    uint8_t reg_value = 0;
-    uint16_t reg_value_16 = 0;
-    uint32_t reg_value_32 = 0;
+
+    // Send PMIC error event message, interrupt cause is extracted in task context
+    FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
+    event_control_block.event_cb(UNCORRECTABLE, &message);
 
     if (0 != gpio_clear_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER))
     {
         MESSAGE_ERROR("GPIO int clear failed!");
-    }
-
-    if (0 != pmic_get_int_cause(&int_cause))
-    {
-        MESSAGE_ERROR("pmic_error_isr: PMIC read int cause failed!");
-    }
-
-    /* Generate PMIC Error */
-
-    if (PMIC_I2C_INT_CAUSE_OV_TEMP_GET(int_cause))
-    {
-        event_control_block.thermal_pwr_event_cb(int_cause);
-
-        if (0 != pmic_get_temperature(&reg_value))
-        {
-            MESSAGE_ERROR("pmic_error_isr: PMIC get_temperature failed!");
-        }
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB,
-                           reg_value)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CAUSE_OV_POWER_GET(int_cause))
-    {
-        event_control_block.thermal_pwr_event_cb(int_cause);
-
-        if (0 != pmic_read_instantaneous_soc_power(&reg_value_16))
-        {
-            MESSAGE_ERROR("pmic_error_isr: PMIC read instantenous soc power failed!");
-        }
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB,
-                           reg_value_16)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CAUSE_PWR_FAIL_GET(int_cause))
-    {
-        if (0 != pmic_get_input_voltage(&reg_value))
-        {
-            MESSAGE_ERROR("pmic_error_isr: PMIC get_input_voltage failed!");
-        }
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
-                           reg_value)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CAUSE_MINION_DROOP_GET(int_cause))
-    {
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MINION_DROOP_LSB, 0)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_GET(int_cause))
-    {
-        if (0 != pmic_get_command_comm_fault_details(&reg_value_32))
-        {
-            MESSAGE_ERROR("pmic_error_isr: PMIC get_command_comm_fault failed!");
-        }
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_LSB,
-                           reg_value_32)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CAUSE_REG_COM_FAIL_GET(int_cause))
-    {
-        if (0 != pmic_get_reg_comm_fault_details(&reg_value_32))
-        {
-            MESSAGE_ERROR("pmic_error_isr: PMIC get_reg_comm_fault failed!");
-        }
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_COM_FAIL_LSB,
-                           reg_value_32)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
-    }
-
-    if (PMIC_I2C_INT_CAUSE_REG_FAULT_GET(int_cause))
-    {
-        if (0 != pmic_get_reg_fault_details(&reg_value_32))
-        {
-            MESSAGE_ERROR("pmic_error_isr: PMIC get_reg_fault failed!");
-        }
-        FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-        FILL_EVENT_PAYLOAD(&message.payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_REG_FAULT_LSB,
-                           reg_value_32)
-        event_control_block.event_cb(UNCORRECTABLE, &message);
     }
 }
 

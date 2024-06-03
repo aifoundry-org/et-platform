@@ -70,7 +70,6 @@ void start_test_events(tag_id_t tag_id, msg_id_t msg_id)
 
     /* Generate PMIC Error */
     FILL_EVENT_HEADER(&message.header, PMIC_ERROR, sizeof(struct event_message_t))
-    FILL_EVENT_PAYLOAD(&message.payload, FATAL, 33, 0xFF, 0xC35A)
     generate_test_event(&message);
 
     /* Generate Minion Exception threshold Error */

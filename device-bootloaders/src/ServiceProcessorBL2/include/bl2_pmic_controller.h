@@ -312,6 +312,11 @@ int32_t pmic_error_control_init(dm_event_isr_callback event_cb);
 */
 int32_t pmic_thermal_pwr_cb_init(dm_pmic_isr_callback event_cb);
 
+/*! \fn void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
+    \brief Handles PMIC error event.
+*/
+void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message);
+
 /*! \fn void pmic_error_isr(void)
     \brief PMIC interrupt routine.
 */
