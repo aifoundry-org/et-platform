@@ -42,6 +42,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include "dm_task.h"
 #include "watchdog_task.h"
 #include "dm_event_control.h"
@@ -104,18 +105,41 @@ static TaskHandle_t gs_taskHandleMain;
 static StackType_t gs_stackMain[MAIN_TASK_STACK_SIZE];
 static StaticTask_t gs_taskBufferMain;
 
+static int is_printable_string(const char *str)
+{
+    while (*str)
+    {
+        if (!isprint((unsigned char)*str))
+        {
+            return 0;
+        }
+        str++;
+    }
+    return 1;
+}
+
 static void extract_fru_string(char *output, uint8_t *data, size_t *offset, size_t data_length)
 {
     if (*offset >= data_length)
     {
+        strcpy(output, "unknown");
         return;
     }
     // Length is in the lower 6 bits
     uint8_t length = data[*offset] & 0x3F;
     (*offset)++;
+    if (*offset + length > data_length)
+    {
+        strcpy(output, "unknown");
+        return;
+    }
     memcpy(output, &data[*offset], (size_t)length);
     output[length] = '\0';
     *offset += length;
+    if (!is_printable_string(output))
+    {
+        strcpy(output, "unknown");
+    }
 }
 
 static void traverse_fru_field(uint8_t *data, size_t *offset)
@@ -132,6 +156,7 @@ static void get_fru_field_data(char *output, uint8_t *data, int field, int field
                                                            *(data + PRODUCT_OFFSET_INDEX);
     if (base_offset > dataLength)
     {
+        strcpy(output, "unknown");
         return;
     }
     size_t offset = base_offset * FRU_INFO_MULTIPLIER +
@@ -139,6 +164,7 @@ static void get_fru_field_data(char *output, uint8_t *data, int field, int field
 
     if (offset > dataLength)
     {
+        strcpy(output, "unknown");
         return;
     }
 

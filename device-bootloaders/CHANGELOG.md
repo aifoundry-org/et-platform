@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-- [SW-20641] Maded changes to include fru information in the sp output
+- [SW-20641] Added handling for case when FRU information is not programmed
+- [SW-20641] Made changes to include fru information in the sp output
 ### Deprecated
 ### Removed
 ### Fixed
@@ -89,8 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18145] Reset the I2C module if it hangs.
   - Added new APIs for enable, disable and abort of I2C interface.
   - Added a workaround to reset the I2C module if it hangs.
-- [SW-18674] Send update image slot to PMIC after successful fw update. 
-- [SW-19089] Add major versions check in pmic fw update. 
+- [SW-18674] Send update image slot to PMIC after successful fw update.
+- [SW-19089] Add major versions check in pmic fw update.
 ### Changed
 - [SW-18208] Enabling PMIC Firmware update.
 - [SW-18499] Masking out bad Minion Shire PVT sampling.
@@ -106,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-18720] Fix bogus value in SP trace header type
 - Added the null terminator to the PMIC FW hash.
 - [SW-18522] Fixed minor build issues seen with clang
-- [SW-19086] Add wait loop after PMIC boot slot update cmd 
+- [SW-19086] Add wait loop after PMIC boot slot update cmd
 - [SW-18926] Fixed handling of thermal idle state
 ### Security
 
