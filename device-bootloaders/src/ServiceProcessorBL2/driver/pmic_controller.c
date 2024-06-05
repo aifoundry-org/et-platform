@@ -2162,7 +2162,7 @@ int pmic_get_tdp_threshold(uint8_t *power_alarm)
 
 int pmic_set_tdp_threshold(uint16_t power_alarm)
 {
-    return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, (uint8_t *)&power_alarm, 2));
+    return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, (uint8_t *)&power_alarm, 1));
 }
 
 /************************************************************************
