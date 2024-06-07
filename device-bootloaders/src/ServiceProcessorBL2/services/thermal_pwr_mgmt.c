@@ -2479,8 +2479,6 @@ void thermal_power_task_entry(void *pvParameter)
 ***********************************************************************/
 static void pmic_isr_callback(uint8_t int_cause)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-
     if (PMIC_I2C_INT_CTRL_OV_TEMP_GET(int_cause))
     {
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_THERMAL_SAFE;
@@ -2490,10 +2488,7 @@ static void pmic_isr_callback(uint8_t int_cause)
         g_soc_power_reg.power_throttle_state = POWER_THROTTLE_STATE_POWER_SAFE;
     }
 
-    xTaskNotifyFromISR(g_pm_handle, (uint32_t)int_cause, eSetValueWithOverwrite,
-                       &xHigherPriorityTaskWoken);
-
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    xTaskNotify(g_pm_handle, (uint32_t)int_cause, eSetValueWithOverwrite);
 }
 
 /************************************************************************
