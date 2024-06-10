@@ -487,18 +487,6 @@ void setup_pmic(void)
         MESSAGE_ERROR("PMIC connection failed to establish link\n");
     }
 
-    /* Set temperature threshold values */
-    pmic_set_temperature_threshold(TEMP_THRESHOLD_HW_CATASTROPHIC);
-
-    /* Set power threshold values */
-    pmic_set_tdp_threshold(POWER_THRESHOLD_HW_CATASTROPHIC << 2);
-
-    /* Enable all PMIC interrupts */
-    if (0 != pmic_set_int_config(ENABLE_ALL_PMIC_INTERRUPTS))
-    {
-        MESSAGE_ERROR("Failed to enable PMIC interrupts!");
-    }
-
     /* Configure and enable GPIO interrupt */
     if (0 != gpio_config_interrupt(GPIO_CONTROLLER_ID_SPIO, PMIC_GPIO_INT_PIN_NUMBER, GPIO_INT_EDGE,
                                    GPIO_INT_LOW, GPIO_INT_DEBOUNCE_OFF))
@@ -514,6 +502,21 @@ void setup_pmic(void)
     INT_enableInterrupt(SPIO_PLIC_GPIO_INTR, 1, pmic_error_isr);
 
     Log_Write(LOG_LEVEL_INFO, "PMIC connection establish\n");
+}
+
+void enable_pmic_interrupts(void)
+{
+    /* Set temperature threshold values */
+    pmic_set_temperature_threshold(TEMP_THRESHOLD_HW_CATASTROPHIC);
+
+    /* Set power threshold values */
+    pmic_set_tdp_threshold(POWER_ALARM_SET_POINT);
+
+    /* Enable all PMIC interrupts */
+    if (0 != pmic_set_int_config(ENABLE_ALL_PMIC_INTERRUPTS))
+    {
+        MESSAGE_ERROR("Failed to enable PMIC interrupts!");
+    }
 }
 
 /************************************************************************
@@ -701,11 +704,11 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 {
     int status;
     uint8_t int_cause = 0;
-    uint8_t reg_value = 0;
+    uint8_t reg_value_8 = 0;
     uint16_t reg_value_16 = 0;
     uint32_t reg_value_32 = 0;
 
-    if (0 != pmic_get_int_cause(&int_cause))
+    if (STATUS_SUCCESS != pmic_get_int_cause(&int_cause))
     {
         MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC read int cause failed!\n");
     }
@@ -726,14 +729,25 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
     /* Generate PMIC Error */
     if (PMIC_I2C_INT_CAUSE_OV_TEMP_GET(int_cause))
     {
+        uint64_t data = 0;
         event_control_block.thermal_pwr_event_cb(int_cause);
 
-        if (0 != pmic_get_temperature(&reg_value))
+        if (STATUS_SUCCESS != pmic_get_temperature(&reg_value_8))
         {
             MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_temperature failed!");
         }
-        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB,
-                           reg_value)
+        uint8_t sys_temperature = reg_value_8;
+        if (STATUS_SUCCESS != pmic_get_temperature_threshold(&reg_value_8))
+        {
+            MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_temperature failed!");
+        }
+
+        Log_Write(
+            LOG_LEVEL_CRITICAL,
+            "Pmic_Controller_Handle_Pmic_Error_Event: system temperature = %d, alarm set point = %d\n",
+            sys_temperature, reg_value_8);
+        data = (uint64_t)((sys_temperature << 8) | reg_value_8);
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_TEMP_LSB, data)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
         if (status)
@@ -744,15 +758,29 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 
     if (PMIC_I2C_INT_CAUSE_OV_POWER_GET(int_cause))
     {
+        uint64_t data = 0;
         event_control_block.thermal_pwr_event_cb(int_cause);
 
-        if (0 != pmic_read_instantaneous_soc_power(&reg_value_16))
+        //Get soc input power (units 10mW)
+        if (STATUS_SUCCESS != pmic_read_instantaneous_soc_power(&reg_value_16))
         {
             MESSAGE_ERROR(
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC read instantenous soc power failed!");
         }
-        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB,
-                           reg_value_16)
+        data = (uint64_t)reg_value_16;
+        //Get power alarm set point (units W, format whole-6b.dec-2b, dec in .25W step)
+        if (STATUS_SUCCESS != pmic_get_tdp_threshold(&reg_value_8))
+        {
+            MESSAGE_ERROR(
+                "Pmic_Controller_Handle_Pmic_Error_Event: PMIC read power alarm set point failed!");
+        }
+        data = (uint64_t)((data << 8) | reg_value_8);
+
+        Log_Write(
+            LOG_LEVEL_CRITICAL,
+            "Pmic_Controller_Handle_Pmic_Error_Event: input power = %d mW, alarm set point = %d mW\n",
+            reg_value_16 * 10, ((reg_value_8 >> 2) & 0x3F) * 1000 + (reg_value_8 & 0x3) * 250);
+        FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB, data)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
         if (status)
@@ -763,13 +791,13 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 
     if (PMIC_I2C_INT_CAUSE_PWR_FAIL_GET(int_cause))
     {
-        if (0 != pmic_get_input_voltage(&reg_value))
+        if (STATUS_SUCCESS != pmic_get_input_voltage(&reg_value_8))
         {
             MESSAGE_ERROR(
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_input_voltage failed!");
         }
         FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
-                           reg_value)
+                           reg_value_8)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
         if (status)
@@ -791,7 +819,7 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 
     if (PMIC_I2C_INT_CAUSE_MESSAGE_ERROR_GET(int_cause))
     {
-        if (0 != pmic_get_command_comm_fault_details(&reg_value_32))
+        if (STATUS_SUCCESS != pmic_get_command_comm_fault_details(&reg_value_32))
         {
             MESSAGE_ERROR(
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_command_comm_fault failed!");
@@ -808,7 +836,7 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 
     if (PMIC_I2C_INT_CAUSE_REG_COM_FAIL_GET(int_cause))
     {
-        if (0 != pmic_get_reg_comm_fault_details(&reg_value_32))
+        if (STATUS_SUCCESS != pmic_get_reg_comm_fault_details(&reg_value_32))
         {
             MESSAGE_ERROR(
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_reg_comm_fault failed!");
@@ -825,7 +853,7 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 
     if (PMIC_I2C_INT_CAUSE_REG_FAULT_GET(int_cause))
     {
-        if (0 != pmic_get_reg_fault_details(&reg_value_32))
+        if (STATUS_SUCCESS != pmic_get_reg_fault_details(&reg_value_32))
         {
             MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_reg_fault failed!");
         }
@@ -2162,6 +2190,10 @@ int pmic_get_tdp_threshold(uint8_t *power_alarm)
 
 int pmic_set_tdp_threshold(uint16_t power_alarm)
 {
+    power_alarm = (power_alarm > POWER_ALARM_SET_POINT_UPPER_LIMIT) ?
+                      POWER_ALARM_SET_POINT_UPPER_LIMIT :
+                      power_alarm;
+    power_alarm = (uint8_t)(power_alarm << 2);
     return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, (uint8_t *)&power_alarm, 1));
 }
 

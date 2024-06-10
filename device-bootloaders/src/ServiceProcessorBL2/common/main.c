@@ -495,6 +495,7 @@ static void taskMain(void *pvParameters)
     status = init_thermal_pwr_mgmt_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
+    enable_pmic_interrupts();
 
     /* Populate the device generic attributes */
     DIR_Generic_Attributes_Init();

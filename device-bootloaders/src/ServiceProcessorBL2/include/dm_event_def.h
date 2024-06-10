@@ -73,8 +73,8 @@ enum error_type
 };
 
 /*!
- * @struct struct event_message_t
- * @brief structure defining the event message format
+ * @struct struct event_payload
+ * @brief structure defining the event message payload
  */
 struct event_payload
 {

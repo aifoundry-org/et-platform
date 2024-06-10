@@ -266,6 +266,16 @@ typedef struct imageMetadata_
 */
 #define POWER_THRESHOLD_HW_CATASTROPHIC 75
 
+/*! \def POWER_ALARM_SET_POINT
+    \brief A macro that provides power alarm set point value.
+*/
+#define POWER_ALARM_SET_POINT 60
+
+/*! \def POWER_ALARM_SET_POINT_UPPER_LIMIT
+    \brief A macro that provides pmic max power alarm set point value according to the protocol
+*/
+#define POWER_ALARM_SET_POINT_UPPER_LIMIT 0x3F
+
 /*! \def TEMP_THRESHOLD_HW_CATASTROPHIC
     \brief A macro that provides pmic temperature threshold value
 */
@@ -285,6 +295,11 @@ typedef struct imageMetadata_
     \brief This function initialize I2C connection.
 */
 void setup_pmic(void);
+
+/*! \fn void enable_pmic_interrupts(void)
+    \brief This function enables interrupts from PMIC.
+*/
+void enable_pmic_interrupts(void);
 
 /*! \fn bool pmic_check_firmware_updated(void)
     \brief This function returns true if PMIC update was done.
