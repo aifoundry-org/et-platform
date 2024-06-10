@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed LD_LIBRARY_PATH problem
 - Change Ubuntu from 18 to 22 and fix
 - Remove sonar qualitygate
+- (CI) Do not generate packages for ubuntu18
 ### Deprecated
 ### Removed
 ### Fixed
