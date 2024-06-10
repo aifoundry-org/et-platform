@@ -9,8 +9,6 @@ def main():
     
     build = Packager(ci_build=True)
     build.add_package(conanfile_path)
-    c1 = build.add_configuration("default", "linux-ubuntu18.04-x86_64-gcc7-release")
-    c2 = build.add_configuration("default", "linux-ubuntu18.04-x86_64-gcc7-debug")
     c3 = build.add_configuration("default", "linux-ubuntu22.04-x86_64-gcc11-release")
     build.report()
 
