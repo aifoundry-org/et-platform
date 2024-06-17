@@ -55,13 +55,13 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   : deviceLayer_{std::move(deviceLayer)} {
 
   cap_t caps;
-  cap_value_t capList = CAP_SYS_PTRACE;
+  cap_value_t capList[1] = {CAP_SYS_PTRACE};
 
   caps = cap_get_proc();
   if (caps == nullptr) {
     throw Exception("Can't get process capabilities." + std::string{strerror(errno)});
   }
-  if (cap_set_flag(caps, CAP_EFFECTIVE, 2, &capList, CAP_SET) == -1) {
+  if (cap_set_flag(caps, CAP_EFFECTIVE, 1, capList, CAP_SET) == -1) {
     throw Exception("Can't set flag for enabling CAP_SYS_PTRACE. " + std::string{strerror(errno)});
   }
 

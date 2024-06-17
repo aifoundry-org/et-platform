@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 
+## [0.15.0]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- [CS-253] Fix cap_set_flag call being provided with incorrect array size of given array
+
 ## [0.14.0]
 ### Added
 - [SW-19991] Forward server tracing events to clients if tracing is enabled
