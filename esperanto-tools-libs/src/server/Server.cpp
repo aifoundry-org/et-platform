@@ -62,7 +62,7 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   if (caps == nullptr) {
     throw Exception("Can't get process capabilities." + std::string{strerror(errno)});
   }
-  if (cap_set_flag(caps, CAP_EFFECTIVE, 1, p_capList, CAP_SET) == -1) {
+  if (cap_set_flag(caps, CAP_EFFECTIVE, capList.size(), p_capList, CAP_SET) == -1) {
     throw Exception("Can't set flag for enabling CAP_SYS_PTRACE. " + std::string{strerror(errno)});
   }
 
