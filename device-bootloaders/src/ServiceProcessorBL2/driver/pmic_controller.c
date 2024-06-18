@@ -592,9 +592,9 @@ int32_t pmic_thermal_pwr_cb_init(dm_pmic_isr_callback event_cb)
 *
 ***********************************************************************/
 
-static int pmic_get_int_cause(uint8_t *int_cause)
+static int pmic_get_int_cause(uint32_t *int_cause)
 {
-    return (get_pmic_reg(PMIC_I2C_INT_CAUSE_ADDRESS, int_cause, 1));
+    return (get_pmic_reg(PMIC_I2C_INT_CAUSE_ADDRESS, (uint8_t *)int_cause, 4));
 }
 
 /************************************************************************
@@ -680,6 +680,12 @@ static int pmic_get_command_comm_fault_details(uint32_t *command_comm_fault_deta
                          (uint8_t *)command_comm_fault_details, 4));
 }
 
+#define PMIC_I2C_INT_CAUSE_OV_TEMP_VALUE(x)   (((x) >> 8) & 0xffu)
+#define PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(x)    (((x) >> 16) & 0xffu)
+#define PMIC_I2C_INT_CAUSE_MNN_DROOP_VALUE(x) (((x) >> 24) & 0xffu)
+#define PWR_ALARM_SET_POINT_BASE_BUB_mW       15000UL //note: has to be in coordination with PMIC
+#define PWR_ALARM_SET_POINT_BASE_PCIE_mW      7000UL  //note: has to be in coordination with PMIC
+#define PWR_ALARM_SET_POINT_STEP_mW           250U
 /************************************************************************
 *
 *   FUNCTION
@@ -703,17 +709,16 @@ static int pmic_get_command_comm_fault_details(uint32_t *command_comm_fault_deta
 void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 {
     int status;
-    uint8_t int_cause = 0;
-    uint8_t reg_value_8 = 0;
-    uint16_t reg_value_16 = 0;
-    uint32_t reg_value_32 = 0;
+    uint32_t int_cause;
+    uint8_t reg_value_8;
+    uint32_t reg_value_32;
 
     if (STATUS_SUCCESS != pmic_get_int_cause(&int_cause))
     {
         MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC read int cause failed!\n");
     }
 
-    if (int_cause == 0)
+    if ((int_cause & 0xff) == 0)
     {
         Log_Write(LOG_LEVEL_CRITICAL,
                   "Pmic_Controller_Handle_Pmic_Error_Event: Unknown interrupt cause!\n");
@@ -730,17 +735,15 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
     if (PMIC_I2C_INT_CAUSE_OV_TEMP_GET(int_cause))
     {
         uint64_t data = 0;
-        event_control_block.thermal_pwr_event_cb(int_cause);
+        event_control_block.thermal_pwr_event_cb((uint8_t)(int_cause & 0xff));
 
-        if (STATUS_SUCCESS != pmic_get_temperature(&reg_value_8))
-        {
-            MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_temperature failed!");
-        }
-        uint8_t sys_temperature = reg_value_8;
         if (STATUS_SUCCESS != pmic_get_temperature_threshold(&reg_value_8))
         {
             MESSAGE_ERROR("Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_temperature failed!");
         }
+
+        uint32_t sys_temperature =
+            (uint32_t)reg_value_8 + PMIC_I2C_INT_CAUSE_OV_TEMP_VALUE(int_cause);
 
         Log_Write(
             LOG_LEVEL_CRITICAL,
@@ -759,27 +762,53 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
     if (PMIC_I2C_INT_CAUSE_OV_POWER_GET(int_cause))
     {
         uint64_t data = 0;
-        event_control_block.thermal_pwr_event_cb(int_cause);
+        uint8_t board_type = 0;
+        uint8_t dummy;
+        uint32_t base_mW = 0;
 
-        //Get soc input power (units 10mW)
-        if (STATUS_SUCCESS != pmic_read_instantaneous_soc_power(&reg_value_16))
-        {
-            MESSAGE_ERROR(
-                "Pmic_Controller_Handle_Pmic_Error_Event: PMIC read instantenous soc power failed!");
-        }
-        data = (uint64_t)reg_value_16;
+        event_control_block.thermal_pwr_event_cb((uint8_t)(int_cause & 0xff));
+
         //Get power alarm set point (units W, format whole-6b.dec-2b, dec in .25W step)
         if (STATUS_SUCCESS != pmic_get_tdp_threshold(&reg_value_8))
         {
             MESSAGE_ERROR(
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC read power alarm set point failed!");
         }
-        data = (uint64_t)((data << 8) | reg_value_8);
+
+        if (STATUS_SUCCESS != pmic_get_board_type(&board_type, &dummy, &dummy, &dummy))
+        {
+            Log_Write(LOG_LEVEL_CRITICAL,
+                      "Pmic_Controller_Handle_Pmic_Error_Event: Getting board type failed");
+            return;
+        }
+
+#if !FAST_BOOT
+        if (board_type == PMIC_I2C_BOARD_BOARD_TYPE_BUB)
+        {
+            base_mW = PWR_ALARM_SET_POINT_BASE_BUB_mW;
+        }
+        else if (board_type == PMIC_I2C_BOARD_BOARD_TYPE_PCIE)
+        {
+            base_mW = PWR_ALARM_SET_POINT_BASE_PCIE_mW;
+        }
+        else
+        {
+            Log_Write(LOG_LEVEL_CRITICAL,
+                      "Pmic_Controller_Handle_Pmic_Error_Event: Unkown PMIC board type");
+            return;
+        }
+#endif
+
+        uint32_t pwr_alarm_set_point_mW = base_mW + (reg_value_8 * PWR_ALARM_SET_POINT_STEP_mW);
+
+        uint32_t pwr = pwr_alarm_set_point_mW +
+                       (PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(int_cause) * PWR_ALARM_SET_POINT_STEP_mW);
+        data = ((uint64_t)pwr << 32) | pwr_alarm_set_point_mW;
 
         Log_Write(
             LOG_LEVEL_CRITICAL,
-            "Pmic_Controller_Handle_Pmic_Error_Event: input power = %d mW, alarm set point = %d mW\n",
-            reg_value_16 * 10, ((reg_value_8 >> 2) & 0x3F) * 1000 + (reg_value_8 & 0x3) * 250);
+            "Pmic_Controller_Handle_Pmic_Error_Event: (step %d mW) power = %d mW, alarm set point = %d mW\n",
+            PWR_ALARM_SET_POINT_STEP_mW, pwr, pwr_alarm_set_point_mW);
         FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB, data)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
@@ -797,7 +826,7 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_input_voltage failed!");
         }
         FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
-                           reg_value_8)
+                           50U * reg_value_8)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
         if (status)

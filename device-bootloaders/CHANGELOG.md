@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 -[SW-15170] Handle pmic interrupts
+-[SW-15170] Pmic interrupts protocol updates
 ### Changed
 - [SW-20641] Added handling for case when FRU information is not programmed
 - [SW-20641] Made changes to include fru information in the sp output
