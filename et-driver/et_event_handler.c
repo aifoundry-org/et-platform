@@ -202,6 +202,9 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 	int value_thr;
 	char value_str[VALUE_STR_MAX_LEN];
 
+	if (event_msg->event_syndrome[0] == 0)
+		strcat(dbg_msg->syndrome, "Unknown Event Cause\n");
+
 	if (event_msg->event_syndrome[0] & PMIC_ERROR_OVER_TEMP_INT_MASK) {
 		value_curr = (event_msg->event_syndrome[1] >> 8) &
 			     SYNDROME_TEMP_CURR_MASK;
@@ -220,21 +223,17 @@ static void parse_pmic_syndrome(struct device_mgmt_event_msg_t *event_msg,
 			event_msg->event_syndrome[1] & SYNDROME_PWR_THR_MASK;
 		snprintf(
 			value_str, VALUE_STR_MAX_LEN,
-			"Power Overshoot Beyond Threshold: current = %d.%d W, threshold = %d.%d W\n",
-			(uint8_t)(value_curr / 1000UL),
-			(uint8_t)(value_curr % 1000UL),
-			(uint8_t)(value_thr / 1000UL),
-			(uint8_t)(value_thr % 1000UL));
+			"Power Overshoot Beyond Threshold: current = %ld.%ld W, threshold = %ld.%ld W\n",
+			value_curr / 1000UL, value_curr % 1000UL,
+			value_thr / 1000UL, value_thr % 1000UL);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
 	    PMIC_ERROR_INPUT_VOLTAGE_TOO_LOW_INT_MASK) {
-		snprintf(
-			value_str, VALUE_STR_MAX_LEN,
-			"Input Voltage Too Low Interrupt: %d.%d V\n",
-			(uint8_t)(50 * event_msg->event_syndrome[1] / 1000UL),
-			(uint8_t)((50 * (uint8_t)event_msg->event_syndrome[1]) %
-				  1000UL));
+		snprintf(value_str, VALUE_STR_MAX_LEN,
+			 "Input Voltage Too Low Interrupt: %ld.%ld V\n",
+			 (uint32_t)event_msg->event_syndrome[1] / 1000UL,
+			 (uint32_t)event_msg->event_syndrome[1] % 1000UL);
 		strcat(dbg_msg->syndrome, value_str);
 	}
 	if (event_msg->event_syndrome[0] &
