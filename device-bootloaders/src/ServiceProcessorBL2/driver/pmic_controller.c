@@ -680,12 +680,6 @@ static int pmic_get_command_comm_fault_details(uint32_t *command_comm_fault_deta
                          (uint8_t *)command_comm_fault_details, 4));
 }
 
-#define PMIC_I2C_INT_CAUSE_OV_TEMP_VALUE(x)   (((x) >> 8) & 0xffu)
-#define PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(x)    (((x) >> 16) & 0xffu)
-#define PMIC_I2C_INT_CAUSE_MNN_DROOP_VALUE(x) (((x) >> 24) & 0xffu)
-#define PWR_ALARM_SET_POINT_BASE_BUB_mW       15000UL //note: has to be in coordination with PMIC
-#define PWR_ALARM_SET_POINT_BASE_PCIE_mW      7000UL  //note: has to be in coordination with PMIC
-#define PWR_ALARM_SET_POINT_STEP_mW           250U
 /************************************************************************
 *
 *   FUNCTION
@@ -785,11 +779,11 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
 #if !FAST_BOOT
         if (board_type == PMIC_I2C_BOARD_BOARD_TYPE_BUB)
         {
-            base_mW = PWR_ALARM_SET_POINT_BASE_BUB_mW;
+            base_mW = PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE_BUB_mW;
         }
         else if (board_type == PMIC_I2C_BOARD_BOARD_TYPE_PCIE)
         {
-            base_mW = PWR_ALARM_SET_POINT_BASE_PCIE_mW;
+            base_mW = PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE_PCIE_mW;
         }
         else
         {
@@ -799,16 +793,17 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
         }
 #endif
 
-        uint32_t pwr_alarm_set_point_mW = base_mW + (reg_value_8 * PWR_ALARM_SET_POINT_STEP_mW);
+        uint32_t pwr_alarm_set_point_mW =
+            base_mW + (reg_value_8 * PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW);
 
-        uint32_t pwr = pwr_alarm_set_point_mW +
-                       (PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(int_cause) * PWR_ALARM_SET_POINT_STEP_mW);
+        uint32_t pwr = pwr_alarm_set_point_mW + (PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(int_cause) *
+                                                 PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW);
         data = ((uint64_t)pwr << 32) | pwr_alarm_set_point_mW;
 
         Log_Write(
             LOG_LEVEL_CRITICAL,
             "Pmic_Controller_Handle_Pmic_Error_Event: (step %d mW) power = %d mW, alarm set point = %d mW\n",
-            PWR_ALARM_SET_POINT_STEP_mW, pwr, pwr_alarm_set_point_mW);
+            PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW, pwr, pwr_alarm_set_point_mW);
         FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_OV_POWER_LSB, data)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
@@ -826,7 +821,7 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC get_input_voltage failed!");
         }
         FILL_EVENT_PAYLOAD(&message->payload, FATAL, 0, 1 << PMIC_I2C_INT_CAUSE_PWR_FAIL_LSB,
-                           50U * reg_value_8)
+                           PMIC_I2C_INT_CAUSE_PWR_FAIL_VALUE_SCALE_FACTOR * reg_value_8)
 
         status = SP_Host_Iface_CQ_Push_Cmd((void *)message, sizeof(struct event_message_t));
         if (status)

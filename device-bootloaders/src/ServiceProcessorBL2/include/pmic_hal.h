@@ -1012,6 +1012,14 @@
 #define PMIC_I2C_INT_CAUSE_OV_TEMP_SET(x)       ((x)&0x01u)
 #define PMIC_I2C_INT_CAUSE_OV_TEMP_MODIFY(r, x) (((x)&0x01u) | ((r)&0xfeu))
 
+#define PMIC_I2C_INT_CAUSE_OV_TEMP_VALUE(x)                 (((x) >> 8) & 0xffu)
+#define PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(x)                  (((x) >> 16) & 0xffu)
+#define PMIC_I2C_INT_CAUSE_MNN_DROOP_VALUE(x)               (((x) >> 24) & 0xffu)
+#define PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE_BUB_mW  15000UL
+#define PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE_PCIE_mW 7000UL
+#define PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW      250U
+#define PMIC_I2C_INT_CAUSE_PWR_FAIL_VALUE_SCALE_FACTOR      50U
+
 /* Register type: pmic_i2c::wdog_timer_config                              */
 /* Register template: pmic_i2c::wdog_timer_config                          */
 /* Field member: pmic_i2c::wdog_timer_config.wdt_enable                    */
