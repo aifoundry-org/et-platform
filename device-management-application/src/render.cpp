@@ -394,10 +394,10 @@ void getAllData(const struct mm_stats_t& mmStats_, const struct sp_stats_t& spSt
   voltMinion->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.minion, 250, 5, 1));
   voltNoc->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.noc, 250, 5, 1));
   voltL2Cache->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.l2_cache, 250, 5, 1));
-  voltPShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
-  voltIoShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 250, 5, 1));
-  voltVddq->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 5, 1));
-  voltVddqlp->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 5, 1));
+  voltPShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100));
+  voltIoShire->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.pcie_logic, 600, 625, 100));
+  voltVddq->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddq, 250, 10, 1));
+  voltVddqlp->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.vddqlp, 250, 10, 1));
   voltDdr->setData(cWIDTH, BIN2VOLTAGE(moduleVoltStats_.ddr, 250, 5, 1));
 }
 
