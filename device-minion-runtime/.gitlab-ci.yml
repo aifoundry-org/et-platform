@@ -1,6 +1,6 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 71d1798a58f95a0179d6d7db8a9c9dbde02a702e
+    ref: 9e27d5abc3e4538cf5ee705d0263ea3d415e6ef1
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
