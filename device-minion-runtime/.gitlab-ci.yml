@@ -206,8 +206,7 @@ quality:sonarqube-check:
   script:
       - conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build missing --lockfile=deps_base.lock --lockfile-out=Release.lock
       - conan install . --lockfile=Release.lock --build=missing -g VirtualRunEnv
-      - cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
- -G Ninja 
+      - cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja 
       - source build/Release/generators/conanrun.sh
       - cp ${CI_PROJECT_DIR}/build/Release/compile_commands.json .
       - sonar-scanner -Dsonar.cfamily.threads=${KUBERNETES_CPU_REQUEST}
