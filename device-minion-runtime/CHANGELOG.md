@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - Fix Sonar detected bug
+- [SW-21391] (CI) Update sonarqube job
 ### Security
 
 ## [0.23.0] - 2024-05-17
