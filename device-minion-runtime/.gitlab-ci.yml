@@ -1,13 +1,13 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
+    ref: 71d1798a58f95a0179d6d7db8a9c9dbde02a702e
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
       - pods/medium-pod.yaml
       - pods/large-pod.yaml
       - jobs/generic-k8s-job.yaml
-      - jobs/sonarqube-job.yaml
+      - jobs/conan-sonarqube-job.yaml
       - rules/exec_maybe_interactively.yaml
       - jobs/check-top-of-master-template.yaml
       - jobs/sw-platform-trigger-template.yaml
@@ -196,7 +196,7 @@ build:conan:
 quality:sonarqube-check:
   stage: build
   extends:
-    - .template_job
+    - .template_sonarqube_conan_job
     - .pod_medium
     - .template-conan-linux-ubuntu22.04-gcc11
   needs:
