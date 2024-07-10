@@ -271,7 +271,7 @@ quality:clang-tidy:
 quality:sonarqube-check:
   stage: build
   extends:
-    - .template_job
+    - .template_sonarqube_conan_job
     - .pod_medium
     - .template-conan-linux-ubuntu22.04-gcc11
   needs:
@@ -285,7 +285,7 @@ quality:sonarqube-check:
       - source build/Release/generators/conanrun.sh
       - cp ${CI_PROJECT_DIR}/build/Release/compile_commands.json .
       - sonar-scanner -Dsonar.cfamily.threads=${KUBERNETES_CPU_REQUEST}
-      
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
