@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2024-05-24
 ### Added
 ### Changed
+- [SW-21389] (CI) Update Sonarqube job
 - [SW-20965] (CI) Added Sonarqube should report Error in pipeline if reported failure
 - [SW-20745] (CI) Added quality:sonarqube-check stage and fixes of pipeline
 - Changed Debug to release in sonarqube
