@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 ### Fixed
 - [SW-20965] (CI) Added sonar.qualitygate.wait property
+- [SW-21390] (CI) Update Sonarqube job
 ### Security
 
 ## [0.20.0] - 2024-05-17
