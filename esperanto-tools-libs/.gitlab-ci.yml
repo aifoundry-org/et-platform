@@ -1,6 +1,6 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
+    ref: 9e27d5abc3e4538cf5ee705d0263ea3d415e6ef1
     file:
       - rules/generic-workflow-conan.yaml
       - pods/nano-pod.yaml
@@ -8,7 +8,7 @@ include:
       - pods/large-pod.yaml
       - pods/xlarge-pod.yaml
       - jobs/generic-k8s-job.yaml
-      - jobs/sonarqube-job.yaml
+      - jobs/conan-sonarqube-job.yaml
       - rules/exec_maybe_interactively.yaml
       - /jobs/check-top-of-master-template.yaml
       - /jobs/sw-platform-trigger-template.yaml
@@ -209,7 +209,7 @@ build:conan:
 quality:sonarqube-check:
   stage: build
   extends:
-    - .template_job
+    - .template_sonarqube_conan_job
     - .pod_medium
     - .template-conan-linux-ubuntu22.04-gcc11
   needs:
@@ -218,39 +218,13 @@ quality:sonarqube-check:
       optional: true
   rules:
     - *release_or_development_job_rule
-  tags:
-    - k8s
-  variables:
-    GIT_STRATEGY: clone
-    GIT_DEPTH: "0"  # Tells git to fetch all the branches of the project, required by the analysis task
-    GIT_SUBMODULE_DEPTH: 1
-    GIT_SUBMODULE_STRATEGY: recursive
-    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
-    SONAR_BUILD_WRAPPER_URL: "https://sc-sonarq01.esperanto.ai/static/cpp"
-    SONAR_SCANNER_URL: "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli"
-    SONAR_SCANNER_ARCHIVE_NAME: "sonar-scanner-cli-4.8.0.2856-linux.zip"
-    SONAR_SCANNER_UNZIPED_NAME: "sonar-scanner-4.8.0.2856-linux"
-    SONAR_BUILD_WRAPPER: "build-wrapper-linux-x86"
-  cache:
-    key: "${CI_JOB_NAME}"
-    paths:
-      - .sonar/cache
-  before_script:
-      - sudo apt-get update -qq
-      - sudo apt-get install -qq -y --no-install-recommends zip unzip
-      - wget ${SONAR_BUILD_WRAPPER_URL}/${SONAR_BUILD_WRAPPER}.zip
-      - unzip ${SONAR_BUILD_WRAPPER}.zip
-      - wget ${SONAR_SCANNER_URL}/${SONAR_SCANNER_ARCHIVE_NAME}
-      - unzip ${SONAR_SCANNER_ARCHIVE_NAME}
-      - export PATH=$PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/bin
-      - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/${SONAR_BUILD_WRAPPER}:$PWD/${SONAR_SCANNER_UNZIPED_NAME}/lib
   script:
       - conan lock create conanfile.py -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-debug-shared --build missing --lockfile=deps_base.lock --lockfile-out=Debug.lock
       - conan install . --lockfile=Debug.lock --build=missing -g VirtualRunEnv
-      - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -G "Unix Makefiles"
+      - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja 
       - source build/Debug/generators/conanrun.sh
-      - build-wrapper-linux-x86-64 --out-dir build_wrapper_output_directory make -C build/Debug all -j ${CPU_COUNT}
-      - sonar-scanner
+      - cp ${CI_PROJECT_DIR}/build/Release/compile_commands.json .
+      - sonar-scanner -Dsonar.cfamily.threads=${KUBERNETES_CPU_REQUEST}
 
 ###############################################################################
 ###############################################################################

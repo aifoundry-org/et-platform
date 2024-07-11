@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 ### Removed
 ### Fixed
+- [SW-21387] (CI) Update Sonarqube job
 
 ## [0.15.0]
 ### Added
