@@ -223,7 +223,7 @@ quality:sonarqube-check:
       - conan install . --lockfile=Debug.lock --build=missing -g VirtualRunEnv
       - cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja 
       - source build/Debug/generators/conanrun.sh
-      - cp ${CI_PROJECT_DIR}/build/Release/compile_commands.json .
+      - cp ${CI_PROJECT_DIR}/build/Debug/compile_commands.json .
       - sonar-scanner -Dsonar.cfamily.threads=${KUBERNETES_CPU_REQUEST}
 
 ###############################################################################
