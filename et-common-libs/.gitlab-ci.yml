@@ -116,15 +116,6 @@ capture-graph:
 ###############################################################################
 ###############################################################################
 
-create-sw-platform-branch:
-  extends: .create-sw-platform-branch
-  stage: generate_build
-  needs:
-    - job: verify_project_changes
-    - job: clang-format
-  rules:
-    - *development_job_rule
-
 generate_build:conan:
   extends:
     - .pod_nano
@@ -153,14 +144,6 @@ generate_build:conan:
 ###############################################################################
 ###############################################################################
 ###############################################################################
-
-create-sw-platform-trigger:
-  extends: .create-sw-platform-trigger
-  stage: build
-  needs:
-    - create-sw-platform-branch
-  rules:
-    - *development_job_rule
 
 build:conan:
   extends:
@@ -197,24 +180,6 @@ quality:sonarqube-check:
       - source build/Release/generators/conanrun.sh
       - cp ${CI_PROJECT_DIR}/build/Release/compile_commands.json .
       - sonar-scanner -Dsonar.cfamily.threads=${KUBERNETES_CPU_REQUEST}
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-tests:integration-repo:
-  extends: .meta-trigger
-  stage: test
-  needs:
-    - create-sw-platform-trigger
-    - build:conan
-  rules:
-    - *development_job_rule
-  trigger:
-    strategy: depend
-    include:
-      - artifact: generated-trigger-job.yaml
-        job: create-sw-platform-trigger
 
 ###############################################################################
 ###############################################################################
