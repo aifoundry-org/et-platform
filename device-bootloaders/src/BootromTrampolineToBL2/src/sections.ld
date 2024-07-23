@@ -120,7 +120,7 @@ SECTIONS
     heap (NOLOAD) :
     {
         __heap_start = .;
-        __heap_end = RAM_BASE_ADDR + RAM_SIZE - .;
+        __heap_end = ABSOLUTE(RAM_BASE_ADDR + RAM_SIZE);
     } > RAM
 }
 

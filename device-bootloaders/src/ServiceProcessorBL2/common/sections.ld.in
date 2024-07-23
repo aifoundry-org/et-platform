@@ -114,7 +114,7 @@ SECTIONS
     heap (NOLOAD) : ALIGN(8)
     {
         __heap_start = .;
-        __heap_end = BL2_RAM_BASE_ADDR + BL2_RAM_SIZE - .;
+        __heap_end = ABSOLUTE(BL2_RAM_BASE_ADDR + BL2_RAM_SIZE);
     } > DATA
 }
 

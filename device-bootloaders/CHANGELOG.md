@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - [SW-20965] (CI) Added sonar.qualitygate.wait property
 - [SW-21390] (CI) Update Sonarqube job
+- [SW-21366]: fix __heap_end symbol assignment
 ### Security
 
 ## [0.20.0] - 2024-05-17
