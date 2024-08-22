@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - [SW-20641] Added handling for case when FRU information is not programmed
 - [SW-20641] Made changes to include fru information in the sp output
+- Update Code size requirements for Linux build
 ### Deprecated
 ### Removed
 ### Fixed
