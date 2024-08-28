@@ -15,7 +15,8 @@
         Minion_Enable_Master_Shire_Threads
         Minion_Disable_CM_Shire_Threads
         Master_Minion_Reset
-        Minion_Shire_Update_Voltage
+        Minion_Config_Get_Minion_Voltage_Given_Freq
+        Minion_Config_Get_L2Cache_Voltage_Given_Freq
         Minion_Program_Step_Clock_PLL
         Minion_Enable_Compute_Minion
         Minion_Get_Active_Compute_Minion_Mask
@@ -973,36 +974,12 @@ int Compute_Minion_Reset_Threads(uint64_t shires_mask)
 
     return status;
 }
-/************************************************************************
-*
-*   FUNCTION
-*
-*       Minion_Shire_Update_Voltage
-*
-*   DESCRIPTION
-*
-*       This function provide support to update the Minion
-        Shire Power Rails.
-*
-*   INPUTS
-*
-*       voltage     value of the Voltage to updated to
-*
-*   OUTPUTS
-*
-*       The function call status, pass/fail
-*
-***********************************************************************/
-int Minion_Shire_Update_Voltage(uint8_t voltage)
-{
-    return Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, voltage);
-}
 
 /************************************************************************
 *
 *   FUNCTION
 *
-*       Minion_Get_Voltage_Given_Freq
+*       Minion_Config_Get_Minion_Voltage_Given_Freq
 *
 *   DESCRIPTION
 *
@@ -1017,7 +994,8 @@ int Minion_Shire_Update_Voltage(uint8_t voltage)
 *       voltage          Target Minion Voltage
 *
 ***********************************************************************/
-int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex)
+int Minion_Config_Get_Minion_Voltage_Given_Freq(uint16_t target_frequency,
+                                                uint8_t *minion_voltage_hex)
 {
     /* Lookup table of frequency-voltage pairs */
 
@@ -1040,7 +1018,7 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_vol
 *
 *   FUNCTION
 *
-*       Minion_Get_L2Cache_Voltage_Given_Freq
+*       Minion_Config_Get_L2Cache_Voltage_Given_Freq
 *
 *   DESCRIPTION
 *
@@ -1055,7 +1033,8 @@ int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_vol
 *       voltage          Target L2cache Voltage
 *
 ***********************************************************************/
-int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex)
+int Minion_Config_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency,
+                                                 uint8_t *sram_voltage_hex)
 {
     /* Lookup table of frequency-voltage pairs */
 

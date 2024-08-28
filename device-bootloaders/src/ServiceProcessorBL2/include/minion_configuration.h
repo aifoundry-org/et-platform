@@ -86,31 +86,25 @@
 */
 #define MINION_PLL_USE_STEP_CLOCK true
 
-/*! \fn int Minion_Shire_Update_Voltage( uint8_t voltage)
-    \brief This function provide support to update the Minion
-           Shire Power Rails
-    \param voltage value of the Voltage to updated to
-    \return The function call status, pass/fail.
-*/
-int Minion_Shire_Update_Voltage(uint8_t voltage);
-
-/*! \fn Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex)
+/*! \fn Minion_Config_Get_Minion_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex)
     \brief This function returns a voltage operating value given
             a freq value
     \param Target Minion Frequency
     \param pointer to output voltage
     \return status
 */
-int Minion_Get_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex);
+int Minion_Config_Get_Minion_Voltage_Given_Freq(uint16_t target_frequency,
+                                                uint8_t *minion_voltage_hex);
 
-/*! \fn int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex)
+/*! \fn int Minion_Config_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex)
     \brief This function returns a voltage operating value given
             a freq value
     \param Target Minion Frequency
     \param pointer to output voltage
     \return status
 */
-int Minion_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex);
+int Minion_Config_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency,
+                                                 uint8_t *sram_voltage_hex);
 
 /*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
     \brief This function provide support to program the

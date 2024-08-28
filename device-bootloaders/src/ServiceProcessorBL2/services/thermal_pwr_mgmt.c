@@ -1756,6 +1756,84 @@ int init_thermal_pwr_mgmt_service(void)
     return status;
 }
 
+static int Change_Module_Voltage(module_e voltage_type, volatile uint8_t *curr_voltage_global_reg,
+                                 uint8_t new_voltage_hex)
+{
+    if (new_voltage_hex != *curr_voltage_global_reg)
+    {
+        int status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(voltage_type, new_voltage_hex);
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Failed to update module %d voltage\n", voltage_type);
+            return status;
+        }
+        // Update voltage in global register
+        *curr_voltage_global_reg = new_voltage_hex;
+    }
+    return STATUS_SUCCESS;
+}
+
+static int Change_Minion_And_L2Cache_Modules_Voltage(uint16_t new_freq)
+{
+    int status = STATUS_SUCCESS;
+    uint8_t mnn_new_voltage_hex = 0;
+    uint8_t l2_cache_new_voltage_hex = 0;
+    uint8_t l2_cache_curr_voltage_hex = g_pmic_power_reg.module_voltage.l2_cache;
+
+    // Update L2 cache voltage for new frequency
+    status = Minion_Config_Get_L2Cache_Voltage_Given_Freq(new_freq, &l2_cache_new_voltage_hex);
+    if (status == STATUS_SUCCESS)
+    {
+        status = Change_Module_Voltage(MODULE_L2CACHE, &g_pmic_power_reg.module_voltage.l2_cache,
+                                       l2_cache_new_voltage_hex);
+    }
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to change L2Cache voltage\n");
+        return status;
+    }
+
+    // Update Minion voltage for new frequency
+    status = Minion_Config_Get_Minion_Voltage_Given_Freq(new_freq, &mnn_new_voltage_hex);
+    if (status == STATUS_SUCCESS)
+    {
+        status = Change_Module_Voltage(MODULE_MINION, &g_pmic_power_reg.module_voltage.minion,
+                                       mnn_new_voltage_hex);
+    }
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to change Minion shire voltage\n");
+        // Recover L2 cache voltage if setting minion voltage failed
+        Change_Module_Voltage(MODULE_L2CACHE, &g_pmic_power_reg.module_voltage.l2_cache,
+                              l2_cache_curr_voltage_hex);
+        return status;
+    }
+
+    return status;
+}
+
+static int Update_Minion_Frequency(uint16_t new_freq)
+{
+    uint8_t hpdpll_mode = 0;
+    int status = STATUS_SUCCESS;
+
+    status = pwr_svc_find_hpdpll_mode(new_freq, &hpdpll_mode);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
+    }
+    else
+    {
+        status = Minion_Configure_Hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
+        if (status != STATUS_SUCCESS)
+        {
+            Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
+        }
+    }
+
+    return status;
+}
+
 /************************************************************************
 *
 *   FUNCTION
@@ -1781,11 +1859,10 @@ int init_thermal_pwr_mgmt_service(void)
 static int set_minion_operating_point(uint16_t new_freq,
                                       struct trace_event_power_status_t *power_status)
 {
-    uint8_t hpdpll_mode = 0;
-    uint8_t new_voltage_hex = 0;
     int status = SUCCESS;
+    uint16_t current_frequency = (uint16_t)Get_Minion_Frequency();
 
-    if (new_freq == (uint16_t)Get_Minion_Frequency())
+    if (new_freq == current_frequency)
     {
         return STATUS_SUCCESS;
     }
@@ -1798,72 +1875,48 @@ static int set_minion_operating_point(uint16_t new_freq,
 
     /* TODO: SW-14539: Handling of set frequency in lvdpll mode through minion should be configured  */
 
-    status = Minion_Get_Voltage_Given_Freq(new_freq, &new_voltage_hex);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update Minion shire voltage\n");
-        return status;
-    }
+    if (new_freq > current_frequency)
+    { // Increase minion operating point
 
-    if (new_voltage_hex != g_pmic_power_reg.module_voltage.minion)
-    {
-        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, new_voltage_hex);
+        // Change voltage
+        status = Change_Minion_And_L2Cache_Modules_Voltage(new_freq);
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "Failed to update Minion shire voltage\n");
             return status;
         }
 
-        /* Update voltage in global register*/
-        g_pmic_power_reg.module_voltage.minion = new_voltage_hex;
-    }
-
-    /* Set L2cache voltage, it is using same clock as minion */
-    status = Minion_Get_L2Cache_Voltage_Given_Freq(new_freq, &new_voltage_hex);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update L2Cache voltage\n");
-        return status;
-    }
-
-    if (new_voltage_hex != g_pmic_power_reg.module_voltage.l2_cache)
-    {
-        status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_L2CACHE, new_voltage_hex);
+        // Make the actual PLL change to increase freq
+        status = Update_Minion_Frequency(new_freq);
         if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "Failed to update L2Cache voltage\n");
+            // Changing requency failed, restore voltage
+            Change_Minion_And_L2Cache_Modules_Voltage(current_frequency);
             return status;
         }
-
-        /* Update voltage in global register*/
-        g_pmic_power_reg.module_voltage.l2_cache = new_voltage_hex;
     }
+    else if (new_freq < current_frequency)
+    { // Reduce minion operating point
 
-    status = pwr_svc_find_hpdpll_mode(new_freq, &hpdpll_mode);
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to get hdpll mode\n");
-        return status;
-    }
-
-    status = Minion_Configure_Hpdpll(hpdpll_mode, Minion_Get_Active_Compute_Minion_Mask());
-    if (status != STATUS_SUCCESS)
-    {
-        Log_Write(LOG_LEVEL_ERROR, "Failed to update minion frequency!\n");
-
-        status = Minion_Get_Voltage_Given_Freq((uint16_t)Get_Minion_Frequency(), &new_voltage_hex);
-
-        if ((status != STATUS_SUCCESS) && (STATUS_SUCCESS != Thermal_Pwr_Mgmt_Set_Validate_Voltage(
-                                                                 MODULE_MINION, new_voltage_hex)))
+        // Make the actual PLL change to reduce freq
+        status = Update_Minion_Frequency(new_freq);
+        if (status != STATUS_SUCCESS)
         {
-            Log_Write(LOG_LEVEL_ERROR, "Failed to update shire voltage\n");
+            return status;
         }
-        return status;
+        // Reduce voltage
+        status = Change_Minion_And_L2Cache_Modules_Voltage(new_freq);
+        if (status != STATUS_SUCCESS)
+        {
+            // Reducing voltage failed, restore frequency
+            Update_Minion_Frequency(current_frequency);
+            return status;
+        }
     }
+
     Update_Minion_Frequency_Global_Reg(new_freq);
 
     power_status->tgt_freq = new_freq;
-    power_status->tgt_voltage = new_voltage_hex;
+    power_status->tgt_voltage = g_pmic_power_reg.module_voltage.minion;
 
     Trace_Power_Status(Trace_Get_SP_CB(), power_status);
 
@@ -1899,15 +1952,18 @@ static int set_minion_operating_point(uint16_t new_freq,
 static int reduce_minion_operating_point(struct trace_event_power_status_t *power_status)
 {
     uint16_t minion_curr_frequency = (uint16_t)Get_Minion_Frequency();
-    uint16_t new_freq;
+    uint16_t new_freq = 0;
 
     int status =
         flash_fs_get_vmin_lut_minion_previous_frequency_point(minion_curr_frequency, &new_freq);
-    if (status != STATUS_SUCCESS)
+    // target freq is always lower or equal, check it to avoid issues with the VMIN LUT
+    if ((status != STATUS_SUCCESS) || (new_freq > minion_curr_frequency))
     {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "Failed to find input frequency in vmin lut, new frequency remains unchanged.\n");
-        new_freq = minion_curr_frequency;
+        Log_Write(
+            LOG_LEVEL_ERROR,
+            "Failed to find valid input frequency in vmin lut, minion operation point remains unchanged: curr freq = %d, new freq = %d.\n",
+            minion_curr_frequency, new_freq);
+        return status;
     }
 
     /* Set the operating point*/
@@ -1938,15 +1994,18 @@ static int increase_minion_operating_point(struct trace_event_power_status_t *po
 {
     uint16_t minion_curr_frequency = (uint16_t)Get_Minion_Frequency();
     uint16_t minion_max_frequency = g_soc_power_reg.vmin_lut_limits.mnn_frequency_max_limit;
-    uint16_t new_freq;
+    uint16_t new_freq = 0;
 
     int status = flash_fs_get_vmin_lut_minion_next_frequency_point(minion_curr_frequency,
                                                                    minion_max_frequency, &new_freq);
-    if (status != STATUS_SUCCESS)
+    // target freq is always higher or equal, check it to avoid issues with the VMIN LUT
+    if ((status != STATUS_SUCCESS) || (new_freq < minion_curr_frequency))
     {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "Failed to find input frequency in vmin lut, new frequency remains unchanged.\n");
-        new_freq = minion_curr_frequency;
+        Log_Write(
+            LOG_LEVEL_ERROR,
+            "Failed to find valid input frequency in vmin lut, minion operation point remains unchanged: curr freq = %d, new freq = %d.\n",
+            minion_curr_frequency, new_freq);
+        return status;
     }
 
     /* Set the operating point*/
@@ -2007,7 +2066,7 @@ static int go_to_safe_state(power_state_e power_state, power_throttle_state_e th
     uint8_t new_voltage_hex;
     uint16_t new_voltage_mv;
 
-    status = Minion_Get_Voltage_Given_Freq(SAFE_STATE_FREQUENCY, &new_voltage_hex);
+    status = Minion_Config_Get_Minion_Voltage_Given_Freq(SAFE_STATE_FREQUENCY, &new_voltage_hex);
     new_voltage_mv = (uint16_t)(PMIC_HEX_TO_MILLIVOLT(new_voltage_hex, PMIC_MINION_VOLTAGE_BASE,
                                                       PMIC_MINION_VOLTAGE_MULTIPLIER,
                                                       PMIC_GENERIC_VOLTAGE_DIVIDER));
