@@ -32,7 +32,7 @@ foreach(BL2_BUILD_VARIANT IN ITEMS production fast-boot testframework mdi_enable
         set(FAST_BOOT 0)
         set(TEST_FRAMEWORK 1)
         set(LINUX_MODE 1) #this must be enabled in testframework because of maxion tests
-        set(BL2_CODE_REGION_SIZE 465K)
+        set(BL2_CODE_REGION_SIZE 440K)
     elseif (BL2_BUILD_VARIANT STREQUAL "production")
         # Production version
         set(FAST_BOOT 0)
