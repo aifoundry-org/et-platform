@@ -81,6 +81,7 @@
 #include "log.h"
 #include "delays.h"
 #include "sp_host_iface.h"
+#include "thermal_pwr_mgmt.h"
 
 #include "hwinc/hal_device.h"
 #include "hwinc/sp_cru_reset.h"
@@ -510,7 +511,7 @@ void enable_pmic_interrupts(void)
     pmic_set_temperature_threshold(TEMP_THRESHOLD_HW_CATASTROPHIC);
 
     /* Set power threshold values */
-    pmic_set_tdp_threshold(POWER_ALARM_SET_POINT);
+    pmic_set_tdp_threshold(POWER_THRESHOLD_HW_CATASTROPHIC);
 
     /* Enable all PMIC interrupts */
     if (0 != pmic_set_int_config(ENABLE_ALL_PMIC_INTERRUPTS))
@@ -756,45 +757,16 @@ void Pmic_Controller_Handle_Pmic_Error_Event(struct event_message_t *message)
     if (PMIC_I2C_INT_CAUSE_OV_POWER_GET(int_cause))
     {
         uint64_t data = 0;
-        uint8_t board_type = 0;
-        uint8_t dummy;
-        uint32_t base_mW = 0;
+        uint32_t pwr_alarm_set_point_mW = 0;
 
         event_control_block.thermal_pwr_event_cb((uint8_t)(int_cause & 0xff));
 
-        //Get power alarm set point (units W, format whole-6b.dec-2b, dec in .25W step)
-        if (STATUS_SUCCESS != pmic_get_tdp_threshold(&reg_value_8))
+        //Get power alarm set point
+        if (STATUS_SUCCESS != pmic_get_tdp_threshold(&pwr_alarm_set_point_mW))
         {
             MESSAGE_ERROR(
                 "Pmic_Controller_Handle_Pmic_Error_Event: PMIC read power alarm set point failed!");
         }
-
-        if (STATUS_SUCCESS != pmic_get_board_type(&board_type, &dummy, &dummy, &dummy))
-        {
-            Log_Write(LOG_LEVEL_CRITICAL,
-                      "Pmic_Controller_Handle_Pmic_Error_Event: Getting board type failed");
-            return;
-        }
-
-#if !FAST_BOOT
-        if (board_type == PMIC_I2C_BOARD_BOARD_TYPE_BUB)
-        {
-            base_mW = PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE_BUB_mW;
-        }
-        else if (board_type == PMIC_I2C_BOARD_BOARD_TYPE_PCIE)
-        {
-            base_mW = PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE_PCIE_mW;
-        }
-        else
-        {
-            Log_Write(LOG_LEVEL_CRITICAL,
-                      "Pmic_Controller_Handle_Pmic_Error_Event: Unkown PMIC board type");
-            return;
-        }
-#endif
-
-        uint32_t pwr_alarm_set_point_mW =
-            base_mW + (reg_value_8 * PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW);
 
         uint32_t pwr = pwr_alarm_set_point_mW + (PMIC_I2C_INT_CAUSE_OV_PWR_VALUE(int_cause) *
                                                  PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW);
@@ -2187,9 +2159,24 @@ int pmic_set_wdog_timeout_time(uint32_t timeout_time)
 *
 ***********************************************************************/
 
-int pmic_get_tdp_threshold(uint8_t *power_alarm)
+int pmic_get_tdp_threshold(uint32_t *pwr_alarm_set_point_mW)
 {
-    return (get_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, power_alarm, 1));
+    int status = STATUS_SUCCESS;
+    uint8_t reg_value_8 = 0;
+    uint32_t base_W = PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE;
+
+    //Get power alarm set point (units W, format whole-6b.dec-2b, dec in .25W step)
+    status = get_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, &reg_value_8, 1);
+    if (status != STATUS_SUCCESS)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "pmic_get_tdp_threshold: Getting power alarm failed");
+        return status;
+    }
+
+    *pwr_alarm_set_point_mW =
+        (base_W * 1000U) + (reg_value_8 * PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_STEP_mW);
+
+    return STATUS_SUCCESS;
 }
 
 /************************************************************************
@@ -2214,11 +2201,31 @@ int pmic_get_tdp_threshold(uint8_t *power_alarm)
 
 int pmic_set_tdp_threshold(uint16_t power_alarm)
 {
-    power_alarm = (power_alarm > POWER_ALARM_SET_POINT_UPPER_LIMIT) ?
-                      POWER_ALARM_SET_POINT_UPPER_LIMIT :
-                      power_alarm;
-    power_alarm = (uint8_t)(power_alarm << 2);
-    return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, (uint8_t *)&power_alarm, 1));
+    uint32_t power_alarm_offset = 0;
+    uint8_t tdp_level = 0;
+    uint32_t base_W = PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE;
+
+    get_module_tdp_level(&tdp_level);
+    if (power_alarm <= tdp_level)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "HW power threshold %d must be over SW TDP %d!\n", power_alarm,
+                  tdp_level);
+        return THERMAL_PWR_MGMT_INVALID_TDP_LEVEL;
+    }
+
+    // Power alarm = base + offset, offset is sent to PMIC
+    if (power_alarm < base_W)
+    {
+        Log_Write(LOG_LEVEL_ERROR, "HW power threshold %d must be higher than base value %d!\n",
+                  power_alarm, base_W);
+        return THERMAL_PWR_MGMT_INVALID_TDP_LEVEL;
+    }
+    power_alarm_offset = power_alarm - base_W;
+    power_alarm_offset = (power_alarm_offset > PMIC_POWER_ALARM_SET_POINT_UPPER_LIMIT) ?
+                             PMIC_POWER_ALARM_SET_POINT_UPPER_LIMIT :
+                             power_alarm_offset;
+    power_alarm_offset = (uint8_t)(power_alarm_offset << 2);
+    return (set_pmic_reg(PMIC_I2C_PWR_ALARM_CONFIG_ADDRESS, (uint8_t *)&power_alarm_offset, 1));
 }
 
 /************************************************************************

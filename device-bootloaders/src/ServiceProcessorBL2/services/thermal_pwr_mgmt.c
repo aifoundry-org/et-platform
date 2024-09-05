@@ -2165,7 +2165,7 @@ void power_throttling(power_throttle_state_e throttle_state)
     if (throttle_state == POWER_THROTTLE_STATE_POWER_SAFE)
     {
         FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
-                    POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
+                          POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
         go_to_safe_state(&power_status);
     }
 
@@ -2313,19 +2313,18 @@ void thermal_throttling(power_throttle_state_e throttle_state)
     status = pmic_read_average_soc_power(&avg_pwr_10mW);
     if (status != SUCCESS)
     {
-        Log_Write(LOG_LEVEL_ERROR,
-                  "thermal pwr mgmt svc error: %d failed to get soc power\r\n", status);
+        Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error: %d failed to get soc power\r\n",
+                  status);
         return;
     }
 
     if (throttle_state == POWER_THROTTLE_STATE_THERMAL_SAFE)
     {
         FILL_POWER_STATUS(power_status, throttle_state, g_soc_power_reg.module_power_state,
-                    POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
+                          POWER_10MW_TO_W(avg_pwr_10mW), current_temperature, 0, 0)
         go_to_safe_state(&power_status);
         return;
     }
-
 
     while ((current_temperature > g_soc_power_reg.temperature_threshold.sw_temperature_c) &&
            (g_soc_power_reg.power_throttle_state <= throttle_state))

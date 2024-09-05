@@ -266,15 +266,19 @@ typedef struct imageMetadata_
 */
 #define POWER_THRESHOLD_HW_CATASTROPHIC 75
 
-/*! \def POWER_ALARM_SET_POINT
-    \brief A macro that provides power alarm set point value.
-*/
-#define POWER_ALARM_SET_POINT 60
-
-/*! \def POWER_ALARM_SET_POINT_UPPER_LIMIT
+/*! \def PMIC_POWER_ALARM_SET_POINT_UPPER_LIMIT
     \brief A macro that provides pmic max power alarm set point value according to the protocol
 */
-#define POWER_ALARM_SET_POINT_UPPER_LIMIT 0x3F
+#define PMIC_POWER_ALARM_SET_POINT_UPPER_LIMIT 0x3F
+
+#if (POWER_THRESHOLD_HW_CATASTROPHIC < PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE)
+#error Power threshold value must be greater than alarm set point base value!
+#endif
+
+#if ((POWER_THRESHOLD_HW_CATASTROPHIC - PMIC_I2C_INT_CAUSE_PWR_ALARM_SET_POINT_BASE) > \
+     PMIC_POWER_ALARM_SET_POINT_UPPER_LIMIT)
+#error Power threshold value is above limit!
+#endif
 
 /*! \def TEMP_THRESHOLD_HW_CATASTROPHIC
     \brief A macro that provides pmic temperature threshold value
@@ -531,12 +535,12 @@ int pmic_get_wdog_timeout_time(uint32_t *wdog_time);
 */
 int pmic_set_wdog_timeout_time(uint32_t timeout_time);
 
-/*! \fn int pmic_get_tdp_threshold(uint8_t* power_limit)
+/*! \fn int pmic_get_tdp_threshold(uint32_t* power_limit)
     \brief This function gets power alarm point.
     \param power_limit - power alarm point (binary encoded)
     \return The function call status, pass/fail.
 */
-int pmic_get_tdp_threshold(uint8_t *power_limit);
+int pmic_get_tdp_threshold(uint32_t *power_limit);
 
 /*! \fn int pmic_set_tdp_threshold(uint16_t power_alarm)
     \brief This function sets power alarm point.

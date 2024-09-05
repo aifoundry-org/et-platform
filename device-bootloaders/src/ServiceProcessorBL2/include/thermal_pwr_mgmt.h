@@ -52,6 +52,10 @@
 */
 #define POWER_THRESHOLD_SW_MANAGED 65
 
+#if POWER_THRESHOLD_HW_CATASTROPHIC < POWER_THRESHOLD_SW_MANAGED
+#error SW managed power threshold value must be lower than HW catastrophic threshold!
+#endif
+
 /*! \def SAFE_POWER_THRESHOLD
     \brief A macro that provides safe power threshold value.
 *          When catastrophic overpower or overtemperature occures ETSOC will go bellow
