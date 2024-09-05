@@ -73,7 +73,7 @@
 /*! \def SAFE_STATE_L2CACHE_VOLTAGE
     \brief A macro that provides l2cache voltage for safe state frequency
 */
-#define SAFE_STATE_L2CACHE_VOLTAGE 0x50 //TODO: to be removed and replaced with vmin lut value
+#define SAFE_STATE_L2CACHE_VOLTAGE 0x52 //TODO: to be removed and replaced with vmin lut value
 
 /*! \def POWER_GUARDBAND_SCALE_FACTOR
     \brief A macro that provides power scale factor in percentages.
