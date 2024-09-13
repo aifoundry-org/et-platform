@@ -1258,6 +1258,7 @@ struct device_mgmt_power_throttle_config_cmd_t
 {
     dev_mgmt_cmd_header_t command_info; /**< Command header */
     power_throttle_state_e power_state; /**< This is throttle power state value, states can be
+POWER_THROTTLE_STATE_POWER_IDLE,
 POWER_THROTTLE_STATE_POWER_UP,
 POWER_THROTTLE_STATE_POWER_DOWN,
 POWER_THROTTLE_STATE_POWER_SAFE */

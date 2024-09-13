@@ -282,13 +282,12 @@ typedef uint8_t power_throttle_state_e;
 */
 enum POWER_THROTTLE_STATE
 {
-    POWER_THROTTLE_STATE_POWER_IDLE = 0,   /**<  */
-    POWER_THROTTLE_STATE_THERMAL_IDLE = 1, /**<  */
-    POWER_THROTTLE_STATE_POWER_UP = 2,     /**<  */
-    POWER_THROTTLE_STATE_POWER_DOWN = 3,   /**<  */
-    POWER_THROTTLE_STATE_THERMAL_DOWN = 4, /**<  */
-    POWER_THROTTLE_STATE_POWER_SAFE = 5,   /**<  */
-    POWER_THROTTLE_STATE_THERMAL_SAFE = 6, /**<  */
+    POWER_THROTTLE_STATE_POWER_IDLE = 0,
+    POWER_THROTTLE_STATE_POWER_UP,
+    POWER_THROTTLE_STATE_POWER_DOWN,
+    POWER_THROTTLE_STATE_POWER_SAFE,
+    // Must be the last one
+    POWER_THROTTLE_STATE_UNKNOWN,
 };
 
 typedef uint8_t active_power_management_e;
