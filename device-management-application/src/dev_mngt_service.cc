@@ -747,14 +747,14 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_THROTTLE_STATES: {
-    std::string throttle_state_name[7] = {"POWER_THROTTLE_STATE_POWER_IDLE",   "POWER_THROTTLE_STATE_THERMAL_IDLE",
-                                          "POWER_THROTTLE_STATE_POWER_UP",     "POWER_THROTTLE_STATE_POWER_DOWN",
-                                          "POWER_THROTTLE_STATE_THERMAL_DOWN", "POWER_THROTTLE_STATE_POWER_SAFE",
-                                          "POWER_THROTTLE_STATE_THERMAL_SAFE"};
-    for (device_mgmt_api::power_throttle_state_e throttle_state = device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP;
-         throttle_state <= device_mgmt_api::POWER_THROTTLE_STATE_THERMAL_SAFE; throttle_state++) {
+    std::vector<std::pair<std::string, device_mgmt_api::power_throttle_state_e>> throttle_states = {
+      {"POWER_THROTTLE_STATE_POWER_UP", device_mgmt_api::POWER_THROTTLE_STATE_POWER_UP},
+      {"POWER_THROTTLE_STATE_POWER_DOWN", device_mgmt_api::POWER_THROTTLE_STATE_POWER_DOWN},
+      {"POWER_THROTTLE_STATE_POWER_SAFE", device_mgmt_api::POWER_THROTTLE_STATE_POWER_SAFE}};
+
+    for (auto& throttle_state : throttle_states) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_throttle_state_e);
-      const char input_buff[input_size] = {(char)throttle_state};
+      const char input_buff[input_size] = {(char)throttle_state.second};
 
       const uint32_t output_size = sizeof(residency_t);
       char output_buff[output_size] = {0};
@@ -764,7 +764,7 @@ int verifyService() {
       }
 
       residency_t* residency = (residency_t*)output_buff;
-      DM_LOG(INFO) << "throttle_residency " << throttle_state_name[throttle_state] << "(in usecs):" << std::endl;
+      DM_LOG(INFO) << "throttle_residency " << throttle_state.first.c_str() << "(in usecs):" << std::endl;
       DM_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
       DM_LOG(INFO) << "average: " << residency->average << std::endl;
       DM_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
@@ -936,12 +936,15 @@ int verifyService() {
   } break;
 
   case DM_CMD::DM_CMD_GET_MODULE_RESIDENCY_POWER_STATES: {
-    std::string power_state_name[4] = {"POWER_STATE_MAX_POWER", "POWER_STATE_MANAGED_POWER", "POWER_STATE_SAFE_POWER",
-                                       "POWER_STATE_LOW_POWER"};
-    for (device_mgmt_api::power_state_e power_state = device_mgmt_api::POWER_STATE_MAX_POWER;
-         power_state <= device_mgmt_api::POWER_STATE_SAFE_POWER; power_state++) {
+    std::vector<std::pair<std::string, device_mgmt_api::power_state_e>> power_states = {
+      {"POWER_STATE_MAX_POWER", device_mgmt_api::POWER_STATE_MAX_POWER},
+      {"POWER_STATE_MANAGED_POWER", device_mgmt_api::POWER_STATE_MANAGED_POWER},
+      {"POWER_STATE_SAFE_POWER", device_mgmt_api::POWER_STATE_SAFE_POWER},
+      {"POWER_STATE_LOW_POWER", device_mgmt_api::POWER_STATE_LOW_POWER}};
+
+    for (auto& power_state : power_states) {
       const uint32_t input_size = sizeof(device_mgmt_api::power_state_e);
-      const char input_buff[input_size] = {(char)power_state};
+      const char input_buff[input_size] = {(char)power_state.second};
 
       const uint32_t output_size = sizeof(residency_t);
       char output_buff[output_size] = {0};
@@ -951,7 +954,7 @@ int verifyService() {
       }
 
       residency_t* residency = (residency_t*)output_buff;
-      DM_LOG(INFO) << "power_residency " << power_state_name[power_state] << "(in usecs):" << std::endl;
+      DM_LOG(INFO) << "power_residency " << power_state.first.c_str() << "(in usecs):" << std::endl;
       DM_LOG(INFO) << "cumulative: " << residency->cumulative << std::endl;
       DM_LOG(INFO) << "average: " << residency->average << std::endl;
       DM_LOG(INFO) << "maximum: " << residency->maximum << std::endl;
