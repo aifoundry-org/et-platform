@@ -70,7 +70,7 @@ class RuntimeConan(ConanFile):
         self.requires("deviceLayer/3.0.0")
         self.requires("hostUtils/0.3.0")
 
-        self.requires("cereal/1.3.1")
+        self.requires("cereal/1.3.2")
         self.requires("elfio/3.8")
         self.requires("libcap/2.62")
         self.requires("gflags/2.2.2")
