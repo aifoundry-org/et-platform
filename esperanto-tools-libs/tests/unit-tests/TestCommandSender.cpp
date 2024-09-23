@@ -33,7 +33,7 @@ TEST(CommandSender, checkConsistency) {
   // dummy msg_id to make it work on deviceLayerFake
   header->msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   auto numCommands = 3 * 1e4;
-  dev::DeviceLayerFake deviceLayer;
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
   profiling::DummyProfiler profiler;
   CommandSender cs(deviceLayer, &profiler, 0, 0);
   for (device_ops_api::tag_id_t i = 0; i < numCommands; ++i) {
@@ -43,14 +43,14 @@ TEST(CommandSender, checkConsistency) {
   }
   // no command is enabled now, so a call to receiveResponseMasterMinion should return false
   std::vector<std::byte> response;
-  EXPECT_FALSE(deviceLayer.receiveResponseMasterMinion(0, response));
+  EXPECT_FALSE(deviceLayer->receiveResponseMasterMinion(0, response));
 
   // now, lets enable the first command sent
   cs.enable(EventId{1});
 
   // we should expect a response now, due to multithreading we could wait for a bit. Let's try 5 times in a row
   for (int i = 0; i < 5; ++i) {
-    if (deviceLayer.receiveResponseMasterMinion(0, response)) {
+    if (deviceLayer->receiveResponseMasterMinion(0, response)) {
       break;
     } else {
       std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -65,7 +65,7 @@ TEST(CommandSender, checkConsistency) {
   // if we enable the last one, it shouldnt produce anything
   cs.enable(EventId(numCommands));
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  ASSERT_FALSE(deviceLayer.receiveResponseMasterMinion(0, response));
+  ASSERT_FALSE(deviceLayer->receiveResponseMasterMinion(0, response));
   ASSERT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
 
   // if we enable all (except first and last one since they were already enabled) we should expect all tag_ids following
@@ -74,7 +74,7 @@ TEST(CommandSender, checkConsistency) {
   }
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   for (auto i = 1; i < numCommands; ++i) {
-    ASSERT_TRUE(deviceLayer.receiveResponseMasterMinion(0, response));
+    ASSERT_TRUE(deviceLayer->receiveResponseMasterMinion(0, response));
     ASSERT_EQ(rsp, reinterpret_cast<device_ops_api::rsp_header_t*>(response.data()));
     ASSERT_EQ(rsp->rsp_hdr.tag_id, i + 1);
   }
@@ -87,7 +87,7 @@ TEST(CommandSender, checkSendBefore) {
   // dummy msg_id to make it work on deviceLayerFake
   header->msg_id = device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD;
   auto numCommands = 100;
-  dev::DeviceLayerFake deviceLayer;
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
   profiling::DummyProfiler profiler;
   CommandSender cs(deviceLayer, &profiler, 0, 0);
   // first emplace commands with odd tag_ids
@@ -111,7 +111,7 @@ TEST(CommandSender, checkSendBefore) {
 
   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   for (auto i = 0; i < numCommands; ++i) {
-    ASSERT_TRUE(deviceLayer.receiveResponseMasterMinion(0, response));
+    ASSERT_TRUE(deviceLayer->receiveResponseMasterMinion(0, response));
     auto rsp = reinterpret_cast<device_ops_api::rsp_header_t*>(response.data());
     ASSERT_EQ(rsp->rsp_hdr.tag_id, i);
   }

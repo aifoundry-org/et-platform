@@ -17,14 +17,15 @@
 #include <tools/IBenchmarker.h>
 
 TEST(BenchmarkerTool, sysemu) {
-  auto deviceLayer = dev::IDeviceLayer::createSysEmuDeviceLayer(getSysemuDefaultOptions());
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer =
+    dev::IDeviceLayer::createSysEmuDeviceLayer(getSysemuDefaultOptions());
   rt::IBenchmarker::Options options;
   options.bytesD2H = 300 << 20;
   options.bytesH2D = 300 << 20;
   options.numWorkloadsPerThread = 8;
   options.numThreads = 1;
   options.useDmaBuffers = false;
-  auto rt = rt::IRuntime::create(deviceLayer.get());
+  auto rt = rt::IRuntime::create(deviceLayer);
   runBenchmarker(rt.get(), options);
 }
 

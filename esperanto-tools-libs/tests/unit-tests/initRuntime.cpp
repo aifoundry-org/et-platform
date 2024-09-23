@@ -20,10 +20,10 @@ using namespace std::chrono;
 
 TEST(InitRuntime, HPSQ_Failure) {
   dev::DeviceLayerFake fake;
-  auto deviceLayer = NiceMock<dev::DeviceLayerMock>{&fake};
-  deviceLayer.Delegate();
-  ON_CALL(deviceLayer, sendCommandMasterMinion).WillByDefault(Return(false));
-  EXPECT_THROW({ auto runtime = IRuntime::create(&deviceLayer); }, Exception);
+  auto deviceLayer = std::shared_ptr<NiceMock<dev::DeviceLayerMock>>(new NiceMock<dev::DeviceLayerMock>{&fake});
+  deviceLayer->Delegate();
+  ON_CALL(*deviceLayer.get(), sendCommandMasterMinion).WillByDefault(Return(false));
+  EXPECT_THROW({ auto runtime = IRuntime::create(deviceLayer); }, Exception);
 }
 
 int main(int argc, char** argv) {

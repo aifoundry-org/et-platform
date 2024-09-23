@@ -70,7 +70,7 @@ void RuntimeImp::onProfilerChanged() {
   }
 }
 
-RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
+RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Options options)
   : deviceLayer_{deviceLayer} {
 
   RT_LOG(INFO) << "Profiler enabled? " << (profiler::isEnabled() ? "True" : "False");
@@ -84,7 +84,7 @@ RuntimeImp::RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options)
     auto sqCount = deviceLayer->getSubmissionQueuesCount(device);
     streamManager_.addDevice(deviceId, sqCount);
     for (int sq = 0; sq < sqCount; ++sq) {
-      commandSenders_.try_emplace(getCommandSenderIdx(device, sq), *deviceLayer_, getProfiler(), device, sq);
+      commandSenders_.try_emplace(getCommandSenderIdx(device, sq), deviceLayer_, getProfiler(), device, sq);
     }
   }
 

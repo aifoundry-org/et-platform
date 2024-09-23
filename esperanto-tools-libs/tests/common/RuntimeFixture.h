@@ -53,7 +53,7 @@ public:
         loggerDefault_ = std::make_unique<logging::LoggerDefault>();
       }
       deviceLayer_ = dlCreator();
-      runtime_ = rt::IRuntime::create(deviceLayer_.get(), options);
+      runtime_ = rt::IRuntime::create(deviceLayer_, options);
       auto imp = static_cast<rt::RuntimeImp*>(runtime_.get());
       devices_ = runtime_->getDevices();
       for (const auto& d : devices_) {
@@ -177,7 +177,7 @@ protected:
   uint8_t numDevices_ = 1;
   std::ofstream traceOut_;
   std::unique_ptr<logging::LoggerDefault> loggerDefault_;
-  std::unique_ptr<dev::IDeviceLayer> deviceLayer_; // only set for SP mode
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer_; // only set for SP mode
   std::unique_ptr<MpOrchestrator> mpOrchestrator_; // only set for MP mode
   rt::RuntimePtr runtime_;
   std::vector<rt::DeviceId> devices_;

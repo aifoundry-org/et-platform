@@ -8,11 +8,14 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+
 #include "EventManager.h"
 #include "ExecutionContextCache.h"
 #include "device-layer/IDeviceLayer.h"
+
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <thread>
 
 namespace rt {
@@ -24,7 +27,7 @@ public:
     virtual void checkDevice(DeviceId device) = 0;
     virtual void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) = 0;
   };
-  explicit ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices);
+  explicit ResponseReceiver(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, IReceiverServices* receiverServices);
 
   void startDeviceChecker();
 
@@ -38,7 +41,7 @@ private:
   std::thread deviceChecker_;
   bool runDeviceChecker_ = false;
   bool runReceiver_ = true;
-  dev::IDeviceLayer* deviceLayer_;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
   IReceiverServices* receiverServices_;
 };
 } // namespace rt

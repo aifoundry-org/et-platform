@@ -51,7 +51,7 @@ struct DeviceApiVersion {
 
 class RuntimeImp : public IRuntime, public ResponseReceiver::IReceiverServices, public patterns::Subject<EventId> {
 public:
-  explicit RuntimeImp(dev::IDeviceLayer* deviceLayer, Options options);
+  explicit RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Options options);
 
   std::vector<DeviceId> doGetDevices() final;
 
@@ -200,7 +200,7 @@ private:
   };
 
   mutable std::recursive_mutex mutex_;
-  dev::IDeviceLayer* deviceLayer_;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
   std::unordered_map<DeviceId, std::unique_ptr<CmaManager>> cmaManagers_;
   std::vector<DeviceId> devices_;
   StreamManager streamManager_;

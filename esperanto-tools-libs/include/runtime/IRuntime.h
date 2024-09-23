@@ -14,6 +14,7 @@
 #include "Types.h"
 #include <chrono>
 #include <cstddef>
+#include <memory>
 #include <ostream>
 #include <vector>
 
@@ -394,12 +395,13 @@ public:
   ///
   /// \brief Factory method to instantiate a standalone IRuntime implementation
   ///
-  /// @param[in] deviceLayer is the deviceLayer implementation that runtime will use. See \ref dev::IDeviceLAyer
+  /// @param[in] deviceLayer is the deviceLayer implementation that runtime will use. See \ref dev::IDeviceLayer
   /// @param[in] options can set some runtime parameters. See \ref rt::Options
   ///
   /// @returns RuntimePtr an IRuntime instance.
   ///
-  static RuntimePtr create(dev::IDeviceLayer* deviceLayer, Options options = getDefaultOptions());
+  static RuntimePtr create(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer,
+                           Options options = getDefaultOptions());
 
   ///
   /// \brief Factory method to instantiate a client IRuntime implementation

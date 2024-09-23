@@ -72,7 +72,7 @@ TEST_F(TestDmaErrors, DmaOobPlusCommands) {
     // this part of the test can only be run in PCIE because sysemu always returns "ready" in DeviceState
     // reinstantiate the runtime and check the device is ready
     runtime_ = nullptr;
-    runtime_ = rt::IRuntime::create(deviceLayer_.get());
+    runtime_ = rt::IRuntime::create(deviceLayer_);
     defaultStreams_[0] = runtime_->createStream(devices_[0]);
     ASSERT_EQ(deviceLayer_->getDeviceStateMasterMinion(static_cast<int>(devices_[0])), dev::DeviceState::Ready);
   }

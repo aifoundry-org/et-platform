@@ -24,8 +24,8 @@ inline std::vector<std::byte> readFile(const std::string& path) {
 int main(int argc, char* argv[]) {
   using namespace std::chrono_literals;
 
-  auto deviceLayer = dev::IDeviceLayer::createPcieDeviceLayer();
-  auto runtime = rt::IRuntime::create(deviceLayer.get());
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer = dev::IDeviceLayer::createPcieDeviceLayer();
+  auto runtime = rt::IRuntime::create(deviceLayer);
   auto devices = runtime->getDevices();
   auto st = runtime->createStream(devices[0]);
   auto fileContents = readFile(argv[1]);

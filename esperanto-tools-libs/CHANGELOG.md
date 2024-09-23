@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Added
 ### Changed
+- **API CHANGE:** The Runtime now must be costructed using a std::shared_ptr to the DeviceLayer
 ### Deprecated
 ### Removed
 ### Fixed

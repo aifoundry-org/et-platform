@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  std::unique_ptr<dev::IDeviceLayer> deviceLayer;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer;
   auto pid = getpid();
   if (FLAGS_device_type == "pcie") {
     deviceLayer = dev::IDeviceLayer::createPcieDeviceLayer();
@@ -212,7 +212,7 @@ int main(int argc, char* argv[]) {
       opts.checkDeviceApiVersion_ = false;
     }
 
-    rt::Server s(FLAGS_socket_path, std::move(deviceLayer), opts);
+    rt::Server s(FLAGS_socket_path, deviceLayer, opts);
 
     // Set up profiling
     {

@@ -17,14 +17,14 @@
 #include <tools/IBenchmarker.h>
 
 TEST(BenchmarkerTool, fake) {
-  dev::DeviceLayerFake deviceLayer;
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
   rt::IBenchmarker::Options options;
   options.bytesD2H = 4 << 20;
   options.bytesH2D = 4 << 20;
   options.numWorkloadsPerThread = 100;
   options.numThreads = 8;
   options.useDmaBuffers = false;
-  auto rt = rt::IRuntime::create(&deviceLayer, rt::Options{true, false});
+  auto rt = rt::IRuntime::create(deviceLayer, rt::Options{true, false});
   runBenchmarker(rt.get(), options);
 }
 

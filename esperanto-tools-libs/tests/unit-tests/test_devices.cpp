@@ -22,8 +22,8 @@ using namespace std::chrono;
 
 TEST(devices, get_properties) {
   dev::DeviceLayerFake fake;
-  auto deviceLayer = NiceMock<dev::DeviceLayerMock>{&fake};
-  deviceLayer.Delegate();
+  auto deviceLayer = std::shared_ptr<NiceMock<dev::DeviceLayerMock>>(new NiceMock<dev::DeviceLayerMock>{&fake});
+  deviceLayer->Delegate();
 
   auto fakeMemorySize = 40U * 1024U * 1024U;
   auto fakeAvailableShires = 16;
@@ -46,11 +46,11 @@ TEST(devices, get_properties) {
   dc.spareComputeMinionoShireId_ = 33;
   dc.archRevision_ = dev::DeviceConfig::ArchRevision::ETSOC1;
 
-  auto runtime = IRuntime::create(&deviceLayer, rt::Options{false, false});
+  auto runtime = IRuntime::create(deviceLayer, rt::Options{false, false});
 
-  EXPECT_CALL(deviceLayer, getDeviceConfig(_)).Times(1).WillRepeatedly(Return(dc));
-  EXPECT_CALL(deviceLayer, getDramSize(_)).Times(1).WillRepeatedly(Return(fakeMemorySize));
-  EXPECT_CALL(deviceLayer, getActiveShiresNum(_)).Times(1).WillRepeatedly(Return(fakeAvailableShires));
+  EXPECT_CALL(*deviceLayer, getDeviceConfig(_)).Times(1).WillRepeatedly(Return(dc));
+  EXPECT_CALL(*deviceLayer, getDramSize(_)).Times(1).WillRepeatedly(Return(fakeMemorySize));
+  EXPECT_CALL(*deviceLayer, getActiveShiresNum(_)).Times(1).WillRepeatedly(Return(fakeAvailableShires));
 
   auto properties = runtime->getDeviceProperties(rt::DeviceId(0));
 

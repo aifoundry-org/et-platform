@@ -32,7 +32,8 @@ using namespace testing;
 using namespace std::chrono;
 struct KernelLaunchF : Test {
   void SetUp() override {
-    runtime_ = rt::IRuntime::create(&deviceLayer_, rt::Options{false, false});
+    deviceLayer_ = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
+    runtime_ = rt::IRuntime::create(deviceLayer_, rt::Options{false, false});
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     device_ = runtime_->getDevices()[0];
     stream_ = runtime_->createStream(device_);
@@ -74,7 +75,7 @@ struct KernelLaunchF : Test {
     runtime_->waitForStream(stream_);
   }
 
-  dev::DeviceLayerFake deviceLayer_;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
   std::vector<std::byte> dummy_;
   RuntimePtr runtime_;
   KernelId kernel_{0};

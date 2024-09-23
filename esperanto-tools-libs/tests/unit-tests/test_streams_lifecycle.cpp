@@ -30,8 +30,8 @@
 using namespace rt;
 
 TEST(StreamsLifeCycle, simple) {
-  auto deviceLayer = std::make_unique<dev::DeviceLayerFake>();
-  auto runtime = rt::IRuntime::create(deviceLayer.get(), Options{true, false});
+  auto deviceLayer = std::make_shared<dev::DeviceLayerFake>();
+  auto runtime = rt::IRuntime::create(deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto devices = runtime->getDevices();
   ASSERT_GE(devices.size(), 0);
@@ -42,8 +42,8 @@ TEST(StreamsLifeCycle, simple) {
 }
 
 TEST(StreamsLifeCycle, create_and_destroy_10k_streams) {
-  auto deviceLayer = std::make_unique<dev::DeviceLayerFake>();
-  auto runtime = rt::IRuntime::create(deviceLayer.get(), Options{true, false});
+  auto deviceLayer = std::make_shared<dev::DeviceLayerFake>();
+  auto runtime = rt::IRuntime::create(deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto devices = runtime->getDevices();
   ASSERT_GE(devices.size(), 0);

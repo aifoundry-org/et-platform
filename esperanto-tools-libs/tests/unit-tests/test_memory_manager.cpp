@@ -70,8 +70,8 @@ TEST(MemoryManager, publicCompress_and_uncompress) {
 TEST(MemoryManager, SW8240) {
   auto size = (1 << 20) + 1UL;
   // shouldn't be possible to allocate a non multiple of alignment
-  dev::DeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
+  auto runtime = IRuntime::create(deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   // now, it works because we are going through runtime
@@ -85,8 +85,8 @@ TEST(MemoryManager, SW8240) {
 }
 
 TEST(MemoryManager, SW8240_2) {
-  dev::DeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
+  auto runtime = IRuntime::create(deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
@@ -114,8 +114,8 @@ TEST(MemoryManager, SW8240_2) {
   }
 }
 TEST(MemoryManager, SW8240_3) {
-  dev::DeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
+  auto runtime = IRuntime::create(deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());
@@ -127,8 +127,8 @@ TEST(MemoryManager, SW8240_3) {
 }
 
 TEST(MemoryManager, SW8240_4) {
-  dev::DeviceLayerFake deviceLayer;
-  auto runtime = IRuntime::create(&deviceLayer, Options{true, false});
+  auto deviceLayer = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
+  auto runtime = IRuntime::create(deviceLayer, Options{true, false});
   runtime->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
   auto device = runtime->getDevices()[0];
   auto rimp = static_cast<RuntimeImp*>(runtime.get());

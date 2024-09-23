@@ -204,7 +204,7 @@ void IRuntime::unloadCode(KernelId kernel) {
   doUnloadCode(kernel);
 }
 
-RuntimePtr IRuntime::create(dev::IDeviceLayer* deviceLayer, rt::Options options) {
+RuntimePtr IRuntime::create(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, rt::Options options) {
   EASY_FUNCTION()
   auto res = std::make_unique<RuntimeImp>(deviceLayer, options);
   res->setProfiler(std::make_unique<profiling::ProfilerImp>());

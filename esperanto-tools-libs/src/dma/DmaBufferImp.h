@@ -10,13 +10,16 @@
 #pragma once
 #include "IDmaBuffer.h"
 #include "Utils.h"
+
 #include <device-layer/IDeviceLayer.h>
 #include <runtime/IRuntime.h>
+
+#include <memory>
 
 namespace rt {
 class DmaBufferImp : public IDmaBuffer {
 public:
-  DmaBufferImp(int device, size_t size, bool writeable, dev::IDeviceLayer* deviceLayer)
+  DmaBufferImp(int device, size_t size, bool writeable, std::shared_ptr<dev::IDeviceLayer> const& deviceLayer)
     : deviceLayer_(deviceLayer)
     , size_(size)
     , address_(reinterpret_cast<std::byte*>(deviceLayer_->allocDmaBuffer(device, size, writeable))) {
@@ -39,7 +42,7 @@ public:
   }
 
 private:
-  dev::IDeviceLayer* deviceLayer_;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
   size_t size_;
   std::byte* address_;
 };

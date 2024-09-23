@@ -107,10 +107,10 @@ int main(int argc, char* argv[]) {
   }
   google::HandleCommandLineHelpFlags();
 
-  auto deviceLayer = createDeviceLayer();
-  decltype(rt::IRuntime::create(nullptr)) runtime;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer = createDeviceLayer();
+  decltype(rt::IRuntime::create(deviceLayer)) runtime;
   if (deviceLayer) {
-    runtime = rt::IRuntime::create(deviceLayer.get(), rt::Options{false, false});
+    runtime = rt::IRuntime::create(deviceLayer, rt::Options{false, false});
   } else {
     runtime = rt::IRuntime::create(FLAGS_socketPath);
   }

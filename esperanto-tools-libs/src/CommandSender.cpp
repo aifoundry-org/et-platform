@@ -39,8 +39,8 @@ template <typename List> std::string getCommandPtrs(List& commands) {
   return ss.str();
 }
 
-CommandSender::CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder* profiler, int deviceId,
-                             int sqIdx)
+CommandSender::CommandSender(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer,
+                             profiling::IProfilerRecorder* profiler, int deviceId, int sqIdx)
   : deviceLayer_(deviceLayer)
   , profiler_(profiler)
   , deviceId_(deviceId)
@@ -148,8 +148,8 @@ void CommandSender::runnerFunc() {
         RT_VLOG(MID) << ">>> Sending command: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
                      << " SQ: " << sqIdx_ << " EventId: " << static_cast<int>(cmd.eventId_);
         profiling::ProfileEvent event(profiling::Type::Instant, profiling::Class::CommandSent);
-        if (deviceLayer_.sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
-                                                 flags)) {
+        if (deviceLayer_->sendCommandMasterMinion(deviceId_, sqIdx_, cmd.commandData_.data(), cmd.commandData_.size(),
+                                                  flags)) {
           RT_VLOG(LOW) << ">>> Command sent: " << commandString(cmd.commandData_) << ". DeviceID: " << deviceId_
                        << " SQ: " << sqIdx_ << " EventId: " << static_cast<int>(cmd.eventId_);
 
@@ -176,7 +176,7 @@ void CommandSender::runnerFunc() {
           uint64_t sq_bitmap = 0;
           bool cq_available = false;
           while (!(sq_bitmap & (1UL << sqIdx_))) {
-            deviceLayer_.waitForEpollEventsMasterMinion(deviceId_, sq_bitmap, cq_available, std::chrono::seconds(1));
+            deviceLayer_->waitForEpollEventsMasterMinion(deviceId_, sq_bitmap, cq_available, std::chrono::seconds(1));
             if (!running_) {
               break;
             }

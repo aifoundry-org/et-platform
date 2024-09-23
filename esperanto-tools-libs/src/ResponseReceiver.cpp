@@ -93,7 +93,8 @@ void ResponseReceiver::checkDevices() {
   }
 }
 
-ResponseReceiver::ResponseReceiver(dev::IDeviceLayer* deviceLayer, IReceiverServices* receiverServices)
+ResponseReceiver::ResponseReceiver(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer,
+                                   IReceiverServices* receiverServices)
   : deviceLayer_(deviceLayer)
   , receiverServices_(receiverServices) {
 

@@ -31,7 +31,8 @@ using namespace std::chrono;
 
 struct RuntimeBenchmark : Test {
   void SetUp() override {
-    runtime_ = rt::IRuntime::create(&deviceLayer_, Options{false, false});
+    deviceLayer_ = std::shared_ptr<dev::IDeviceLayer>(new dev::DeviceLayerFake);
+    runtime_ = rt::IRuntime::create(deviceLayer_, Options{false, false});
     runtime_->setOnStreamErrorsCallback([](auto, const auto&) { FAIL(); });
     device_ = runtime_->getDevices()[0];
     stream_ = runtime_->createStream(device_);
@@ -42,7 +43,7 @@ struct RuntimeBenchmark : Test {
   void TearDown() override {
     runtime_->destroyStream(stream_);
   }
-  dev::DeviceLayerFake deviceLayer_;
+  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
   RuntimePtr runtime_;
   KernelId kernel_{0};
   StreamId stream_;

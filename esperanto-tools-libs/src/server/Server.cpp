@@ -51,8 +51,8 @@ Server::~Server() {
   }
 }
 
-Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer> deviceLayer, Options options)
-  : deviceLayer_{std::move(deviceLayer)} {
+Server::Server(const std::string& socketPath, std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Options options)
+  : deviceLayer_{deviceLayer} {
 
   cap_t caps;
   std::array<cap_value_t, 1> capList = {CAP_SYS_PTRACE};
@@ -76,7 +76,7 @@ Server::Server(const std::string& socketPath, std::unique_ptr<dev::IDeviceLayer>
   }
   CHECK(deviceLayer_ != nullptr) << "DeviceLayer can't be null";
 
-  runtime_ = IRuntime::create(deviceLayer_.get(), options);
+  runtime_ = IRuntime::create(deviceLayer_, options);
   auto profiler = std::make_unique<rt::profiling::RemoteProfiler>();
   runtime_->setProfiler(std::move(profiler));
 

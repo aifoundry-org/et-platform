@@ -27,19 +27,19 @@ namespace rt::profiling {
 // Dummy implementation that does nothing (for performance measuring without traces)
 class DummyProfiler : public IProfilerRecorder {
 public:
-  void start(std::ostream&, OutputType) override {
+  void start([[maybe_unused]] std::ostream&, [[maybe_unused]] OutputType) override {
     // Intentionally unimplemented
   }
   void stop() override {
     // Intentionally unimplemented
   }
-  void record(const ProfileEvent&) override {
+  void record([[maybe_unused]] const ProfileEvent&) override {
     // Intentionally unimplemented
   }
   bool isDummy() const override {
     return true;
   }
-  void recordNowOrAtStart(const ProfileEvent& event) override {
+  void recordNowOrAtStart([[maybe_unused]] const ProfileEvent& event) override {
   }
 };
 
