@@ -44,7 +44,7 @@ DEFINE_string(kernelPath, "",
 DEFINE_uint32(deviceLayer, 0, "DeviceLayer type: 0 -> fake; 1 -> sysemu based; 2 -> pcie; 3-> socket");
 DEFINE_string(socketPath, "/var/run/et_runtime/pcie.sock", "socket path when connecting to a daemon");
 
-static bool ValidatePort(const char* flagname, google::uint32 value) {
+static bool ValidatePort(const char* flagname, GFLAGS_NAMESPACE::uint32 value) {
   if (value >= 0 && value <= 3) // value is ok
     return true;
   printf("Invalid value for --%s: %d\n", flagname, (int)value);
@@ -99,13 +99,13 @@ int main(int argc, char* argv[]) {
     g3::log_levels::disable(INFO);
   }
 
-  google::SetUsageMessage("Usage: ");
-  google::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+  GFLAGS_NAMESPACE::SetUsageMessage("Usage: ");
+  GFLAGS_NAMESPACE::ParseCommandLineNonHelpFlags(&argc, &argv, true);
   if (FLAGS_help || FLAGS_h) {
     FLAGS_help = false;
     FLAGS_helpshort = true;
   }
-  google::HandleCommandLineHelpFlags();
+  GFLAGS_NAMESPACE::HandleCommandLineHelpFlags();
 
   std::shared_ptr<dev::IDeviceLayer> deviceLayer = createDeviceLayer();
   decltype(rt::IRuntime::create(deviceLayer)) runtime;

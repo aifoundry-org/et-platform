@@ -27,7 +27,7 @@ set(TEST_LIST_MP
   mp_malloc.cpp:""
   mp_streams.cpp:""
   mp_sync_events.cpp:""
-  mp_monitor:""
+  mp_monitor.cpp:""
 )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;LABELS;Sysemu;LABELS;UT;TIMEOUT;300" "ut_")
