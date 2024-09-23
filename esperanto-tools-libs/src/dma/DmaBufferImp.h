@@ -19,17 +19,17 @@
 namespace rt {
 class DmaBufferImp : public IDmaBuffer {
 public:
-  DmaBufferImp(int device, size_t size, bool writeable, std::shared_ptr<dev::IDeviceLayer> const& deviceLayer)
+  DmaBufferImp(int device, size_t size, bool writeable, dev::IDeviceLayer& deviceLayer)
     : deviceLayer_(deviceLayer)
     , size_(size)
-    , address_(reinterpret_cast<std::byte*>(deviceLayer_->allocDmaBuffer(device, size, writeable))) {
+    , address_(reinterpret_cast<std::byte*>(deviceLayer_.allocDmaBuffer(device, size, writeable))) {
     RT_VLOG(MID) << "Allocated dma buffer: " << std::hex << address_ << " size: " << size_ << " writeble? "
                  << (writeable ? "True" : "False");
   }
   ~DmaBufferImp() {
     if (address_) {
       RT_VLOG(MID) << "Deallocating dma buffer: " << std::hex << address_ << " size: " << size_;
-      deviceLayer_->freeDmaBuffer(address_);
+      deviceLayer_.freeDmaBuffer(address_);
       address_ = nullptr;
     }
   }
@@ -42,7 +42,7 @@ public:
   }
 
 private:
-  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
+  dev::IDeviceLayer& deviceLayer_;
   size_t size_;
   std::byte* address_;
 };

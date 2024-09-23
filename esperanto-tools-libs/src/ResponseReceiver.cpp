@@ -46,7 +46,7 @@ void ResponseReceiver::checkResponses(int deviceId) {
     int responsesCount = 0;
     for (int i = 0; i < kResponseNumTriesBeforePolling; ++i) {
       try {
-        while (deviceLayer_->receiveResponseMasterMinion(deviceId, buffer)) {
+        while (deviceLayer_.receiveResponseMasterMinion(deviceId, buffer)) {
           RT_VLOG(LOW) << "Got response from deviceId: " << deviceId;
           responsesCount++;
           receiverServices_->onResponseReceived(DeviceId{deviceId}, buffer);
@@ -62,7 +62,7 @@ void ResponseReceiver::checkResponses(int deviceId) {
       // check if there are events on fly
       auto eventsOnfly = receiverServices_->areEventsOnFly(DeviceId{deviceId});
       if (!eventsOnfly) {
-        deviceLayer_->hintInactivity(deviceId);
+        deviceLayer_.hintInactivity(deviceId);
       }
       std::this_thread::sleep_for(eventsOnfly ? kResponsePollingIntervalWithEventsOnFly
                                               : kResponsePollingIntervalNoEventsOnFly);
@@ -73,7 +73,7 @@ void ResponseReceiver::checkResponses(int deviceId) {
 void ResponseReceiver::checkDevices() {
   profiling::IProfilerRecorder::setCurrentThreadName("Device checker");
 
-  auto devices = deviceLayer_->getDevicesCount();
+  auto devices = deviceLayer_.getDevicesCount();
   auto lastCheck = std::chrono::high_resolution_clock::now() - kCheckDevicesInterval;
   while (runDeviceChecker_) {
     try {
@@ -93,12 +93,11 @@ void ResponseReceiver::checkDevices() {
   }
 }
 
-ResponseReceiver::ResponseReceiver(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer,
-                                   IReceiverServices* receiverServices)
+ResponseReceiver::ResponseReceiver(dev::IDeviceLayer& deviceLayer, IReceiverServices* receiverServices)
   : deviceLayer_(deviceLayer)
   , receiverServices_(receiverServices) {
 
-  auto devCount = deviceLayer_->getDevicesCount();
+  auto devCount = deviceLayer_.getDevicesCount();
   for (int i = 0; i < devCount; ++i) {
     receivers_.emplace_back(std::thread(std::bind(&ResponseReceiver::checkResponses, this, i)));
   }

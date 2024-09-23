@@ -40,8 +40,8 @@ struct Command {
 class CommandSender {
 public:
   using CommandSentCallback = std::function<void(Command const*)>;
-  explicit CommandSender(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, profiling::IProfilerRecorder* profiler,
-                         int deviceId, int sqIdx);
+  explicit CommandSender(dev::IDeviceLayer& deviceLayer, profiling::IProfilerRecorder* profiler, int deviceId,
+                         int sqIdx);
   ~CommandSender();
 
   std::optional<EventId> getFirstDmaCommand() const;
@@ -76,7 +76,7 @@ private:
   std::list<Command> commands_;
   std::thread runner_;
   std::condition_variable condVar_;
-  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
+  dev::IDeviceLayer& deviceLayer_;
   profiling::IProfilerRecorder* profiler_;
   CommandSentCallback callback_;
   int nextCallbackThreadId_ = 0;

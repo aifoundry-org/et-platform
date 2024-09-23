@@ -27,7 +27,7 @@ public:
     virtual void checkDevice(DeviceId device) = 0;
     virtual void onResponseReceived(DeviceId device, const std::vector<std::byte>& response) = 0;
   };
-  explicit ResponseReceiver(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, IReceiverServices* receiverServices);
+  explicit ResponseReceiver(dev::IDeviceLayer& deviceLayer, IReceiverServices* receiverServices);
 
   void startDeviceChecker();
 
@@ -41,7 +41,7 @@ private:
   std::thread deviceChecker_;
   bool runDeviceChecker_ = false;
   bool runReceiver_ = true;
-  std::shared_ptr<dev::IDeviceLayer> deviceLayer_;
+  dev::IDeviceLayer& deviceLayer_;
   IReceiverServices* receiverServices_;
 };
 } // namespace rt

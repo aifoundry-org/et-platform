@@ -84,7 +84,7 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
     auto sqCount = deviceLayer->getSubmissionQueuesCount(device);
     streamManager_.addDevice(deviceId, sqCount);
     for (int sq = 0; sq < sqCount; ++sq) {
-      commandSenders_.try_emplace(getCommandSenderIdx(device, sq), deviceLayer_, getProfiler(), device, sq);
+      commandSenders_.try_emplace(getCommandSenderIdx(device, sq), *deviceLayer_, getProfiler(), device, sq);
     }
   }
 
@@ -103,8 +103,8 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
 
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
     deviceTracing_.try_emplace(
-      d,
-      DeviceFwTracing{std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, deviceLayer_), nullptr, nullptr});
+      d, DeviceFwTracing{std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, *deviceLayer_), nullptr,
+                         nullptr});
     auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
@@ -126,7 +126,7 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
         auto devInt = static_cast<int>(d);
         auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
         cmaManagers_.try_emplace(
-          d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(devInt, cmaPerDevice, true, deviceLayer_),
+          d, std::make_unique<CmaManager>(std::make_unique<DmaBufferImp>(devInt, cmaPerDevice, true, *deviceLayer_),
                                           dmaInfo.maxElementCount_ * dmaInfo.maxElementSize_));
       }
       break; // if we were able to do the required allocations, end the loop; if not try asking for less memory.
@@ -139,7 +139,7 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
     }
   }
   RT_LOG_IF(FATAL, cmaPerDevice < kBlockSize) << "Error: need at least " << kBlockSize << "B of CMA per device to work";
-  responseReceiver_ = std::make_unique<ResponseReceiver>(deviceLayer_, this);
+  responseReceiver_ = std::make_unique<ResponseReceiver>(*deviceLayer_, this);
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
   for (int d = 0; d < devicesCount; ++d) {
