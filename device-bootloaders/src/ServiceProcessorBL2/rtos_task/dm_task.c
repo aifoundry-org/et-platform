@@ -173,6 +173,8 @@ static void dm_task_entry(void *pvParameters)
 {
     (void)pvParameters;
     int ret;
+    bool temperature_updated;
+    bool pwr_updated;
 
     ret = Thermal_Pwr_Mgmt_Init_OP_Stats();
     if (ret != STATUS_SUCCESS)
@@ -198,21 +200,24 @@ static void dm_task_entry(void *pvParameters)
 
     while (1)
     {
+        temperature_updated = true;
+        pwr_updated = true;
+
         dm_sampling_task_semaphore_take();
 
         Log_Write(LOG_LEVEL_DEBUG, "Updating the periodically sampled parameters: %s\n", __func__);
 
+        // Update temperature
         ret = update_module_current_temperature();
-
         if (0 != ret)
         {
+            temperature_updated = false;
             Log_Write(LOG_LEVEL_ERROR,
                       "thermal pwr mgmt svc error : update_module_current_temperature()\r\n");
         }
 
-        // update PMB stats, it updates voltage, current and power for minion, NOC and SRAM modules
+        // Update PMB stats, it updates voltage, current and power for minion, NOC and SRAM modules
         ret = update_pmb_stats(false);
-
         if (0 != ret)
         {
             Log_Write(LOG_LEVEL_ERROR, "thermal pwr mgmt svc error : update_pmb_stats()\r\n");
@@ -220,58 +225,58 @@ static void dm_task_entry(void *pvParameters)
 
         // Module Power in watts
         ret = update_module_soc_power();
-
         if (0 != ret)
         {
+            pwr_updated = false;
             Log_Write(LOG_LEVEL_ERROR,
                       "thermal pwr mgmt svc error : update_module_soc_power()\r\n");
         }
 
         // Module frequencies
         ret = update_module_frequencies();
-
         if (0 != ret)
         {
             Log_Write(LOG_LEVEL_ERROR,
                       "thermal pwr mgmt svc error : update_module_frequencies()\r\n");
         }
 
-        /*  Update the module uptime */
+        // Update the module uptime
         ret = update_module_uptime();
-
         if (0 != ret)
         {
             Log_Write(LOG_LEVEL_ERROR, "update_module_uptime error : update_module_uptime()\r\n");
         }
 
-        /* Update MM stats */
+        // Update MM stats
         ret = update_mm_stats();
         if (0 != ret)
         {
             Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_mm_stats()\r\n");
         }
 
-        /* Update the DRAM BW(Read/Write request) details */
+        // Update the DRAM BW(Read/Write request) details
         ret = update_dram_bw();
-
         if (0 != ret)
         {
             Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_dram_bw()\r\n");
         }
 
-        /* DRAM capacity */
+        // DRAM capacity
         ret = update_dram_capacity_percent();
         if (0 != ret)
         {
             Log_Write(LOG_LEVEL_ERROR, "perf mgmt svc error : update_dram_capacity_percent()\r\n");
         }
 
+        // Check if power throttling is required
+        check_power_throttle_conditions(temperature_updated, pwr_updated);
+
         dm_sampling_task_semaphore_give();
 
-        /* Log op stats to trace */
+        // Log op stats to trace
         dm_log_operating_point_stats();
 
-        /* Wait for the sampling period */
+        // Wait for the sampling period
         vTaskDelay(pdMS_TO_TICKS(DM_TASK_DELAY_MS));
     }
 }

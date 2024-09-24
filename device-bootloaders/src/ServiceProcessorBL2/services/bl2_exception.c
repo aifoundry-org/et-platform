@@ -254,11 +254,7 @@ static void dump_power_states_globals_trace(void)
                             buff_idx)
     DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_DOWN, residency, &data_buff[buff_idx],
                             buff_idx)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_DOWN, residency, &data_buff[buff_idx],
-                            buff_idx)
     DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_POWER_SAFE, residency, &data_buff[buff_idx],
-                            buff_idx)
-    DUMP_THROTTLE_RESIDENCY(POWER_THROTTLE_STATE_THERMAL_SAFE, residency, &data_buff[buff_idx],
                             buff_idx)
 
     /* Read the value and copy it to buffer */

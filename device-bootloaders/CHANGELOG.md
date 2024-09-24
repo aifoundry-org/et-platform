@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-21831] Fix handling of reduce operating point
 - Fix too small heap in tf build
 - [SW-21872] Fix transition to safe state and adapt power threshold values
+- [SW-21898] Power and thermal throttling fixes and refactoring
 ### Security
 
 ## [0.20.0] - 2024-05-17

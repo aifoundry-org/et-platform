@@ -56,13 +56,13 @@
 #error SW managed power threshold value must be lower than HW catastrophic threshold!
 #endif
 
-/*! \def SAFE_POWER_THRESHOLD
+/*! \def SAFE_POWER_THRESHOLD_W
     \brief A macro that provides safe power threshold value.
 *          When catastrophic overpower or overtemperature occures ETSOC will go bellow
 *          this power threshold.
 *          Following M.2 spec.
 */
-#define SAFE_POWER_THRESHOLD 30
+#define SAFE_POWER_THRESHOLD_W 30
 
 /*! \def SAFE_STATE_FREQUENCY
     \brief A macro that provides safe state frequency
@@ -120,13 +120,6 @@
     PMIC_MILLIVOLT_TO_HEX(MXN_DEFAULT_BOOT_VOLTAGE_mV, PMIC_MAXION_VOLTAGE_BASE, \
                           PMIC_MAXION_VOLTAGE_MULTIPLIER, PMIC_GENERIC_VOLTAGE_DIVIDER)
 
-/*! \fn volatile struct soc_power_reg_t *get_soc_power_reg(void)
-    \brief Interface to get the SOC power register
-    \param none
-    \returns Returns pointer to SOC power reg struct
-*/
-volatile struct soc_power_reg_t *get_soc_power_reg(void);
-
 /*! \fn volatile struct pmic_power_reg_t *get_pmic_power_reg(void)
     \brief Interface to get the PMIC power register
     \param none
@@ -140,13 +133,6 @@ volatile struct pmic_power_reg_t *get_pmic_power_reg(void);
     \returns Status indicating success or negative error
 */
 int set_module_active_power_management(active_power_management_e state);
-
-/*! \fn int update_module_power_state(power_state_e state)
-    \brief Interface to update the module power state.
-    \param state   Power state
-    \returns Status indicating success or negative error
-*/
-int update_module_power_state(power_state_e state);
 
 /*! \fn int get_module_power_state(power_state_e *power_state)
     \brief Interface to get the module power state.
@@ -204,6 +190,13 @@ int get_module_current_temperature(struct current_temperature_t *temperature);
 */
 int update_module_soc_power(void);
 
+/*! \fn void check_power_throttle_conditions(bool temperature_updated, bool pwr_updated)
+    \brief Called after power and temperature updates to chech if power throttling is required
+    \param temperature_updated
+    \param pwr_updated
+*/
+void check_power_throttle_conditions(bool temperature_updated, bool pwr_updated);
+
 /*! \fn int update_module_frequencies(void)
     \brief Interface to update the module's frequency values in op stats.
     \param none
@@ -254,22 +247,6 @@ int update_module_uptime(void);
 */
 int get_module_uptime(struct module_uptime_t *module_uptime);
 
-/*! \fn int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t time_usec)
-    \brief Interface to update the module's throttle time.
-    \param throttle_state Throttle state for which residency is updated
-    \param time_usec throttle time in usec
-    \returns Status indicating success or negative error
-*/
-int update_module_throttle_time(power_throttle_state_e throttle_state, uint64_t time_msec);
-
-/*! \fn int update_module_power_residency(power_state_e power_state, uint64_t time_msec)
-    \brief Interface to update the module's power residency.
-    \param power_state Power state for which residency is updated
-    \param time_usec power residency in usec
-    \returns Status indicating success or negative error
-*/
-int update_module_power_residency(power_state_e power_state, uint64_t time_msec);
-
 /*! \fn int get_throttle_residency(power_throttle_state_e throttle_state,
 *                                          struct residency_t *residency)
     \brief Interface to get the module throttle residency from the global variable
@@ -314,13 +291,6 @@ int init_thermal_pwr_mgmt_service(void);
 */
 void dump_power_globals(void);
 
-/*! \fn void power_throttling(power_throttle_state_e throttle_state)
-    \brief This function handles power throttling
-    \param none
-    \returns none
-*/
-void power_throttling(power_throttle_state_e throttle_state);
-
 /*! \fn void trace_power_state_test(void *cmd)
     \brief TThis function logs power status in trace for test
     \param tag command tag
@@ -329,13 +299,6 @@ void power_throttling(power_throttle_state_e throttle_state);
     \returns none
 */
 void trace_power_state_test(uint16_t tag, uint64_t req_start_time, void *cmd);
-
-/*! \fn void thermal_throttling(power_throttle_state_e throttle_state)
-    \brief This function handles thermal throttling
-    \param none
-    \returns none
-*/
-void thermal_throttling(power_throttle_state_e throttle_state);
 
 /*! \fn int update_pmb_stats(bool reset)
     \brief This function updates the PMB stats for NOC, SRAM and minion modules.
@@ -391,13 +354,6 @@ int Thermal_Pwr_Mgmt_Get_NOC_Power(uint64_t *power);
     \returns Status indicating success or negative error
 */
 int Thermal_Pwr_Mgmt_Get_SRAM_Power(uint64_t *power);
-
-/*! \fn int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power)
-    \brief This function returns System operating power
-    \param power placeholder for power value
-    \returns Status indicating success or negative error
-*/
-int Thermal_Pwr_Mgmt_Get_System_Power(uint64_t *power);
 
 /*! \fn int Thermal_Pwr_Mgmt_Get_System_Power_Temp_Stats(op_stats_t *stats)
     \brief This function returns System operating stats

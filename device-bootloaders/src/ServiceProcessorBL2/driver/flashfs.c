@@ -66,7 +66,6 @@
 #include "jedec_sfdp.h"
 #include "bl2_main.h"
 #include "bl_error_code.h"
-#include "thermal_pwr_mgmt.h"
 
 #pragma GCC push_options
 /* #pragma GCC optimize ("O2") */
@@ -2395,7 +2394,7 @@ int flash_fs_get_vmin_lut_minion_previous_frequency_point(uint16_t curr_freq, ui
             curr_freq)
         {
             *prev_freq =
-                (i == 0) ? SAFE_STATE_FREQUENCY :
+                (i == 0) ? curr_freq :
                            sg_flash_fs_bl2_info.asset_config_data.persistent_config.vmin_lut[i - 1]
                                .mnn.freq;
             return STATUS_SUCCESS;
