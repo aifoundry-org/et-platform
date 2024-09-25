@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.13)
-project(deviceMinionRuntime VERSION 0.24.0 LANGUAGES C ASM)
+project(deviceMinionRuntime VERSION 0.25.0 LANGUAGES C ASM)
 
 message(STATUS "PROJECT_VERSION ${PROJECT_VERSION}")
 set(DEVICE_MINION_RUNTIME_VERSION_MAJOR   ${PROJECT_VERSION_MAJOR})
