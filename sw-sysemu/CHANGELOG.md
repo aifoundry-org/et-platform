@@ -6,7 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [[_TOC_]]
 
-## [Unreleased] - 2024-05-22
+## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.19.0] - 2024-09-25
 ### Added
 - [SW-20965] (CI) Added Sonarqube quality gate
 - (CI) Do not generate packages for ubuntu18
