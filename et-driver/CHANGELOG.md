@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.19.0] - 2024-09-25
+### Added
 - [SW-15170] Update parsing pmic syndrome
 - [SW-15170] Pmic errors updates
 ### Changed
