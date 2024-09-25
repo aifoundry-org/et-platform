@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.24.0] - 2024-09-25
+### Added
 - [SW-20965] (CI) Added sonar.qualitygate.wait property for pipeline
 ### Changed
 ### Deprecated
