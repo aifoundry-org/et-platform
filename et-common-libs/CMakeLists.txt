@@ -12,7 +12,7 @@ cmake_minimum_required(VERSION 3.5)
 
 # Esperanto common libraries - used across SP, MM MMode, MM SMode, CM MMode,
 # CM SMode, CM UMode.
-project(et-common-libs VERSION 0.24.0 LANGUAGES C DESCRIPTION "ET Accelerator API, a header and library exposed to CM usermode")
+project(et-common-libs VERSION 0.25.0 LANGUAGES C DESCRIPTION "ET Accelerator API, a header and library exposed to CM usermode")
 
 option(ENABLE_WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
 option(BUILD_DOC "Build documentation" ON)
