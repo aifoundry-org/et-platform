@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [2.5.0] - 2024-09-25
+### Added
+### Changed
 [SW-21898] Power throttling fixes and refactoring
 ### Deprecated
 ### Removed
