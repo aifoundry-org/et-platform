@@ -32,7 +32,7 @@ class DeviceManagementConan(ConanFile):
         self.version = get_version(self, self.name)
 
     def requirements(self):
-        self.requires("deviceApi/2.4.0")
+        self.requires("deviceApi/2.5.0")
         self.requires("deviceLayer/2.2.0")
         self.requires("hostUtils/0.3.0")
 
