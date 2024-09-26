@@ -10,6 +10,10 @@
 
 #include "ProfilerImp.h"
 
+#include "Utils.h"
+
+#include <stdexcept>
+
 namespace rt::profiling {
 
 // IProfiler interface
@@ -76,7 +80,11 @@ void ProfilerImp::recordNowOrAtStart(const ProfileEvent& event) {
 
 ProfilerImp::~ProfilerImp() {
   if (recording_) {
-    stop();
+    try {
+      stop();
+    } catch (std::exception const& exc) {
+      RT_LOG(WARNING) << "Exception thrown while destroying the runtime profiler: " << exc.what();
+    }
   }
 }
 
