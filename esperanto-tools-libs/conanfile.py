@@ -89,7 +89,10 @@ class RuntimeConan(ConanFile):
             if self.settings.build_type == "Debug":
                 extra_settings = "-s:h *:build_type=Release"
             self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing -g deploy")
-        
+
+        if self.options.with_tools:
+            self.requires("nlohmann_json/3.11.2")
+
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
