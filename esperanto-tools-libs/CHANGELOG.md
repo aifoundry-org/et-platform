@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **API CHANGE:** The Runtime now must be costructed using a std::shared_ptr to the DeviceLayer
 - (Conan) Bump cereal version to 1.3.2
 - (Conan) Add helper scripts
+- (Conan/CI) Update embedded device fw dependencies. Do not use "latest" by default in CI
 ### Deprecated
 ### Removed
 ### Fixed

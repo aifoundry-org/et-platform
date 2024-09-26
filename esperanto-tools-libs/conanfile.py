@@ -20,14 +20,14 @@ class RuntimeConan(ConanFile):
         "with_tests": [True, False],
         "disable_easy_profiler": [True, False],
         "run_tests": [True, False],
-        "run_tests_sdk": ["v1.3.0", "latest"]  # TODO: once newer SDK(S) are released, add them here (with current + next should be enough)
+        "run_tests_sdk": ["v1.3.3", "v1.4.4", "v1.5.3", "v1.6.2", "latest"]  # TODO: once newer SDK(S) are released, add them here (with current + next should be enough)
     }
     default_options = {
         "with_tools": False,
         "with_tests": False,
         "disable_easy_profiler": False,
         "run_tests": False,
-        "run_tests_sdk": "v1.3.0",
+        "run_tests_sdk": "v1.6.2",
     }
 
     generators = "CMakeDeps"
@@ -41,10 +41,13 @@ class RuntimeConan(ConanFile):
     def export(self):
         register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
         register_scm_coordinates(self)
-        # This conanfile_device_depends_sw_stack_v1.3.0.txt file is intended to be used by this conanfile.py recipe
+        # This conanfile_device_depends_sw_stack_v1.3.3.txt file is intended to be used by this conanfile.py recipe
         # to download device FW artifacts needed to build with tests.
         copy(self, "conanfile_device_depends_sw_stack_latest.txt", self.recipe_folder, self.export_folder)
-        copy(self, "conanfile_device_depends_sw_stack_v1.3.0.txt", self.recipe_folder, self.export_folder)
+        copy(self, "conanfile_device_depends_sw_stack_v1.6.2.txt", self.recipe_folder, self.export_folder)
+        copy(self, "conanfile_device_depends_sw_stack_v1.5.3.txt", self.recipe_folder, self.export_folder)
+        copy(self, "conanfile_device_depends_sw_stack_v1.4.4.txt", self.recipe_folder, self.export_folder)
+        copy(self, "conanfile_device_depends_sw_stack_v1.3.3.txt", self.recipe_folder, self.export_folder)
     
     def export_sources(self):
         copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty

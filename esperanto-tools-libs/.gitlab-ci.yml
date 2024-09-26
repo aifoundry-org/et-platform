@@ -245,7 +245,7 @@ tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
-        SDK: [ "latest" ]
+        SDK: [ "v1.6.2" ]
   variables:
     KUBERNETES_MEMORY_LIMIT: 32Gi
     TIMEOUT: 1h
@@ -275,7 +275,7 @@ nightly_torture_tests:conan:sysemu:
   parallel:
     matrix:
       - BUILD_TYPE: [ Release ]
-        SDK: [ "v1.3.0", "latest" ]
+        SDK: [ "latest" ]
   variables:
     TIMEOUT: 3h
     CMD_BUILD: |

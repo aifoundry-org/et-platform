@@ -1,0 +1,20 @@
+[requires]
+deviceApi/2.4.0
+
+device-minion-runtime/0.23.0
+device-bootloaders/0.20.2
+esperanto-test-kernels/1.13.0
+
+# overrides
+tf-protocol/1.4.0
+etsoc_hal/1.7.0
+esperantoTrace/2.1.0
+et-common-libs/0.23.0
+signedImageFormat/1.4.0
+esperanto-flash-tool/1.5.0
+
+[generators]
+CMakeDeps
+
+[layout]
+cmake_layout
