@@ -18,7 +18,7 @@ add_executable(testThreadPool testThreadPool.cpp)
 target_compile_features(testThreadPool PRIVATE cxx_std_17)
 target_link_libraries(testThreadPool 
   PRIVATE
-    hostUtils::threadPool
+    et-host-utils::threadPool
     GTest::gtest)
 
 target_set_project_warnings(testThreadPool)

@@ -22,7 +22,7 @@ add_library(actionList
     src/Runner.cpp
 )
 
-add_library(hostUtils::actionList ALIAS actionList)
+add_library(et-host-utils::actionList ALIAS actionList)
 target_compile_features(actionList INTERFACE cxx_std_14)
 target_set_project_warnings(actionList)
 target_include_directories(actionList
@@ -45,13 +45,13 @@ install(TARGETS actionList
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hostUtils/actionList
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/et-host-utils/actionList
 )
 
 # Install the export set for use with the install-tree
 install(EXPORT hostUtilsTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hostUtils
-    NAMESPACE hostUtils::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/et-host-utils
+    NAMESPACE et-host-utils::
 )
 
 if (BUILD_TESTS)

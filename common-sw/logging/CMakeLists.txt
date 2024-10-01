@@ -23,7 +23,7 @@ add_library(logging
     include/logging/Instance.h
     src/Instance.cpp
 )
-add_library(hostUtils::logging ALIAS logging)
+add_library(et-host-utils::logging ALIAS logging)
 target_compile_features(logging INTERFACE cxx_std_17)
 target_set_project_warnings(logging)
 target_include_directories(logging
@@ -47,12 +47,12 @@ install(TARGETS logging
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hostUtils/logging
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/et-host-utils/logging
 )
 
 # Install the export set for use with the install-tree
 install(EXPORT hostUtilsTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hostUtils
-    NAMESPACE hostUtils::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/et-host-utils
+    NAMESPACE et-host-utils::
 )
 

@@ -3,11 +3,12 @@ from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.build import can_run
 from conan.tools.env import VirtualRunEnv
 from conan.tools.files import rmdir
+from conan.tools.scm import Git
 import os
 
 
 class HostUtilsConan(ConanFile):
-    name = "hostUtils"
+    name = "et-host-utils"
     url = "git@gitlab.com:esperantotech/software/common-sw.git"
     homepage = "https://gitlab.com/esperantotech/software/common-sw"
     description = ""
@@ -27,8 +28,13 @@ class HostUtilsConan(ConanFile):
 
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
+        print(f"{self.name}")
         self.version = get_version(self, self.name)
-
+        # git = Git(self)
+        # tag = git.run("describe --tags")
+        # self.version = tag
+        # print(f"---{self.version}")
+        # #exit()
     def export(self):
         register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
         register_scm_coordinates(self)
@@ -83,25 +89,25 @@ class HostUtilsConan(ConanFile):
     
     def package_info(self):
         # library components
-        self.cpp_info.components["logging"].set_property("cmake_target_name", "hostUtils::logging")
+        self.cpp_info.components["logging"].set_property("cmake_target_name", "et-host-utils::logging")
         self.cpp_info.components["logging"].requires = ["g3log::g3log"]
         self.cpp_info.components["logging"].libs = ["logging"]
         self.cpp_info.components["logging"].includedirs =  ["include"]
         self.cpp_info.components["logging"].libdirs = ["lib", "lib64"]
 
-        self.cpp_info.components["debug"].set_property("cmake_target_name", "hostUtils::debug")
+        self.cpp_info.components["debug"].set_property("cmake_target_name", "et-host-utils::debug")
         self.cpp_info.components["debug"].requires = ["g3log::g3log"]
         self.cpp_info.components["debug"].libs = ["debugging"]
         self.cpp_info.components["debug"].includedirs =  ["include"]
         self.cpp_info.components["debug"].libdirs = ["lib", "lib64"]
 
-        self.cpp_info.components["debugging"].set_property("cmake_target_name", "hostUtils::debugging")
+        self.cpp_info.components["debugging"].set_property("cmake_target_name", "et-host-utils::debugging")
         self.cpp_info.components["debugging"].requires = ["g3log::g3log"]
         self.cpp_info.components["debugging"].libs = ["debugging"]
         self.cpp_info.components["debugging"].includedirs =  ["include"]
         self.cpp_info.components["debugging"].libdirs = ["lib", "lib64"]
 
-        self.cpp_info.components["threadPool"].set_property("cmake_target_name", "hostUtils::threadPool")
+        self.cpp_info.components["threadPool"].set_property("cmake_target_name", "et-host-utils::threadPool")
         self.cpp_info.components["threadPool"].requires = ["logging"]
         if self.options.with_tests:
             self.cpp_info.components["threadPool"].requires.append("gtest::gmock")
@@ -109,7 +115,7 @@ class HostUtilsConan(ConanFile):
         self.cpp_info.components["threadPool"].includedirs =  ["include"]
         self.cpp_info.components["threadPool"].libdirs = ["lib", "lib64"]
 
-        self.cpp_info.components["actionList"].set_property("cmake_target_name", "hostUtils::actionList")
+        self.cpp_info.components["actionList"].set_property("cmake_target_name", "et-host-utils::actionList")
         self.cpp_info.components["actionList"].requires = ["logging"]
         if self.options.with_tests:
             self.cpp_info.components["actionList"].requires.append("gtest::gmock")

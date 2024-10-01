@@ -19,7 +19,7 @@ add_library(threadPool
     include/threadPool/ThreadPool.h 
     src/ThreadPool.cpp
 )
-add_library(hostUtils::threadPool ALIAS threadPool)
+add_library(et-host-utils::threadPool ALIAS threadPool)
 target_compile_features(threadPool INTERFACE cxx_std_14)
 target_set_project_warnings(threadPool)
 target_include_directories(threadPool
@@ -38,17 +38,17 @@ set_target_properties(threadPool PROPERTIES
 include(CMakePackageConfigHelpers)
 
 install(TARGETS threadPool
-    EXPORT hostUtilsTargets
+    EXPORT et-host-utils
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/hostUtils/threadPool
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/et-host-utils/threadPool
 )
 
 # Install the export set for use with the install-tree
-install(EXPORT hostUtilsTargets
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hostUtils
-    NAMESPACE hostUtils::
+install(EXPORT et-host-utils
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/et-host-utils
+    NAMESPACE et-host-utils::
 )
 
 if (BUILD_TESTS)

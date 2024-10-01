@@ -17,7 +17,7 @@ find_package(GTest REQUIRED)
 add_executable(testActionList testActionList.cpp)
 target_compile_features(testActionList PRIVATE cxx_std_17)
 target_link_libraries(testActionList PRIVATE
-    hostUtils::actionList
+    et-host-utils::actionList
     GTest::gtest
     GTest::gmock)
 
