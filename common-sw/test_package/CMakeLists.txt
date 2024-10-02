@@ -21,4 +21,4 @@ target_link_libraries(${PROJECT_NAME}_threadpool PRIVATE hostUtils::threadPool)
 
 add_executable(${PROJECT_NAME}_all test_package_all.cpp)
 target_compile_features(${PROJECT_NAME}_all PRIVATE cxx_std_17)
-target_link_libraries(${PROJECT_NAME}_all PRIVATE hostUtils::hostutils)
+target_link_libraries(${PROJECT_NAME}_all PRIVATE hostUtils::hostUtils)
