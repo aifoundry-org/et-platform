@@ -38,7 +38,7 @@ set_target_properties(threadPool PROPERTIES
 include(CMakePackageConfigHelpers)
 
 install(TARGETS threadPool
-    EXPORT hostUtilsTargets
+    EXPORT hostUtils
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -46,7 +46,7 @@ install(TARGETS threadPool
 )
 
 # Install the export set for use with the install-tree
-install(EXPORT hostUtilsTargets
+install(EXPORT hostUtils
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/hostUtils
     NAMESPACE hostUtils::
 )
