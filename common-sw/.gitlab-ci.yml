@@ -62,7 +62,7 @@ smoke_tests:conan:sysemu:
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o hostUtils:with_tests=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o et-host-utils:with_tests=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       cd build/${BUILD_TYPE}/threadPool/tests
