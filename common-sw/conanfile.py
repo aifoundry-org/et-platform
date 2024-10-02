@@ -55,10 +55,6 @@ class HostUtilsConan(ConanFile):
         self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
 
     def source(self):
-        git = Git(self)
-        clone_args = ['--branch', 'trace-utils']
-        git.clone(url=self.url, target=self.source_folder, args=clone_args)
-        
         get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
         get_sources_if_scm_pristine(self)
 
