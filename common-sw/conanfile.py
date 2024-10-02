@@ -7,7 +7,7 @@ import os
 
 
 class HostUtilsConan(ConanFile):
-    name = "hostUtils"
+    name = "et-host-utils"
     url = "git@gitlab.com:esperantotech/software/common-sw.git"
     homepage = "https://gitlab.com/esperantotech/software/common-sw"
     description = ""
@@ -27,7 +27,7 @@ class HostUtilsConan(ConanFile):
 
     def set_version(self):
         get_version = self.python_requires["conan-common"].module.get_version
-        self.version = get_version(self, self.name)
+        self.version = get_version(self, "hostUtils")
 
     def export(self):
         register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
