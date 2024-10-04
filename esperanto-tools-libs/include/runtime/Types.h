@@ -228,6 +228,7 @@ struct DeviceProperties {
   FormFactor formFactor_;               ///< device form factor
   uint8_t tdp_;                         ///< TDP in Watts
   uint64_t p2pBitmap_ = 0;              ///< indicates p2p capabilities between this device and others
+  uint32_t availableChiplets_ = 1;      ///< device chiplet count
 };
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in
