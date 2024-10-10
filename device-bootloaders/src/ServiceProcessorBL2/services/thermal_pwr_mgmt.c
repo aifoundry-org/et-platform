@@ -2961,7 +2961,7 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
     portENTER_CRITICAL();
 
     /* TODO: SW-18770: Remove the retries once the issue is resolved. */
-    while (retries)
+    for (; retries > 0; retries--)
     {
         status = pmic_set_voltage(voltage_type, voltage);
         if (status == STATUS_SUCCESS)
@@ -2977,16 +2977,13 @@ int Thermal_Pwr_Mgmt_Set_Validate_Voltage(module_e voltage_type, uint8_t voltage
             if (status == STATUS_SUCCESS)
             {
                 /* Voltage is stable, no need to retry now */
-                retries = 0;
+                break;
             }
             else
             {
                 Log_Write(LOG_LEVEL_WARNING,
                           "Unable to validate PVT 0x%x voltage for module %d. Retrying.\r\n",
                           voltage, voltage_type);
-
-                /* Decrease the count for retries */
-                retries--;
             }
         }
         else
