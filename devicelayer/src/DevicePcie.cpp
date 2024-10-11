@@ -41,10 +41,14 @@ namespace {
 constexpr auto kMinReqDriverVersion = "0.15.0";
 
 int countDeviceNodes(bool isMgmt) {
+  const std::regex pattern(isMgmt ? R"(et\d+_mgmt)" : R"(et\d+_ops)");
+
   auto it = fs::directory_iterator("/dev");
-  return static_cast<int>(std::count_if(fs::begin(it), fs::end(it), [isMgmt](auto& e) {
-    return regex_match(e.path().filename().string(), std::regex(isMgmt ? "(et)(.*)(_mgmt)" : "(et)(.*)(_ops)"));
-  }));
+  return static_cast<int>(std::count_if(fs::begin(it), fs::end(it),
+        [&pattern](const auto& e) {
+            return std::regex_match(e.path().filename().string(), pattern);
+	}
+   ));
 }
 
 unsigned long getCmaFreeMem() {

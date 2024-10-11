@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
-
 ## [Unreleased] - 2024-05-24
 ### Added
 ### Changed
@@ -17,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Change Ubuntu from 18 to 22 and fix
 - Remove sonar qualitygate
 - (CI) Do not generate packages for ubuntu18
+- Cleaned up regex for PCIecount to avoid compilation within Lambda function
 ### Deprecated
 ### Removed
 ### Fixed
