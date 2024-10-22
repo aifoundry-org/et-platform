@@ -48,14 +48,58 @@ struct DeviceConfig {
   uint32_t totalL3Size_;               ///< total size of L3 cache in KBytes
   uint32_t totalL2Size_;               ///< total size of L2 cache in KBytes
   uint32_t totalScratchPadSize_;       ///< total scratchpad size in KBytes
-  uint8_t cacheLineSize_;              ///< chache line size, in Bytes
-  uint8_t numL2CacheBanks_;            ///< num L2 cache banks
+  uint8_t cacheLineSize_;              ///< cache line size, in Bytes
+  uint8_t numL2CacheBanks_;            ///< number of L2 cache banks
   uint32_t ddrBandwidth_;              ///< DDR bandwidth in MBytes/s
   uint32_t minionBootFrequency_;       ///< minion boot frequency in Mhz
-  uint32_t computeMinionShireMask_;    ///< mask which indicates what are the compute minion shires
-  uint8_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
+  uint32_t computeMinionShireMask_;    ///< mask that indicates the compute minion shires
+  uint8_t spareComputeMinionShireId_;  ///< spare compute minion Shire ID
   ArchRevision archRevision_;          ///< architecture revision
   uint8_t physDeviceId_;               ///< physical device ID
+
+  uint64_t localScpFormat0BaseAddress_;      ///< Base address of the local Scratchpad in format 0
+  uint64_t localScpFormat1BaseAddress_;      ///< Base address of the local Scratchpad in format 1
+  uint64_t localDRAMBaseAddress_;            ///< Base address of the local DRAM
+  uint64_t onPkgScpFormat2BaseAddress_;      ///< Base address of the on-package Scratchpad in format 2
+  uint64_t onPkgDRAMBaseAddress_;            ///< Base address of the on-package DRAM
+  uint64_t onPkgDRAMInterleavedBaseAddress_; ///< Base address of the on-package DRAM in interleaved format
+
+  uint64_t localDRAMSize_; ///< Bytes of DRAM available in U-mode in each chiplet
+
+  uint8_t minimumAddressAlignmentBits_; ///< Minimum number of lower bits in an address that need to be 0.
+                                        ///< These are removed in compressed addresses.
+
+  uint8_t numChiplets_; ///< Number of chiplets in the package
+
+  uint8_t localScpFormat0ShireLSb_;   ///< Least significant bit position of the shire in the local Scratchpad
+                                      ///< in format 0 address region
+  uint8_t localScpFormat0ShireBits_;  ///< Number of shire bits in the local Scratchpad in format 0 address
+                                      ///< region
+  uint8_t localScpFormat0LocalShire_; ///< Shire value in the local Scratchpad in format 0 address region to
+                                      ///< indicate the local shire
+
+  uint8_t localScpFormat1ShireLSb_;  ///< Least significant bit position of the shire in the local Scratchpad in
+                                     ///< format 1 address region
+  uint8_t localScpFormat1ShireBits_; ///< Number of shire bits in the local Scratchpad in format 1 address
+                                     ///< region
+
+  uint8_t onPkgScpFormat2ShireLSb_;    ///< Least significant bit position of the shire in the on-package
+                                       ///< Scratchpad in format 2 address region
+  uint8_t onPkgScpFormat2ShireBits_;   ///< Number of shire bits in the on-package Scratchpad in format 2 address
+                                       ///< region
+  uint8_t onPkgScpFormat2ChipletLSb_;  ///< Least significant bit position of the chiplet in the on-package
+                                       ///< Scratchpad in format 2 address region
+  uint8_t onPkgScpFormat2ChipletBits_; ///< Number of chiplet bits in the on-package Scratchpad in format 2
+                                       ///< address region
+
+  uint8_t onPkgDRAMChipletLSb_;  ///< Least significant bit position of the chiplet in the on-package DRAM
+                                 ///< address region
+  uint8_t onPkgDRAMChipletBits_; ///< Number of chiplet bits in the on-package DRAM address region
+
+  uint8_t onPkgDRAMInterleavedChipletLSb_; ///< Least significant bit position of the chiplet in the on-package
+                                           ///< interleaved DRAM address region
+  uint8_t
+    onPkgDRAMInterleavedChipletBits_; ///< Number of chiplet bits in the on-package interleaved DRAM address region
 };
 
 /// \brief This struct contains the limitations / optimal DMA parameters.
