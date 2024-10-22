@@ -377,7 +377,7 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
     cfg.sync_min_shire_id,
     parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev)),
     cfg.devnum,
-    0xB0000000ULL,                           /* localScpFormat0BaseAddress_ */
+    0x80000000ULL,                           /* localScpFormat0BaseAddress_ */
     0xC0000000ULL,                           /* localScpFormat1BaseAddress_ */
     getDramBaseAddress(cfg.devnum),          /* localDRAMBaseAddress_ */
     ~0ULL,                                   /* onPkgScpFormat2BaseAddress_ */

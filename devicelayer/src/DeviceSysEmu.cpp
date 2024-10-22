@@ -651,41 +651,41 @@ void DeviceSysEmu::freeDmaBuffer(void* dmaBuffer) {
 
 DeviceConfig DeviceSysEmu::getDeviceConfig(int device) {
   return DeviceConfig{
-    DeviceConfig::FormFactor::PCIE,          /* form factor */
-    25,                                      /* tdp (W) */
-    32768,                                   /* L3 cache (KB) */
-    16384,                                   /* L2 cache (KB) */
-    81920,                                   /* scratchpad (KB) */
-    64,                                      /* cache line size (bytes) */
-    4,                                       /* L2 cache banks */
-    128000,                                  /* DDR BW (MB/s) */
-    1000,                                    /* Mhz */
-    spInfo_.generic_attr.cm_shires_mask,     /* shire mask */
-    32,                                      /* spare minion shire id */
-    DeviceConfig::ArchRevision::ETSOC1,      /* Arch revision */
-    static_cast<uint8_t>(device),            /* Physical device ID */
-    0xB0000000ULL,                           /* localScpFormat0BaseAddress_ */
-    0xC0000000ULL,                           /* localScpFormat1BaseAddress_ */
-    getDramBaseAddress(device),              /* localDRAMBaseAddress_ */
-    ~0ULL,                                   /* onPkgScpFormat2BaseAddress_ */
-    getDramBaseAddress(device),              /* onPkgDRAMBaseAddress_ */
-    ~0ULL,                                   /* onPkgDRAMInterleavedBaseAddress_ */
-    getDramSize(device),                     /* localDRAMSize_ */
-    static_cast<uint8_t>(getDmaAlignment()), /* minimumAddressAlignmentBits_ */
-    1,                                       /* numChiplets_ */
-    23,                                      /* localScpFormat0ShireLSb_ */
-    7,                                       /* localScpFormat0ShireBits_ */
-    127,                                     /* localScpFormat0LocalShire_ */
-    6,                                       /* localScpFormat1ShireLSb_ */
-    5,                                       /* localScpFormat1ShireBits_ */
-    255,                                     /* onPkgScpFormat2ShireLSb_ */
-    255,                                     /* onPkgScpFormat2ShireBits_ */
-    255,                                     /* onPkgScpFormat2ChipletLSb_ */
-    255,                                     /* onPkgScpFormat2ChipletBits_ */
-    255,                                     /* onPkgDRAMChipletLSb_ */
-    255,                                     /* onPkgDRAMChipletBits_ */
-    255,                                     /* onPkgDRAMInterleavedChipletLSb_ */
-    255,                                     /* onPkgDRAMInterleavedChipletBits_ */
+    DeviceConfig::FormFactor::PCIE,                         /* form factor */
+    25,                                                     /* tdp (W) */
+    32768,                                                  /* L3 cache (KB) */
+    16384,                                                  /* L2 cache (KB) */
+    81920,                                                  /* scratchpad (KB) */
+    64,                                                     /* cache line size (bytes) */
+    4,                                                      /* L2 cache banks */
+    128000,                                                 /* DDR BW (MB/s) */
+    1000,                                                   /* Mhz */
+    spInfo_.generic_attr.cm_shires_mask,                    /* shire mask */
+    32,                                                     /* spare minion shire id */
+    DeviceConfig::ArchRevision::ETSOC1,                     /* Arch revision */
+    static_cast<uint8_t>(device),                           /* Physical device ID */
+    0x80000000ULL,                                          /* localScpFormat0BaseAddress_ */
+    0xC0000000ULL,                                          /* localScpFormat1BaseAddress_ */
+    getDramBaseAddress(device),                             /* localDRAMBaseAddress_ */
+    ~0ULL,                                                  /* onPkgScpFormat2BaseAddress_ */
+    getDramBaseAddress(device),                             /* onPkgDRAMBaseAddress_ */
+    ~0ULL,                                                  /* onPkgDRAMInterleavedBaseAddress_ */
+    getDramSize(device),                                    /* localDRAMSize_ */
+    static_cast<uint8_t>(__builtin_ctz(getDmaAlignment())), /* minimumAddressAlignmentBits_ */
+    1,                                                      /* numChiplets_ */
+    23,                                                     /* localScpFormat0ShireLSb_ */
+    7,                                                      /* localScpFormat0ShireBits_ */
+    127,                                                    /* localScpFormat0LocalShire_ */
+    6,                                                      /* localScpFormat1ShireLSb_ */
+    5,                                                      /* localScpFormat1ShireBits_ */
+    255,                                                    /* onPkgScpFormat2ShireLSb_ */
+    255,                                                    /* onPkgScpFormat2ShireBits_ */
+    255,                                                    /* onPkgScpFormat2ChipletLSb_ */
+    255,                                                    /* onPkgScpFormat2ChipletBits_ */
+    255,                                                    /* onPkgDRAMChipletLSb_ */
+    255,                                                    /* onPkgDRAMChipletBits_ */
+    255,                                                    /* onPkgDRAMInterleavedChipletLSb_ */
+    255,                                                    /* onPkgDRAMInterleavedChipletBits_ */
   };
 }
 

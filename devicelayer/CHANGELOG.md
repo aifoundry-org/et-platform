@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Increase the test discovery timeout
 - Fix typo in DeviceConfig::spareComputeMinionoShireId_
+- Fixes for new DeviceConfig contents
 ### Security
 
 ## [3.0.0] - 2023-12-13
