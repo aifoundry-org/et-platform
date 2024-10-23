@@ -24,7 +24,7 @@
 #include <fstream>
 #include <glog/logging.h>
 #include <iostream>
-#include <optional>
+#include <memory>
 #include <regex>
 #include <string>
 #include <unistd.h>
@@ -1432,6 +1432,140 @@ void TestDevMgmtApiSyncCmds::getModuleVoltage(bool singleDevice) {
   }
 }
 
+void TestDevMgmtApiSyncCmds::setDeviceWithIdxToOldActiveValue(
+  int deviceIdx, const std::optional<device_mgmt_api::module_voltage_t>& voltages) {
+  if (!voltages.has_value()) {
+    DV_LOG(FATAL) << fmt::format("voltages for the device index {} are nullopt\n", deviceIdx);
+    return;
+  }
+  getDM_t dmi = getInstance();
+  if (dmi == nullptr) {
+    DV_LOG(FATAL) << fmt::format("cannot retrieve dmi for the device index {}\n", deviceIdx);
+    return;
+  }
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  const uint32_t input_size = sizeof(device_mgmt_api::module_e) + sizeof(uint8_t);
+  char input_buff[input_size];
+  input_buff[0] = (char)device_mgmt_api::MODULE_DDR;
+  input_buff[1] = (char)((*voltages).ddr);
+  auto hst_latency = std::make_unique<uint32_t>();
+  auto dev_latency = std::make_unique<uint64_t>();
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.ddr failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_L2CACHE;
+  input_buff[1] = (char)((*voltages).l2_cache);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.l2cache failed for the device index {}\n",
+                                 deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_MAXION;
+  input_buff[1] = (char)((*voltages).maxion);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.maxion failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_MINION;
+  input_buff[1] = (char)((*voltages).minion);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.minion failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_PCIE;
+  input_buff[1] = (char)((*voltages).pcie);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.pcie failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_NOC;
+  input_buff[1] = (char)((*voltages).noc);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.noc failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_PCIE_LOGIC;
+  input_buff[1] = (char)((*voltages).pcie_logic);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.pcie_logic failed for the device index {}\n",
+                                 deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_VDDQ;
+  input_buff[1] = (char)((*voltages).vddq);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.vddq failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  input_buff[0] = (char)device_mgmt_api::MODULE_VDDQLP;
+  input_buff[1] = (char)((*voltages).vddqlp);
+  if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size, nullptr,
+                        0, hst_latency.get(), dev_latency.get(),
+                        DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+    DV_LOG(FATAL) << fmt::format("Service request for the voltages.vddqlp failed for the device index {}\n", deviceIdx);
+    return;
+  }
+  DV_LOG(INFO) << fmt::format("Service request for all of the the voltages PASSED for the device index {}\n",
+                              deviceIdx);
+}
+
+void TestDevMgmtApiSyncCmds::setVoltageLevelsBackToOldValues() {
+  getDM_t dmi = getInstance();
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  int numOfDevices = dm.getDevicesCount();
+
+  for (int deviceIdx = 0; deviceIdx < numOfDevices; deviceIdx++) {
+    if (!trackedVoltages_->isIndexChanged(deviceIdx)) {
+      continue;
+    }
+    setDeviceWithIdxToOldActiveValue(deviceIdx, trackedVoltages_->get(deviceIdx));
+  }
+}
+
+// Get all of the devices all of the voltages, since we do not know with which flag the test will be called
+// for getting and setting module voltages: could be single device, or multiple devices.
+// So, we get all of the devices' possible voltages and save them and we are on the safe side.
+void TestDevMgmtApiSyncCmds::getCurrentDeviceActiveValues() {
+  getDM_t dmi = getInstance();
+  DeviceManagement& dm = (*dmi)(devLayer_.get());
+  int numOfDevices = dm.getDevicesCount();
+  auto end = Clock::now() + std::chrono::milliseconds(FLAGS_exec_timeout_ms);
+  AllCurrentlyActiveVoltages allDevicesVoltages;
+  allDevicesVoltages.reserve(numOfDevices);
+  for (int deviceIdx = 0; deviceIdx < numOfDevices; deviceIdx++) {
+    const uint32_t output_size = sizeof(device_mgmt_api::module_voltage_t);
+    char output_buff[output_size] = {0};
+    auto hst_latency = std::make_unique<uint32_t>();
+    auto dev_latency = std::make_unique<uint64_t>();
+    if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_GET_MODULE_VOLTAGE, nullptr, 0, output_buff,
+                          output_size, hst_latency.get(), dev_latency.get(),
+                          DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
+      allDevicesVoltages.push_back(std::nullopt);
+    }
+    device_mgmt_api::module_voltage_t* voltages = (device_mgmt_api::module_voltage_t*)output_buff;
+    allDevicesVoltages.push_back(*voltages);
+  }
+  trackedVoltages_ = std::make_unique<TrackedVoltages>(allDevicesVoltages);
+}
+
 void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
   getDM_t dmi = getInstance();
   ASSERT_TRUE(dmi);
@@ -1447,6 +1581,8 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
     input_buff[1] = (char)(voltages.ddr);
     auto hst_latency = std::make_unique<uint32_t>();
     auto dev_latency = std::make_unique<uint64_t>();
+    trackedVoltages_->set(deviceIdx); // Changing the voltage level for this deviceIdx, to bring it back to the initial
+                                      // value in TearDown phase
     if (dm.serviceRequest(deviceIdx, device_mgmt_api::DM_CMD::DM_CMD_SET_MODULE_VOLTAGE, input_buff, input_size,
                           nullptr, 0, hst_latency.get(), dev_latency.get(),
                           DURATION2MS(end - Clock::now())) != device_mgmt_api::DM_STATUS_SUCCESS) {
@@ -1532,7 +1668,6 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
   };
 
   auto getModuleVoltages = [&](int deviceIdx) -> std::optional<device_mgmt_api::module_voltage_t> {
-    device_mgmt_api::module_voltage_t* moduleVoltage;
     const uint32_t output_size = sizeof(device_mgmt_api::module_voltage_t);
     char output_buff[output_size] = {0};
     auto hst_latency = std::make_unique<uint32_t>();
@@ -1572,22 +1707,22 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
 
   auto deviceCount = singleDevice ? 1 : dm.getDevicesCount();
   for (int deviceIdx = 0; deviceIdx < deviceCount; deviceIdx++) {
-    // Get default voltages
+    // Get module current voltages
     auto container = getModuleVoltages(deviceIdx);
     ASSERT_TRUE(container.has_value()) << "getModuleVoltages() failed!";
-    auto defaultVoltages = container.value();
+    auto activeVoltages = container.value();
 
-    // Set test voltages (5 steps (25mV/30mV) greater than default)
+    // Set test voltages (5 steps (25mV/30mV) greater than old active values)
     device_mgmt_api::module_voltage_t testVoltages;
-    testVoltages.ddr = defaultVoltages.ddr + 5;
-    testVoltages.l2_cache = defaultVoltages.l2_cache + 5;
-    testVoltages.maxion = defaultVoltages.maxion + 5;
-    testVoltages.minion = defaultVoltages.minion + 5;
-    testVoltages.pcie = defaultVoltages.pcie + 5;
-    testVoltages.noc = defaultVoltages.noc + 5;
-    testVoltages.pcie_logic = defaultVoltages.pcie_logic + 5;
-    testVoltages.vddq = defaultVoltages.vddq + 1;
-    testVoltages.vddqlp = defaultVoltages.vddqlp + 1;
+    testVoltages.ddr = activeVoltages.ddr;
+    testVoltages.l2_cache = activeVoltages.l2_cache + 5;
+    testVoltages.maxion = activeVoltages.maxion;
+    testVoltages.minion = activeVoltages.minion + 5;
+    testVoltages.pcie = activeVoltages.pcie;
+    testVoltages.noc = activeVoltages.noc + 5;
+    testVoltages.pcie_logic = activeVoltages.pcie_logic;
+    testVoltages.vddq = activeVoltages.vddq + 1;
+    testVoltages.vddqlp = activeVoltages.vddqlp + 1;
     ASSERT_TRUE(setModuleVoltages(deviceIdx, testVoltages)) << "setModuleVoltages() failed!";
 
     // Skip validation if loopback driver or SysEMU
@@ -1598,7 +1733,7 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
         // Validate test voltages
         container = getModuleVoltages(deviceIdx);
         ASSERT_TRUE(container.has_value()) << "getModuleVoltages() failed!";
-        if (memcmp(&defaultVoltages, &container.value(), sizeof(defaultVoltages)) != 0) {
+        if (memcmp(&activeVoltages, &container.value(), sizeof(activeVoltages)) != 0) {
           break;
         }
       }
@@ -1621,44 +1756,44 @@ void TestDevMgmtApiSyncCmds::setAndGetModuleVoltage(bool singleDevice) {
         << "Unable to set VDDQ test voltage";
       EXPECT_LE(percentVoltageChange(container.value().vddqlp, testVoltages.vddqlp, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQLP test voltage";
-      EXPECT_NE(memcmp(&defaultVoltages, &container.value(), sizeof(defaultVoltages)), 0)
+      EXPECT_NE(memcmp(&activeVoltages, &container.value(), sizeof(activeVoltages)), 0)
         << "No changes in voltage after SET_MODULE_VOLTAGE command";
     }
 
     // Revert back to original voltages
-    ASSERT_TRUE(setModuleVoltages(deviceIdx, defaultVoltages)) << "setModuleVoltages() failed";
+    ASSERT_TRUE(setModuleVoltages(deviceIdx, activeVoltages)) << "setModuleVoltages() failed";
 
     // Skip validation if loopback driver or SysEMU
     if (!targetInList({Target::Loopback, Target::SysEMU})) {
       for (auto retry = 0; retry < 3; retry++) {
         // Wait for voltages to settle
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        // Validate default voltages are set
+        // Validate currently active voltages are set
         container = getModuleVoltages(deviceIdx);
         ASSERT_TRUE(container.has_value()) << "getModuleVoltages() failed!";
         if (memcmp(&testVoltages, &container.value(), sizeof(testVoltages)) != 0) {
           break;
         }
       }
-      EXPECT_LE(percentVoltageChange(container.value().ddr, defaultVoltages.ddr, 250, 5, 1), voltagePercentDrop)
-        << "Unable to set DDR default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().l2_cache, defaultVoltages.l2_cache, 250, 5, 1),
+      EXPECT_LE(percentVoltageChange(container.value().ddr, activeVoltages.ddr, 250, 5, 1), voltagePercentDrop)
+        << "Unable to set DDR currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().l2_cache, activeVoltages.l2_cache, 250, 5, 1),
                 voltagePercentDrop)
-        << "Unable to set L2CACHE default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().maxion, defaultVoltages.maxion, 250, 5, 1), voltagePercentDrop)
-        << "Unable to set MAXION default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().minion, defaultVoltages.minion, 250, 5, 1), voltagePercentDrop)
-        << "Unable to set MINION default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().pcie, defaultVoltages.pcie, 600, 125, 10), voltagePercentDrop)
-        << "Unable to set PCIE default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().noc, defaultVoltages.noc, 250, 5, 1), voltagePercentDrop)
-        << "Unable to set NOC default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().pcie_logic, defaultVoltages.pcie_logic, 600, 625, 100),
+        << "Unable to set L2CACHE currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().maxion, activeVoltages.maxion, 250, 5, 1), voltagePercentDrop)
+        << "Unable to set MAXION currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().minion, activeVoltages.minion, 250, 5, 1), voltagePercentDrop)
+        << "Unable to set MINION currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().pcie, activeVoltages.pcie, 600, 125, 10), voltagePercentDrop)
+        << "Unable to set PCIE currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().noc, activeVoltages.noc, 250, 5, 1), voltagePercentDrop)
+        << "Unable to set NOC currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().pcie_logic, activeVoltages.pcie_logic, 600, 625, 100),
                 voltagePercentDrop)
-        << "Unable to set PCIE_LOGIC default voltage";
-      EXPECT_LE(percentVoltageChange(container.value().vddq, defaultVoltages.vddq, 250, 10, 1), voltagePercentDrop)
+        << "Unable to set PCIE_LOGIC currently active voltage";
+      EXPECT_LE(percentVoltageChange(container.value().vddq, activeVoltages.vddq, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQ test voltage";
-      EXPECT_LE(percentVoltageChange(container.value().vddqlp, defaultVoltages.vddqlp, 250, 10, 1), voltagePercentDrop)
+      EXPECT_LE(percentVoltageChange(container.value().vddqlp, activeVoltages.vddqlp, 250, 10, 1), voltagePercentDrop)
         << "Unable to set VDDQLP test voltage";
       EXPECT_NE(memcmp(&testVoltages, &container.value(), sizeof(testVoltages)), 0)
         << "No changes in voltage after SET_MODULE_VOLTAGE command";

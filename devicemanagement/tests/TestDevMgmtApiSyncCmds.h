@@ -15,18 +15,25 @@
 #include "deviceManagement/DeviceManagement.h"
 #include "utils.h"
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <dlfcn.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
+#include <optional>
 
 using namespace dev;
 using namespace device_management;
 using Clock = std::chrono::system_clock;
 using Timepoint = Clock::time_point;
 using TimeDuration = Clock::duration;
+using AllCurrentlyActiveVoltages = std::vector<std::optional<device_mgmt_api::module_voltage_t>>;
+using ConstAllCurrentlyActiveVoltages = const AllCurrentlyActiveVoltages&;
 
 #define MAX_DEVICE_NODE (250)
 #define INPUT_SIZE_TEST (1)
@@ -52,6 +59,32 @@ typedef struct {
 } ecid_t;
 
 enum class Target { Silicon, Bemu, FullBoot, FullChip, SysEMU, Loopback };
+
+// This helper class serves to keep track of all of the devices' voltages we have changed.
+// In that case we do not have to reset to default voltages in TearDown phase that we did not change in test
+class TrackedVoltages {
+public:
+  TrackedVoltages(ConstAllCurrentlyActiveVoltages initialVoltages)
+    : initialModuleVoltageLevels_(initialVoltages)
+    , changedVoltagesOnDevices_(initialVoltages.size(), std::byte{0}) {
+  }
+
+  std::optional<device_mgmt_api::module_voltage_t> get(size_t index) const {
+    return initialModuleVoltageLevels_[index];
+  }
+
+  bool isIndexChanged(size_t index) const {
+    return changedVoltagesOnDevices_[index] != std::byte{0};
+  }
+
+  void set(size_t index) {
+    changedVoltagesOnDevices_[index] = std::byte{1}; // Mark this index as changed - SET
+  }
+
+private:
+  std::vector<std::byte> changedVoltagesOnDevices_;
+  AllCurrentlyActiveVoltages initialModuleVoltageLevels_;
+};
 
 class TestDevMgmtApiSyncCmds : public ::testing::Test {
 protected:
@@ -262,6 +295,11 @@ protected:
     initEventProcessor();
     initDevErrorEvent({DevErrorEvent::EventType::SpTraceBufferFullCeEvent});
   }
+
+  void inline setUpInitialLevels() {
+    getCurrentDeviceActiveValues();
+  }
+
   void inline cleanupDMTestFramework() {
     eventProcessorRunning_ = false;
     checkDevErrorEvent();
@@ -269,6 +307,10 @@ protected:
     if (handle_ != nullptr) {
       dlclose(handle_);
     }
+  }
+
+  void inline cleanUpModuleVoltages() {
+    setVoltageLevelsBackToOldValues(); // Restore the original voltage levels
   }
 
   inline Target getTestTarget(void) const {
@@ -299,11 +341,8 @@ protected:
   }
 
   inline bool isParallelRun(void) const {
-    auto envParallel = getenv("PARALLEL");
-    if (envParallel != nullptr && envParallel[0] != '\0') {
-      return true;
-    }
-    return false;
+    auto parallelEnv = getenv("PARALLEL");
+    return parallelEnv && parallelEnv[0] != 0;
   }
 
   void inline setDevErrorEventCheckList(const std::vector<DevErrorEvent::EventType>& checkList) {
@@ -349,6 +388,15 @@ protected:
   std::vector<DevErrorEvent::EventType> devErrorEventSkipList_;
   std::vector<std::thread> eventThreads_;
   bool eventProcessorRunning_ = true;
+
+  // For the module voltages setting to test and default values
+  std::unique_ptr<TrackedVoltages> trackedVoltages_;
+
+private:
+  void setVoltageLevelsBackToOldValues();
+  void setDeviceWithIdxToOldActiveValue(int deviceIdx,
+                                        const std::optional<device_mgmt_api::module_voltage_t>& voltages);
+  void getCurrentDeviceActiveValues();
 };
 
 #endif // TEST_DEVICE_M_H

@@ -20,9 +20,11 @@ using namespace device_management;
 class FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds : public TestDevMgmtApiSyncCmds {
   void SetUp() override {
     initDMTestFramework();
+    setUpInitialLevels();
   }
   void TearDown() override {
     cleanupDMTestFramework();
+    cleanUpModuleVoltages();
   }
 };
 
@@ -59,7 +61,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleVoltage) 
 }
 
 // TODO: SW-16538: Enable back when fixed
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setAndGetModuleVoltage) {
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setAndGetModuleVoltage) {
   if (isParallelRun()) {
     DV_LOG(INFO) << "Skipping the test since it cannot be run in parallel with ops device";
     FLAGS_enable_trace_dump = false;
@@ -77,7 +79,7 @@ TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, getModuleResidency
 }
 
 /* TODO: SW-19495: Enable the test once the issue is resolved */
-TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, DISABLED_setModuleActivePowerManagement) {
+TEST_F(FunctionalTestDevMgmtApiThermalAndPowerMonitoringCmds, setModuleActivePowerManagement) {
   setModuleActivePowerManagement(false /* Multiple devices */);
 }
 
