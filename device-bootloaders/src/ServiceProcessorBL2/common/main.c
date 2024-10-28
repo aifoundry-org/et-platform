@@ -495,7 +495,6 @@ static void taskMain(void *pvParameters)
     status = init_thermal_pwr_mgmt_service();
     ASSERT_FATAL(status == STATUS_SUCCESS, "Failed to init thermal power management!")
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_PM_READY);
-    enable_pmic_interrupts();
 
     /* Populate the device generic attributes */
     DIR_Generic_Attributes_Init();
@@ -548,8 +547,9 @@ static void taskMain(void *pvParameters)
     Log_Write(LOG_LEVEL_CRITICAL, "SP Device Ready!\r\n");
     DIR_Set_Service_Processor_Status(SP_DEV_INTF_SP_BOOT_STATUS_DEV_READY);
 
-    /* SP Boot was successful, disable external PMIc watchdog */
+    /* SP Boot was successful, disable external PMIC watchdog and enable PMIC interrupts */
     pmic_disable_wdog_timeout_reset();
+    enable_pmic_interrupts();
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);

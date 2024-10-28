@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
-[SW-21990] fix of retry logic in thermal power monitor to avoid infinite retries
+- [SW-21990] fix of retry logic in thermal power monitor to avoid infinite retries
+- [SW-22053] Move enabling of PMIC interrupts to the end of the SP boot sequence
 ### Deprecated
 ### Removed
 ### Fixed
