@@ -37,6 +37,9 @@
 /// @{
 namespace dev {
 
+/// Temporary backwards compatibility workaround for typo in field name
+#define spareComputeMinionoShireId_ spareComputeMinionShireId_
+
 /// NOTE: New enum/struct entities should be added in the end for backward compatibility
 
 /// \brief This struct contains device configured information

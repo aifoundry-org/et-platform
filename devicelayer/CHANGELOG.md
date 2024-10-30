@@ -17,9 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove sonar qualitygate
 - (CI) Do not generate packages for ubuntu18
 - Cleaned up regex for PCIecount to avoid compilation within Lambda function
+- Extend DeviceConfig to include the number of chiplets and the various base addresses
 ### Deprecated
 ### Removed
 ### Fixed
+- Increase the test discovery timeout
+- Fix typo in DeviceConfig::spareComputeMinionoShireId_
 ### Security
 
 ## [3.0.0] - 2023-12-13

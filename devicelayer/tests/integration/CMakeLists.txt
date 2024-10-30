@@ -32,7 +32,7 @@ function(create_test)
     gtest_discover_tests(${TEST_TARGET}
         EXTRA_ARGS ${TEST_ARGS}
         TEST_PREFIX device-layer:
-        PROPERTIES ${TEST_PROPERTIES}
+        PROPERTIES ${TEST_PROPERTIES} TEST_DISCOVERY_TIMEOUT 60
         TEST_LIST DISCOVERED_TESTS
     )
 endfunction()

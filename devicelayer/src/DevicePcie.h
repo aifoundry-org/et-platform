@@ -15,7 +15,7 @@
 
 namespace dev {
 
-class DevicePcie : public IDeviceLayer {
+class DevicePcie final : public IDeviceLayer {
 public:
   explicit DevicePcie(bool enableOps = true, bool enableMgmt = true);
   ~DevicePcie();

@@ -363,19 +363,43 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
 
   dev_config cfg;
   wrap_ioctl(fd, ETSOC1_IOCTL_GET_DEVICE_CONFIGURATION, &cfg);
-  deviceInfo.cfg_ = DeviceConfig{parseRawFormFactor(static_cast<dev_config_form_factor>(cfg.form_factor)),
-                                 cfg.tdp,
-                                 cfg.total_l3_size,
-                                 cfg.total_l2_size,
-                                 cfg.total_scp_size,
-                                 cfg.cache_line_size,
-                                 cfg.num_l2_cache_banks,
-                                 cfg.ddr_bandwidth,
-                                 cfg.minion_boot_freq,
-                                 cfg.cm_shire_mask,
-                                 cfg.sync_min_shire_id,
-                                 parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev)),
-                                 cfg.devnum};
+  deviceInfo.cfg_ = DeviceConfig{
+    parseRawFormFactor(static_cast<dev_config_form_factor>(cfg.form_factor)),
+    cfg.tdp,
+    cfg.total_l3_size,
+    cfg.total_l2_size,
+    cfg.total_scp_size,
+    cfg.cache_line_size,
+    cfg.num_l2_cache_banks,
+    cfg.ddr_bandwidth,
+    cfg.minion_boot_freq,
+    cfg.cm_shire_mask,
+    cfg.sync_min_shire_id,
+    parseRawArchRevision(static_cast<dev_config_arch_revision>(cfg.arch_rev)),
+    cfg.devnum,
+    0xB0000000ULL,                           /* localScpFormat0BaseAddress_ */
+    0xC0000000ULL,                           /* localScpFormat1BaseAddress_ */
+    getDramBaseAddress(cfg.devnum),          /* localDRAMBaseAddress_ */
+    ~0ULL,                                   /* onPkgScpFormat2BaseAddress_ */
+    getDramBaseAddress(cfg.devnum),          /* onPkgDRAMBaseAddress_ */
+    ~0ULL,                                   /* onPkgDRAMInterleavedBaseAddress_ */
+    getDramSize(cfg.devnum),                 /* localDRAMSize_ */
+    static_cast<uint8_t>(getDmaAlignment()), /* minimumAddressAlignmentBits_ */
+    1,                                       /* numChiplets_ */
+    23,                                      /* localScpFormat0ShireLSb_ */
+    7,                                       /* localScpFormat0ShireBits_ */
+    127,                                     /* localScpFormat0LocalShire_ */
+    6,                                       /* localScpFormat1ShireLSb_ */
+    5,                                       /* localScpFormat1ShireBits_ */
+    255,                                     /* onPkgScpFormat2ShireLSb_ */
+    255,                                     /* onPkgScpFormat2ShireBits_ */
+    255,                                     /* onPkgScpFormat2ChipletLSb_ */
+    255,                                     /* onPkgScpFormat2ChipletBits_ */
+    255,                                     /* onPkgDRAMChipletLSb_ */
+    255,                                     /* onPkgDRAMChipletBits_ */
+    255,                                     /* onPkgDRAMInterleavedChipletLSb_ */
+    255,                                     /* onPkgDRAMInterleavedChipletBits_ */
+  };
 
   logInfoLine(logs, "PCIBUS device name:", deviceInfo.devName_.data());
   logInfoLine(logs, "Physical device ID:", +deviceInfo.cfg_.physDeviceId_, true);
@@ -388,9 +412,44 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
   logInfoLine(logs, "Cache line size (B):", +deviceInfo.cfg_.cacheLineSize_, true);
   logInfoLine(logs, "Number of L2 Banks:", +deviceInfo.cfg_.numL2CacheBanks_);
   logInfoLine(logs, "DDR Bandwidth (MB/s):", +deviceInfo.cfg_.ddrBandwidth_);
-  logInfoLine(logs, "Spare shire ID:", +deviceInfo.cfg_.spareComputeMinionoShireId_);
+  logInfoLine(logs, "Spare shire ID:", +deviceInfo.cfg_.spareComputeMinionShireId_);
   logInfoLine(logs, "Architecture revision:", deviceInfo.cfg_.archRevision_, true);
   logInfoLine(logs, "CM active shire mask:", deviceInfo.cfg_.computeMinionShireMask_, true);
+
+  logInfoLine(logs, "Scratchpad base address in format 0:", deviceInfo.cfg_.localScpFormat0BaseAddress_, true);
+  logInfoLine(logs, "Scratchpad base address in format 1:", deviceInfo.cfg_.localScpFormat1BaseAddress_, true);
+  logInfoLine(logs, "Scratchpad base address in format 2:", deviceInfo.cfg_.onPkgScpFormat2BaseAddress_, true);
+  logInfoLine(logs, "Local DDR base address:", deviceInfo.cfg_.localDRAMBaseAddress_, true);
+  logInfoLine(logs, "Chiplet DDR base address:", deviceInfo.cfg_.onPkgDRAMBaseAddress_, true);
+  logInfoLine(logs, "Interleaved DDR base address:", deviceInfo.cfg_.onPkgDRAMInterleavedBaseAddress_, true);
+
+  logInfoLine(logs, "Single chiplet DDR size:", deviceInfo.cfg_.localDRAMSize_);
+
+  logInfoLine(logs, "Address alignment bits:", deviceInfo.cfg_.minimumAddressAlignmentBits_);
+
+  logInfoLine(logs, "First shire bit in scratchpad address in format 0:", deviceInfo.cfg_.localScpFormat0ShireLSb_);
+  logInfoLine(logs,
+              "Number of shire bits in scratchpad address in format 0:", deviceInfo.cfg_.localScpFormat0ShireBits_);
+  logInfoLine(logs,
+              "Local shire encoding in scratchpad address in format 0:", deviceInfo.cfg_.localScpFormat0LocalShire_);
+
+  logInfoLine(logs, "First shire bit in scratchpad address in format 1:", deviceInfo.cfg_.localScpFormat1ShireLSb_);
+  logInfoLine(logs,
+              "Number of shire bits in scratchpad address in format 1:", deviceInfo.cfg_.localScpFormat1ShireBits_);
+
+  logInfoLine(logs, "First shire bit in scratchpad address in format 2:", deviceInfo.cfg_.onPkgScpFormat2ShireLSb_);
+  logInfoLine(logs,
+              "Number of shire bits in scratchpad address in format 2:", deviceInfo.cfg_.onPkgScpFormat2ShireBits_);
+  logInfoLine(logs, "First chiplet bit in scratchpad address in format 2:", deviceInfo.cfg_.onPkgScpFormat2ChipletLSb_);
+  logInfoLine(logs,
+              "Number of chiplet bits in scratchpad address in format 2:", deviceInfo.cfg_.onPkgScpFormat2ChipletBits_);
+
+  logInfoLine(logs, "First chiplet bit in chiplet DDR address:", deviceInfo.cfg_.onPkgDRAMChipletLSb_);
+  logInfoLine(logs, "Number of chiplet bits in chiplet DDR address:", deviceInfo.cfg_.onPkgDRAMChipletBits_);
+  logInfoLine(logs,
+              "First chiplet bit in interleaved chiplet DDR address:", deviceInfo.cfg_.onPkgDRAMInterleavedChipletLSb_);
+  logInfoLine(logs, "Number of chiplet bits in interleaved chiplet DDR address:",
+              deviceInfo.cfg_.onPkgDRAMInterleavedChipletBits_);
 
   DV_DLOG(DEBUG) << logs.str();
 }

@@ -33,7 +33,7 @@ struct CircBuffCb {
   uint64_t pad;         /**< Padding to make the struct 32-bytes aligned */
 } __attribute__((__packed__));
 
-class DeviceSysEmu : public IDeviceLayer {
+class DeviceSysEmu final : public IDeviceLayer {
 public:
   explicit DeviceSysEmu(const emu::SysEmuOptions& options);
   ~DeviceSysEmu();
