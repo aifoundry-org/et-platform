@@ -72,3 +72,44 @@ on_success:promote:
       cd conan
       python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_promote
+
+###############################################################################
+############################## Conan 2 ########################################
+###############################################################################
+
+build:conan2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: build
+  needs: []
+  script:
+    - conan lock create conanfile.py --profile linux-ubuntu22.04-x86_64-gcc11-release  # Create the lockfile with the profile
+    - conan install . --build=missing # Install dependencies from the lockfile
+  artifacts:
+    paths:
+      - conan.lock  # Keep the lockfile as an artifact for later stages
+
+on_success:package2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  needs: 
+    - build:conan2
+  stage: package
+  script:
+    - mv conan.lock linux-ubuntu22.04-x86_64-gcc11-release.lock
+    - conan create . --lockfile=linux-ubuntu22.04-x86_64-gcc11-release.lock --lockfile-out=linux-ubuntu22.04-x86_64-gcc11-release.lock --build=missing  # Create the package based on the lockfile
+    - conan list "*:*" --format=json > pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json
+    - conan upload --list=pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json --format=json -r=conan2-tmp --confirm # Upload package to Artifactory
+    - if [ -n "$CI_MERGE_REQUEST_IID" ]; then
+         - conan pkglist find-remote --format=json -r=conan2-tmp pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json > pkglist-merged-with-remote.json
+         - conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
+         - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.
+      if  #Only upload into conan2-develop if it's NOT a MR pipeline
+  artifacts:
+    paths:
+      - linux-ubuntu22.04-x86_64-gcc11-release.lock # Keep the lockfile updated with the build stage
+      - pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json
