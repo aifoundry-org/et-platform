@@ -98,7 +98,7 @@ on_success:package2:
     - .template-conan2-linux-ubuntu22.04-gcc11
   needs: 
     - build:conan2
-  stage: package
+  stage: deploy
   script:
     - mv conan.lock linux-ubuntu22.04-x86_64-gcc11-release.lock
     - conan create . --lockfile=linux-ubuntu22.04-x86_64-gcc11-release.lock --lockfile-out=linux-ubuntu22.04-x86_64-gcc11-release.lock --build=missing  # Create the package based on the lockfile
