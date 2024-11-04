@@ -108,7 +108,7 @@ on_success:package2:
          - conan pkglist find-remote --format=json -r=conan2-tmp pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json > pkglist-merged-with-remote.json
          - conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
          - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.
-      if  #Only upload into conan2-develop if it's NOT a MR pipeline
+      fi  #Only upload into conan2-develop if it's NOT a MR pipeline
   artifacts:
     paths:
       - linux-ubuntu22.04-x86_64-gcc11-release.lock # Keep the lockfile updated with the build stage
