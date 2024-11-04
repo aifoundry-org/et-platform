@@ -13,7 +13,28 @@ include:
 stages:
   - generate_build
   - build
+  - package
   - deploy
+
+variables:
+  OS: "linux-ubuntu22.04"
+  ARCH: "x86_64"
+  COMPILER: "gcc11"
+  BUILD_TYPE: "release"
+  FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}"
+  CLICOLOR_FORCE: "1" # force colors on Conan output
+
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        DRY_RUN_PARAM: "--dry-run"
 
 ###############################################################################
 ###############################################################################
@@ -77,40 +98,69 @@ on_success:promote:
 ############################## Conan 2 ########################################
 ###############################################################################
 
-build:conan2:
+capture_graph:conan2:
   extends:
     - .pod_nano
     - .template_job
     - .template-conan2-linux-ubuntu22.04-gcc11
-  stage: build
+  stage: .pre
+  rules:
+    - !reference [.release_or_development_job, rules] 
   needs: []
   script:
-    - conan lock create conanfile.py --profile linux-ubuntu22.04-x86_64-gcc11-release  # Create the lockfile with the profile
-    - conan install . --build=missing # Install dependencies from the lockfile
+    - conan remove "*" -c
+    - conan remote disable "*"
+    - conan remote enable conan2-develop
+    - conan lock create conanfile.py --profile=${FULL_BUILD_NAME} --lockfile-out=conan.lock
   artifacts:
+    expire_in: 2d
     paths:
-      - conan.lock  # Keep the lockfile as an artifact for later stages
+      - conan.lock # Keep the lockfile as an artifact for later stages
 
-on_success:package2:
+
+package2:
   extends:
     - .pod_nano
     - .template_job
     - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: package
+  rules:
+    - !reference [.release_or_development_job, rules] 
   needs: 
-    - build:conan2
-  stage: deploy
+    - capture_graph:conan2
   script:
-    - mv conan.lock linux-ubuntu22.04-x86_64-gcc11-release.lock
-    - conan create . --lockfile=linux-ubuntu22.04-x86_64-gcc11-release.lock --lockfile-out=linux-ubuntu22.04-x86_64-gcc11-release.lock --build=missing  # Create the package based on the lockfile
-    - conan list "*:*" --format=json > pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json
-    - conan upload --list=pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json --format=json -r=conan2-tmp --confirm # Upload package to Artifactory
-    - | #Only upload into conan2-develop if it's NOT a MR pipeline
-      if [ -n "$CI_MERGE_REQUEST_IID" ]; then
-          conan pkglist find-remote --format=json -r=conan2-tmp pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json > pkglist-merged-with-remote.json
-          conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
-          conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.json
-      fi 
+    - conan remote disable "*"
+    - conan remote enable conan2-develop
+    - conan create . -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
+    - conan list --graph=graph-${FULL_BUILD_NAME}.json --graph-binaries=build --format=json > pkglist-${FULL_BUILD_NAME}.json
+    - conan remote enable conan2-tmp
+    - conan upload --list=pkglist-${FULL_BUILD_NAME}.json -r=conan2-tmp --confirm --format=json > uploaded-${FULL_BUILD_NAME}.json
   artifacts:
+    expire_in: 2d
     paths:
-      - linux-ubuntu22.04-x86_64-gcc11-release.lock # Keep the lockfile updated with the build stage
-      - pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json
+      - graph-${FULL_BUILD_NAME}.json # Keep the lockfile
+      - pkglist-${FULL_BUILD_NAME}.json # Keep the list
+      - uploaded-${FULL_BUILD_NAME}.json # Keep uploaded list
+
+
+promote2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: deploy
+  rules:
+    - !reference [.release_or_development_job, rules] 
+  needs:
+    - package2
+  script:
+    - conan pkglist merge $(find . -name "uploaded*.json" -exec echo --list={} \;) --format=json > pkglist-merged.json
+    - conan download --list=pkglist-merged.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
+    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.json
+  artifacts:
+    expire_in: 2d
+    paths:
+      - pkglist-merged.json
+      - pkglist-downloaded.json
+      - pkglist-uploaded.json
+      
