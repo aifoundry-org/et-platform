@@ -15,6 +15,20 @@ stages:
   - build
   - deploy
 
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+.release_job:
+  rules:
+    - &release_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+
+variables:
+  OS: "linux-ubuntu22.04"
+  ARCH: "x86_64"
+  COMPILER: "gcc11"
+  BUILD_TYPE: "release"
+  FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}"
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -85,11 +99,12 @@ build:conan2:
   stage: build
   needs: []
   script:
-    - conan lock create conanfile.py --profile linux-ubuntu22.04-x86_64-gcc11-release  # Create the lockfile with the profile
+    - conan lock create conanfile.py --profile=${FULL_BUILD_NAME} --lockfile-out=${FULL_BUILD_NAME}.lock # Create the lockfile with the profile
     - conan install . --build=missing # Install dependencies from the lockfile
   artifacts:
+    expire_in: 2d
     paths:
-      - conan.lock  # Keep the lockfile as an artifact for later stages
+      - ${FULL_BUILD_NAME}.lock  # Keep the lockfile as an artifact for later stages
 
 on_success:package2:
   extends:
@@ -100,17 +115,26 @@ on_success:package2:
     - build:conan2
   stage: deploy
   script:
-    - mv conan.lock linux-ubuntu22.04-x86_64-gcc11-release.lock
-    - conan create . --lockfile=linux-ubuntu22.04-x86_64-gcc11-release.lock --lockfile-out=linux-ubuntu22.04-x86_64-gcc11-release.lock --build=missing  # Create the package based on the lockfile
-    - conan list "*:*" --format=json > pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json
-    - conan upload --list=pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json --format=json -r=conan2-tmp --confirm # Upload package to Artifactory
-    - | #Only upload into conan2-develop if it's NOT a MR pipeline
-      if [ -n "$CI_MERGE_REQUEST_IID" ]; then
-          conan pkglist find-remote --format=json -r=conan2-tmp pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json > pkglist-merged-with-remote.json
-          conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
-          conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.json
-      fi 
+    - conan create . --lockfile=${FULL_BUILD_NAME}.lock --lockfile-out=${FULL_BUILD_NAME}.lock --build=missing  # Create the package based on the lockfile
+    - conan list "*:*" --format=json > pkglist-${FULL_BUILD_NAME}.json
+    - conan upload --list=pkglist-${FULL_BUILD_NAME}.json --format=json -r=conan2-tmp --confirm # Upload package to Artifactory
   artifacts:
+    expire_in: 2d
     paths:
-      - linux-ubuntu22.04-x86_64-gcc11-release.lock # Keep the lockfile updated with the build stage
-      - pkglist-linux-ubuntu22.04-x86_64-gcc11-release.json
+      - ${FULL_BUILD_NAME}.lock  # Keep the lockfile
+      - pkglist-${FULL_BUILD_NAME}.json # Keep the list
+
+on_success:promote2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  needs:
+    - on_success:package2
+  rules:
+    - *release_job_rule  #Only run this part it it's NOT a MR pipeline
+  stage: deploy
+  script:
+    - conan pkglist find-remote --format=json -r=conan2-tmp pkglist-${FULL_BUILD_NAME}.json > pkglist-merged-with-remote.json
+    - conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
+    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.json
