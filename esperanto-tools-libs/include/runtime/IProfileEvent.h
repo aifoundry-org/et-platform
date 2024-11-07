@@ -97,7 +97,7 @@ public:
   using SystemTimePoint = std::chrono::time_point<SystemClock>;
   using Duration = TimePoint::duration;
   using ExtraValues = std::variant<uint64_t, EventId, StreamId, DeviceId, KernelId, ResponseType, Duration,
-                                   DeviceProperties, Version, SystemTimePoint, std::string>;
+                                   DeviceProperties, Version, SystemTimePoint, std::string, bool, std::uint32_t>;
   using ExtraMetadata = std::unordered_map<std::string, ExtraValues>;
 
   ProfileEvent() = default;
@@ -129,6 +129,12 @@ public:
   std::optional<SystemTimePoint> getSystemTimeStamp() const;
   std::optional<std::string> getThreadName() const;
   std::optional<uint64_t> getServerPID() const;
+  std::optional<bool> getBarrier() const;
+  std::optional<uint64_t> getAddress() const;
+  std::optional<uint64_t> getAddressSrc() const;
+  std::optional<uint64_t> getAddressDst() const;
+  std::optional<uint64_t> getSize() const;
+  std::optional<uint32_t> getAlignment() const;
 
   void setType(Type t);
   void setClass(Class c);
@@ -151,6 +157,12 @@ public:
   void setSystemTimeStamp(SystemTimePoint systemTimeStamp = SystemClock::now());
   void setThreadName(std::string const& threadName);
   void setServerPID(uint64_t serverPID);
+  void setBarrier(bool barrier);
+  void setAddress(uint64_t ptr);
+  void setAddressSrc(uint64_t ptr);
+  void setAddressDst(uint64_t ptr);
+  void setSize(uint64_t size);
+  void setAlignment(uint32_t alignment);
 
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 

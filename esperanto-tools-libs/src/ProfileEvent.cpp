@@ -239,9 +239,26 @@ std::optional<std::string> ProfileEvent::getThreadName() const {
 std::optional<uint64_t> ProfileEvent::getServerPID() const {
   return getExtra<uint64_t>("server_pid");
 }
-
 std::optional<EventId> ProfileEvent::getParentId() const {
   return getExtra<EventId>("parent_id");
+}
+std::optional<bool> ProfileEvent::getBarrier() const {
+  return getExtra<bool>("barrier");
+};
+std::optional<uint64_t> ProfileEvent::getAddress() const {
+  return getExtra<uint64_t>("ptr");
+}
+std::optional<uint64_t> ProfileEvent::getAddressSrc() const {
+  return getExtra<uint64_t>("src_ptr");
+}
+std::optional<uint64_t> ProfileEvent::getAddressDst() const {
+  return getExtra<uint64_t>("dst_ptr");
+}
+std::optional<uint64_t> ProfileEvent::getSize() const {
+  return getExtra<uint64_t>("size");
+}
+std::optional<uint32_t> ProfileEvent::getAlignment() const {
+  return getExtra<uint32_t>("alignment");
 }
 
 void ProfileEvent::setType(Type t) {
@@ -322,6 +339,25 @@ void ProfileEvent::setThreadName(std::string const& threadName) {
 
 void ProfileEvent::setServerPID(uint64_t serverPID) {
   addExtra("server_pid", serverPID);
+}
+
+void ProfileEvent::setBarrier(bool barrier) {
+  addExtra("barrier", barrier);
+}
+void ProfileEvent::setAddress(uint64_t ptr) {
+  addExtra("ptr", ptr);
+}
+void ProfileEvent::setAddressSrc(uint64_t ptr) {
+  addExtra("src_ptr", ptr);
+}
+void ProfileEvent::setAddressDst(uint64_t ptr) {
+  addExtra("dst_ptr", ptr);
+}
+void ProfileEvent::setSize(uint64_t size) {
+  addExtra("size", size);
+}
+void ProfileEvent::setAlignment(uint32_t alignment) {
+  addExtra("alignment", alignment);
 }
 
 template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {

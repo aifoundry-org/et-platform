@@ -50,13 +50,17 @@ DeviceProperties IRuntime::getDeviceProperties(DeviceId device) const {
 
 std::byte* IRuntime::mallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MallocDevice, *profiler_, device);
-  return doMallocDevice(device, size, alignment);
+  ScopedProfileEvent profileEvent(Class::MallocDevice, *profiler_, device, size);
+  profileEvent.setAlignment(alignment);
+  auto* ptr = doMallocDevice(device, size, alignment);
+  profileEvent.setAddress(ptr);
+  return ptr;
 }
 
 void IRuntime::freeDevice(DeviceId device, std::byte* buffer) {
   EASY_FUNCTION()
   ScopedProfileEvent profileEvent(Class::FreeDevice, *profiler_, device);
+  profileEvent.setAddress(buffer);
   doFreeDevice(device, buffer);
 }
 
@@ -77,7 +81,7 @@ void IRuntime::destroyStream(StreamId stream) {
 EventId IRuntime::memcpyHostToDevice(StreamId stream, const std::byte* h_src, std::byte* d_dst, size_t size,
                                      bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream, barrier, h_src, d_dst, size);
   auto eventId = doMemcpyHostToDevice(stream, h_src, d_dst, size, barrier, cmaCopyFunction);
   profileEvent.setEventId(eventId);
   return eventId;
@@ -97,7 +101,7 @@ LoadCodeResult IRuntime::loadCode(StreamId stream, const std::byte* elf, size_t 
 EventId IRuntime::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, std::byte* h_dst, size_t size,
                                      bool barrier, const CmaCopyFunction& cmaCopyFunction) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream, barrier, d_src, h_dst, size);
   auto eventId = doMemcpyDeviceToHost(stream, d_src, h_dst, size, barrier, cmaCopyFunction);
   profileEvent.setEventId(eventId);
   return eventId;
@@ -106,7 +110,7 @@ EventId IRuntime::memcpyDeviceToHost(StreamId stream, const std::byte* d_src, st
 EventId IRuntime::memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, bool barrier,
                                      const CmaCopyFunction& cmaCopyFunction) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyHostToDevice, *profiler_, stream, barrier);
   auto eventId = doMemcpyHostToDevice(stream, memcpyList, barrier, cmaCopyFunction);
   profileEvent.setEventId(eventId);
   return eventId;
@@ -115,7 +119,7 @@ EventId IRuntime::memcpyHostToDevice(StreamId stream, MemcpyList memcpyList, boo
 EventId IRuntime::memcpyDeviceToHost(StreamId stream, MemcpyList memcpyList, bool barrier,
                                      const CmaCopyFunction& cmaCopyFunction) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToHost, *profiler_, stream, barrier);
   auto eventId = doMemcpyDeviceToHost(stream, memcpyList, barrier, cmaCopyFunction);
   profileEvent.setEventId(eventId);
   return eventId;
@@ -235,7 +239,8 @@ bool IRuntime::isP2PEnabled(DeviceId one, DeviceId other) const {
 EventId IRuntime::memcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, const std::byte* d_src, std::byte* d_dst,
                                        size_t size, bool barrier) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToDevice, *profiler_, deviceDst);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToDevice, *profiler_, deviceDst, streamSrc, barrier, d_src, d_dst,
+                                  size);
   profileEvent.setStream(streamSrc);
   return doMemcpyDeviceToDevice(streamSrc, deviceDst, d_src, d_dst, size, barrier);
 }
@@ -243,7 +248,8 @@ EventId IRuntime::memcpyDeviceToDevice(StreamId streamSrc, DeviceId deviceDst, c
 EventId IRuntime::memcpyDeviceToDevice(DeviceId deviceSrc, StreamId streamDst, const std::byte* d_src, std::byte* d_dst,
                                        size_t size, bool barrier) {
   EASY_FUNCTION()
-  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToDevice, *profiler_, deviceSrc);
+  ScopedProfileEvent profileEvent(Class::MemcpyDeviceToDevice, *profiler_, deviceSrc, streamDst, barrier, d_src, d_dst,
+                                  size);
   profileEvent.setStream(streamDst);
   return doMemcpyDeviceToDevice(deviceSrc, streamDst, d_src, d_dst, size, barrier);
 }

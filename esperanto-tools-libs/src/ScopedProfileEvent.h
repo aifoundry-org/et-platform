@@ -40,10 +40,47 @@ public:
     event_.setDeviceId(deviceId);
     init();
   }
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, DeviceId deviceId, size_t size)
+    : profiler_(profiler)
+    , event_{Type::Complete, cls} {
+    event_.setDeviceId(deviceId);
+    event_.setSize(size);
+    init();
+  }
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, DeviceId deviceId, StreamId streamId, bool barrier,
+                              const std::byte* src, const std::byte* dst, size_t size)
+    : profiler_(profiler)
+    , event_{Type::Complete, cls} {
+    event_.setDeviceId(deviceId);
+    event_.setStream(streamId);
+    event_.setBarrier(barrier);
+    event_.setAddressSrc(reinterpret_cast<uint64_t>(src));
+    event_.setAddressDst(reinterpret_cast<uint64_t>(dst));
+    event_.setSize(size);
+    init();
+  }
   explicit ScopedProfileEvent(Class cls, IProfiler& profiler, StreamId streamId)
     : profiler_(profiler)
     , event_{Type::Complete, cls} {
     event_.setStream(streamId);
+    init();
+  }
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, StreamId streamId, bool barrier)
+    : profiler_(profiler)
+    , event_{Type::Complete, cls} {
+    event_.setStream(streamId);
+    event_.setBarrier(barrier);
+    init();
+  }
+  explicit ScopedProfileEvent(Class cls, IProfiler& profiler, StreamId streamId, bool barrier, const std::byte* src,
+                              const std::byte* dst, size_t size)
+    : profiler_(profiler)
+    , event_{Type::Complete, cls} {
+    event_.setStream(streamId);
+    event_.setBarrier(barrier);
+    event_.setAddressSrc(reinterpret_cast<uint64_t>(src));
+    event_.setAddressDst(reinterpret_cast<uint64_t>(dst));
+    event_.setSize(size);
     init();
   }
   explicit ScopedProfileEvent(Class cls, IProfiler& profiler, EventId eventId)
@@ -83,6 +120,14 @@ public:
 
   void setParentId(EventId parent) {
     event_.setParentId(parent);
+  }
+
+  void setAddress(std::byte* address) {
+    event_.setAddress(reinterpret_cast<uint64_t>(address));
+  }
+
+  void setAlignment(uint32_t alignment) {
+    event_.setAlignment(alignment);
   }
 
   void recordNow() {
