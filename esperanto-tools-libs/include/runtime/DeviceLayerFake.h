@@ -51,7 +51,29 @@ public:
       0xFFFFFFFF,                         // Compute minion mask
       32,                                 // spare minion shire id
       DeviceConfig::ArchRevision::ETSOC1, // arch revision (ETSOC)
-      0                                   // physical id
+      0,                                  // physical id
+      0x80000000ULL,                      // localScpFormat0BaseAddress_
+      0xC0000000ULL,                      // localScpFormat1BaseAddress_
+      dramBaseAddress_,                   // localDRAMBaseAddress_
+      ~0ULL,                              // onPkgScpFormat2BaseAddress_
+      dramBaseAddress_,                   // onPkgDRAMBaseAddress_
+      ~0ULL,                              // onPkgDRAMInterleavedBaseAddress_
+      bytesDram_,                         // localDRAMSize_
+      __builtin_ctz(64),                  // minimumAddressAlignmentBits_
+      1,                                  // numChiplets_
+      23,                                 // localScpFormat0ShireLSb_
+      7,                                  // localScpFormat0ShireBits_
+      127,                                // localScpFormat0LocalShire_
+      6,                                  // localScpFormat1ShireLSb_
+      5,                                  // localScpFormat1ShireBits_
+      255,                                // onPkgScpFormat2ShireLSb_
+      255,                                // onPkgScpFormat2ShireBits_
+      255,                                // onPkgScpFormat2ChipletLSb_
+      255,                                // onPkgScpFormat2ChipletBits_
+      255,                                // onPkgDRAMChipletLSb_
+      255,                                // onPkgDRAMChipletBits_
+      255,                                // onPkgDRAMInterleavedChipletLSb_
+      255,                                // onPkgDRAMInterleavedChipletBits_
     };
 
     static Parameters getDefault() {

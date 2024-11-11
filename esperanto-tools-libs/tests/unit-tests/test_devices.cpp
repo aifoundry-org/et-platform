@@ -43,7 +43,7 @@ TEST(devices, get_properties) {
   dc.ddrBandwidth_ = 300;
   dc.minionBootFrequency_ = 1000;
   dc.computeMinionShireMask_ = 0xFFFFFFFF;
-  dc.spareComputeMinionoShireId_ = 33;
+  dc.spareComputeMinionShireId_ = 33;
   dc.archRevision_ = dev::DeviceConfig::ArchRevision::ETSOC1;
 
   auto runtime = IRuntime::create(deviceLayer, rt::Options{false, false});
@@ -63,7 +63,35 @@ TEST(devices, get_properties) {
   EXPECT_EQ(properties.l2scratchpadSize_, ScratchPadSizeInMB);
   EXPECT_EQ(properties.cacheLineSize_, dc.cacheLineSize_);
   EXPECT_EQ(properties.l2CacheBanks_, dc.numL2CacheBanks_);
-  EXPECT_EQ(properties.spareComputeMinionoShireId_, dc.spareComputeMinionoShireId_);
+  EXPECT_EQ(properties.spareComputeMinionShireId_, dc.spareComputeMinionShireId_);
+
+  EXPECT_EQ(properties.localScpFormat0BaseAddress_, dc.localScpFormat0BaseAddress_);
+  EXPECT_EQ(properties.localScpFormat1BaseAddress_, dc.localScpFormat1BaseAddress_);
+  EXPECT_EQ(properties.localDRAMBaseAddress_, dc.localDRAMBaseAddress_);
+  EXPECT_EQ(properties.onPkgScpFormat2BaseAddress_, dc.onPkgScpFormat2BaseAddress_);
+  EXPECT_EQ(properties.onPkgDRAMBaseAddress_, dc.onPkgDRAMBaseAddress_);
+  EXPECT_EQ(properties.onPkgDRAMInterleavedBaseAddress_, dc.onPkgDRAMInterleavedBaseAddress_);
+
+  EXPECT_EQ(properties.localDRAMSize_, dc.localDRAMSize_);
+  EXPECT_EQ(properties.minimumAddressAlignmentBits_, dc.minimumAddressAlignmentBits_);
+  EXPECT_EQ(properties.numChiplets_, dc.numChiplets_);
+
+  EXPECT_EQ(properties.localScpFormat0ShireLSb_, dc.localScpFormat0ShireLSb_);
+  EXPECT_EQ(properties.localScpFormat0ShireBits_, dc.localScpFormat0ShireBits_);
+  EXPECT_EQ(properties.localScpFormat0LocalShire_, dc.localScpFormat0LocalShire_);
+
+  EXPECT_EQ(properties.localScpFormat1ShireLSb_, dc.localScpFormat1ShireLSb_);
+  EXPECT_EQ(properties.localScpFormat1ShireBits_, dc.localScpFormat1ShireBits_);
+
+  EXPECT_EQ(properties.onPkgScpFormat2ShireLSb_, dc.onPkgScpFormat2ShireLSb_);
+  EXPECT_EQ(properties.onPkgScpFormat2ShireBits_, dc.onPkgScpFormat2ShireBits_);
+  EXPECT_EQ(properties.onPkgScpFormat2ChipletLSb_, dc.onPkgScpFormat2ChipletLSb_);
+  EXPECT_EQ(properties.onPkgScpFormat2ChipletBits_, dc.onPkgScpFormat2ChipletBits_);
+
+  EXPECT_EQ(properties.onPkgDRAMChipletLSb_, dc.onPkgDRAMChipletLSb_);
+  EXPECT_EQ(properties.onPkgDRAMChipletBits_, dc.onPkgDRAMChipletBits_);
+  EXPECT_EQ(properties.onPkgDRAMInterleavedChipletLSb_, dc.onPkgDRAMInterleavedChipletLSb_);
+  EXPECT_EQ(properties.onPkgDRAMInterleavedChipletBits_, dc.onPkgDRAMInterleavedChipletBits_);
 }
 
 int main(int argc, char** argv) {

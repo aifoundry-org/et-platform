@@ -180,7 +180,7 @@ DeviceProperties RuntimeImp::doGetDeviceProperties(DeviceId device) const {
   prop.cacheLineSize_ = dc.cacheLineSize_;
   prop.l2CacheBanks_ = dc.numL2CacheBanks_;
   prop.computeMinionShireMask_ = dc.computeMinionShireMask_;
-  prop.spareComputeMinionoShireId_ = dc.spareComputeMinionoShireId_;
+  prop.spareComputeMinionShireId_ = dc.spareComputeMinionShireId_;
   switch (dc.archRevision_) {
   case dev::DeviceConfig::ArchRevision::ETSOC1:
     prop.deviceArch_ = DeviceProperties::ArchRevision::ETSOC1;
@@ -198,6 +198,35 @@ DeviceProperties RuntimeImp::doGetDeviceProperties(DeviceId device) const {
   }
   prop.formFactor_ = static_cast<DeviceProperties::FormFactor>(dc.formFactor_);
   prop.tdp_ = dc.tdp_;
+
+  prop.localScpFormat0BaseAddress_ = dc.localScpFormat0BaseAddress_;
+  prop.localScpFormat1BaseAddress_ = dc.localScpFormat1BaseAddress_;
+  prop.localDRAMBaseAddress_ = dc.localDRAMBaseAddress_;
+  prop.onPkgScpFormat2BaseAddress_ = dc.onPkgScpFormat2BaseAddress_;
+  prop.onPkgDRAMBaseAddress_ = dc.onPkgDRAMBaseAddress_;
+  prop.onPkgDRAMInterleavedBaseAddress_ = dc.onPkgDRAMInterleavedBaseAddress_;
+
+  prop.localDRAMSize_ = dc.localDRAMSize_;
+  prop.minimumAddressAlignmentBits_ = dc.minimumAddressAlignmentBits_;
+  prop.numChiplets_ = dc.numChiplets_;
+
+  prop.localScpFormat0ShireLSb_ = dc.localScpFormat0ShireLSb_;
+  prop.localScpFormat0ShireBits_ = dc.localScpFormat0ShireBits_;
+  prop.localScpFormat0LocalShire_ = dc.localScpFormat0LocalShire_;
+
+  prop.localScpFormat1ShireLSb_ = dc.localScpFormat1ShireLSb_;
+  prop.localScpFormat1ShireBits_ = dc.localScpFormat1ShireBits_;
+
+  prop.onPkgScpFormat2ShireLSb_ = dc.onPkgScpFormat2ShireLSb_;
+  prop.onPkgScpFormat2ShireBits_ = dc.onPkgScpFormat2ShireBits_;
+  prop.onPkgScpFormat2ChipletLSb_ = dc.onPkgScpFormat2ChipletLSb_;
+  prop.onPkgScpFormat2ChipletBits_ = dc.onPkgScpFormat2ChipletBits_;
+
+  prop.onPkgDRAMChipletLSb_ = dc.onPkgDRAMChipletLSb_;
+  prop.onPkgDRAMChipletBits_ = dc.onPkgDRAMChipletBits_;
+
+  prop.onPkgDRAMInterleavedChipletLSb_ = dc.onPkgDRAMInterleavedChipletLSb_;
+  prop.onPkgDRAMInterleavedChipletBits_ = dc.onPkgDRAMInterleavedChipletBits_;
 
   return prop;
 }

@@ -209,6 +209,9 @@ struct LoadCodeResult {
   std::byte* loadAddress_; /// < this is the device physical address where the kernel was loaded (decided by runtime)
 };
 
+/// Temporary backwards compatibility workaround for typo in field name
+#define spareComputeMinionoShireId_ spareComputeMinionShireId_
+
 /// \brief This struct encodes device properties
 struct DeviceProperties {
   enum class FormFactor { PCIE, M2 };
@@ -222,13 +225,56 @@ struct DeviceProperties {
   uint16_t l2scratchpadSize_;           ///< device L2 scratchpad size in bytes
   uint16_t cacheLineSize_;              ///< device caceh line size in bytes
   uint16_t l2CacheBanks_;               ///< number of banks in the L2
-  uint32_t computeMinionShireMask_;     ///< mask which indicates what are the compute minion shires
-  uint16_t spareComputeMinionoShireId_; ///< spare compute minion Shire ID
+  uint32_t computeMinionShireMask_;     ///< mask that indicates which are the compute minion shires
+  uint16_t spareComputeMinionShireId_;  ///< spare compute minion Shire ID
   ArchRevision deviceArch_;             ///< device architecture revision
   FormFactor formFactor_;               ///< device form factor
   uint8_t tdp_;                         ///< TDP in Watts
   uint64_t p2pBitmap_ = 0;              ///< indicates p2p capabilities between this device and others
-  uint32_t availableChiplets_ = 1;      ///< device chiplet count
+
+  uint64_t localScpFormat0BaseAddress_;      ///< Base address of the local Scratchpad in format 0
+  uint64_t localScpFormat1BaseAddress_;      ///< Base address of the local Scratchpad in format 1
+  uint64_t localDRAMBaseAddress_;            ///< Base address of the local DRAM
+  uint64_t onPkgScpFormat2BaseAddress_;      ///< Base address of the on-package Scratchpad in format 2
+  uint64_t onPkgDRAMBaseAddress_;            ///< Base address of the on-package DRAM
+  uint64_t onPkgDRAMInterleavedBaseAddress_; ///< Base address of the on-package DRAM in interleaved format
+
+  uint64_t localDRAMSize_; ///< Bytes of DRAM available in U-mode in each chiplet
+
+  uint8_t minimumAddressAlignmentBits_; ///< Minimum number of lower bits in an address that need to be 0.
+                                        ///< These are removed in compressed addresses.
+
+  uint8_t numChiplets_; ///< Number of chiplets in the package
+
+  uint8_t localScpFormat0ShireLSb_;   ///< Least significant bit position of the shire in the local Scratchpad
+                                      ///< in format 0 address region
+  uint8_t localScpFormat0ShireBits_;  ///< Number of shire bits in the local Scratchpad in format 0 address
+                                      ///< region
+  uint8_t localScpFormat0LocalShire_; ///< Shire value in the local Scratchpad in format 0 address region to
+                                      ///< indicate the local shire
+
+  uint8_t localScpFormat1ShireLSb_;  ///< Least significant bit position of the shire in the local Scratchpad in
+                                     ///< format 1 address region
+  uint8_t localScpFormat1ShireBits_; ///< Number of shire bits in the local Scratchpad in format 1 address
+                                     ///< region
+
+  uint8_t onPkgScpFormat2ShireLSb_;    ///< Least significant bit position of the shire in the on-package
+                                       ///< Scratchpad in format 2 address region
+  uint8_t onPkgScpFormat2ShireBits_;   ///< Number of shire bits in the on-package Scratchpad in format 2 address
+                                       ///< region
+  uint8_t onPkgScpFormat2ChipletLSb_;  ///< Least significant bit position of the chiplet in the on-package
+                                       ///< Scratchpad in format 2 address region
+  uint8_t onPkgScpFormat2ChipletBits_; ///< Number of chiplet bits in the on-package Scratchpad in format 2
+                                       ///< address region
+
+  uint8_t onPkgDRAMChipletLSb_;  ///< Least significant bit position of the chiplet in the on-package DRAM
+                                 ///< address region
+  uint8_t onPkgDRAMChipletBits_; ///< Number of chiplet bits in the on-package DRAM address region
+
+  uint8_t onPkgDRAMInterleavedChipletLSb_; ///< Least significant bit position of the chiplet in the on-package
+                                           ///< interleaved DRAM address region
+  uint8_t
+    onPkgDRAMInterleavedChipletBits_; ///< Number of chiplet bits in the on-package interleaved DRAM address region
 };
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in

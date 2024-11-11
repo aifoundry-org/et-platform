@@ -287,10 +287,42 @@ template <typename Archive> void serialize(Archive& ar, rt::DeviceProperties& pr
   ar(cereal::make_nvp("cache_line_size", props.cacheLineSize_));
   ar(cereal::make_nvp("l2_cache_banks", props.l2CacheBanks_));
   ar(cereal::make_nvp("compute_minion_shire_mask", props.computeMinionShireMask_));
-  ar(cereal::make_nvp("spare_compute_minion_shire_id", props.spareComputeMinionoShireId_));
+  ar(cereal::make_nvp("spare_compute_minion_shire_id", props.spareComputeMinionShireId_));
   ar(cereal::make_nvp("device_arch_rev", props.deviceArch_));
   ar(cereal::make_nvp("form_factor", props.formFactor_));
   ar(cereal::make_nvp("tdp", props.tdp_));
+
+  try {
+    ar(cereal::make_nvp("local_scp_format0_base_address", props.localScpFormat0BaseAddress_));
+    ar(cereal::make_nvp("local_scp_format1_base_address", props.localScpFormat1BaseAddress_));
+    ar(cereal::make_nvp("local_dram_base_address", props.localDRAMBaseAddress_));
+    ar(cereal::make_nvp("onpkg_scp_format2_base_address", props.onPkgScpFormat2BaseAddress_));
+    ar(cereal::make_nvp("onpkg_dram_base_address", props.onPkgDRAMBaseAddress_));
+    ar(cereal::make_nvp("onpkg_dram_interleaved_base_address", props.onPkgDRAMInterleavedBaseAddress_));
+
+    ar(cereal::make_nvp("local_dram_size", props.localDRAMSize_));
+    ar(cereal::make_nvp("minimum_address_alignment_bits", props.minimumAddressAlignmentBits_));
+    ar(cereal::make_nvp("num_chiplets", props.numChiplets_));
+
+    ar(cereal::make_nvp("local_scp_format0_shire_least_significant_bit", props.localScpFormat0ShireLSb_));
+    ar(cereal::make_nvp("local_scp_format0_shire_bits", props.localScpFormat0ShireBits_));
+    ar(cereal::make_nvp("local_scp_format0_local_shire", props.localScpFormat0LocalShire_));
+
+    ar(cereal::make_nvp("local_scp_format1_shire_least_significant_bit", props.localScpFormat1ShireLSb_));
+    ar(cereal::make_nvp("local_scp_format1_shire_bits", props.localScpFormat1ShireBits_));
+
+    ar(cereal::make_nvp("local_scp_format2_shire_least_significant_bit", props.onPkgScpFormat2ShireLSb_));
+    ar(cereal::make_nvp("local_scp_format2_shire_bits", props.onPkgScpFormat2ShireBits_));
+    ar(cereal::make_nvp("local_scp_format2_chiplet_least_significant_bit", props.onPkgScpFormat2ChipletLSb_));
+    ar(cereal::make_nvp("local_scp_format2_chiplet_bits", props.onPkgScpFormat2ChipletBits_));
+
+    ar(cereal::make_nvp("onpkg_dram_chiplet_least_significant_bit", props.onPkgDRAMChipletLSb_));
+    ar(cereal::make_nvp("onpkg_dram_chiplet_bits", props.onPkgDRAMChipletBits_));
+    ar(cereal::make_nvp("onpkg_dram_chiplet_interleaved_least_significant_bit", props.onPkgDRAMInterleavedChipletLSb_));
+    ar(cereal::make_nvp("onpkg_dram_chiplet_interleaved_bits", props.onPkgDRAMInterleavedChipletBits_));
+  } catch (cereal::Exception const&) {
+    // Old traces may not contain these members
+  }
 }
 
 } // end namespace cereal

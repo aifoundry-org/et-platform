@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Added
 ### Changed
+- **API CHANGE:** Extended DeviceProperties to include the number of chiplets and the address map
+- Depend on device layer 4 series due to API changes
 ### Deprecated
 ### Removed
 ### Fixed
