@@ -10,12 +10,20 @@ include:
     ref: master
     file:
       - jobs/conan-jobs.yaml
-
+.matrix: &matrix_conan2
+  - OS: [ linux-ubuntu22.04 ]
+    ARCH: [ x86_64 ]
+    COMPILER: [ gcc11 ]
+    BUILD_TYPE: [ release, debug ]
+    LIB_TYPE: [ static, shared ]
+variables:
+  FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}-${LIB_TYPE}"
 stages:
   - smoke
   - generate_build
   - build
   - test
+  - package
   - deploy
 
 # Only run job in these cases:
@@ -82,7 +90,7 @@ generate_build:conan:
     - job: smoke_tests:conan:sysemu
       optional: true
   rules:
-    - *release_or_development_job_rule
+    - !reference [.release_or_development_job, rules]
   variables:
     TIMEOUT: 15m
     CMD_BUILD: |
@@ -138,3 +146,72 @@ on_success:promote:
       cd conan
       python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
       python3 -m ci_promote
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+build:conan2:
+  extends:
+    - .pod_large
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: build
+  needs: []
+  rules:
+    - !reference [.release_or_development_job, rules]
+  parallel:
+    matrix: *matrix_conan2
+  script:
+    - conan install . -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing # Install dependencies from the lockfile
+    - conan lock create conanfile.py --profile=${FULL_BUILD_NAME} --lockfile-out=${FULL_BUILD_NAME}.lock # Create the lockfile with the profile
+    - cmake --preset conan-${BUILD_TYPE} -G Ninja 
+    - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
+    - ctest --preset conan-${BUILD_TYPE} --no-compress-output --output-on-failure --parallel 4
+  artifacts:
+    expire_in: 2d
+    paths:
+       - ${FULL_BUILD_NAME}.lock  # Keep the lockfile as an artifact for later stages
+
+package2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: package
+  needs: 
+    - build:conan2
+  rules:
+    - !reference  [.release_or_development_job, rules]
+  parallel:
+    matrix: *matrix_conan2
+  script:
+    - conan create . --lockfile=${FULL_BUILD_NAME}.lock --lockfile-out=${FULL_BUILD_NAME}.lock --build=missing  # Create the package based on the lockfile
+    - conan list "*:*" --format=json > pkglist-${FULL_BUILD_NAME}.json
+    - conan upload --list=pkglist-${FULL_BUILD_NAME}.json --format=json -r=conan2-tmp --confirm
+  artifacts:
+    expire_in: 2d
+    paths:
+      - ${FULL_BUILD_NAME}.lock  # Keep the lockfile
+      - pkglist-${FULL_BUILD_NAME}.json  # Keep the list
+
+promote2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  needs:
+    - package2
+  rules:
+    - *release_or_development_job_rule   #Only run this part it it's NOT a MR pipeline
+  stage: deploy
+  script:
+    - cat *lock
+    - conan pkglist merge $(find . -name "pkglist*.json" -exec echo --list={} \;) --format=json > pkglist-merged.json
+    - cat pkglist-merged.json
+    - conan pkglist find-remote --format=json -r=conan2-tmp pkglist-merged.json > pkglist-merged-with-remote.json
+    - conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
+    - cat pkglist-downloaded.json
+    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm --dry-run > pkglist-uploaded.json
+    - cat pkglist-uploaded.json

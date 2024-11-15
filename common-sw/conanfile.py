@@ -3,7 +3,6 @@ from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
 from conan.tools.build import can_run
 from conan.tools.env import VirtualRunEnv
 from conan.tools.files import rmdir
-from conan.tools.scm import Git
 import os
 
 
@@ -43,9 +42,9 @@ class HostUtilsConan(ConanFile):
         self.cpp.source.includedirs = ["."]
 
     def requirements(self):
-        self.requires("g3log/1.3.3")
+        self.requires("g3log/1.3.3", transitive_headers=True, transitive_libs=True)
         if self.options.with_tests:
-            self.requires("gtest/1.10.0")
+            self.requires("gtest/1.10.0", test=True)
         
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
@@ -84,6 +83,9 @@ class HostUtilsConan(ConanFile):
     
     def package_info(self):
         # library components
+        self.cpp_info.set_property("cmake_file_name", "hostUtils")
+        self.cpp_info.set_property("cmake_target_name", "hostUtils::hostUtils")
+
         self.cpp_info.components["logging"].set_property("cmake_target_name", "hostUtils::logging")
         self.cpp_info.components["logging"].requires = ["g3log::g3log"]
         self.cpp_info.components["logging"].libs = ["logging"]

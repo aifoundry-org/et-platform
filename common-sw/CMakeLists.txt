@@ -25,6 +25,9 @@ include(CommonProjectSettings)
 option(ENABLE_WARNINGS_AS_ERRORS "Targets should treat warnings as errors" OFF)
 include(CompilerWarnings)
 
+if (BUILD_TESTS)
+  enable_testing()
+endif()
 
 add_subdirectory(logging)
 add_subdirectory(threadPool)
