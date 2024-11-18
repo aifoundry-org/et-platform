@@ -1005,11 +1005,6 @@ int PCIE_Phy_Initialize(void)
     return 0;
 }
 
-int PShire_Voltage_Update(uint8_t voltage)
-{
-    return Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_PCIE, voltage);
-}
-
 int Pshire_PLL_Program(uint8_t mode)
 {
     return configure_pshire_pll(mode);

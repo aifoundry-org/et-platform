@@ -314,11 +314,11 @@ int update_pmb_stats(bool reset);
 */
 void print_system_operating_point(void);
 
-/*! \fn void set_system_boot_voltages(void)
-    \brief This function set the boot voltages for the main 6 supplies (mnn, sram, noc, pcl, ddr, mxn)
+/*! \fn int set_system_boot_voltages(void)
+    \brief This function set the boot voltages for the main 5 supplies (mnn, sram, noc, pcl, ddr)
     \returns none
 */
-void set_system_boot_voltages(void);
+int set_system_boot_voltages(void);
 
 /*! \fn void Thermal_Pwr_Mgmt_Get_Minion_Temperature(void)
     \brief This function returns minion temperature

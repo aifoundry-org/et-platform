@@ -63,6 +63,22 @@
 #include "bl2_flash_fs.h"
 #include "service_processor_BL2_data.h"
 
+#define MNN_HEX_TO_MILLIVOLT(hex_val)                                                        \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_MINION_VOLTAGE_BASE, PMIC_MINION_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define SRM_HEX_TO_MILLIVOLT(hex_val)                                                    \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_SRAM_VOLTAGE_BASE, PMIC_SRAM_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define NOC_HEX_TO_MILLIVOLT(hex_val)                                                  \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_NOC_VOLTAGE_BASE, PMIC_NOC_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+#define PCL_HEX_TO_MILLIVOLT(hex_val)                            \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_PCIE_LOGIC_VOLTAGE_BASE, \
+                          PMIC_PCIE_LOGIC_VOLTAGE_MULTIPLIER, PMIC_PCIE_LOGIC_VOLTAGE_DIVIDER)
+#define DDR_HEX_TO_MILLIVOLT(hex_val)                                                  \
+    PMIC_HEX_TO_MILLIVOLT(hex_val, PMIC_DDR_VOLTAGE_BASE, PMIC_DDR_VOLTAGE_MULTIPLIER, \
+                          PMIC_GENERIC_VOLTAGE_DIVIDER)
+
 //Min and max values used to validate VMIN LUT
 #define VMIN_LUT_MNN_MIN_VAL_mV 460
 #define VMIN_LUT_SRM_MIN_VAL_mV 670
@@ -2373,39 +2389,78 @@ void dump_power_globals(void)
         g_soc_power_reg.asic_voltage.vddq);
 }
 
-static void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v,
-                                uint8_t ddr_v)
+static int set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, uint8_t pcl_v,
+                               uint8_t ddr_v)
 {
-    uint8_t voltage = 0;
+    int status = STATUS_SUCCESS;
+    int err_cnt = 0;
+
     /* Setting the Neigh voltages */
-    pmic_set_voltage(MODULE_MINION, mnn_v);
-    US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MODULE_MINION, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> 0x%X (0x%X)\n", mnn_v, voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding Minion -> %d mV (0x%X)\n", MNN_HEX_TO_MILLIVOLT(mnn_v),
+              mnn_v);
+    status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_MINION, mnn_v);
+    if (status != STATUS_SUCCESS)
+    {
+        err_cnt++;
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "set_system_voltages unable to set voltage %d mV (0x%X) for module MINION, status %d. \r\n",
+            mnn_v, MNN_HEX_TO_MILLIVOLT(mnn_v), status);
+    }
 
     /* Setting the L2 cache voltages */
-    pmic_set_voltage(MODULE_L2CACHE, sram_v);
-    US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MODULE_L2CACHE, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> 0x%X (0x%X)\n", sram_v, voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding SRAM   -> %d mV (0x%X)\n", SRM_HEX_TO_MILLIVOLT(sram_v),
+              sram_v);
+    status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_L2CACHE, sram_v);
+    if (status != STATUS_SUCCESS)
+    {
+        err_cnt++;
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "set_system_voltages unable to set voltage %d mV (0x%X) for module L2CACHE, status %d. \r\n",
+            sram_v, SRM_HEX_TO_MILLIVOLT(sram_v), status);
+    }
 
     /* Setting the NOC voltages */
-    pmic_set_voltage(MODULE_NOC, noc_v);
-    US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MODULE_NOC, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> 0x%X (0x%X)\n", noc_v, voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding NOC    -> %d mV (0x%X)\n", NOC_HEX_TO_MILLIVOLT(noc_v),
+              noc_v);
+    status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_NOC, noc_v);
+    if (status != STATUS_SUCCESS)
+    {
+        err_cnt++;
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "set_system_voltages unable to set voltage %d mV (0x%X) for module NOC, status %d. \r\n",
+            noc_v, NOC_HEX_TO_MILLIVOLT(noc_v), status);
+    }
 
     /* Setting the PCL voltages */
-    pmic_set_voltage(MODULE_PCIE_LOGIC, pcl_v);
-    US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MODULE_PCIE_LOGIC, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding PCL    -> 0x%X (0x%X)\n", pcl_v, voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding PCL    -> %d mV (0x%X)\n", PCL_HEX_TO_MILLIVOLT(pcl_v),
+              pcl_v);
+    status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_PCIE_LOGIC, pcl_v);
+    if (status != STATUS_SUCCESS)
+    {
+        err_cnt++;
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "set_system_voltages unable to set voltage %d mV (0x%X) for module PCL, status %d. \r\n",
+            pcl_v, PCL_HEX_TO_MILLIVOLT(pcl_v), status);
+    }
 
     /* Setting the DDR voltages */
-    pmic_set_voltage(MODULE_DDR, ddr_v);
-    US_DELAY_GENERIC(5000)
-    pmic_get_voltage(MODULE_DDR, &voltage);
-    Log_Write(LOG_LEVEL_INFO, "Overriding DDR    -> 0x%X (0x%X)\n", ddr_v, voltage);
+    Log_Write(LOG_LEVEL_INFO, "Overriding DDR    -> %d mV (0x%X)\n", DDR_HEX_TO_MILLIVOLT(ddr_v),
+              ddr_v);
+    status = Thermal_Pwr_Mgmt_Set_Validate_Voltage(MODULE_DDR, ddr_v);
+    if (status != STATUS_SUCCESS)
+    {
+        err_cnt++;
+        Log_Write(
+            LOG_LEVEL_WARNING,
+            "set_system_voltages unable to set voltage %d mV (0x%X) for module DDR, status %d. \r\n",
+            ddr_v, DDR_HEX_TO_MILLIVOLT(ddr_v), status);
+    }
+
+    return err_cnt;
 }
 
 /************************************************************************
@@ -2427,9 +2482,10 @@ static void set_system_voltages(uint8_t mnn_v, uint8_t sram_v, uint8_t noc_v, ui
 *       None
 *
 ***********************************************************************/
-void set_system_boot_voltages(void)
+int set_system_boot_voltages(void)
 {
     bool vmin_lut_validated = false;
+    int err_cnt = 0;
 
 #if !FAST_BOOT
     //Validate VMIN LUT before reading boot values
@@ -2451,16 +2507,19 @@ void set_system_boot_voltages(void)
 
     if (vmin_lut_validated)
     {
-        set_system_voltages(flash_fs_get_mnn_boot_voltage(), flash_fs_get_sram_boot_voltage(),
-                            flash_fs_get_noc_boot_voltage(), flash_fs_get_pcl_boot_voltage(),
-                            flash_fs_get_ddr_boot_voltage());
+        err_cnt =
+            set_system_voltages(flash_fs_get_mnn_boot_voltage(), flash_fs_get_sram_boot_voltage(),
+                                flash_fs_get_noc_boot_voltage(), flash_fs_get_pcl_boot_voltage(),
+                                flash_fs_get_ddr_boot_voltage());
     }
     else
     {
-        set_system_voltages(MNN_DEFAULT_BOOT_VOLTAGE, SRM_DEFAULT_BOOT_VOLTAGE,
-                            NOC_DEFAULT_BOOT_VOLTAGE, PCL_DEFAULT_BOOT_VOLTAGE,
-                            DDR_DEFAULT_BOOT_VOLTAGE);
+        err_cnt = set_system_voltages(MNN_DEFAULT_BOOT_VOLTAGE, SRM_DEFAULT_BOOT_VOLTAGE,
+                                      NOC_DEFAULT_BOOT_VOLTAGE, PCL_DEFAULT_BOOT_VOLTAGE,
+                                      DDR_DEFAULT_BOOT_VOLTAGE);
     }
+
+    return err_cnt;
 }
 
 /************************************************************************

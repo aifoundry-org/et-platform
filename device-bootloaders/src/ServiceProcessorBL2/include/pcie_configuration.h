@@ -186,13 +186,6 @@ int PCIE_Controller_Initialize(void);
 */
 int PCIE_Phy_Initialize(void);
 
-/*! \fn int PShire_Voltage_Update(uint8_t voltage)
-    \brief Interface to set pshire voltage
-    \param voltage
-    \returns Status indicating success or negative error
-*/
-int PShire_Voltage_Update(uint8_t voltage);
-
 /*! \fn int Pshire_PLL_Program(uint8_t frequency)
     \brief Interface to program PLL of PShire
     \param frequency

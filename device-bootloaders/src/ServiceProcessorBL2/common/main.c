@@ -455,7 +455,7 @@ static void taskMain(void *pvParameters)
 
     /* Set System Boot Voltages - this should be done before bringing up Minions */
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]set_system_boot_voltages\n");
-    set_system_boot_voltages();
+    int set_system_boot_voltages_err_cnt = set_system_boot_voltages();
 
     // Launch Master Minion Runtime
     Log_Write(LOG_LEVEL_INFO, "MAIN:[txt]Minion_Enable_Master_Shire_Threads\n");
@@ -553,6 +553,15 @@ static void taskMain(void *pvParameters)
 
     /* Redirect the log messages to trace buffer after initialization is done */
     Log_Set_Interface(LOG_DUMP_TO_TRACE);
+
+    /* Check for errors in setting system voltages */
+    if (set_system_boot_voltages_err_cnt > 0)
+    {
+        Log_Write(
+            LOG_LEVEL_CRITICAL,
+            "Setting system boot voltages reported errors (%d), please check module voltages!\r\n",
+            set_system_boot_voltages_err_cnt);
+    }
 
     while (1)
     {
