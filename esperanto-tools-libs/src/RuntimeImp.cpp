@@ -313,6 +313,18 @@ void RuntimeImp::doUnloadCode(KernelId kernel) {
   coreDumper_.removeCodeAddress(deviceId, deviceBuffer);
 }
 
+void recordMemoryStats(IProfilerRecorder& profiler, DeviceId device, const size_t free_bytes,
+                       const size_t max_free_contiguous_bytes, const size_t allocated_memory) {
+  ProfileEvent evt(Type::Counter, Class::MemoryStats);
+  evt.setTimeStamp();
+  evt.setThreadId();
+  evt.setDeviceId(device);
+  evt.setAllocatedMemory(allocated_memory);
+  evt.setMaxContiguousFreeMemory(max_free_contiguous_bytes);
+  evt.setFreeMemory(free_bytes);
+  profiler.record(evt);
+}
+
 std::byte* RuntimeImp::doMallocDevice(DeviceId device, size_t size, uint32_t alignment) {
   RT_VLOG(LOW) << "Malloc requested device " << std::hex << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " size: " << size << " alignment: " << alignment;
@@ -321,16 +333,28 @@ std::byte* RuntimeImp::doMallocDevice(DeviceId device, size_t size, uint32_t ali
     throw Exception("Alignment must be power of two");
   }
 
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
   auto it = find(memoryManagers_, device);
-  return it->second.malloc(size, alignment);
+  auto ptr = it->second.malloc(size, alignment);
+  const size_t free_bytes = it->second.getFreeBytes();
+  const size_t max_free_contiguous_bytes = it->second.getFreeContiguousBytes();
+  const size_t allocated_memory = it->second.getTotalMemoryBytes() - free_bytes;
+  lock.unlock();
+  recordMemoryStats(*getProfiler(), device, free_bytes, max_free_contiguous_bytes, allocated_memory);
+  return ptr;
 }
 
 void RuntimeImp::doFreeDevice(DeviceId device, std::byte* buffer) {
   RT_VLOG(LOW) << "Free at device: " << static_cast<std::underlying_type_t<DeviceId>>(device)
                << " buffer address: " << std::hex << buffer;
-  std::lock_guard lock(mutex_);
-  find(memoryManagers_, device)->second.free(buffer);
+  std::unique_lock lock(mutex_);
+  auto it = find(memoryManagers_, device);
+  it->second.free(buffer);
+  const size_t free_bytes = it->second.getFreeBytes();
+  const size_t max_free_contiguous_bytes = it->second.getFreeContiguousBytes();
+  const size_t allocated_memory = it->second.getTotalMemoryBytes() - free_bytes;
+  lock.unlock();
+  recordMemoryStats(*getProfiler(), device, free_bytes, max_free_contiguous_bytes, allocated_memory);
 }
 
 StreamId RuntimeImp::doCreateStream(DeviceId device) {

@@ -31,6 +31,8 @@ public:
 
   void sanityCheck() const;
 
+  size_t getTotalMemoryBytes() const;
+
   size_t getFreeBytes() const;
 
   // returns the max contiguos bytes

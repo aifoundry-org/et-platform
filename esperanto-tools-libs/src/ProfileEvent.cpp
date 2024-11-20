@@ -59,6 +59,7 @@ std::string getString(Class cls) {
     STR_PROFILING_CLASS(MemcpyDeviceToDevice)
     STR_PROFILING_CLASS(SyncTime)
     STR_PROFILING_CLASS(IdentifyThread)
+    STR_PROFILING_CLASS(MemoryStats)
 
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Class. Consider adding it to " __FILE__;
@@ -76,6 +77,8 @@ std::string getString(Type type) {
     return "Complete";
   case Type::Instant:
     return "Instant";
+  case Type::Counter:
+    return "Counter";
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Type. Consider adding it to " __FILE__;
     return "Unknown type: " + std::to_string(static_cast<int>(type));
@@ -127,6 +130,7 @@ Class class_from_string(const std::string& str) {
     s_map[getString(Class::CmaWait)] = Class::CmaWait;
     s_map[getString(Class::SyncTime)] = Class::SyncTime;
     s_map[getString(Class::IdentifyThread)] = Class::IdentifyThread;
+    s_map[getString(Class::MemoryStats)] = Class::MemoryStats;
 
     assert(s_map.size() == static_cast<int>(Class::COUNT));
   });
@@ -142,6 +146,7 @@ Type type_from_string(const std::string& str) {
     s_map[getString(Type::End)] = Type::End;
     s_map[getString(Type::Complete)] = Type::Complete;
     s_map[getString(Type::Instant)] = Type::Instant;
+    s_map[getString(Type::Counter)] = Type::Counter;
   });
   return s_map[str];
 }
@@ -260,6 +265,15 @@ std::optional<uint64_t> ProfileEvent::getSize() const {
 std::optional<uint32_t> ProfileEvent::getAlignment() const {
   return getExtra<uint32_t>("alignment");
 }
+std::optional<uint64_t> ProfileEvent::getAllocatedMemory() const {
+  return getExtra<uint64_t>("allocated_memory");
+}
+std::optional<uint64_t> ProfileEvent::getFreeMemory() const {
+  return getExtra<uint64_t>("free_mem");
+}
+std::optional<uint64_t> ProfileEvent::getMaxContiguousFreeMemory() const {
+  return getExtra<uint64_t>("max_contiguous_free_mem");
+}
 
 void ProfileEvent::setType(Type t) {
   type_ = t;
@@ -358,6 +372,15 @@ void ProfileEvent::setSize(uint64_t size) {
 }
 void ProfileEvent::setAlignment(uint32_t alignment) {
   addExtra("alignment", alignment);
+}
+void ProfileEvent::setAllocatedMemory(uint64_t size) {
+  addExtra("allocated_memory", size);
+}
+void ProfileEvent::setFreeMemory(uint64_t size) {
+  addExtra("free_mem", size);
+}
+void ProfileEvent::setMaxContiguousFreeMemory(uint64_t size) {
+  addExtra("max_contiguous_free_mem", size);
 }
 
 template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {

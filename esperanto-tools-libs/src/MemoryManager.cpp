@@ -136,6 +136,10 @@ size_t MemoryManager::getFreeContiguousBytes() const {
   return blockSize * freeChunkBlocks;
 }
 
+size_t MemoryManager::getTotalMemoryBytes() const {
+  return totalMemoryBytes_;
+}
+
 size_t MemoryManager::getFreeBytes() const {
   return std::accumulate(begin(free_), end(free_), 0UL,
                          [](const auto& accumulate, const auto& e) { return accumulate + e.size_; }) *

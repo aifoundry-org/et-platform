@@ -46,9 +46,9 @@ namespace profiling {
 
 enum class Version : uint16_t {};
 
-constexpr auto kCurrentVersion = Version{2};
+constexpr auto kCurrentVersion = Version{3};
 
-enum class Type { Start, End, Complete, Instant };
+enum class Type { Start, End, Complete, Instant, Counter };
 enum class Class {
   GetDevices,
   LoadCode,
@@ -75,10 +75,12 @@ enum class Class {
   MemcpyDeviceToDevice,
   SyncTime,
   IdentifyThread,
+  MemoryStats,
   COUNT
 };
 
 enum class ResponseType { DMARead, DMAWrite, Kernel, DMAP2P, COUNT };
+
 Class class_from_string(const std::string& str);
 Type type_from_string(const std::string& str);
 ResponseType response_type_from_string(const std::string& str);
@@ -135,6 +137,9 @@ public:
   std::optional<uint64_t> getAddressDst() const;
   std::optional<uint64_t> getSize() const;
   std::optional<uint32_t> getAlignment() const;
+  std::optional<uint64_t> getAllocatedMemory() const;
+  std::optional<uint64_t> getFreeMemory() const;
+  std::optional<uint64_t> getMaxContiguousFreeMemory() const;
 
   void setType(Type t);
   void setClass(Class c);
@@ -163,6 +168,9 @@ public:
   void setAddressDst(uint64_t ptr);
   void setSize(uint64_t size);
   void setAlignment(uint32_t alignment);
+  void setAllocatedMemory(uint64_t size);
+  void setFreeMemory(uint64_t size);
+  void setMaxContiguousFreeMemory(uint64_t size);
 
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 
