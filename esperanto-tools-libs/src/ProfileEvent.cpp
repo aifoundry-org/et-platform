@@ -67,18 +67,18 @@ std::string getString(Class cls) {
   }
 }
 
+#define STR_PROFILING_TYPE(TYPE)                                                                                       \
+  case rt::profiling::Type::TYPE: {                                                                                    \
+    return #TYPE;                                                                                                      \
+  }
+
 std::string getString(Type type) {
   switch (type) {
-  case Type::Start:
-    return "Start";
-  case Type::End:
-    return "End";
-  case Type::Complete:
-    return "Complete";
-  case Type::Instant:
-    return "Instant";
-  case Type::Counter:
-    return "Counter";
+    STR_PROFILING_TYPE(Start)
+    STR_PROFILING_TYPE(End)
+    STR_PROFILING_TYPE(Complete)
+    STR_PROFILING_TYPE(Instant)
+    STR_PROFILING_TYPE(Counter)
   default:
     RT_LOG(WARNING) << "No stringized unknown profiling::Type. Consider adding it to " __FILE__;
     return "Unknown type: " + std::to_string(static_cast<int>(type));
@@ -199,80 +199,80 @@ std::thread::id ProfileEvent::getNumericThreadId() const {
 }
 
 std::optional<Version> ProfileEvent::getVersion() const {
-  return getExtra<Version>("version");
+  return getExtra<Version>(kVersion);
 }
 
 std::optional<ProfileEvent::Duration> ProfileEvent::getDuration() const {
-  return getExtra<ProfileEvent::Duration>("duration");
+  return getExtra<ProfileEvent::Duration>(kDuration);
 }
 std::optional<EventId> ProfileEvent::getEvent() const {
-  return getExtra<EventId>("event");
+  return getExtra<EventId>(kEventId);
 }
 std::optional<StreamId> ProfileEvent::getStream() const {
-  return getExtra<StreamId>("stream");
+  return getExtra<StreamId>(kStreamId);
 }
 std::optional<DeviceId> ProfileEvent::getDeviceId() const {
-  return getExtra<DeviceId>("device_id");
+  return getExtra<DeviceId>(kDeviceId);
 }
 std::optional<KernelId> ProfileEvent::getKernelId() const {
-  return getExtra<KernelId>("kernel_id");
+  return getExtra<KernelId>(kKernelId);
 }
 std::optional<ResponseType> ProfileEvent::getResponseType() const {
-  return getExtra<ResponseType>("rsp_type");
+  return getExtra<ResponseType>(kResponseType);
 }
 std::optional<uint64_t> ProfileEvent::getLoadAddress() const {
-  return getExtra<uint64_t>("load_address");
+  return getExtra<uint64_t>(kLoadAddr);
 }
 std::optional<uint64_t> ProfileEvent::getDeviceCmdStartTs() const {
-  return getExtra<uint64_t>("device_cmd_start_ts");
+  return getExtra<uint64_t>(kDeviceCmdStartTs);
 }
 std::optional<uint64_t> ProfileEvent::getDeviceCmdWaitDur() const {
-  return getExtra<uint64_t>("device_cmd_wait_dur");
+  return getExtra<uint64_t>(kDeviceCmdWaitDur);
 }
 std::optional<uint64_t> ProfileEvent::getDeviceCmdExecDur() const {
-  return getExtra<uint64_t>("device_cmd_exec_dur");
+  return getExtra<uint64_t>(kDeviceCmdExecDur);
 }
 std::optional<DeviceProperties> ProfileEvent::getDeviceProperties() const {
-  return getExtra<DeviceProperties>("device_properties");
+  return getExtra<DeviceProperties>(kDeviceProps);
 }
 std::optional<ProfileEvent::SystemTimePoint> ProfileEvent::getSystemTimeStamp() const {
-  return getExtra<SystemTimePoint>("system_timepoint");
+  return getExtra<SystemTimePoint>(kTimePointSystem);
 }
 std::optional<std::string> ProfileEvent::getThreadName() const {
-  return getExtra<std::string>("thread_name");
+  return getExtra<std::string>(kThreadName);
 }
 std::optional<uint64_t> ProfileEvent::getServerPID() const {
-  return getExtra<uint64_t>("server_pid");
+  return getExtra<uint64_t>(kServerPid);
 }
 std::optional<EventId> ProfileEvent::getParentId() const {
-  return getExtra<EventId>("parent_id");
+  return getExtra<EventId>(kParentId);
 }
 std::optional<bool> ProfileEvent::getBarrier() const {
-  return getExtra<bool>("barrier");
+  return getExtra<bool>(kBarrier);
 };
 std::optional<uint64_t> ProfileEvent::getAddress() const {
-  return getExtra<uint64_t>("ptr");
+  return getExtra<uint64_t>(kAddress);
 }
 std::optional<uint64_t> ProfileEvent::getAddressSrc() const {
-  return getExtra<uint64_t>("src_ptr");
+  return getExtra<uint64_t>(kAddressSrc);
 }
 std::optional<uint64_t> ProfileEvent::getAddressDst() const {
-  return getExtra<uint64_t>("dst_ptr");
+  return getExtra<uint64_t>(kAddressDst);
 }
 std::optional<uint64_t> ProfileEvent::getSize() const {
-  return getExtra<uint64_t>("size");
+  return getExtra<uint64_t>(kSize);
 }
 std::optional<uint32_t> ProfileEvent::getAlignment() const {
-  return getExtra<uint32_t>("alignment");
+  return getExtra<uint32_t>(kAlignment);
 }
 std::optional<uint64_t> ProfileEvent::getAllocatedMemory() const {
-  return getExtra<uint64_t>("allocated_memory");
+  return getExtra<uint64_t>(kMemoryStatsAllocatedMem);
 }
 std::optional<uint64_t> ProfileEvent::getFreeMemory() const {
-  return getExtra<uint64_t>("free_mem");
+  return getExtra<uint64_t>(kMemoryStatsFreeMem);
 }
 std::optional<uint64_t> ProfileEvent::getMaxContiguousFreeMemory() const {
-  return getExtra<uint64_t>("max_contiguous_free_mem");
+  return getExtra<uint64_t>(kMemoryStatsMaxContiguousFreeMem);
 }
 
 void ProfileEvent::setType(Type t) {
@@ -296,100 +296,100 @@ void ProfileEvent::setExtras(ExtraMetadata extras) {
 }
 
 void ProfileEvent::setParentId(EventId parent) {
-  addExtra("parent_id", parent);
+  addExtra(kParentId, parent);
 }
 
 void ProfileEvent::setDuration(Duration d) {
-  addExtra("duration", d);
+  addExtra(kDuration, d);
 }
 
 void ProfileEvent::setEvent(EventId event) {
-  addExtra("event", event);
+  addExtra(kEventId, event);
 }
 
 void ProfileEvent::setStream(StreamId stream) {
-  addExtra("stream", stream);
+  addExtra(kStreamId, stream);
 }
 
 void ProfileEvent::setDeviceId(DeviceId deviceId) {
-  addExtra("device_id", deviceId);
+  addExtra(kDeviceId, deviceId);
 }
 
 void ProfileEvent::setKernelId(KernelId kernelId) {
-  addExtra("kernel_id", kernelId);
+  addExtra(kKernelId, kernelId);
 }
 
 void ProfileEvent::setResponseType(ResponseType rspType) {
-  addExtra("rsp_type", rspType);
+  addExtra(kResponseType, rspType);
 }
 
 void ProfileEvent::setLoadAddress(uint64_t loadAddress) {
-  addExtra("load_address", loadAddress);
+  addExtra(kLoadAddr, loadAddress);
 }
 
 void ProfileEvent::setDeviceCmdStartTs(uint64_t start_ts) {
-  addExtra("device_cmd_start_ts", start_ts);
+  addExtra(kDeviceCmdStartTs, start_ts);
 }
 
 void ProfileEvent::setDeviceCmdWaitDur(uint64_t wait_dur) {
-  addExtra("device_cmd_wait_dur", wait_dur);
+  addExtra(kDeviceCmdWaitDur, wait_dur);
 }
 
 void ProfileEvent::setDeviceCmdExecDur(uint64_t exec_dur) {
-  addExtra("device_cmd_exec_dur", exec_dur);
+  addExtra(kDeviceCmdExecDur, exec_dur);
 }
 
 void ProfileEvent::setDeviceProperties(DeviceProperties props) {
-  addExtra("device_properties", props);
+  addExtra(kDeviceProps, props);
 }
 
 void ProfileEvent::setSystemTimeStamp(SystemTimePoint systemTimeStamp) {
-  addExtra("system_timepoint", systemTimeStamp);
+  addExtra(kTimePointSystem, systemTimeStamp);
 }
 
 void ProfileEvent::setThreadName(std::string const& threadName) {
-  addExtra("thread_name", threadName);
+  addExtra(kThreadName, threadName);
 }
 
 void ProfileEvent::setServerPID(uint64_t serverPID) {
-  addExtra("server_pid", serverPID);
+  addExtra(kServerPid, serverPID);
 }
 
 void ProfileEvent::setBarrier(bool barrier) {
-  addExtra("barrier", barrier);
+  addExtra(kBarrier, barrier);
 }
 void ProfileEvent::setAddress(uint64_t ptr) {
-  addExtra("ptr", ptr);
+  addExtra(kAddress, ptr);
 }
 void ProfileEvent::setAddressSrc(uint64_t ptr) {
-  addExtra("src_ptr", ptr);
+  addExtra(kAddressSrc, ptr);
 }
 void ProfileEvent::setAddressDst(uint64_t ptr) {
-  addExtra("dst_ptr", ptr);
+  addExtra(kAddressDst, ptr);
 }
 void ProfileEvent::setSize(uint64_t size) {
-  addExtra("size", size);
+  addExtra(kSize, size);
 }
 void ProfileEvent::setAlignment(uint32_t alignment) {
-  addExtra("alignment", alignment);
+  addExtra(kAlignment, alignment);
 }
 void ProfileEvent::setAllocatedMemory(uint64_t size) {
-  addExtra("allocated_memory", size);
+  addExtra(kMemoryStatsAllocatedMem, size);
 }
 void ProfileEvent::setFreeMemory(uint64_t size) {
-  addExtra("free_mem", size);
+  addExtra(kMemoryStatsFreeMem, size);
 }
 void ProfileEvent::setMaxContiguousFreeMemory(uint64_t size) {
-  addExtra("max_contiguous_free_mem", size);
+  addExtra(kMemoryStatsMaxContiguousFreeMem, size);
 }
 
-template <typename... Args> void ProfileEvent::addExtra(std::string name, Args&&... args) {
-  extra_.emplace(std::move(name), std::forward<Args>(args)...);
+template <typename... Args> void ProfileEvent::addExtra(std::string_view name, Args&&... args) {
+  extra_.emplace(std::string{name}, std::forward<Args>(args)...);
 }
 
-template <typename T> std::optional<T> ProfileEvent::getExtra(const std::string& name) const {
+template <typename T> std::optional<T> ProfileEvent::getExtra(std::string_view name) const {
   std::optional<T> optValue;
-  if (auto it = extra_.find(name); it != extra_.end()) {
+  if (auto it = extra_.find(std::string{name}); it != extra_.end()) {
     optValue = std::get<T>(it->second);
   }
   return optValue;

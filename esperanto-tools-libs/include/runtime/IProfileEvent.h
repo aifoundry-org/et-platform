@@ -106,6 +106,12 @@ public:
   explicit ProfileEvent(Type type, Class cls);
   explicit ProfileEvent(Type type, Class cls, StreamId stream, EventId event, ExtraMetadata extra = {});
 
+  static constexpr char const* kType = "type";
+  static constexpr char const* kClass = "class";
+  static constexpr char const* kTimeStamp = "TimeStamp";
+  static constexpr char const* kThreadId = "thread_id";
+  static constexpr char const* kExtraMetadata = "extra";
+
   // returns the trace protocol version
   Type getType() const;
   Class getClass() const;
@@ -114,6 +120,32 @@ public:
   ExtraMetadata getExtras() const;
 
   std::thread::id getNumericThreadId() const;
+
+  static constexpr std::string_view kVersion = "version";
+  static constexpr std::string_view kDuration = "duration";
+  static constexpr std::string_view kEventId = "event";
+  static constexpr std::string_view kParentId = "parent_id";
+  static constexpr std::string_view kStreamId = "stream";
+  static constexpr std::string_view kDeviceId = "device_id";
+  static constexpr std::string_view kKernelId = "kernel_id";
+  static constexpr std::string_view kResponseType = "rsp_type";
+  static constexpr std::string_view kLoadAddr = "load_address";
+  static constexpr std::string_view kDeviceCmdStartTs = "device_cmd_start_ts";
+  static constexpr std::string_view kDeviceCmdWaitDur = "device_cmd_wait_dur";
+  static constexpr std::string_view kDeviceCmdExecDur = "device_cmd_exec_dur";
+  static constexpr std::string_view kDeviceProps = "device_properties";
+  static constexpr std::string_view kTimePointSystem = "system_timepoint";
+  static constexpr std::string_view kThreadName = "thread_name";
+  static constexpr std::string_view kServerPid = "server_pid";
+  static constexpr std::string_view kBarrier = "barrier";
+  static constexpr std::string_view kAddress = "ptr";
+  static constexpr std::string_view kAddressSrc = "src_ptr";
+  static constexpr std::string_view kAddressDst = "dst_ptr";
+  static constexpr std::string_view kSize = "size";
+  static constexpr std::string_view kAlignment = "alignment";
+  static constexpr std::string_view kMemoryStatsAllocatedMem = "mem.allocated_memory";
+  static constexpr std::string_view kMemoryStatsFreeMem = "mem.free_memory";
+  static constexpr std::string_view kMemoryStatsMaxContiguousFreeMem = "mem.max_contiguous_free_mem";
 
   std::optional<Version> getVersion() const;
   std::optional<Duration> getDuration() const;
@@ -175,8 +207,8 @@ public:
   template <class Archive> friend void load(Archive& ar, ProfileEvent& evt);
 
 private:
-  template <typename... Args> void addExtra(std::string name, Args&&... args);
-  template <typename T> std::optional<T> getExtra(const std::string& name) const;
+  template <typename... Args> void addExtra(std::string_view name, Args&&... args);
+  template <typename T> std::optional<T> getExtra(std::string_view name) const;
 
   ExtraMetadata extra_;
   std::string threadId_;
@@ -210,33 +242,33 @@ template <typename Archive> void serialize(Archive& ar, rt::KernelId& id) {
 
 template <class Archive> void load(Archive& ar, ProfileEvent& evt) {
   std::string type;
-  ar(cereal::make_nvp("type", type));
+  ar(cereal::make_nvp(ProfileEvent::kType, type));
   evt.setType(type_from_string(type));
 
   std::string cls;
-  ar(cereal::make_nvp("class", cls));
+  ar(cereal::make_nvp(ProfileEvent::kClass, cls));
   evt.setClass(class_from_string(cls));
 
   ProfileEvent::TimePoint timeStamp;
-  ar(cereal::make_nvp("timeStamp", timeStamp));
+  ar(cereal::make_nvp(ProfileEvent::kTimeStamp, timeStamp));
   evt.setTimeStamp(timeStamp);
 
   std::string threadId;
-  ar(cereal::make_nvp("thread_id", threadId));
+  ar(cereal::make_nvp(ProfileEvent::kThreadId, threadId));
   auto tid = std::thread::id(std::stoull(threadId));
   evt.setThreadId(tid);
 
   ProfileEvent::ExtraMetadata extra;
-  ar(cereal::make_nvp("extra", extra));
+  ar(cereal::make_nvp(ProfileEvent::kExtraMetadata, extra));
   evt.setExtras(std::move(extra));
 }
 
 template <class Archive> void save(Archive& ar, const ProfileEvent& evt) {
-  ar(cereal::make_nvp("type", getString(evt.getType())));
-  ar(cereal::make_nvp("class", getString(evt.getClass())));
-  ar(cereal::make_nvp("timeStamp", evt.getTimeStamp()));
-  ar(cereal::make_nvp("thread_id", evt.getThreadId()));
-  ar(cereal::make_nvp("extra", evt.getExtras()));
+  ar(cereal::make_nvp(ProfileEvent::kType, getString(evt.getType())));
+  ar(cereal::make_nvp(ProfileEvent::kClass, getString(evt.getClass())));
+  ar(cereal::make_nvp(ProfileEvent::kTimeStamp, evt.getTimeStamp()));
+  ar(cereal::make_nvp(ProfileEvent::kThreadId, evt.getThreadId()));
+  ar(cereal::make_nvp(ProfileEvent::kExtraMetadata, evt.getExtras()));
 }
 
 } // end namespace rt::profiling
