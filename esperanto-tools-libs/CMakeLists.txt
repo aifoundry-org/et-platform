@@ -125,6 +125,11 @@ target_include_directories(etrt_obj
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 target_set_project_warnings(etrt_obj)
+target_compile_options(etrt_obj
+    PRIVATE
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=cast-align>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=write-strings>
+)
 target_add_sanitizers(etrt_obj)
 
 target_link_libraries(etrt_obj
