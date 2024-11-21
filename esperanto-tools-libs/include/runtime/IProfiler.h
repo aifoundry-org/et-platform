@@ -62,7 +62,7 @@ public:
 
   // Set up the name of the current thread
   static void setCurrentThreadName(std::string&& threadName) {
-    threadName_ = std::move(threadName);
+    threadName_ = "Host Runtime" + std::move(threadName);
   }
 
 protected:
