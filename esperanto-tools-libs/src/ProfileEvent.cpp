@@ -387,11 +387,14 @@ template <typename... Args> void ProfileEvent::addExtra(std::string_view name, A
   extra_.emplace(std::string{name}, std::forward<Args>(args)...);
 }
 
-template <typename T> std::optional<T> ProfileEvent::getExtra(std::string_view name) const {
+template <typename T> std::optional<T> ProfileEvent::getExtra(const std::string& name) const {
   std::optional<T> optValue;
-  if (auto it = extra_.find(std::string{name}); it != extra_.end()) {
+  if (auto it = extra_.find(name); it != extra_.end()) {
     optValue = std::get<T>(it->second);
   }
   return optValue;
+}
+template <typename T> std::optional<T> ProfileEvent::getExtra(std::string_view name) const {
+  return getExtra<T>(std::string{name});
 }
 } // namespace rt::profiling

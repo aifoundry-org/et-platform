@@ -208,6 +208,7 @@ public:
 
 private:
   template <typename... Args> void addExtra(std::string_view name, Args&&... args);
+  template <typename T> std::optional<T> getExtra(const std::string& name) const;
   template <typename T> std::optional<T> getExtra(std::string_view name) const;
 
   ExtraMetadata extra_;
