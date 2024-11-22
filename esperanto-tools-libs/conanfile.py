@@ -30,7 +30,7 @@ class RuntimeConan(ConanFile):
         "run_tests_sdk": "v1.6.2",
     }
 
-    generators = "CMakeDeps"
+    generators = "CMakeDeps", "VirtualRunEnv"
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
