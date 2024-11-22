@@ -108,7 +108,7 @@ public:
 
   static constexpr char const* kType = "type";
   static constexpr char const* kClass = "class";
-  static constexpr char const* kTimeStamp = "TimeStamp";
+  static constexpr char const* kTimeStamp = "timeStamp";
   static constexpr char const* kThreadId = "thread_id";
   static constexpr char const* kExtraMetadata = "extra";
 
