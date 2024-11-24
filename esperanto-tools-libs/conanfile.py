@@ -57,11 +57,105 @@ class RuntimeConan(ConanFile):
         if self.options.with_tests and not self.dependencies["esperanto-flash-tool"].options.get_safe("header_only"):
             raise ConanInvalidConfiguration("When enabling runtime tests esperanto-flash-tool:header_only must be True")
 
+    @property
+    def _etrt_components(self):
+        common_requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "hostUtils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
+        return {
+            "etrt": {
+                "cmake_target": "runtime::etrt",
+                "libs": ["etrt"],
+                "requires": common_requires,
+                "includedirs": {
+                    "source": ["include"],
+                    "build": [],
+                    "package": ["include"],
+                },
+                "libdirs": {
+                    "source": [],
+                    "build": ["."],
+                    "package": ["lib"],
+                },
+            },
+            "etrt_static": {
+                "cmake_target": "runtime::etrt_static",
+                "libs": ["etrt_static"],
+                "requires": common_requires,
+                "includedirs": {
+                    "source": ["include"],
+                    "build": [],
+                    "package": ["include"],
+                },
+                "libdirs": {
+                    "source": [],
+                    "build": ["."],
+                    "package": ["lib"],
+                },
+            }
+        }
+
+    @property
+    def _etrt_envvars(self):
+        et_runtime_test_kernels_dir = os.path.join("res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels")
+        return {
+            "ET_RUNTIME_TEST_KERNELS_DIR": {
+                "action": "define_path",
+                "source": et_runtime_test_kernels_dir,
+                "package": et_runtime_test_kernels_dir,
+            },
+            "PATH": {
+                "action": "prepend_path",
+                "source": "scripts",
+                "build": self.cpp.build.bindirs[0],
+                "package": self.cpp.package.bindirs[0],
+            }
+        }
+
     def layout(self):
         cmake_layout(self)
-        self.folders.source = "."
-        et_runtime_test_kernels_dir = os.path.join("res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels")
-        self.layouts.source.buildenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', et_runtime_test_kernels_dir)
+
+        for cpp_info in [self.cpp.build, self.cpp.package]:
+            for component, values in self._etrt_components.items():
+                cmake_target = values["cmake_target"]
+
+                libs = values.get("libs", [])
+                defines = values.get("defines", [])
+                cxxflags = values.get("cxxflags", [])
+                linkflags = values.get("linkflags", [])
+                system_libs = []
+                for _condition, _system_libs in values.get("system_libs", []):
+                    if _condition:
+                        system_libs.extend(_system_libs)
+                frameworks = values.get("frameworks", [])
+                requires = values.get("requires", [])
+
+                cpp_info.components[component].set_property("cmake_target_name", cmake_target)
+                cpp_info.components[component].set_property("pkg_config_name", component)
+
+                cpp_info.components[component].libs = libs
+                cpp_info.components[component].defines = defines
+                cpp_info.components[component].cxxflags = cxxflags
+                cpp_info.components[component].sharedlinkflags = linkflags
+                cpp_info.components[component].exelinkflags = linkflags
+                cpp_info.components[component].system_libs = system_libs
+                cpp_info.components[component].frameworks = frameworks
+                cpp_info.components[component].requires = requires
+
+        for cpp_info, name in [(self.cpp.source, "source"), (self.cpp.build, "build"), (self.cpp.package, "package")]:
+            for component, values in self._etrt_components.items():
+                cpp_info.components[component].includedirs = values.get("includedirs", dict()).get(name, [])
+                cpp_info.components[component].libdirs = values.get("libdirs", dict()).get(name, [])
+                cpp_info.components[component].bindirs = values.get("bindirs", dict()).get(name, [])
+
+        for layout_info, name in [(self.layouts.source, "source"), (self.layouts.build, "build"), (self.layouts.package, "package")]:
+            for envvar, values in self._etrt_envvars.items():
+                envvar_action = values.get("action")
+                envvar_path = values.get(name)
+                if envvar_path:
+                    if isinstance(envvar_path, list):
+                        for envvar_path_item in envvar_path:
+                            getattr(layout_info.runenv_info, envvar_action)(envvar, envvar_path_item)
+                    else:
+                        getattr(layout_info.runenv_info, envvar_action)(envvar, envvar_path)
 
     @property
     def _conanfile_device_artifacts(self):
@@ -91,7 +185,7 @@ class RuntimeConan(ConanFile):
             extra_settings = ""
             if self.settings.build_type == "Debug":
                 extra_settings = "-s:h *:build_type=Release"
-            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} --remote conan-develop --build missing -g deploy")
+            self.run(f"conan install {sysemu_artifacts_conanfile} -pr:b default -pr:h {host_ctx_profile} {extra_settings} -if=res --remote conan-develop --build missing -g deploy")
 
         if self.options.with_tools:
             self.requires("nlohmann_json/3.11.2")
@@ -127,29 +221,3 @@ class RuntimeConan(ConanFile):
         cmake.install()
         rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
         copy(self, "*", src=os.path.join(self.source_folder, "esperanto-test-kernels"), dst=os.path.join(self.package_folder, "res", "esperanto-test-kernels"))
-
-    def package_info(self):
-        # library components
-        self.cpp_info.components["etrt"].names["cmake_find_package"] = "etrt"
-        self.cpp_info.components["etrt"].names["cmake_find_package_multi"] = "etrt"
-        self.cpp_info.components["etrt"].set_property("cmake_target_name", "runtime::etrt")
-        self.cpp_info.components["etrt"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "hostUtils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
-        self.cpp_info.components["etrt"].libs = ["etrt"]
-        self.cpp_info.components["etrt"].includedirs = ["include"]
-        self.cpp_info.components["etrt"].libdirs = ["lib"]
-
-        self.cpp_info.components["etrt_static"].names["cmake_find_package"] = "etrt_static"
-        self.cpp_info.components["etrt_static"].names["cmake_find_package_multi"] = "etrt_static"
-        self.cpp_info.components["etrt_static"].set_property("cmake_target_name", "runtime::etrt_static")
-        self.cpp_info.components["etrt_static"].requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "hostUtils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
-        self.cpp_info.components["etrt_static"].libs = ["etrt_static"]
-        self.cpp_info.components["etrt_static"].includedirs = ["include"]
-        self.cpp_info.components["etrt_static"].libdirs = ["lib"]
-        
-        binpath = os.path.join(self.package_folder, "bin")
-        self.output.info("Appending PATH env var: {}".format(binpath))
-        self.runenv_info.prepend_path('PATH', binpath)
-        self.runenv_info.define_path('ET_RUNTIME_TEST_KERNELS_DIR', os.path.join(self.package_folder, "res", "esperanto-test-kernels", "lib", "esperanto-fw", "kernels"))
-
-        # TODO: to remove in conan v2 once old virtualrunenv is removed
-        self.env_info.PATH.append(binpath)
