@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (CI) Do not generate packages for ubuntu18
 - Cleaned up regex for PCIecount to avoid compilation within Lambda function
 - Extend DeviceConfig to include the number of chiplets and the various base addresses
+- (Conan) Support Conan editable
 ### Deprecated
 ### Removed
 ### Fixed

@@ -38,7 +38,25 @@ class DeviceLayerConan(ConanFile):
 
     def layout(self):
         cmake_layout(self)
-    
+
+        self.cpp.package.includedirs = ["include"]
+        self.cpp.package.libs = ["device-layer"]
+        self.cpp.package.requires = [
+            # IDeviceLayer.h
+            "sw-sysemu::sw-sysemu",
+            "hostUtils::debug",
+            # IDeviceLayerMock.h
+            "gtest::gmock",
+
+            # device-layer private
+            "hostUtils::logging",
+            "linuxDriver::linuxDriver",
+            "boost::boost"
+        ]
+        self.cpp.build.includedirs = ["include"]
+        self.cpp.build.libs = ["device-layer"]
+        self.cpp.source.includedirs = ["include"]
+
     def requirements(self):
         self.requires("sw-sysemu/0.14.2")
         self.requires("hostUtils/0.3.0")
@@ -84,21 +102,3 @@ class DeviceLayerConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
         rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
-    
-    def package_info(self):
-        self.cpp_info.libs = ["deviceLayer"]
-        self.cpp_info.requires = [
-            # IDeviceLayer.h
-            "sw-sysemu::sw-sysemu",
-            "hostUtils::debug",
-            # IDeviceLayerMock.h
-            "gtest::gmock",
-
-            # deviceLayer private
-            "hostUtils::logging",
-            "linuxDriver::linuxDriver",
-            "boost::boost"
-        ]
-        if not self.options.shared:
-            if self.settings.compiler == "gcc" and Version(str(self.settings.compiler.version)) < "9":
-                self.cpp_info.system_libs.append("stdc++fs")
