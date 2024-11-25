@@ -16,8 +16,11 @@ include:
     COMPILER: [ gcc11 ]
     BUILD_TYPE: [ release, debug ]
     LIB_TYPE: [ static, shared ]
+
 variables:
   FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}-${LIB_TYPE}"
+  CLICOLOR_FORCE: "1" # force colors on Conan output
+
 stages:
   - smoke
   - generate_build
