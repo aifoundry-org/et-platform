@@ -193,7 +193,7 @@ build:conan2:
     - capture_graph:conan2
   rules:
     - !reference [.release_or_development_job, rules]
-  image: ${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   parallel:
     matrix: *matrix_conan2
   script:
@@ -213,7 +213,7 @@ package2:
     - build:conan2
   rules:
     - !reference  [.release_or_development_job, rules]
-  image: ${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   parallel:
     matrix: *matrix_conan2
   script:
