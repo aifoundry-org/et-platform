@@ -7,7 +7,7 @@ include:
       - jobs/generic-k8s-job.yaml
 
   - project: esperantotech/software/gitlab-ci-common
-    ref: c050a06166f25d6da76d4e6987ae934fc39333ec
+    ref: master
     file:
       - jobs/conan-jobs.yaml
 
