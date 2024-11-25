@@ -8,8 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include <deviceLayer/DeviceLayerMock.h>
-#include <deviceLayer/IDeviceLayer.h>
+#include <device-layer/DeviceLayerMock.h>
+#include <device-layer/IDeviceLayer.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logging.h>

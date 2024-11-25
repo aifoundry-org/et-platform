@@ -9,6 +9,8 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 
+#include <device-layer/IDeviceLayerExport.h>
+
 #include <hostUtils/debug/StackException.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
@@ -43,7 +45,7 @@ namespace dev {
 /// NOTE: New enum/struct entities should be added in the end for backward compatibility
 
 /// \brief This struct contains device configured information
-struct DeviceConfig {
+struct DEVICE_LAYER_EXPORT DeviceConfig {
   enum class FormFactor { PCIE, M2 };
   enum class ArchRevision { ETSOC1, PANTERO, GEPARDO };
   FormFactor formFactor_;              ///< device form factor
@@ -106,7 +108,7 @@ struct DeviceConfig {
 };
 
 /// \brief This struct contains the limitations / optimal DMA parameters.
-struct DmaInfo {
+struct DEVICE_LAYER_EXPORT DmaInfo {
   uint64_t maxElementSize_;  ///< maximum amount of memory that can be transfer per each DMA command entry
   uint64_t maxElementCount_; ///< max number of DMA entries per DMA command
 };
@@ -115,13 +117,13 @@ struct DmaInfo {
 enum class DeviceState { Ready, PendingCommands, NotResponding, ResetInProgress, NotReady, Undefined };
 
 /// \brief This struct contains possible command flags for SP
-struct CmdFlagSP {
+struct DEVICE_LAYER_EXPORT CmdFlagSP {
   bool isMmReset_ = false;
   bool isEtsocReset_ = false;
 };
 
 /// \brief This struct contains possible command flags for MM
-struct CmdFlagMM {
+struct DEVICE_LAYER_EXPORT CmdFlagMM {
   bool isDma_ = false;
   bool isHpSq_ = false;
   bool isP2pDma_ = false;
@@ -137,11 +139,11 @@ enum class TraceBufferType {
   TraceBufferTypeNum
 };
 
-class Exception : public dbg::StackException {
+class DEVICE_LAYER_EXPORT Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
 
-class IDeviceAsync {
+class DEVICE_LAYER_EXPORT IDeviceAsync {
 public:
   /// \brief Sends a command to the master minion. If the method returns false, the caller should try later when the
   /// queue has enough space indicated by availability from `waitForEpollEventsMasterMinion()`
@@ -150,7 +152,7 @@ public:
   /// @param[in] sqIdx indicates which submission queue to send the command to.
   /// @param[in] command its a buffer which contains the command itself.
   /// @param[in] commandSize the size of the command + payload buffer.
-  /// @param[in] flags indicates command options as defined by `CmdFlagMM`. Needed for PCIe deviceLayer
+  /// @param[in] flags indicates command options as defined by `CmdFlagMM`. Needed for PCIe device-layer
   ///
   /// @returns false if there was not enough space to send the command, true otherwise
   ///
@@ -196,7 +198,7 @@ public:
   /// @param[in] device indicating which device to send the command.
   /// @param[in] command its a buffer which contains the command itself.
   /// @param[in] commandSize the size of the command + payload buffer.
-  /// @param[in] flags indicates command options as defined by `CmdFlagSO`. Needed for PCIe deviceLayer
+  /// @param[in] flags indicates command options as defined by `CmdFlagSO`. Needed for PCIe device-layer
   /// implementations
   ///
   /// @returns false if there was not enough space to send the command, true otherwise
@@ -242,7 +244,7 @@ public:
 
 /// This should be a command Interface class which is shared between Ops and Management, although will be different.
 
-class IDeviceSync {
+class DEVICE_LAYER_EXPORT IDeviceSync {
 public:
   /// \brief Returns the DMA parameters.
   ///
@@ -445,7 +447,7 @@ public:
   virtual bool checkP2pDmaCompatibility(int deviceA, int deviceB) const = 0;
 };
 
-class IDeviceLayer : public IDeviceAsync, public IDeviceSync {
+class DEVICE_LAYER_EXPORT IDeviceLayer : public IDeviceAsync, public IDeviceSync {
 public:
   /// \brief Factory method to instantiate a IDeviceApi implementation, based on sysemu backend
   ///
@@ -469,9 +471,9 @@ public:
 
   /// \brief Factory method to instantiate a IDeviceApi implementation, based on Pcie backend
   ///
-  /// @param[in] enableMasterMinion if this is true, deviceLayer will attempt to open the operations port (Master
+  /// @param[in] enableMasterMinion if this is true, device-layer will attempt to open the operations port (Master
   /// Minion). If this is not enabled, then all Master Minion operations will fail.
-  /// @param[in] enableServiceProcessor if this is true, deviceLayer will attempt to open the management port (Service
+  /// @param[in] enableServiceProcessor if this is true, device-layer will attempt to open the management port (Service
   /// Processor). If this is not enabled, then all Service Processor operations will fail.
   /// @returns std::unique_ptr<IDeviceApi> is the IDeviceApi implementation
   ///

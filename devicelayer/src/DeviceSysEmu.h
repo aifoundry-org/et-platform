@@ -11,7 +11,7 @@
 #include "DevInfReg/MM_DIR.h"
 #include "DevInfReg/SP_DIR.h"
 #include "SysEmuHostListener.h"
-#include "deviceLayer/IDeviceLayer.h"
+#include "device-layer/IDeviceLayer.h"
 
 #include <chrono>
 #include <sw-sysemu/ISysEmu.h>

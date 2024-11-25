@@ -11,6 +11,4 @@
 include(ExternalProject)
 include(GoogleTest)
 
-enable_testing()
-
 add_subdirectory(integration)

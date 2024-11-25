@@ -36,7 +36,24 @@ include(CompilerSanitizers)
 option(ENABLE_TESTS "Enable compiling tests" ON)
 option(BUILD_DOCS "Enable/disable building documentation" OFF)
 
-option(ENABLE_DEPRECATED "Generate Deprecated config file" ON)
+# Hide things by default
+set(VISIBILITY_PRESET_VALUES default protected hidden)
+set(CMAKE_ASM_VISIBILITY_PRESET default CACHE STRING "Value for ASM symbol visibility compile flags. If ON, adds -fvisibility")
+set(CMAKE_C_VISIBILITY_PRESET   default CACHE STRING "Value for C   symbol visibility compile flags. If ON, adds -fvisibility")
+set(CMAKE_CXX_VISIBILITY_PRESET default CACHE STRING "Value for C++ symbol visibility compile flags. If ON, adds -fvisibility")
+set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF CACHE BOOL "Whether to add a compile flag to hide symbols of inline functions. If ON, adds -fvisibility-inlines-hidden")
+set_property(CACHE CMAKE_ASM_VISIBILITY_PRESET PROPERTY STRINGS ${VISIBILITY_PRESET_VALUES})
+set_property(CACHE CMAKE_C_VISIBILITY_PRESET PROPERTY STRINGS ${VISIBILITY_PRESET_VALUES})
+set_property(CACHE CMAKE_CXX_VISIBILITY_PRESET PROPERTY STRINGS ${VISIBILITY_PRESET_VALUES})
+if (NOT CMAKE_ASM_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
+    message(FATAL_ERROR "CMAKE_ASM_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
+endif()
+if (NOT CMAKE_C_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
+    message(FATAL_ERROR "CMAKE_C_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
+endif()
+if (NOT CMAKE_CXX_VISIBILITY_PRESET IN_LIST VISIBILITY_PRESET_VALUES)
+    message(FATAL_ERROR "CMAKE_CXX_VISIBILITY_PRESET must be one of ${VISIBILITY_PRESET_VALUES}")
+endif()
 
 find_package(linuxDriver REQUIRED)
 find_package(sw-sysemu REQUIRED)
@@ -58,10 +75,11 @@ target_add_sanitizers(deviceLayer)
 target_include_directories(deviceLayer
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 set_target_properties(deviceLayer PROPERTIES
-    PUBLIC_HEADER "include/deviceLayer/IDeviceLayer.h;include/deviceLayer/DeviceLayerMock.h"
+    PUBLIC_HEADER "include/device-layer/IDeviceLayer.h;include/device-layer/DeviceLayerMock.h;${CMAKE_CURRENT_BINARY_DIR}/include/device-layer/IDeviceLayerExport.h"
     POSITION_INDEPENDENT_CODE TRUE
 )
 target_link_libraries(deviceLayer
@@ -77,6 +95,13 @@ target_link_libraries(deviceLayer
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
     target_link_libraries(deviceLayer PUBLIC stdc++fs)
 endif ()
+
+include(GenerateExportHeader)
+generate_export_header(deviceLayer
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/device-layer/IDeviceLayerExport.h
+    EXPORT_MACRO_NAME DEVICE_LAYER_EXPORT
+)
+target_sources(deviceLayer PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include/device-layer/IDeviceLayerExport.h)
 
 # Add package information
 include(CMakePackageConfigHelpers)
@@ -97,7 +122,7 @@ install(TARGETS deviceLayer
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-layer
 )
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/deviceLayer
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/device-layer
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
@@ -113,6 +138,7 @@ if (BUILD_DOCS)
 endif()
 
 if (ENABLE_TESTS)
+    enable_testing()
     get_target_property(PCIE_DRIVER_INC_DIR linuxDriver::linuxDriver INTERFACE_INCLUDE_DIRECTORIES)
     add_subdirectory(tests)
 endif()

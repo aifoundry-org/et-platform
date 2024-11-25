@@ -8,7 +8,7 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
-#include "deviceLayer/IDeviceLayer.h"
+#include "device-layer/IDeviceLayer.h"
 #include <et_ioctl.h>
 #include <mutex>
 #include <unordered_map>
