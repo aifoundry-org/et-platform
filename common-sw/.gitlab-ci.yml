@@ -1,6 +1,6 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
+    ref: c050a06166f25d6da76d4e6987ae934fc39333ec
     file:
       - pods/nano-pod.yaml
       - pods/large-pod.yaml
@@ -10,12 +10,6 @@ include:
     ref: master
     file:
       - jobs/conan-jobs.yaml
-.matrix: &matrix_conan2
-  - OS: [ linux-ubuntu22.04 ]
-    ARCH: [ x86_64 ]
-    COMPILER: [ gcc11 ]
-    BUILD_TYPE: [ release, debug ]
-    LIB_TYPE: [ static, shared ]
 
 variables:
   FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}-${LIB_TYPE}"
@@ -55,6 +49,14 @@ stages:
   rules:
     - &development_job_rule
       if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
+
+.matrix: &matrix_conan2
+  - OS: [ linux-ubuntu22.04 ]
+    OS_BUILD: [ ubuntu-22.04 ] # for selecting docker image 
+    ARCH: [ x86_64 ]
+    COMPILER: [ gcc11 ]
+    BUILD_TYPE: [ release, debug ]
+    LIB_TYPE: [ static, shared ]
 
 ###############################################################################
 ###############################################################################
@@ -186,12 +188,12 @@ build:conan2:
   extends:
     - .pod_large
     - .template_job
-    - .template-conan2-linux-ubuntu22.04-gcc11
   stage: build
   needs: 
     - capture_graph:conan2
   rules:
     - !reference [.release_or_development_job, rules]
+  image: ${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   parallel:
     matrix: *matrix_conan2
   script:
@@ -209,12 +211,12 @@ package2:
   extends:
     - .pod_nano
     - .template_job
-    - .template-conan2-linux-ubuntu22.04-gcc11
   stage: package
   needs: 
     - capture_graph:conan2
   rules:
     - !reference  [.release_or_development_job, rules]
+  image: ${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   parallel:
     matrix: *matrix_conan2
   script:
