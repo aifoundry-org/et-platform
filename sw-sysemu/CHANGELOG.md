@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 ### Changed
 - Fix CMAKE_<XX>_VISIBILITY_PRESET default values
-- Update minimum CMake version requied to match default version found in ubuntu 22.04 (3.22)
+- Update minimum CMake version requied to match default version found in ubuntu 22.04 (3.21)
 - (Conan) fix includedirs for build context
 ### Deprecated
 ### Removed
