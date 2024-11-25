@@ -243,8 +243,7 @@ promote2:
   script:
     - conan pkglist merge $(find . -name "uploaded*.json" -exec echo --list={} \;) --format=json > pkglist-merged.json
     - cat pkglist-merged.json
-    - conan pkglist find-remote --format=json -r=conan2-tmp pkglist-merged.json > pkglist-merged-with-remote.json
-    - conan download --list=pkglist-merged-with-remote.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
+    - conan download --list=pkglist-merged.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
     - cat pkglist-downloaded.json
     - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm ${DRY_RUN_PARAM} > pkglist-uploaded.json
     - cat pkglist-uploaded.json
@@ -252,7 +251,6 @@ promote2:
     expire_in: 2d
     paths:
       - pkglist-merged.json
-      - pkglist-merged-with-remote.json
       - pkglist-downloaded.json
       - pkglist-uploaded.json
 
