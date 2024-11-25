@@ -195,6 +195,7 @@ build:conan2:
   parallel:
     matrix: *matrix_conan2
   script:
+    - conan lock create conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing --lockfile-out=conan.lock --lockfile=conan.lock
     - conan install . -pr:b=default -pr:h=${FULL_BUILD_NAME} --lockfile=conan.lock -o et-host-utils/*:with_tests=True --build=missing # Install dependencies from the lockfile
     - cmake --preset conan-${BUILD_TYPE} -G Ninja 
     - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
