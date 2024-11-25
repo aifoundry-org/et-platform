@@ -1,13 +1,13 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: c050a06166f25d6da76d4e6987ae934fc39333ec
+    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
     file:
       - pods/nano-pod.yaml
       - pods/large-pod.yaml
       - jobs/generic-k8s-job.yaml
 
   - project: esperantotech/software/gitlab-ci-common
-    ref: master
+    ref: c050a06166f25d6da76d4e6987ae934fc39333ec
     file:
       - jobs/conan-jobs.yaml
 
