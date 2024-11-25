@@ -124,6 +124,7 @@ class SwSysemuConan(ConanFile):
         self.cpp.build.components[libsw_sysemu_comp_name].requires = ["elfio::elfio", "glog::glog"]
         self.cpp.build.components[libsw_sysemu_comp_name].libs = ["sw-sysemu"]
         self.cpp.build.components[libsw_sysemu_comp_name].libdirs = ["."]
+        self.cpp.build.components[libsw_sysemu_comp_name].includedirs = ["sw-sysemu/include", "sw-sysemu/include/sw-sysemu"]
         self.cpp.source.components[libsw_sysemu_comp_name].includedirs = ["sw-sysemu/include", "sw-sysemu/include/sw-sysemu"]
 
     @property
