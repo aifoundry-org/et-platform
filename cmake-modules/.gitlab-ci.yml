@@ -156,11 +156,10 @@ promote2:
   script:
     - conan pkglist merge $(find . -name "uploaded*.json" -exec echo --list={} \;) --format=json > pkglist-merged.json
     - conan download --list=pkglist-merged.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
-    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm > pkglist-uploaded.json
+    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm ${DRY_RUN_PARAM} > pkglist-uploaded.json
   artifacts:
     expire_in: 2d
     paths:
       - pkglist-merged.json
       - pkglist-downloaded.json
       - pkglist-uploaded.json
-      
