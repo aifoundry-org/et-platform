@@ -202,10 +202,6 @@ build:conan2:
     - cmake --preset conan-${BUILD_TYPE} -G Ninja 
     - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
     - ctest --preset conan-${BUILD_TYPE} --no-compress-output --output-on-failure --parallel 4
-  artifacts:
-    expire_in: 2d
-    paths:
-       - ${FULL_BUILD_NAME}.lock  # Keep the lockfile as an artifact for later stages
 
 package2:
   extends:
@@ -214,6 +210,7 @@ package2:
   stage: package
   needs: 
     - capture_graph:conan2
+    - build:conan2
   rules:
     - !reference  [.release_or_development_job, rules]
   image: ${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
