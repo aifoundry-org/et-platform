@@ -871,15 +871,16 @@ void check_power_throttle_conditions(bool temperature_updated, bool pwr_updated)
 
     uint8_t temperature_C = g_pmic_power_reg.soc_temperature;
     uint8_t temperature_threshold_C = g_soc_power_reg.temperature_threshold.sw_temperature_c;
-    uint16_t avg_soc_pwr_mW =
-        (uint16_t)(POWER_10MW_TO_MW(g_soc_power_reg.op_stats.system.power.avg));
-    int32_t tdp_level_mW = POWER_IN_MW(g_pmic_power_reg.module_tdp_level);
+    uint32_t avg_soc_pwr_mW =
+        (uint32_t)(POWER_10MW_TO_MW(g_soc_power_reg.op_stats.system.power.avg));
+    uint32_t tdp_level_mW = (uint32_t)(POWER_IN_MW(g_pmic_power_reg.module_tdp_level));
     uint16_t minion_curr_frequency = (uint16_t)Get_Minion_Frequency();
     uint16_t minion_max_frequency = g_soc_power_reg.vmin_lut_limits.mnn_frequency_max_limit;
     uint16_t minion_min_frequency = g_soc_power_reg.vmin_lut_limits.mnn_frequency_min_limit;
 
     // Switch power throttle state if active power management is enabled
     // and if minion is not in idle state
+
     if ((g_soc_power_reg.active_power_management == ACTIVE_POWER_MANAGEMENT_TURN_ON) &&
         (get_mm_state() != MM_STATE_IDLE))
     {

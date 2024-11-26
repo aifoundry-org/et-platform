@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [SW-21990] fix of retry logic in thermal power monitor to avoid infinite retries
 - [SW-22053] Move enabling of PMIC interrupts to the end of the SP boot sequence
 - [SW-22139] Voltage validation added to setting system voltages step during bootup
+- [SW-22147] Fix conversion in check_power_throttle_conditions function
 ### Deprecated
 ### Removed
 ### Fixed
