@@ -9,10 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Added
 ### Changed
-- Extended DeviceProperties to include the number of chiplets
 ### Deprecated
 ### Removed
 ### Fixed
+
+## [0.17.0]
+### Added
+### Changed
+- [SW-21964] Extended DeviceProperties to include the number of chiplets
+- [SW-22089] Extend metadata on Host2Device and Malloc events
+- [SW-22149] Support events of type Counter and report AllocatedMemory
+- (tracing) Improve ProfileEvent serializaiton robustness
+- (tracing) Start thread names by component name
+- (Conan) Allow setting runtime as editable package
+### Deprecated
+### Removed
+### Fixed
+- Fixup regression introduced in SW-22149
 
 ## [0.16.0]
 ### Added
