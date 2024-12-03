@@ -183,14 +183,13 @@ capture_graph:conan2:
     - conan remove "*" -c
     - conan remote disable "*"
     - conan remote enable conan2-develop
-    - conan lock create conanfile.py -pr:b=default -pr:h=${PROFILE_PREFIX}-release-shared --build=missing --lockfile-out=conan.lock
-    - conan lock create conanfile.py -pr:b=default -pr:h=${PROFILE_PREFIX}-release-static --build=missing --lockfile-out=conan.lock --lockfile=conan.lock
-    - conan lock create conanfile.py -pr:b=default -pr:h=${PROFILE_PREFIX}-debug-shared   --build=missing --lockfile-out=conan.lock --lockfile=conan.lock
-    - conan lock create conanfile.py -pr:b=default -pr:h=${PROFILE_PREFIX}-debug-static   --build=missing --lockfile-out=conan.lock --lockfile=conan.lock
+    - conan export conanfile.py  -r conan2-develop --lockfile-out=conan.lock
+    - conan cache save "et-host-utils/*:*" --file=conan_cache_save.tgz
   artifacts:
     expire_in: 2d
     paths:
        - conan.lock
+       - conan_cache_save.tgz
 
 build:conan2:
   extends:
@@ -205,8 +204,9 @@ build:conan2:
   parallel:
     matrix: *matrix_conan2
   script:
-    - conan lock create conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing --lockfile-out=conan.lock --lockfile=conan.lock
-    - conan install . -pr:b=default -pr:h=${FULL_BUILD_NAME} --lockfile=conan.lock -o et-host-utils/*:with_tests=True --build=missing # Install dependencies from the lockfile
+    - conan cache restore conan_cache_save.tgz
+    - conan lock create conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
+    - conan install     conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing --lockfile=conan.lock   # Install dependencies from the lockfile
     - cmake --preset conan-${BUILD_TYPE} -G Ninja 
     - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
     - ctest --preset conan-${BUILD_TYPE} --no-compress-output --output-on-failure --parallel 4
@@ -226,8 +226,12 @@ package2:
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   script:
     - conan remote disable "*"
-    - conan remote enable conan2-develop 
-    - conan create . -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
+    - conan remote enable conan2-develop
+    - conan cache restore conan_cache_save.tgz
+    - pkg_name=$(conan inspect conanfile.py | grep name | cut -d ':' -f 2 | xargs)
+    - pkg_version=$(conan inspect conanfile.py | grep version | cut -d ':' -f 2 | xargs)
+    - conan lock create conanfile.py                      -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
+    - conan install --requires=${pkg_name}/${pkg_version} -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
     - conan list --graph=graph-${FULL_BUILD_NAME}.json --graph-binaries=build --format=json > pkglist-${FULL_BUILD_NAME}.json
     - conan remote enable conan2-tmp
     - conan upload --list=pkglist-${FULL_BUILD_NAME}.json -r=conan2-tmp --confirm --format=json > uploaded-${FULL_BUILD_NAME}.json
