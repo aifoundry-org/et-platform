@@ -24,20 +24,6 @@
 namespace dev {
 
 class ETRT_API DeviceLayerFake : public IDeviceLayer {
-  std::unordered_map<int, std::queue<device_ops_api::rsp_header_t>> responsesMasterMinion_;
-  std::unordered_map<int, std::queue<device_ops_api::dev_mgmt_rsp_header_t>> responsesServiceProcessor_;
-  std::condition_variable cvMm_;
-  std::condition_variable cvSp_;
-  std::mutex mmMutex_;
-  std::mutex spMutex_;
-  const int numDevices_;
-
-  void checkDevice(int device) const {
-    if (device >= numDevices_ || device < 0) {
-      throw Exception("Invalid device");
-    }
-  }
-
 public:
   struct Parameters {
     size_t bytesDram_ = 1UL << (10 + 10 + 10 + 5);
@@ -308,7 +294,6 @@ public:
   void hintInactivity(int) override {
     // No implementation
   }
-  Parameters params_;
 
   void reinitDeviceInstance(int, bool, std::chrono::milliseconds) override {
     throw Exception("Unsupported DeviceLayerFake::reinitDeviceInstance()");
