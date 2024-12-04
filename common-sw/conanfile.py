@@ -13,6 +13,7 @@ class HostUtilsConan(ConanFile):
     description = ""
     license = "Esperanto Technologies"
 
+    package_type = "library"
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
