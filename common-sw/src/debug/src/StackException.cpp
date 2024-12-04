@@ -7,7 +7,7 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
-#include "debug/StackException.h"
+#include "hostUtils/debug/StackException.h"
 #include <g3log/crashhandler.hpp>
 using namespace dbg;
 

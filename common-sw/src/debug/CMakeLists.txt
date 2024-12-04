@@ -22,7 +22,7 @@ find_package(g3log REQUIRED)
 
 # old target
 add_library(debug
-    include/debug/StackException.h
+    include/hostUtils/debug/StackException.h
     src/StackException.cpp
 )
 add_library(hostUtils::debug ALIAS debug)
@@ -36,7 +36,7 @@ target_include_directories(debug
 target_link_libraries(debug PUBLIC g3log)
 
 set_target_properties(debug PROPERTIES
-    PUBLIC_HEADER "include/debug/StackException.h;include/debug/Check.h"
+    PUBLIC_HEADER "include/hostUtils/debug/StackException.h;include/hostUtils/debug/Check.h"
     POSITION_INDEPENDENT_CODE ON
 )
 

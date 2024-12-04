@@ -8,11 +8,11 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-#include "threadPool/ThreadPool.h"
+#include "hostUtils/threadPool/ThreadPool.h"
 #include <chrono>
 #include <g3log/loglevels.hpp>
-#include <logging/Logger.h>
-#include <logging/Logging.h>
+#include <hostUtils/logging/Logger.h>
+#include <hostUtils/logging/Logging.h>
 #include <mutex>
 #include <thread>
 

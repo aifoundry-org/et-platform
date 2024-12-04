@@ -8,13 +8,13 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "actionList/ActionList.h"
-#include "actionList/Runner.h"
+#include "hostUtils/actionList/ActionList.h"
+#include "hostUtils/actionList/Runner.h"
+#include <hostUtils/logging/Logger.h>
 #include <atomic>
 #include <chrono>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <logging/Logger.h>
 #include <thread>
 
 #include "gtest/gtest.h"

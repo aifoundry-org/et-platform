@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.21)
 project(hostUtils VERSION 0.4.0 LANGUAGES CXX)
 
 
@@ -29,11 +29,7 @@ if (BUILD_TESTS)
   enable_testing()
 endif()
 
-add_subdirectory(logging)
-add_subdirectory(threadPool)
-add_subdirectory(actionList)
-add_subdirectory(debug)
-
+add_subdirectory(src)
 
 ##### Package
 

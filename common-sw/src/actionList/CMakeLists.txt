@@ -16,8 +16,8 @@ include(GNUInstallDirs)
 option(BUILD_TESTS "Build ActionList tests" ON)
 
 add_library(actionList 
-    include/actionList/ActionList.h 
-    include/actionList/Runner.h 
+    include/hostUtils/actionList/ActionList.h
+    include/hostUtils/actionList/Runner.h
     src/ActionList.cpp
     src/Runner.cpp
 )
@@ -33,7 +33,7 @@ target_include_directories(actionList
 target_link_libraries(actionList PUBLIC logging)
 
 set_target_properties(actionList PROPERTIES
-    PUBLIC_HEADER "include/actionList/ActionList.h;include/actionList/Runner.h"
+    PUBLIC_HEADER "include/hostUtils/actionList/ActionList.h;include/hostUtils/actionList/Runner.h"
     POSITION_INDEPENDENT_CODE ON
 )
 

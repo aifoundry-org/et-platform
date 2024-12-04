@@ -1,3 +1,4 @@
+
 /*-------------------------------------------------------------------------
  * Copyright (C) 2021, Esperanto Technologies Inc.
  * The copyright to the computer program(s) herein is the
@@ -7,12 +8,25 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-#pragma once
-#include <g3log/loglevels.hpp>
-#include <logging/Logger.h>
-#include <logging/Logging.h>
+#include "hostUtils/actionList/ActionList.h"
+#include <chrono>
 
-#define AL_LOG(severity) ET_LOG(THREADPOOL, severity)
-#define AL_DLOG(severity) ET_DLOG(THREADPOOL, severity)
-#define AL_VLOG(severity) ET_VLOG(THREADPOOL, severity)
-#define AL_LOG_IF(severity, condition) ET_LOG_IF(THREADPOOL, severity, condition)
+using namespace actionList;
+
+void ActionList::addAction(std::unique_ptr<IAction> action) {
+  actions_.push_back(std::move(action));
+}
+
+size_t ActionList::getNumActions() const {
+  return actions_.size();
+}
+
+void ActionList::update() {
+  if (actions_.empty()) {
+    return;
+  }
+  while (!actions_.empty() && actions_.front()->update()) {
+    actions_.front()->onFinish();
+    actions_.pop_front();
+  }
+}

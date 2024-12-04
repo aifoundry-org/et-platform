@@ -1,7 +1,7 @@
 from conan import ConanFile
+from conan.tools.build import can_run, cross_building
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
-from conan.tools.build import can_run
-from conan.tools.env import VirtualRunEnv
+from conan.tools.env import VirtualBuildEnv, VirtualRunEnv
 from conan.tools.files import rmdir
 import os
 
@@ -16,10 +16,12 @@ class HostUtilsConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
+        "fPIC": [True, False],
         "with_tests": [True, False],
     }
     default_options = {
         "shared": False,
+        "fPIC": True,
         "with_tests": False
     }
 
@@ -37,35 +39,124 @@ class HostUtilsConan(ConanFile):
         copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
         copy_sources_if_scm_dirty(self)
 
-    def layout(self):
-        cmake_layout(self)
-        self.cpp.source.includedirs = ["."]
+    def config_options(self):
+        if self.settings.get_safe("os") == "Windows":
+            self.options.rm_safe("fPIC")
+
+    def config_options(self):
+        if self.options.shared:
+            self.options.rm_safe("fPIC")
 
     def requirements(self):
         self.requires("g3log/1.3.3", transitive_headers=True, transitive_libs=True)
+
+    def build_requirements(self):
+        self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+        self.tool_requires("cmake/[>=3.21 <4]")
         if self.options.with_tests:
-            self.requires("gtest/1.10.0", test=True)
-        
+            self.test_requires("gtest/1.10.0")
+
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
         check_req_min_cppstd(self, "17")
-    
-    def build_requirements(self):
-        self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
+
+    @property
+    def _components(self):
+        common_requires = ["g3log::g3log"]
+        def component_template(name):
+            return {
+                    "cmake_target": f"hostUtils::{name}",
+                    "libs": [f"{name}"],
+                    "requires": common_requires,
+                    "includedirs": {
+                        "source": [f"src/{name}/include"],
+                        "build": [],
+                        "package": ["include"],
+                    },
+                    "libdirs": {
+                        "source": [],
+                        "build": [f"src/{name}"],
+                        "package": ["lib", "lib64"],
+                    }
+                }
+
+        components = {
+            "logging": component_template("logging"),
+            "debug": component_template("debug"),
+            "debugging": {
+                "cmake_target": f"hostUtils::debugging",
+                "libs": [f"debugging"],
+                "requires": common_requires,
+                "includedirs": {
+                    "source": [f"src/debug/include"],
+                    "build": [],
+                    "package": ["include"],
+                },
+                "libdirs": {
+                    "source": [],
+                    "build": [f"src/debug"],
+                    "package": ["lib", "lib64"],
+                }
+            },
+            "threadPool": component_template("threadPool"),
+            "actionList": component_template("actionList"),
+        }
+        return components
+
+    def layout(self):
+        cmake_layout(self)
+
+        for cpp_info in [self.cpp.build, self.cpp.package]:
+            for component, values in self._components.items():
+                cmake_target = values["cmake_target"]
+
+                libs = values.get("libs", [])
+                defines = values.get("defines", [])
+                cxxflags = values.get("cxxflags", [])
+                linkflags = values.get("linkflags", [])
+                system_libs = []
+                for _condition, _system_libs in values.get("system_libs", []):
+                    if _condition:
+                        system_libs.extend(_system_libs)
+                frameworks = values.get("frameworks", [])
+                requires = values.get("requires", [])
+
+                cpp_info.components[component].set_property("cmake_target_name", cmake_target)
+                cpp_info.components[component].set_property("pkg_config_name", component)
+
+                cpp_info.components[component].libs = libs
+                cpp_info.components[component].defines = defines
+                cpp_info.components[component].cxxflags = cxxflags
+                cpp_info.components[component].sharedlinkflags = linkflags
+                cpp_info.components[component].exelinkflags = linkflags
+                cpp_info.components[component].system_libs = system_libs
+                cpp_info.components[component].frameworks = frameworks
+                cpp_info.components[component].requires = requires
+
+        for cpp_info, name in [(self.cpp.source, "source"), (self.cpp.build, "build"), (self.cpp.package, "package")]:
+            for component, values in self._components.items():
+                cpp_info.components[component].includedirs = values.get("includedirs", dict()).get(name, [])
+                cpp_info.components[component].libdirs = values.get("libdirs", dict()).get(name, [])
+                cpp_info.components[component].bindirs = values.get("bindirs", dict()).get(name, [])
 
     def source(self):
         get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
         get_sources_if_scm_pristine(self)
 
     def generate(self):
+        vbe = VirtualBuildEnv(self)
+        vbe.generate()
+        if not cross_building:
+            vre = VirtualRunEnv(self)
+            vre.generate(scope="build")
+
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.with_tests
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
         tc.generate()
+
         deps = CMakeDeps(self)
         deps.generate()
-        vrenv = VirtualRunEnv(self)
-        vrenv.generate()
 
     def build(self):
         cmake = CMake(self)
@@ -80,42 +171,7 @@ class HostUtilsConan(ConanFile):
         cmake = CMake(self)
         cmake.install()
         rmdir(self, os.path.join(self.package_folder, "lib", "cmake"))
-    
+
     def package_info(self):
-        # library components
         self.cpp_info.set_property("cmake_file_name", "hostUtils")
         self.cpp_info.set_property("cmake_target_name", "hostUtils::hostUtils")
-
-        self.cpp_info.components["logging"].set_property("cmake_target_name", "hostUtils::logging")
-        self.cpp_info.components["logging"].requires = ["g3log::g3log"]
-        self.cpp_info.components["logging"].libs = ["logging"]
-        self.cpp_info.components["logging"].includedirs =  ["include"]
-        self.cpp_info.components["logging"].libdirs = ["lib", "lib64"]
-
-        self.cpp_info.components["debug"].set_property("cmake_target_name", "hostUtils::debug")
-        self.cpp_info.components["debug"].requires = ["g3log::g3log"]
-        self.cpp_info.components["debug"].libs = ["debugging"]
-        self.cpp_info.components["debug"].includedirs =  ["include"]
-        self.cpp_info.components["debug"].libdirs = ["lib", "lib64"]
-
-        self.cpp_info.components["debugging"].set_property("cmake_target_name", "hostUtils::debugging")
-        self.cpp_info.components["debugging"].requires = ["g3log::g3log"]
-        self.cpp_info.components["debugging"].libs = ["debugging"]
-        self.cpp_info.components["debugging"].includedirs =  ["include"]
-        self.cpp_info.components["debugging"].libdirs = ["lib", "lib64"]
-
-        self.cpp_info.components["threadPool"].set_property("cmake_target_name", "hostUtils::threadPool")
-        self.cpp_info.components["threadPool"].requires = ["logging"]
-        if self.options.with_tests:
-            self.cpp_info.components["threadPool"].requires.append("gtest::gmock")
-        self.cpp_info.components["threadPool"].libs = ["threadPool"]
-        self.cpp_info.components["threadPool"].includedirs =  ["include"]
-        self.cpp_info.components["threadPool"].libdirs = ["lib", "lib64"]
-
-        self.cpp_info.components["actionList"].set_property("cmake_target_name", "hostUtils::actionList")
-        self.cpp_info.components["actionList"].requires = ["logging"]
-        if self.options.with_tests:
-            self.cpp_info.components["actionList"].requires.append("gtest::gmock")
-        self.cpp_info.components["actionList"].libs = ["actionList"]
-        self.cpp_info.components["actionList"].includedirs =  ["include"]
-        self.cpp_info.components["actionList"].libdirs = ["lib", "lib64"]

@@ -7,8 +7,8 @@
 * in accordance with the terms and conditions stipulated in the
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
-#include "logging/Instance.h"
-#include "logging/Logger.h"
+#include "hostUtils/logging/Instance.h"
+#include "hostUtils/logging/Logger.h"
 
 #include <g3log/loglevels.hpp>
 

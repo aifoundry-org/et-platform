@@ -89,8 +89,7 @@ smoke_tests:conan:sysemu:
       conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o et-host-utils:with_tests=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
-      cd build/${BUILD_TYPE}/threadPool/tests
-      ctest --no-compress-output --output-on-failure --parallel 4
+      ctest --preset $${BUILD_TYPE_LOWER} --no-compress-output --output-on-failure --parallel 4
 
 ###############################################################################
 ###############################################################################

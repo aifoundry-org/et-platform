@@ -16,7 +16,7 @@ include(GNUInstallDirs)
 option(BUILD_TESTS "Build ThreadPool tests" ON)
 
 add_library(threadPool 
-    include/threadPool/ThreadPool.h 
+    include/hostUtils/threadPool/ThreadPool.h
     src/ThreadPool.cpp
 )
 add_library(hostUtils::threadPool ALIAS threadPool)
@@ -30,7 +30,7 @@ target_include_directories(threadPool
 target_link_libraries(threadPool PUBLIC logging)
 
 set_target_properties(threadPool PROPERTIES
-    PUBLIC_HEADER "include/threadPool/ThreadPool.h;include/threadPool/function2.hpp"
+    PUBLIC_HEADER "include/hostUtils/threadPool/ThreadPool.h;include/hostUtils/threadPool/function2.hpp"
     POSITION_INDEPENDENT_CODE ON
 )
 

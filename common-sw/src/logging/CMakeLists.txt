@@ -17,10 +17,10 @@ include(GNUInstallDirs)
 find_package(g3log REQUIRED)
 
 add_library(logging 
-    include/logging/Logging.h 
-    include/logging/Logger.h 
-    include/logging/DefaultSinks.h 
-    include/logging/Instance.h
+    include/hostUtils/logging/Logging.h
+    include/hostUtils/logging/Logger.h
+    include/hostUtils/logging/DefaultSinks.h
+    include/hostUtils/logging/Instance.h
     src/Instance.cpp
 )
 add_library(hostUtils::logging ALIAS logging)
@@ -35,7 +35,7 @@ target_compile_features(logging PRIVATE cxx_std_17)
 target_link_libraries(logging PUBLIC g3log)
 
 set_target_properties(logging PROPERTIES
-    PUBLIC_HEADER "include/logging/Logging.h;include/logging/Logger.h;include/logging/DefaultSinks.h;include/logging/Instance.h"
+    PUBLIC_HEADER "include/hostUtils/logging/Logging.h;include/hostUtils/logging/Logger.h;include/hostUtils/logging/DefaultSinks.h;include/hostUtils/logging/Instance.h"
     POSITION_INDEPENDENT_CODE ON
 )
 

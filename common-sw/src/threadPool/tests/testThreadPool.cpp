@@ -8,11 +8,11 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "threadPool/ThreadPool.h"
+#include "hostUtils/threadPool/ThreadPool.h"
 #include <atomic>
 #include <chrono>
 #include <gtest/gtest.h>
-#include <logging/Logger.h>
+#include <hostUtils/logging/Logger.h>
 #include <thread>
 using namespace threadPool;
 TEST(ThreadPool, simple) {
