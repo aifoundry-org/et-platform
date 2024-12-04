@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - (CMake) Honor CMAKE_<LANG>_VISIBILITY_PRESET and handle exporting only public symbols
 - (Conan) Support 'fvisibility' option to be able to restrict symbol visibility on demand. 
           For now default symbol visibility is kept as 'default'.
+- (CI) Run smoke/build jobs with "et-host-utils:fvisibility=hidden" to catch symbol visibility issues early
 ### Deprecated
 ### Removed
 ### Fixed

@@ -86,7 +86,7 @@ smoke_tests:conan:sysemu:
     CMD_BUILD: |
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o et-host-utils:with_tests=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o et-host-utils:with_tests=True -o et-host-utils:fvisibility=hidden --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
       cmake --build --preset $${BUILD_TYPE_LOWER}
       ctest --preset $${BUILD_TYPE_LOWER} --no-compress-output --output-on-failure --parallel 4
@@ -204,8 +204,8 @@ build:conan2:
     matrix: *matrix_conan2
   script:
     - conan cache restore conan_cache_save.tgz
-    - conan lock create conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
-    - conan install     conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True --build=missing --lockfile=conan.lock   # Install dependencies from the lockfile
+    - conan lock create conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True -o et-host-utils/*:fvisibility=hidden --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
+    - conan install     conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True -o et-host-utils/*:fvisibility=hidden --build=missing --lockfile=conan.lock   # Install dependencies from the lockfile
     - cmake --preset conan-${BUILD_TYPE} -G Ninja 
     - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
     - ctest --preset conan-${BUILD_TYPE} --no-compress-output --output-on-failure --parallel 4
