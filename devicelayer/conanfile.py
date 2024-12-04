@@ -1,8 +1,8 @@
 from conan import ConanFile
 from conan.tools.build import cross_building
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
-from conan.tools.files import get, rmdir
 from conan.tools.env import VirtualBuildEnv, VirtualRunEnv
+from conan.tools.files import get, rmdir
 import os
 
 required_conan_version = ">=1.52.0"
@@ -15,6 +15,7 @@ class DeviceLayerConan(ConanFile):
     description = ""
     license = "Esperanto Technologies"
 
+    package_type = "library"
     settings = "os", "arch", "compiler", "build_type"
     options = {
         "shared": [True, False],
@@ -52,11 +53,13 @@ class DeviceLayerConan(ConanFile):
             self.options.rm_safe("fPIC")
 
     def requirements(self):
+        # public dependencies
         self.requires("sw-sysemu/0.20.0-alpha")
         self.requires("et-host-utils/0.4.0-alpha")
+        self.requires("gtest/1.10.0")  # Required in public-interface header: IDeviceLayerMock.h
+        # private dependencies
         self.requires("linuxDriver/0.15.0")
         self.requires("boost/1.72.0")  # TODO we should not depend on boost
-        self.requires("gtest/1.10.0")  # Required in public-interface header: IDeviceLayerMock.h
 
     def build_requirements(self):
         self.tool_requires("cmake-modules/[>=0.4.1 <1.0.0]")
