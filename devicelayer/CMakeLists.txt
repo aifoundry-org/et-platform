@@ -100,6 +100,9 @@ include(GenerateExportHeader)
 generate_export_header(deviceLayer
     EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/device-layer/IDeviceLayerExport.h
     EXPORT_MACRO_NAME DEVICE_LAYER_EXPORT
+    NO_EXPORT_MACRO_NAME  DEVICE_LAYER_PRIVATE
+    DEPRECATED_MACRO_NAME DEVICE_LAYER_DEPRECATED
+    BASE_NAME             DEVICE_LAYER
 )
 target_sources(deviceLayer PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include/device-layer/IDeviceLayerExport.h)
 
