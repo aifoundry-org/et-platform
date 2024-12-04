@@ -41,11 +41,11 @@ macro(build_test_binary)
     add_executable(${TEST_TARGET} ${TEST_SOURCES})
 
     # We need PRIVATE include dirs
-    get_target_property(ETRT_OBJ_INCLUDE_DIRS etrt_obj INCLUDE_DIRECTORIES)
+    get_target_property(ETRT_INCLUDE_DIRS etrt INCLUDE_DIRECTORIES)
 
     target_include_directories(${TEST_TARGET}
         PUBLIC
-            ${ETRT_OBJ_INCLUDE_DIRS}
+            ${ETRT_INCLUDE_DIRS}
         PRIVATE
             ${COMMON_DIR}
             ${PROJECT_SOURCE_DIR}/tests

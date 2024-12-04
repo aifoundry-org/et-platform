@@ -7,9 +7,10 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-
 #pragma once
+
 #include <ostream>
+#include <runtime/IRuntimeExport.h>
 
 /// \defgroup runtime_profiler_api Runtime Profiler API
 ///
@@ -21,7 +22,7 @@ namespace rt {
 
 /// \brief IProfiler interface declaration, all IProfiler interactions should be made using this interface.
 ///
-class IProfiler {
+class ETRT_API IProfiler {
 public:
   /// \brief Profiler user can choose what profiling output generate, Json format or Binary format
   enum class OutputType { Json, Binary };
@@ -49,7 +50,7 @@ namespace profiling {
 class ProfileEvent;
 
 /// \brief IProfilerRecorder interface declaration, its a simple added method to IProfiler interface for recording
-class IProfilerRecorder : public IProfiler {
+class ETRT_API IProfilerRecorder : public IProfiler {
 public:
   virtual void record(const ProfileEvent& event) = 0;
 

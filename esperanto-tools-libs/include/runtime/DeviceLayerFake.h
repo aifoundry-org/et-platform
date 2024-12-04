@@ -9,17 +9,21 @@
  *-------------------------------------------------------------------------*/
 #pragma once
 #include "runtime/Types.h"
+#include <runtime/IRuntimeExport.h>
+
+#include <device-layer/IDeviceLayer.h>
+#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
+
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
-#include <device-layer/IDeviceLayer.h>
-#include <esperanto/device-apis/operations-api/device_ops_api_cxx.h>
 #include <mutex>
 #include <queue>
 #include <string>
 
 namespace dev {
-class DeviceLayerFake : public IDeviceLayer {
+
+class ETRT_API DeviceLayerFake : public IDeviceLayer {
   std::unordered_map<int, std::queue<device_ops_api::rsp_header_t>> responsesMasterMinion_;
   std::unordered_map<int, std::queue<device_ops_api::dev_mgmt_rsp_header_t>> responsesServiceProcessor_;
   std::condition_variable cvMm_;
@@ -312,6 +316,22 @@ public:
 
   bool checkP2pDmaCompatibility(int, int) const override {
     return false;
+  }
+
+private:
+  std::unordered_map<int, std::queue<device_ops_api::rsp_header_t>> responsesMasterMinion_;
+  std::unordered_map<int, std::queue<device_ops_api::dev_mgmt_rsp_header_t>> responsesServiceProcessor_;
+  std::condition_variable cvMm_;
+  std::condition_variable cvSp_;
+  std::mutex mmMutex_;
+  std::mutex spMutex_;
+  const int numDevices_;
+  Parameters params_;
+
+  void checkDevice(int device) const {
+    if (device >= numDevices_ || device < 0) {
+      throw Exception("Invalid device");
+    }
   }
 };
 } // namespace dev

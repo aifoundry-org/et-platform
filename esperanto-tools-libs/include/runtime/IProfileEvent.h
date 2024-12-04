@@ -9,10 +9,10 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-
 #pragma once
 
 #include "runtime/IRuntime.h"
+#include <runtime/IRuntimeExport.h>
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/chrono.hpp>
@@ -89,7 +89,7 @@ class ScopedProfileEvent;
 
 /// \brief ProfileEvent exposes serialization internals for runtime users.
 ///
-class ProfileEvent {
+class ETRT_API ProfileEvent {
 public:
   using Id = uint64_t;
   using Cycles = uint64_t;

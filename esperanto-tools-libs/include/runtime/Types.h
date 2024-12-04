@@ -8,9 +8,13 @@
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
 #pragma once
+
+#include <runtime/IRuntimeExport.h>
+
+#include <hostUtils/debug/StackException.h>
+
 #include <cstddef>
 #include <functional>
-#include <hostUtils/debug/StackException.h>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -43,7 +47,7 @@ enum class DeviceId : int {};
 enum class KernelId : int {};
 
 /// \brief This struct will hold parametrization options for Runtime instantiation
-struct Options {
+struct ETRT_API Options {
   bool checkMemcpyDeviceOperations_; /// < if set, the runtime will inspect all memcpy operations and throw an
                                      /// exception if invalid device address/size
   bool checkDeviceApiVersion_;
@@ -59,11 +63,11 @@ using RuntimePtr = std::unique_ptr<class IRuntime>;
 
 /// \brief The error handling in the runtime is trough exceptions. This is the
 /// only exception kind that the runtime can throw
-class Exception : public dbg::StackException {
+class ETRT_API Exception : public dbg::StackException {
   using dbg::StackException::StackException;
 };
 /// \brief This struct will hold a number of memcpy operations.
-struct MemcpyList {
+struct ETRT_API MemcpyList {
 
   void addOp(std::byte* src, std::byte* dst, size_t size) {
     operations_.emplace_back(Op{src, dst, size});
@@ -79,7 +83,7 @@ struct MemcpyList {
 
 /// \brief This is the device kernel error context which is a result of a running kernel terminating on a abnormal state
 /// (exception / abort)
-struct __attribute__((aligned(64))) ErrorContext {
+struct ETRT_API __attribute__((aligned(64))) ErrorContext {
   uint64_t type_;  ///< 0: compute hang, 1: U-mode exception, 2: system abort, 3: self abort, 4: kernel execution error,
                    ///< 5: kernel execution tensor error
   uint64_t cycle_; ///< The cycle as sampled from the system counters at the point where the event type has happened.
@@ -172,7 +176,7 @@ enum class DeviceErrorCode {
 
 /// \brief This struct contains the errorCode given by de device when some command fail and the associated
 /// \ref rt::ErrorContext (if any)
-struct StreamError {
+struct ETRT_API StreamError {
   explicit StreamError(DeviceErrorCode errorCode, DeviceId device = DeviceId{-1})
     : errorCode_(errorCode)
     , device_(device) {
@@ -203,7 +207,7 @@ using KernelAbortedCallback =
   std::function<void(EventId event, std::byte* context, size_t size, std::function<void()> freeResources)>;
 
 /// \brief This struct will contain the results of calling a loadCode function
-struct LoadCodeResult {
+struct ETRT_API LoadCodeResult {
   EventId event_;          /// < event to wait for the loadCode is complete
   KernelId kernel_;        /// < kernelId associated to the loadCode, to be used in later kernelLaunch(es)
   std::byte* loadAddress_; /// < this is the device physical address where the kernel was loaded (decided by runtime)
@@ -213,7 +217,7 @@ struct LoadCodeResult {
 #define spareComputeMinionoShireId_ spareComputeMinionShireId_
 
 /// \brief This struct encodes device properties
-struct DeviceProperties {
+struct ETRT_API DeviceProperties {
   enum class FormFactor { PCIE, M2 };
   enum class ArchRevision { ETSOC1, PANTERO, GEPARDO, UNKNOWN = -1 };
   uint32_t frequency_;                  ///< minion boot frequency in Mhz
@@ -279,7 +283,7 @@ struct DeviceProperties {
 
 // NOTE: this is copied directly from device firmware "encoder.h"; we need to find a proper solution. So this will be in
 // a experimental status until everything is properly designed.
-struct UserTrace {
+struct ETRT_API UserTrace {
   uint64_t buffer_;      /*!< Base address for Trace buffer. */
   uint32_t buffer_size_; /*!< Total size of the Trace buffer. */
   uint32_t threshold_;   /*!< Threshold for free memory in the buffer for each hart. */
@@ -292,7 +296,7 @@ struct UserTrace {
 // These two structs (DmaInfo and DeviceConfig) are directly copied from IDeviceLayer.h; these needs to be republished
 // by runtime since runtime consumers dont necessary need to know about DeviceLayer component once runtime multiprocess
 // is released
-struct DmaInfo {
+struct ETRT_API DmaInfo {
   uint64_t maxElementSize_;  ///< maximum amount of memory that can be transfer per each DMA command entry
   uint64_t maxElementCount_; ///< max number of DMA entries per DMA command
 };
@@ -308,7 +312,7 @@ static constexpr auto defaultCmaCopyFunction = [](const std::byte* src, std::byt
 // Forward declaration
 struct KernelLaunchOptionsImp;
 
-class KernelLaunchOptions {
+class ETRT_API KernelLaunchOptions {
 
   friend class RuntimeImp;
 

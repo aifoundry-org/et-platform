@@ -49,6 +49,9 @@ void relocateSection(std::byte* runtimeBaseAddress, std::byte* elfContents,
                      ELFIO::relocation_section_accessor& reloc_sec, ELFIO::Elf64_Addr elfBaseAddr);
 std::tuple<ELFIO::Elf64_Addr, size_t> getELFBaseAddr(const ELFIO::elfio& elf);
 
+void recordMemoryStats(IProfilerRecorder& profiler, DeviceId device, size_t free_bytes,
+                       size_t max_free_contiguous_bytes, size_t allocated_memory);
+
 RuntimeImp::~RuntimeImp() {
   RT_LOG(INFO) << "Destroying runtime";
   for (auto d : devices_) {

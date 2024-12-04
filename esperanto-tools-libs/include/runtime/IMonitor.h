@@ -7,9 +7,11 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-
 #pragma once
+
 #include "Types.h"
+#include <runtime/IRuntimeExport.h>
+
 /// \defgroup runtime_monitor_api Runtime Monitoring API
 ///
 /// The Monitor API provides an interface to query about the multiprocess server status.
@@ -19,7 +21,7 @@ namespace rt {
 /// \brief Facade Monitor interface declaration, all monitoring interactions should be made using this interface. There
 /// is a static method \ref create to make monitoring instances.
 ///
-class IMonitor {
+class ETRT_API IMonitor {
 public:
   /// \brief Returns the number of clients currently connected to the server.
   virtual size_t getCurrentClients() = 0;

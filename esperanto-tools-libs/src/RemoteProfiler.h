@@ -27,7 +27,7 @@ class Worker;
 namespace rt::profiling {
 
 // Worker profiler: sends back profiling events to the client
-class RemoteProfiler : public IProfilerRecorder {
+class ETRT_API RemoteProfiler : public IProfilerRecorder {
 public:
   RemoteProfiler();
   ~RemoteProfiler() override = default;

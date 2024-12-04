@@ -21,6 +21,8 @@
 
 using namespace rt;
 
+std::string commandString(const std::vector<std::byte>& commandData);
+
 std::string commandString(const std::vector<std::byte>& commandData) {
   std::stringstream ss;
   ss << "Sent command: 0x";

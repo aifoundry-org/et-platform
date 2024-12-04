@@ -1,8 +1,9 @@
 from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
+from conan.tools.build import can_run, cross_building
 from conan.tools.cmake import CMake, CMakeToolchain
-from conan.tools.build import can_run
 from conan.tools.files import copy, rmdir
+from conan.tools.env import VirtualBuildEnv, VirtualRunEnv
 from conan.tools.layout import cmake_layout
 import os
 
@@ -16,6 +17,7 @@ class RuntimeConan(ConanFile):
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
+        "fvisibility": ["default", "protected", "hidden"],
         "with_tools": [True, False],
         "with_tests": [True, False],
         "disable_easy_profiler": [True, False],
@@ -23,6 +25,7 @@ class RuntimeConan(ConanFile):
         "run_tests_sdk": ["v1.3.3", "v1.4.4", "v1.5.3", "v1.6.2", "latest"]  # TODO: once newer SDK(S) are released, add them here (with current + next should be enough)
     }
     default_options = {
+        "fvisibility": "default",
         "with_tools": False,
         "with_tests": False,
         "disable_easy_profiler": False,
@@ -30,7 +33,7 @@ class RuntimeConan(ConanFile):
         "run_tests_sdk": "v1.6.2",
     }
 
-    generators = "CMakeDeps", "VirtualRunEnv"
+    generators = "CMakeDeps"
 
     python_requires = "conan-common/[>=1.1.0 <2.0.0]"
 
@@ -165,7 +168,7 @@ class RuntimeConan(ConanFile):
     def requirements(self):
         self.requires("deviceApi/2.1.0")
         self.requires("deviceLayer/4.0.0-alpha")
-        self.requires("hostUtils/0.3.0")
+        self.requires("et-host-utils/0.4.0-alpha")
 
         self.requires("cereal/1.3.2")
         self.requires("elfio/3.8")
@@ -199,12 +202,22 @@ class RuntimeConan(ConanFile):
         get_sources_if_scm_pristine(self)
 
     def generate(self):
+        vbe = VirtualBuildEnv(self)
+        vbe.generate()
+        if not cross_building(self):
+            vre = VirtualRunEnv(self)
+            vre.generate(scope="build")
+
         device_api = self.dependencies["deviceApi"]
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["BUILD_TOOLS"] = self.options.get_safe("with_tools")
         tc.variables["DISABLE_EASY_PROFILER"] = not self.options.get_safe("disable_easy_profiler")
         tc.variables["BUILD_DOCS"] = False
+        tc.variables["CMAKE_ASM_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_C_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_CXX_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_VISIBILITY_INLINES_HIDDEN"] = "ON" if self.options.fvisibility == "hidden" else "OFF"
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.deps_cpp_info["cmake-modules"].rootpath, "cmake")
         tc.generate()

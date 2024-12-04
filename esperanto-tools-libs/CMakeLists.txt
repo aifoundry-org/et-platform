@@ -70,93 +70,117 @@ endif()
 find_package(deviceApi REQUIRED)
 find_package(deviceLayer REQUIRED)
 find_package(hostUtils REQUIRED)
-# Runtime base object library
-add_library(etrt_obj OBJECT
-    src/Runtime.cpp
-    src/RuntimeImp.cpp
-    src/MemoryManager.cpp
-    src/EventManager.cpp
-    src/CommandSender.cpp
-    src/CoreDumper.cpp
-    src/ExecutionContextCache.cpp
-    src/ResponseReceiver.cpp
-    src/KernelLaunch.cpp
-    src/MemcpyOps.cpp
-    src/dma/CmaManager.cpp
-    src/dma/MemcpyContext.h
-    src/dma/MemcpyD2HAction.h
-    src/dma/MemcpyH2DAction.cpp
-    src/dma/MemcpyH2DAction.h
-    src/dma/MemcpyListD2HAction.cpp
-    src/dma/MemcpyListD2HAction.h
-    src/dma/MemcpyListH2DAction.cpp
-    src/dma/MemcpyListH2DAction.h
-    src/dma/MemcpyD2HAction.cpp
-    src/ProfileEvent.cpp
-    src/ProfilerImp.cpp
-    src/RemoteProfiler.cpp
-    src/StreamManager.cpp
-    src/Types.cpp
-    src/Utils.cpp
-    src/server/Server.cpp
-    src/server/Worker.cpp
-    src/server/Client.cpp
-    src/KernelLaunchOptions.cpp
-)
 
-set_target_properties(etrt_obj PROPERTIES
-    PUBLIC_HEADER "include/runtime/IProfiler.h;include/runtime/IRuntime.h;include/runtime/IProfileEvent.h;include/runtime/Types.h;include/runtime/DeviceLayerFake.h"
-    POSITION_INDEPENDENT_CODE ON
-)
 
-target_compile_definitions(etrt_obj
-    PRIVATE
-        $<$<BOOL:${SYNCHRONOUS_MODE}>: RUNTIME_SYNCHRONOUS_MODE>
-        $<$<BOOL:${DISABLE_SANITY_CHECKS}>: DISABLE_SANITY_CHECKS>
-        $<$<BOOL:${DISABLE_EASY_PROFILER}>: DISABLE_EASY_PROFILER>
-)
+function(etrt_add_library)
+    set(options)
+    set(oneValueArgs NAME TYPE)
+    set(multiValueArgs)
+    cmake_parse_arguments(etrt_add_library "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-target_include_directories(etrt_obj
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-target_set_project_warnings(etrt_obj)
-target_compile_options(etrt_obj
-    PRIVATE
-        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=cast-align>
-        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=write-strings>
-)
-target_add_sanitizers(etrt_obj)
+    # Runtime base object library
+    add_library(${etrt_add_library_NAME} ${etrt_add_library_TYPE}
+            src/Runtime.cpp
+            src/RuntimeImp.cpp
+            src/MemoryManager.cpp
+            src/EventManager.cpp
+            src/CommandSender.cpp
+            src/CoreDumper.cpp
+            src/ExecutionContextCache.cpp
+            src/ResponseReceiver.cpp
+            src/KernelLaunch.cpp
+            src/MemcpyOps.cpp
+            src/dma/CmaManager.cpp
+            src/dma/MemcpyContext.h
+            src/dma/MemcpyD2HAction.h
+            src/dma/MemcpyH2DAction.cpp
+            src/dma/MemcpyH2DAction.h
+            src/dma/MemcpyListD2HAction.cpp
+            src/dma/MemcpyListD2HAction.h
+            src/dma/MemcpyListH2DAction.cpp
+            src/dma/MemcpyListH2DAction.h
+            src/dma/MemcpyD2HAction.cpp
+            src/ProfileEvent.cpp
+            src/ProfilerImp.cpp
+            src/RemoteProfiler.cpp
+            src/StreamManager.cpp
+            src/Types.cpp
+            src/Utils.cpp
+            src/server/Server.cpp
+            src/server/Worker.cpp
+            src/server/Client.cpp
+            src/KernelLaunchOptions.cpp
+    )
+    add_library(runtime::${etrt_add_library_NAME} ALIAS ${etrt_add_library_NAME})
 
-target_link_libraries(etrt_obj
-    PUBLIC
-        hostUtils::debug
-        deviceApi::deviceApi
-    PRIVATE
-        easy_profiler
-        libcap::libcap
-        cereal::cereal
-        deviceLayer::deviceLayer
-        hostUtils::logging
-        hostUtils::threadPool
-        hostUtils::actionList
-        elfio::elfio
-)
+    set(${etrt_add_library_NAME}_PUBLIC_HEADERS
+            include/runtime/IProfiler.h
+            include/runtime/IRuntime.h
+            include/runtime/IProfileEvent.h
+            include/runtime/Types.h
+            include/runtime/DeviceLayerFake.h
+    )
+    set_target_properties(${etrt_add_library_NAME} PROPERTIES
+        PUBLIC_HEADER ${${etrt_add_library_NAME}_PUBLIC_HEADERS}
+        POSITION_INDEPENDENT_CODE ON
+    )
+    target_compile_definitions(${etrt_add_library_NAME}
+        PRIVATE
+            $<$<BOOL:${SYNCHRONOUS_MODE}>: RUNTIME_SYNCHRONOUS_MODE>
+            $<$<BOOL:${DISABLE_SANITY_CHECKS}>: DISABLE_SANITY_CHECKS>
+            $<$<BOOL:${DISABLE_EASY_PROFILER}>: DISABLE_EASY_PROFILER>
+    )
+    target_include_directories(${etrt_add_library_NAME}
+        PUBLIC
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_set_project_warnings(${etrt_add_library_NAME})
+    target_compile_options(${etrt_add_library_NAME}
+        PRIVATE
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=attributes>
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=unused-function>
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=missing-declarations>
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=cast-align>
+            $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=write-strings>
+    )
+    target_add_sanitizers(${etrt_add_library_NAME})
+    target_link_libraries(${etrt_add_library_NAME}
+        PUBLIC
+            hostUtils::debug
+            deviceApi::deviceApi
+        PRIVATE
+            easy_profiler
+            libcap::libcap
+            cereal::cereal
+            deviceLayer::deviceLayer
+            hostUtils::logging
+            hostUtils::threadPool
+            hostUtils::actionList
+            elfio::elfio
+    )
+endfunction()
 
 
 ## Build shared library
-add_library(etrt SHARED)
-add_library(runtime::etrt ALIAS etrt)
-target_link_libraries(etrt PUBLIC etrt_obj)
+etrt_add_library(NAME etrt TYPE SHARED)
+include(GenerateExportHeader)
+generate_export_header(etrt
+    EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/runtime/IRuntimeExport.h
+    EXPORT_MACRO_NAME     ETRT_API
+    NO_EXPORT_MACRO_NAME  ETRT_PRIVATE
+    DEPRECATED_MACRO_NAME ETRT_DEPRECATED
+    BASE_NAME             ETRT
+)
 
 ## Build static library
-add_library(etrt_static STATIC)
-add_library(runtime::etrt_static ALIAS etrt)
-target_link_libraries(etrt_static PUBLIC etrt_obj)
+etrt_add_library(NAME etrt_static TYPE STATIC)
+# STATIC target needs special preprocessor define to prevent symbol import/export keywords to be added
+target_compile_definitions(etrt_static PUBLIC ETRT_STATIC_DEFINE)
 
 ## Add server daemon
 add_executable(server src/server/main.cpp)
@@ -170,10 +194,10 @@ target_link_libraries(server
 target_compile_definitions(server 
     PRIVATE
         $<$<BOOL:${DISABLE_EASY_PROFILER}>: DISABLE_EASY_PROFILER>
-    )    
+)
     
 ## Install library targets (new)
-install(TARGETS etrt_obj etrt etrt_static server
+install(TARGETS etrt etrt_static server
     EXPORT runtimeTargets
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -234,7 +258,7 @@ install(FILES
 )
 
 # export targets from the build tree (this allows consuming generated runtimeTargets.cmake without having to install first - not relocatable)
-export(TARGETS etrt_obj etrt etrt_static
+export(TARGETS etrt etrt_static
     FILE ${CMAKE_CURRENT_BINARY_DIR}/runtimeTargets.cmake
     NAMESPACE runtime::
 )

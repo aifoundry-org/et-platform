@@ -21,7 +21,7 @@
 
 namespace rt {
 class Worker;
-class Server {
+class ETRT_API Server {
 public:
   explicit Server(const std::string& socketPath, std::shared_ptr<dev::IDeviceLayer> const& deviceLayer,
                   Options options);

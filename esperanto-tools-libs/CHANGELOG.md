@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **API CHANGE:** Extended DeviceProperties to include the number of chiplets and the address map
 - Depend on device layer 4 series due to API changes
+- (CMake) Honor CMAKE_<LANG>_VISIBILITY_PRESET and handle exporting only public symbols
+- (Conan) Support 'fvisibility' option to be able to restrict symbol visibility on demand.
+    For now default symbol visibility is kept as 'default'.
+- (CI) Run smoke/test jobs with "*:fvisibility=hidden" to catch symbol visibility issues early
 ### Deprecated
 ### Removed
 ### Fixed

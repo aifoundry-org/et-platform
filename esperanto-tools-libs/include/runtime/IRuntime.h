@@ -7,11 +7,12 @@
  * in accordance with the terms and conditions stipulated in the
  * agreement/contract under which the program(s) have been supplied.
  *-------------------------------------------------------------------------*/
-
 #pragma once
 
 #include "IProfiler.h"
 #include "Types.h"
+#include <runtime/IRuntimeExport.h>
+
 #include <chrono>
 #include <cstddef>
 #include <memory>
@@ -38,7 +39,7 @@ namespace rt {
 /// \brief Facade Runtime interface declaration, all runtime interactions should be made using this interface. There is
 /// a static method \ref create to make runtime instances (factory method)
 ///
-class IRuntime {
+class ETRT_API IRuntime {
 public:
   /// \brief Returns all devices
   ///

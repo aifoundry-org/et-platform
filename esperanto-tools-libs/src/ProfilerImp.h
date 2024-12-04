@@ -44,7 +44,7 @@ public:
 };
 
 // Regular implementation
-class ProfilerImp : public IProfilerRecorder {
+class ETRT_API ProfilerImp : public IProfilerRecorder {
 public:
   // IProfiler interface
   void start(std::ostream& outputStream, OutputType outputType) override;

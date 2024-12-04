@@ -129,11 +129,11 @@ unit_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o *:fvisibility=hidden -o runtime:with_tests=True -o runtime:run_tests=True -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      source build/${BUILD_TYPE}/generators/conanbuild.sh
       cmake --build --preset $${BUILD_TYPE_LOWER}
-      cd build/${BUILD_TYPE}
-      ctest -L 'UT' -E 'runtime:ut_RuntimeBenchmark' -LE 'MP' --output-on-failure -j 4
+      ctest --preset $${BUILD_TYPE_LOWER} -L 'UT' -E 'runtime:ut_RuntimeBenchmark' -LE 'MP' --output-on-failure -j 4
 
 ###############################################################################
 ###############################################################################
@@ -253,13 +253,13 @@ tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o *:fvisibility=hidden -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      source build/${BUILD_TYPE}/generators/conanbuild.sh
       cmake --build --preset $${BUILD_TYPE_LOWER}
-      cd build/${BUILD_TYPE}
-      ctest -L 'Generic' -LE 'MP' --output-on-failure -j 4
+      ctest --preset $${BUILD_TYPE_LOWER} -L 'Generic' -LE 'MP' --output-on-failure -j 4
       # SW-18081: Enable ut_mp tests again
-      sudo ctest -L 'Generic' -L 'MP' -E ut_mp --output-on-failure
+      sudo ctest --preset $${BUILD_TYPE_LOWER} -L 'Generic' -L 'MP' -E ut_mp --output-on-failure
 
 # NIGHTLY 
 # - tests are repeated 10 times to catch flacky tests
@@ -282,11 +282,11 @@ nightly_torture_tests:conan:sysemu:
       BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
       sudo apt install ninja-build
       conan remote disable conan-tmp
-      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build=missing
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o *:fvisibility=hidden -o runtime:with_tests=True -o runtime:run_tests=True -o runtime:run_tests_sdk=${SDK} -o esperanto-flash-tool:header_only=True --build=missing
       cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      source build/${BUILD_TYPE}/generators/conanbuild.sh
       cmake --build --preset $${BUILD_TYPE_LOWER}
-      cd build/${BUILD_TYPE}
-      sudo ctest -L 'Generic' --repeat until-fail:10 --output-on-failure
+      sudo ctest --preset $${BUILD_TYPE_LOWER} -L 'Generic' --repeat until-fail:10 --output-on-failure
 
 # integration testing with sw-platform
 #

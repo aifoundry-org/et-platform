@@ -11,9 +11,10 @@
 
 #include <exception>
 #include <hostUtils/debug/StackException.h>
+#include <runtime/IRuntimeExport.h>
 
 namespace rt {
-class NetworkException : public dbg::StackException {
+class ETRT_API NetworkException : public dbg::StackException {
   using dbg::StackException::StackException;
 };
 } // namespace rt
