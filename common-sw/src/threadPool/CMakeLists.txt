@@ -20,7 +20,7 @@ add_library(threadPool
     src/ThreadPool.cpp
 )
 add_library(hostUtils::threadPool ALIAS threadPool)
-target_compile_features(threadPool INTERFACE cxx_std_14)
+target_compile_features(threadPool INTERFACE cxx_std_17)
 target_set_project_warnings(threadPool)
 target_include_directories(threadPool
     PUBLIC

@@ -23,7 +23,7 @@ add_library(actionList
 )
 
 add_library(hostUtils::actionList ALIAS actionList)
-target_compile_features(actionList INTERFACE cxx_std_14)
+target_compile_features(actionList INTERFACE cxx_std_17)
 target_set_project_warnings(actionList)
 target_compile_options(actionList
     PRIVATE
