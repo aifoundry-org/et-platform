@@ -10,14 +10,16 @@
 
 #pragma once
 #include "ActionList.h"
+#include <hostUtils/actionList/ActionListExport.h>
 
 #include <condition_variable>
 #include <thread>
+
 namespace actionList {
 
 /// \brief Runner instance manages a  thread that executes actions from an ActionList; it will execute an update cycle
 /// and then it will block.
-class Runner {
+class ACTION_LIST_API Runner {
 public:
   explicit Runner(ActionList actionList = {});
   ~Runner();
@@ -35,4 +37,5 @@ private:
   std::condition_variable cv_;
   bool running_ = true;
 };
+
 } // namespace actionList

@@ -9,7 +9,9 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+#include <hostUtils/threadPool/ThreadPoolExport.h>
 #include "function2.hpp"
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
@@ -18,9 +20,10 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+
 namespace threadPool {
 
-class ThreadPool {
+class THREAD_POOL_API ThreadPool {
 public:
   using Task = fu2::unique_function<void()>;
   // if resizable, the threadpool will automatically grow if all threads are busy when pushing a new task
@@ -45,4 +48,5 @@ private:
   bool resizable_;
   bool waitPendingTasks_;
 };
+
 } // namespace threadPool

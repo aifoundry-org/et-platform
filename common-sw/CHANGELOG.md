@@ -5,12 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [[_TOC_]]
+
 ## [Unreleased]
 ### Added
+### Changed
+- (Conan) Enable building project as editable
+- (CMake) Honor CMAKE_<LANG>_VISIBILITY_PRESET and handle exporting only public symbols
+- (Conan) Support 'fvisibility' option to be able to restrict symbol visibility on demand. 
+          For now default symbol visibility is kept as 'default'.
 ### Deprecated
 ### Removed
 ### Fixed
 ### Security
+
 ## [0.3.0]
 ### Added
 - [SW-16456] added a basic actionList. Also added a simple Runner which will use a worker thread to run the actionList.

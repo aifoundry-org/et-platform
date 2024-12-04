@@ -9,19 +9,23 @@
  *-------------------------------------------------------------------------*/
 
 #pragma once
+
+#include <hostUtils/actionList/ActionListExport.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <list>
+
 namespace actionList {
 
-struct IAction {
+struct ACTION_LIST_API IAction {
   virtual bool update() = 0;    // returns true if the action is finished
   virtual void onFinish(){};    // called when the action is finished, defaults to do nothing
   virtual ~IAction() = default; // virtual destructor
 };
 
-class ActionList {
+class ACTION_LIST_API ActionList {
 public:
   void addAction(std::unique_ptr<IAction> action); // add an action to the list
   void update(); // update first action, remove it if finished and call the next one, until one is not finished
@@ -31,4 +35,5 @@ private:
   // using list to allow pushing new actions without invalidating iterators
   std::list<std::unique_ptr<IAction>> actions_;
 };
+
 } // namespace actionList

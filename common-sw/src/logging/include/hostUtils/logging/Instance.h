@@ -8,13 +8,15 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 #pragma once
+#include <hostUtils/logging/LoggingExport.h>
 
 #include <memory>
+
 namespace logging {
 
 class Logger;
 
-class Instance {
+class LOGGING_API Instance {
 public:
   /// Public logging levels
   enum class LEVEL { FATAL = 0, WARNING, INFO, DEBUG };

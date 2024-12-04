@@ -9,20 +9,23 @@
 *-------------------------------------------------------------------------*/
 
 #pragma once
+#include <hostUtils/logging/LoggingExport.h>
+
+#include "DefaultSinks.h"
+
 #include <g3log/g3log.hpp>
 #include <g3log/logworker.hpp>
 #include <g3log/loglevels.hpp>
-#include "DefaultSinks.h"
-#include <stdlib.h>
+#include <cstdlib>
 
 namespace logging {
 
-const LEVELS 
+const LEVELS
     VLOG_HIGH{g3::kDebugValue-100, {"VERBOSE_HIGH"}},
     VLOG_MID{g3::kDebugValue-99, {"VERBOSE_MID"}},
     VLOG_LOW{g3::kDebugValue-98, {"VERBOSE_LOW"}};
 
-class Logger {
+class LOGGING_API Logger {
 public:
 
   explicit Logger() {
@@ -37,7 +40,7 @@ protected:
   std::unique_ptr<g3::LogWorker> logWorker_;
 };
 
-class LoggerDefault : public Logger {
+class LOGGING_API LoggerDefault : public Logger {
 public:
   explicit LoggerDefault(bool initialize = true) {
     logWorker_->addSink(std::make_unique<ColoredOutput>(),

@@ -8,10 +8,14 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 #pragma once
+#include <hostUtils/debug/DebugExport.h>
+
 #include <exception>
 #include <string>
+
 namespace dbg {
-class StackException : public std::exception {
+
+class DEBUG_API StackException : public std::exception {
 public:
   explicit StackException(const std::string& message);
   const char* what() const noexcept override;
@@ -19,4 +23,5 @@ public:
 private:
   std::string decoratedMessage_;
 };
+
 }

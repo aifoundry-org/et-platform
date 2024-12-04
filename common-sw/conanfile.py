@@ -17,11 +17,13 @@ class HostUtilsConan(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
+        "fvisibility": ["default", "protected", "hidden"],
         "with_tests": [True, False],
     }
     default_options = {
         "shared": False,
         "fPIC": True,
+        "fvisibility": "default",
         "with_tests": False
     }
 
@@ -70,7 +72,7 @@ class HostUtilsConan(ConanFile):
                     "requires": common_requires,
                     "includedirs": {
                         "source": [f"src/{name}/include"],
-                        "build": [],
+                        "build": [f"src/{name}/include"],
                         "package": ["include"],
                     },
                     "libdirs": {
@@ -89,7 +91,7 @@ class HostUtilsConan(ConanFile):
                 "requires": common_requires,
                 "includedirs": {
                     "source": [f"src/debug/include"],
-                    "build": [],
+                    "build": [f"src/debug/include"],
                     "package": ["include"],
                 },
                 "libdirs": {
@@ -153,6 +155,10 @@ class HostUtilsConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.with_tests
         tc.variables["CMAKE_MODULE_PATH"] = os.path.join(self.dependencies.build["cmake-modules"].package_folder, "cmake")
+        tc.variables["CMAKE_ASM_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_C_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_CXX_VISIBILITY_PRESET"] = self.options.fvisibility
+        tc.variables["CMAKE_VISIBILITY_INLINES_HIDDEN"] = "ON" if self.options.fvisibility == "hidden" else "OFF"
         tc.generate()
 
         deps = CMakeDeps(self)

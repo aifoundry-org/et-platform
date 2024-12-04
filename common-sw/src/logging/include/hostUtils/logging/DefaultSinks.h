@@ -9,13 +9,16 @@
 *-------------------------------------------------------------------------*/
 
 #pragma once
+#include <hostUtils/logging/LoggingExport.h>
+
 #include <g3log/g3log.hpp>
 #include <g3log/logworker.hpp>
 #include <g3log/loglevels.hpp>
 #include <iostream>
 
 namespace logging {
-struct ColoredOutput {
+
+struct LOGGING_API ColoredOutput {
 
 // Linux xterm color
 // http://stackoverflow.com/questions/2616906/how-do-i-output-coloured-text-to-a-linux-terminal
@@ -43,4 +46,5 @@ struct ColoredOutput {
      std::cerr << ss.str() << std::flush;
   }
 };
+
 }
