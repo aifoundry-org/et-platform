@@ -71,6 +71,15 @@ add_library(deviceLayer
 add_library(deviceLayer::deviceLayer ALIAS deviceLayer)
 target_compile_features(deviceLayer PUBLIC cxx_std_17)
 target_set_project_warnings(deviceLayer)
+target_compile_options(deviceLayer
+    PRIVATE
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=all>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=attributes>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=unused-function>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=missing-declarations>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=cast-align>
+        $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Werror=write-strings>
+)
 target_add_sanitizers(deviceLayer)
 target_include_directories(deviceLayer
     PUBLIC
