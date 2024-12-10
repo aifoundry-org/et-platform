@@ -1,10 +1,11 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
+    ref: 92d76debc13b3255d24e41b75eb7522fd8c1da64
     file:
       - pods/nano-pod.yaml
       - pods/large-pod.yaml
       - jobs/generic-k8s-job.yaml
+      - rules/jobs.yaml
 
   - project: esperantotech/software/gitlab-ci-common
     ref: master
@@ -40,44 +41,18 @@ stages:
   - package
   - deploy
 
-# Only run job in these cases:
-# - if it's a tag pipeline
-# - if there is a commit pushed or merged to the default branch (pre-release)
-.release_job:
-  rules:
-    - &release_job_rule
-      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-
-# Only run job in these cases:
-# - if it's a tag pipeline
-# - if there is a commit pushed or merged to the default branch (pre-release)
-# - if there is a MR open (pre-release, unstable)
-.release_or_development_job:
-  rules:
-    - if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      variables:
-        DRY_RUN_PARAM: "--dry-run"
-
-# Only run job in these cases:
-# - if there is a MR open
-.development_job:
-  rules:
-    - &development_job_rule
-      if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
-
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-smoke_tests:conan:sysemu:
+smoke_tests:conan1:
   extends:
     - .pod_large
     - .template_job
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: smoke
   rules:
-    - *development_job_rule
+    - !reference [.development_job, rules]
   parallel:
     matrix:
       - BUILD_TYPE: [ Release, Debug ]
@@ -91,18 +66,14 @@ smoke_tests:conan:sysemu:
       cmake --build --preset $${BUILD_TYPE_LOWER}
       ctest --preset $${BUILD_TYPE_LOWER} --no-compress-output --output-on-failure --parallel 4
 
-###############################################################################
-###############################################################################
-###############################################################################
-
-generate_build:conan:
+generate_build:conan1:
   extends:
     - .pod_nano
     - .template_job
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: generate_build
   needs:
-    - job: smoke_tests:conan:sysemu
+    - job: smoke_tests:conan1
       optional: true
   rules:
     - !reference [.release_or_development_job, rules]
@@ -118,43 +89,30 @@ generate_build:conan:
       - conan/build_pipeline.yml
       - conan/lockfiles_info.json
 
-###############################################################################
-###############################################################################
-###############################################################################
-
-build:conan:
-  stage: build
+package1:
+  stage: package
   needs:
-    - generate_build:conan
+    - generate_build:conan1
   rules:
     - !reference [.release_or_development_job, rules]
   trigger:
     include:
       - artifact: conan/build_pipeline.yml
-        job: generate_build:conan
+        job: generate_build:conan1
     strategy: depend
 
-###############################################################################
-###############################################################################
-###############################################################################
 
-# other tests could go here
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-on_success:promote:
+promote1:
   extends:
     - .pod_nano
     - .template_job
     - .template-conan-linux-ubuntu22.04-gcc11
   stage: deploy
   needs:
-    - generate_build:conan
-    - build:conan
+    - generate_build:conan1
+    - package1
   rules:
-    - *release_job_rule
+    - !reference [.release_job, rules]
   variables:
     PYTHONIOENCODING: utf-8
     CMD_BUILD: |
@@ -190,15 +148,15 @@ capture_graph:conan2:
        - conan.lock
        - conan_cache_save.tgz
 
-build:conan2:
+smoke_tests:conan2:
   extends:
     - .pod_large
     - .template_job
-  stage: build
+  stage: smoke
   needs: 
     - capture_graph:conan2
   rules:
-    - !reference [.release_or_development_job, rules]
+    - !reference [.development_job, rules]
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   parallel:
     matrix: *matrix_conan2
@@ -217,7 +175,8 @@ package2:
   stage: package
   needs: 
     - capture_graph:conan2
-    - build:conan2
+    - job: smoke_tests:conan2
+      optional: true
   rules:
     - !reference  [.release_or_development_job, rules]
   parallel:
