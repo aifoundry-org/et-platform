@@ -119,9 +119,10 @@ function(etrt_add_library)
             include/runtime/IProfileEvent.h
             include/runtime/Types.h
             include/runtime/DeviceLayerFake.h
+            ${CMAKE_CURRENT_BINARY_DIR}/include/runtime/IRuntimeExport.h
     )
     set_target_properties(${etrt_add_library_NAME} PROPERTIES
-        PUBLIC_HEADER ${${etrt_add_library_NAME}_PUBLIC_HEADERS}
+        PUBLIC_HEADER "${${etrt_add_library_NAME}_PUBLIC_HEADERS}"
         POSITION_INDEPENDENT_CODE ON
     )
     target_compile_definitions(${etrt_add_library_NAME}
