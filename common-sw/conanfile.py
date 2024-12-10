@@ -46,7 +46,7 @@ class HostUtilsConan(ConanFile):
         if self.settings.get_safe("os") == "Windows":
             self.options.rm_safe("fPIC")
 
-    def config_options(self):
+    def configure(self):
         if self.options.shared:
             self.options.rm_safe("fPIC")
 
