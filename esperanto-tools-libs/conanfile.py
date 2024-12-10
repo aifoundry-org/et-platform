@@ -62,7 +62,7 @@ class RuntimeConan(ConanFile):
 
     @property
     def _etrt_components(self):
-        common_requires = ["hostUtils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "hostUtils::logging", "hostUtils::threadPool", "hostUtils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
+        common_requires = ["et-host-utils::debug", "deviceApi::deviceApi", "libcap::libcap", "cereal::cereal", "deviceLayer::deviceLayer", "et-host-utils::logging", "et-host-utils::threadPool", "et-host-utils::actionList", "elfio::elfio", "easy_profiler::easy_profiler"]
         return {
             "etrt": {
                 "cmake_target": "runtime::etrt",
@@ -208,7 +208,6 @@ class RuntimeConan(ConanFile):
             vre = VirtualRunEnv(self)
             vre.generate(scope="build")
 
-        device_api = self.dependencies["deviceApi"]
         tc = CMakeToolchain(self)
         tc.variables["BUILD_TESTS"] = self.options.get_safe("with_tests")
         tc.variables["BUILD_TOOLS"] = self.options.get_safe("with_tools")
