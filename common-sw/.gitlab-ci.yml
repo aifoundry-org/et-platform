@@ -230,7 +230,8 @@ package2:
     - pkg_name=$(conan inspect conanfile.py | grep name | cut -d ':' -f 2 | xargs)
     - pkg_version=$(conan inspect conanfile.py | grep version | cut -d ':' -f 2 | xargs)
     - conan lock create conanfile.py                      -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
-    - conan install --requires=${pkg_name}/${pkg_version} -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
+    - conan install --requires=${pkg_name}/${pkg_version} -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --lockfile-out=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
+    - conan test test_package ${pkg_name}/${pkg_version}  -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=never   --lockfile=conan.lock
     - conan list --graph=graph-${FULL_BUILD_NAME}.json --graph-binaries=build --format=json > pkglist-${FULL_BUILD_NAME}.json
     - conan remote enable conan2-tmp
     - conan upload --list=pkglist-${FULL_BUILD_NAME}.json -r=conan2-tmp --confirm --format=json > uploaded-${FULL_BUILD_NAME}.json
