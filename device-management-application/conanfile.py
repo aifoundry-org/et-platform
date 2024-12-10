@@ -1,5 +1,7 @@
 from conan import ConanFile
+from conan.tools.build import can_run, cross_building
 from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
+from conan.tools.env import VirtualBuildEnv, VirtualRunEnv
 from conan.tools.files import rmdir
 import os
 
@@ -27,20 +29,17 @@ class DeviceManagementApplicationConan(ConanFile):
         get_version = self.python_requires["conan-common"].module.get_version
         self.version = get_version(self, self.name)
 
-    def config_options(self):
-        if self.settings.os == "Windows":
-            del self.options.fPIC
-
     def export(self):
         register_scm_coordinates = self.python_requires["conan-common"].module.register_scm_coordinates
         register_scm_coordinates(self)
 
-    def configure(self):
-        check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
-        check_req_min_cppstd(self, "17")
+    def export_sources(self):
+        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
+        copy_sources_if_scm_dirty(self)
 
-    def layout(self):
-        cmake_layout(self)
+    def config_options(self):
+        if self.settings.os == "Windows":
+            self.options.rm_safe('fPIC')
 
     def requirements(self):
         self.requires("deviceManagement/0.20.0")
@@ -53,15 +52,24 @@ class DeviceManagementApplicationConan(ConanFile):
         self.requires("ftxui/5.0.0")
         self.requires("nlohmann_json/3.9.1")
 
-    def export_sources(self):
-        copy_sources_if_scm_dirty = self.python_requires["conan-common"].module.copy_sources_if_scm_dirty
-        copy_sources_if_scm_dirty(self)
+    def validate(self):
+        check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
+        check_req_min_cppstd(self, "17")
+
+    def layout(self):
+        cmake_layout(self)
 
     def source(self):
         get_sources_if_scm_pristine = self.python_requires["conan-common"].module.get_sources_if_scm_pristine
         get_sources_if_scm_pristine(self)
 
     def generate(self):
+        vbe = VirtualBuildEnv(self)
+        vbe.generate()
+        if not cross_building:
+            vre = VirtualRunEnv(self)
+            vre.generate(scope="build")
+
         tc = CMakeToolchain(self)
         tc.variables["CMAKE_INSTALL_LIBDIR"] = "lib"
         tc.variables["ftxui_PROVIDER"] = "find_package"
