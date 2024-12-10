@@ -73,7 +73,7 @@ class DeviceLayerConan(ConanFile):
         cmake_layout(self)
 
         self.cpp.package.includedirs = ["include"]
-        self.cpp.package.libs = ["device-layer"]
+        self.cpp.package.libs = ["deviceLayer"]
         self.cpp.package.requires = [
             # IDeviceLayer.h
             "sw-sysemu::sw-sysemu",
@@ -87,7 +87,7 @@ class DeviceLayerConan(ConanFile):
             "boost::boost"
         ]
         self.cpp.build.includedirs = ["include"]
-        self.cpp.build.libs = ["device-layer"]
+        self.cpp.build.libs = ["deviceLayer"]
         self.cpp.source.includedirs = ["include"]
 
     def source(self):
