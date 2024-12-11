@@ -143,8 +143,8 @@ std::ostream& operator<<(std::ostream& os, DeviceConfig::ArchRevision rev) {
 }
 
 template <typename T>
-inline void logInfoLine(std::stringstream& ss, const std::string attrStr, T attrVal, bool hex = false) {
-  ss << std::setw(32) << std::left << attrStr << std::setw(16) << std::left << attrVal;
+inline void logInfoLine(std::stringstream& ss, const std::string& attrStr, T attrVal, bool hex = false) {
+  ss << std::setw(59) << std::left << attrStr << std::setw(20) << std::left << attrVal;
   if (hex) {
     if constexpr (std::is_same_v<T, std::string>) {
       // Nothing to print as hex for std::string
@@ -155,6 +155,16 @@ inline void logInfoLine(std::stringstream& ss, const std::string attrStr, T attr
     }
   }
   ss << std::endl;
+}
+
+template <> inline void logInfoLine(std::stringstream& ss, const std::string& attrStr, uint8_t attrVal, bool hex) {
+  // Prevent getting the number being printed as a character
+  logInfoLine(ss, attrStr, static_cast<uint16_t>(attrVal), hex);
+}
+
+template <> inline void logInfoLine(std::stringstream& ss, const std::string& attrStr, int8_t attrVal, bool hex) {
+  // Prevent getting the number being printed as a character
+  logInfoLine(ss, attrStr, static_cast<int16_t>(attrVal), hex);
 }
 
 std::string getDeviceAttributeByName(std::string devName, std::string relAttrPath) {
@@ -379,11 +389,11 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
     cfg.devnum,
     0x80000000ULL,                           /* localScpFormat0BaseAddress_ */
     0xC0000000ULL,                           /* localScpFormat1BaseAddress_ */
-    getDramBaseAddress(cfg.devnum),          /* localDRAMBaseAddress_ */
+    getDramBaseAddress(device),              /* localDRAMBaseAddress_ */
     ~0ULL,                                   /* onPkgScpFormat2BaseAddress_ */
-    getDramBaseAddress(cfg.devnum),          /* onPkgDRAMBaseAddress_ */
+    getDramBaseAddress(device),              /* onPkgDRAMBaseAddress_ */
     ~0ULL,                                   /* onPkgDRAMInterleavedBaseAddress_ */
-    getDramSize(cfg.devnum),                 /* localDRAMSize_ */
+    getDramSize(device),                     /* localDRAMSize_ */
     static_cast<uint8_t>(getDmaAlignment()), /* minimumAddressAlignmentBits_ */
     1,                                       /* numChiplets_ */
     23,                                      /* localScpFormat0ShireLSb_ */
@@ -492,10 +502,10 @@ DevicePcie::DevicePcie(bool enableOps, bool enableMgmt)
     throw Exception("Only Mgmt can be enabled in recovery mode");
   }
 
+  devices_.reserve(mgmtDevCount);
   for (int i = 0; i < mgmtDevCount; ++i) {
-    DevInfo deviceInfo;
-    setupDeviceInfo(i, deviceInfo, mgmtEnabled_, opsEnabled_);
-    devices_.emplace_back(deviceInfo);
+    devices_.emplace_back();
+    setupDeviceInfo(i, /* inout */ devices_.back(), mgmtEnabled_, opsEnabled_);
   }
 }
 
