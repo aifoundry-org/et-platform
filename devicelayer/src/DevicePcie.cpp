@@ -389,12 +389,12 @@ void DevicePcie::setupDeviceInfo(int device, DevInfo& deviceInfo, bool enableMgm
     cfg.devnum,
     0x80000000ULL,                           /* localScpFormat0BaseAddress_ */
     0xC0000000ULL,                           /* localScpFormat1BaseAddress_ */
-    getDramBaseAddress(device),              /* localDRAMBaseAddress_ */
-    ~0ULL,                                   /* onPkgScpFormat2BaseAddress_ */
-    getDramBaseAddress(device),              /* onPkgDRAMBaseAddress_ */
-    ~0ULL,                                   /* onPkgDRAMInterleavedBaseAddress_ */
-    getDramSize(device),                     /* localDRAMSize_ */
-    static_cast<uint8_t>(getDmaAlignment()), /* minimumAddressAlignmentBits_ */
+    enableOps ? getDramBaseAddress(device) : 0,                       /* localDRAMBaseAddress_ */
+    ~0ULL,                                                            /* onPkgScpFormat2BaseAddress_ */
+    enableOps ? getDramBaseAddress(device) : 0,                       /* onPkgDRAMBaseAddress_ */
+    ~0ULL,                                                            /* onPkgDRAMInterleavedBaseAddress_ */
+    enableOps ? getDramSize(device) : 0,                              /* localDRAMSize_ */
+    enableOps ? static_cast<uint8_t>(getDmaAlignment()) : (uint8_t)0, /* minimumAddressAlignmentBits_ */
     1,                                       /* numChiplets_ */
     23,                                      /* localScpFormat0ShireLSb_ */
     7,                                       /* localScpFormat0ShireBits_ */

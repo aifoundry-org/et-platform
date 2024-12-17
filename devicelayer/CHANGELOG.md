@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix typo in DeviceConfig::spareComputeMinionoShireId_
 - Fixes for new DeviceConfig contents
 - [SW-22210] Fix incorrect usage of physical device ids instead of virtual ids
+- Avoid querying ops-based props for deviceinfo when ops disabled (dev_mngt_service)
 ### Security
 
 ## [3.0.0] - 2023-12-13
