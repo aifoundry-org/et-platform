@@ -1,11 +1,15 @@
 include:
   - project: esperantotech/software/gitlab-ci-common
-    ref: 92d76debc13b3255d24e41b75eb7522fd8c1da64
+    ref: cf690da44cf5fcb75c56c602182dd055ee81cb5e
     file:
       - pods/nano-pod.yaml
       - pods/large-pod.yaml
       - jobs/generic-k8s-job.yaml
       - rules/jobs.yaml
+      - conan2/conan2-build.yaml
+      - conan2/conan2-capture_graph.yaml
+      - conan2/conan2-package.yaml
+      - conan2/conan2-promote.yaml
 
   - project: esperantotech/software/gitlab-ci-common
     ref: master
@@ -16,6 +20,7 @@ include:
 ###### Should be NO hardcorded values inside the Conan2 jobs ##################
 ###############################################################################
 variables:
+  PKG_NAME: "et-host-utils" # as defined in conafile.py "name" field
   OS: "linux-ubuntu22.04"
   OS_BUILD: "ubuntu-22.04" # for selecting docker image 
   ARCH: "x86_64"
@@ -131,39 +136,31 @@ capture_graph:conan2:
   extends:
     - .pod_large
     - .template_job
+    - .capture_graph_script  # Template with all commands
   stage: .pre
   needs: []
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   rules:
     - !reference [.release_or_development_job, rules]
-  script:
-    - conan remove "*" -c
-    - conan remote disable "*"
-    - conan remote enable conan2-develop
-    - conan export conanfile.py  -r conan2-develop --lockfile-out=conan.lock
-    - conan cache save "et-host-utils/*:*" --file=conan_cache_save.tgz
-  artifacts:
-    expire_in: 2d
-    paths:
-       - conan.lock
-       - conan_cache_save.tgz
+
 
 smoke_tests:conan2:
   extends:
     - .pod_large
     - .template_job
+    - .build2_script
   stage: smoke
   needs: 
     - capture_graph:conan2
   rules:
     - !reference [.development_job, rules]
+  variables:
+    CONAN2_OPTIONS: "-o ${PKG_NAME}/*:with_tests=True -o ${PKG_NAME}/*:fvisibility=hidden" # Used for "conan lock create" and "conan install"
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
   parallel:
     matrix: *matrix_conan2
   script:
-    - conan cache restore conan_cache_save.tgz
-    - conan lock create conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True -o et-host-utils/*:fvisibility=hidden --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
-    - conan install     conanfile.py -pr:b=default -pr:h=${FULL_BUILD_NAME} -o et-host-utils/*:with_tests=True -o et-host-utils/*:fvisibility=hidden --build=missing --lockfile=conan.lock   # Install dependencies from the lockfile
+    - !reference [.build2_script, script]
     - cmake --preset conan-${BUILD_TYPE} -G Ninja 
     - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
     - ctest --preset conan-${BUILD_TYPE} --no-compress-output --output-on-failure --parallel 4
@@ -172,6 +169,7 @@ package2:
   extends:
     - .pod_nano
     - .template_job
+    - .package2-script  # Template with all commands
   stage: package
   needs: 
     - capture_graph:conan2
@@ -182,42 +180,16 @@ package2:
   parallel:
     matrix: *matrix_conan2
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
-  script:
-    - conan remote disable "*"
-    - conan remote enable conan2-develop
-    - conan cache restore conan_cache_save.tgz
-    - pkg_name=$(conan inspect conanfile.py | grep name | cut -d ':' -f 2 | xargs)
-    - pkg_version=$(conan inspect conanfile.py | grep version | cut -d ':' -f 2 | xargs)
-    - conan lock create conanfile.py                      -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --lockfile-out=conan.lock
-    - conan install --requires=${pkg_name}/${pkg_version} -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --lockfile-out=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
-    - conan test test_package ${pkg_name}/${pkg_version}  -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=never   --lockfile=conan.lock
-    - conan list --graph=graph-${FULL_BUILD_NAME}.json --graph-binaries=build --format=json > pkglist-${FULL_BUILD_NAME}.json
-    - conan remote enable conan2-tmp
-    - conan upload --list=pkglist-${FULL_BUILD_NAME}.json -r=conan2-tmp --confirm --format=json > uploaded-${FULL_BUILD_NAME}.json
-  artifacts:
-    expire_in: 2d
-    paths:
-      - graph-${FULL_BUILD_NAME}.json
-      - pkglist-${FULL_BUILD_NAME}.json
-      - uploaded-${FULL_BUILD_NAME}.json
+
 
 promote2:
   extends:
     - .pod_nano
     - .template_job
+    - .promote2-script  # Template with all commands
   needs:
     - package2
   rules:
     - !reference  [.release_or_development_job, rules]
   stage: deploy
   image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
-  script:
-    - conan pkglist merge $(find . -name "uploaded*.json" -exec echo --list={} \;) --format=json > pkglist-merged.json
-    - conan download --list=pkglist-merged.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
-    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm ${DRY_RUN_PARAM} > pkglist-uploaded.json
-  artifacts:
-    expire_in: 2d
-    paths:
-      - pkglist-merged.json
-      - pkglist-downloaded.json
-      - pkglist-uploaded.json
