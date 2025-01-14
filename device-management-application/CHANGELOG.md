@@ -9,8 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.21.0] - 2025-01-14
+### Added
+### Changed
 - (Conan) Update recipe
-- (Conan) Adapt to deviceLayer/4.0.0-alpha and et-host-utils/0.4.0-alpha
+- (Conan) Adapt to deviceLayer/4.0.0 and et-host-utils/0.4.0
 ### Deprecated
 ### Removed
 ### Fixed

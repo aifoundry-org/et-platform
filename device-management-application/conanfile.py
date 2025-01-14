@@ -44,13 +44,13 @@ class DeviceManagementApplicationConan(ConanFile):
     def requirements(self):
         self.requires("deviceManagement/0.20.0")
         self.requires("esperantoTrace/2.1.0")
-        self.requires("deviceLayer/4.0.0-alpha")
-        self.requires("et-host-utils/0.4.0-alpha")
+        self.requires("deviceLayer/4.0.0")
+        self.requires("et-host-utils/0.4.0")
 
         self.requires("fmt/8.0.1")
         self.requires("glog/0.4.0")
         self.requires("ftxui/5.0.0")
-        self.requires("nlohmann_json/3.9.1")
+        self.requires("nlohmann_json/3.11.2")
 
     def validate(self):
         check_req_min_cppstd = self.python_requires["conan-common"].module.check_req_min_cppstd
