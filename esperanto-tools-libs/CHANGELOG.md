@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [unreleased]
 ### Added
 ### Changed
+### Deprecated
+### Removed
+### Fixed
+
+## [0.18.0]
+### Added
+### Changed
 - **API CHANGE:** Extended DeviceProperties to include the number of chiplets and the address map
 - Depend on device layer 4 series due to API changes
 - (CMake) Honor CMAKE_<LANG>_VISIBILITY_PRESET and handle exporting only public symbols
