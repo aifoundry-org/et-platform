@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.21)
-project(deviceLayer VERSION 4.0.0 LANGUAGES CXX)
+project(deviceLayer VERSION 4.1.0 LANGUAGES CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR} ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR} ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
