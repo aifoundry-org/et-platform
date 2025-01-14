@@ -8,8 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.5)
-project(deviceManagementApplication VERSION 1.21.0 LANGUAGES CXX C)
+cmake_minimum_required(VERSION 3.21)
+project(deviceManagementApplication VERSION 1.22.0 LANGUAGES CXX C)
 
 include(ExternalProject)
 include(GNUInstallDirs)
