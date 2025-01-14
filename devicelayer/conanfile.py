@@ -54,8 +54,8 @@ class DeviceLayerConan(ConanFile):
 
     def requirements(self):
         # public dependencies
-        self.requires("sw-sysemu/0.20.0-alpha")
-        self.requires("et-host-utils/0.4.0-alpha")
+        self.requires("sw-sysemu/0.20.0")
+        self.requires("et-host-utils/0.4.0")
         self.requires("gtest/1.10.0")  # Required in public-interface header: IDeviceLayerMock.h
         # private dependencies
         self.requires("linuxDriver/0.15.0")
