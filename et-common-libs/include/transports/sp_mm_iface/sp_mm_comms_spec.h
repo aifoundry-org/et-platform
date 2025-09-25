@@ -18,7 +18,7 @@
 #define SP_MM_COMMS_SPEC_H
 
 #include <inttypes.h>
-#include <esperanto/et-trace/layout.h>
+#include <et-trace/layout.h>
 
 typedef int16_t mm2sp_mm_recoverable_error_code_e;
 
