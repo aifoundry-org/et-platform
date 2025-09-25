@@ -159,7 +159,7 @@ typedef struct {
     uint32_t minion_freq_mhz;
     uint32_t pmu_sampling_state;
     uint32_t pmu_sampling_timeout_flag;
-} __attribute__((packed, aligned(8))) statw_cb;
+} __attribute__((packed, aligned(CACHE_LINE_SIZE))) statw_cb;
 
 /*! \typedef pmc_prev_counters
     \brief Struct to hold previous counter values for PMU
@@ -171,7 +171,7 @@ typedef struct {
     uint64_t prev_l2_l3_cycle_counter[NUM_SHIRES][BANKS_PER_SC];
     uint64_t prev_l2_l3_read_counter[NUM_SHIRES][BANKS_PER_SC];
     uint64_t prev_l2_l3_write_counter[NUM_SHIRES][BANKS_PER_SC];
-} __attribute__((packed, aligned(8))) pmc_prev_counters;
+} __attribute__((packed, aligned(CACHE_LINE_SIZE))) pmc_prev_counters;
 
 typedef struct {
     shire_pmc_cnt_t ms_pmcs[NUM_MEM_SHIRES];
