@@ -309,6 +309,7 @@ static inline void kernel_check_tensor_errors(uint32_t shire_id, uint32_t hart_i
 }
 #endif
 
+__attribute__((optimize("-fomit-frame-pointer")))
 int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel)
 {
     uint64_t *firmware_sp;

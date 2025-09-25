@@ -108,6 +108,6 @@ uint64_t kernel_launch_set_global_exception_mask(uint32_t shire_id);
     \param kernel Parameters of the kernel to be launched.
     \return Success or error
 */
-int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel);
+int64_t launch_kernel(mm_to_cm_message_kernel_params_t kernel) __attribute__((optimize("-fomit-frame-pointer")));
 
 #endif
