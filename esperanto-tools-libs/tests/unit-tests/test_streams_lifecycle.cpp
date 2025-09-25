@@ -22,6 +22,7 @@
 #include "RuntimeImp.h"
 #include "common/Constants.h"
 #include "runtime/IRuntime.h"
+#undef private
 #include <chrono>
 #include <cstdio>
 #include <experimental/filesystem>
