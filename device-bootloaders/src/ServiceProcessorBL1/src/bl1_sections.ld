@@ -98,4 +98,6 @@ SECTIONS
         KEEP(*(stack stack.*))
         __stack_base = .;
     } > DATA
+
+    /DISCARD/ : { *(.riscv.attributes) }
 }
