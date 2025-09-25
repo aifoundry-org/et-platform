@@ -12,7 +12,6 @@
 
 include(CMakeFindDependencyMacro)
 find_dependency(cereal REQUIRED)
-find_dependency(elfio REQUIRED)
 find_dependency(fmt REQUIRED)
 find_dependency(hostUtils REQUIRED)
 find_dependency(deviceApi REQUIRED)
