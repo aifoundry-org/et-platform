@@ -63,7 +63,6 @@ endif()
 
 include(GNUInstallDirs)
 
-find_package(elfio REQUIRED)
 find_package(glog REQUIRED)
 find_package(lz4 REQUIRED)
 
@@ -454,7 +453,6 @@ generate_export_header(sw-sysemu EXPORT_FILE_NAME ${SW_SYSEMU_PUBLIC_EXPORT_HEAD
 target_sources(sw-sysemu PRIVATE ${SW_SYSEMU_PUBLIC_EXPORT_HEADER})
 target_link_libraries(sw-sysemu
     PRIVATE
-        elfio::elfio
         $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
         lz4::lz4
         glog::glog
