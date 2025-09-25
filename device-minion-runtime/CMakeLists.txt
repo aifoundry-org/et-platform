@@ -89,7 +89,7 @@ export(PACKAGE EsperantoDeviceMinionRuntime)
 # Create the *-config.cmake and *-config-version.cmake files
 configure_package_config_file(EsperantoDeviceMinionRuntimeConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
-    INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoDeviceMinionRuntime/cmake
+    INSTALL_DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime
     PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
 )
 write_basic_package_version_file(
