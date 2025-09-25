@@ -9,6 +9,7 @@
 #include <hostUtils/debug/StackException.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <memory>
