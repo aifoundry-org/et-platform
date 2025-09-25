@@ -6,6 +6,7 @@
 #ifndef BEMU_AGENT_H
 #define BEMU_AGENT_H
 
+#include <cstdint>
 #include <string>
 
 namespace bemu {
