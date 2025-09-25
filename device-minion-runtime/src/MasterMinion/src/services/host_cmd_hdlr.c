@@ -1272,7 +1272,7 @@ static inline int32_t dma_readlist_cmd_handler(
     uint8_t dma_xfer_count = 0;
     uint8_t loop_cnt;
     execution_cycles_t cycles;
-    const char read_cmds[2][7] = { "DMA\0", "P2PDMA\0" };
+    const char read_cmds[2][7] = { "DMA", "P2PDMA" };
     uint8_t read_type =
         (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_READLIST_CMD) ? 0 : 1;
 
@@ -1585,7 +1585,7 @@ static inline int32_t dma_writelist_cmd_handler(
     uint8_t loop_cnt;
     int32_t status = STATUS_SUCCESS;
     execution_cycles_t cycles;
-    const char write_cmds[2][7] = { "DMA\0", "P2PDMA\0" };
+    const char write_cmds[2][7] = { "DMA", "P2PDMA" };
     uint8_t write_type =
         (cmd_info->cmd_hdr.msg_id == DEV_OPS_API_MID_DEVICE_OPS_DMA_WRITELIST_CMD) ? 0 : 1;
 
