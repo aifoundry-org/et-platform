@@ -122,6 +122,8 @@ SECTIONS
         __heap_start = .;
         __heap_end = ABSOLUTE(RAM_BASE_ADDR + RAM_SIZE);
     } > RAM
+
+    /DISCARD/ : { *(.riscv.attributes) }
 }
 
 __data_load_start = LOADADDR(.data);
