@@ -55,7 +55,6 @@ set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install
 
 # System dependencies
 find_package(cereal REQUIRED)
-find_package(elfio REQUIRED)
 find_package(gflags REQUIRED)
 find_package(libcap REQUIRED)
 find_package(easy_profiler REQUIRED)  
@@ -162,7 +161,6 @@ function(etrt_add_library)
             hostUtils::logging
             hostUtils::threadPool
             hostUtils::actionList
-            elfio::elfio
     )
 endfunction()
 
