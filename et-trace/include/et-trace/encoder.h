@@ -1480,6 +1480,7 @@ int32_t Trace_Event_Copy(struct trace_control_block_t *cb, struct trace_entry_he
     return status;
 }
 
+#ifdef ET_TRACE_GET_HART_ID
 /************************************************************************
 *
 *   FUNCTION
@@ -1529,6 +1530,7 @@ void Trace_User_Profile_Event(struct trace_control_block_t *cb, uint16_t regionI
         ET_TRACE_WRITE_U64(entry->regionName, (uint64_t)regionName);
     }
 }
+#endif /* !ET_TRACE_GET_HART_ID */
 
 #endif /* ET_TRACE_ENCODER_IMPL */
 
