@@ -81,6 +81,8 @@ SECTIONS
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
     } > MDATA
+
+    /DISCARD/ : { *(.riscv.attributes) }
 }
 
 ASSERT(SIZEOF(.bss) == 0, "Error, image is shared so .bss section must be empty");
