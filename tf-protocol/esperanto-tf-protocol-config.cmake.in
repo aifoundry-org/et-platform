@@ -1,0 +1,20 @@
+#------------------------------------------------------------------------------
+# Copyright (C) 2021, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+
+set(ESPERANTO_TF_PROTOCOL_VERSION 0.1.0)
+
+@PACKAGE_INIT@
+
+set_and_check(ESPERANTO_TF_PROTOCOL_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(ESPERANTO_TF_PROTOCOL_LIB_DIR "@PACKAGE_LIB_INSTALL_DIR@")
+
+include(CMakeFindDependencyMacro)
+
+get_filename_component(ESPERANTO_TF_PROTOCOL_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
