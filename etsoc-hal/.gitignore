@@ -1,0 +1,10 @@
+.idea/
+build/
+cmake-build-*/
+test_package/build
+locks/
+variables.env
+conan-ci-pipelines-common/
+*.lock
+lockfiles_info.json
+build_pipeline.yml
