@@ -1,0 +1,148 @@
+//******************************************************************************
+// Copyright (C) 2020 Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
+#include "TestDevMgmtApiSyncCmds.h"
+#include <dlfcn.h>
+#include <glog/logging.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+using namespace dev;
+using namespace device_management;
+
+class FunctionalTestDevMgmtApiAssetTrackingCmds : public TestDevMgmtApiSyncCmds {
+  void SetUp() override {
+    initDMTestFramework();
+  }
+  void TearDown() override {
+    cleanupDMTestFramework();
+  }
+};
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleManufactureName) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getModuleManufactureName(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getFRUTest) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getFRUTest(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, setFRUTest) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    setFRUTest(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePartNumber) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getModulePartNumber(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, setAndGetModulePartNumber) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    setAndGetModulePartNumber(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleSerialNumber) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getModuleSerialNumber(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getASICChipRevision) {
+  // TODO: SW-13220: Enable back on Target::Silicon, following failure is seen with V2/V3 card
+  // received: 255, expected: 160
+  // if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu, Target::Silicon})) {
+  if (targetInList({Target::FullBoot, Target::FullChip, Target::Bemu})) {
+    getASICChipRevision(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModulePCIEPortsMaxSpeed) {
+  // Test not applicable on SysEMU
+  if (getTestTarget() != Target::SysEMU) {
+    getModulePCIEPortsMaxSpeed(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemorySizeMB) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getModuleMemorySizeMB(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleRevision) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getModuleRevision(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleFormFactor) {
+  if (targetInList({Target::FullBoot, Target::Silicon})) {
+    getModuleFormFactor(false /* Multiple devices */);
+  } else {
+    DV_LOG(INFO) << "Skipping the test since its not supported on current target";
+    FLAGS_enable_trace_dump = false;
+  }
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemoryVendorPartNumber) {
+  getModuleMemoryVendorPartNumber(false /* Multiple devices */);
+}
+
+TEST_F(FunctionalTestDevMgmtApiAssetTrackingCmds, getModuleMemoryType) {
+  getModuleMemoryType(false /* Multiple devices */);
+}
+
+int main(int argc, char** argv) {
+  google::InitGoogleLogging(argv[0]);
+  google::SetCommandLineOption("GLOG_minloglevel", "0");
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
+  testing::InitGoogleTest(&argc, argv);
+  google::ParseCommandLineFlags(&argc, &argv, true);
+  return RUN_ALL_TESTS();
+}
