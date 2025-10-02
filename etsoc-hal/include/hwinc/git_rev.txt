@@ -1,0 +1,2 @@
+// From commit 387110f0b985fe54586145cb8bce61a908e9f6f2 in regspec repo
+// From commit 3277180a59d39ed83be0987292829364bf5c1367 in esperanto-soc repo
