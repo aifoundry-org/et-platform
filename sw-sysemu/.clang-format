@@ -1,0 +1,13 @@
+BasedOnStyle: WebKit
+MaxEmptyLinesToKeep: 2
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments:  true
+AlignConsecutiveBitFields:    true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros:       true
+BreakBeforeBraces: Stroustrup
+CompactNamespaces: true
+NamespaceIndentation: None
+FixNamespaceComments: true
+Cpp11BracedListStyle: true
+SpaceBeforeCpp11BracedList: false

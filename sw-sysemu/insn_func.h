@@ -1,0 +1,424 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------*/
+
+#ifndef BEMU_INSN_FUNC_H
+#define BEMU_INSN_FUNC_H
+
+#include "processor.h"
+
+namespace bemu {
+
+
+/* RV64I */
+void insn_add      (Hart&);
+void insn_addi     (Hart&);
+void insn_addiw    (Hart&);
+void insn_addw     (Hart&);
+void insn_and      (Hart&);
+void insn_andi     (Hart&);
+void insn_auipc    (Hart&);
+void insn_beq      (Hart&);
+void insn_bge      (Hart&);
+void insn_bgeu     (Hart&);
+void insn_blt      (Hart&);
+void insn_bltu     (Hart&);
+void insn_bne      (Hart&);
+void insn_fence    (Hart&);
+void insn_jal      (Hart&);
+void insn_jalr     (Hart&);
+void insn_lb       (Hart&);
+void insn_lbu      (Hart&);
+void insn_ld       (Hart&);
+void insn_lh       (Hart&);
+void insn_lhu      (Hart&);
+void insn_lui      (Hart&);
+void insn_lw       (Hart&);
+void insn_lwu      (Hart&);
+void insn_or       (Hart&);
+void insn_ori      (Hart&);
+void insn_reserved (Hart&);
+void insn_sb       (Hart&);
+void insn_sd       (Hart&);
+void insn_sh       (Hart&);
+void insn_sll      (Hart&);
+void insn_slli     (Hart&);
+void insn_slliw    (Hart&);
+void insn_sllw     (Hart&);
+void insn_slt      (Hart&);
+void insn_slti     (Hart&);
+void insn_sltiu    (Hart&);
+void insn_sltu     (Hart&);
+void insn_sra      (Hart&);
+void insn_srai     (Hart&);
+void insn_sraiw    (Hart&);
+void insn_sraw     (Hart&);
+void insn_srl      (Hart&);
+void insn_srli     (Hart&);
+void insn_srliw    (Hart&);
+void insn_srlw     (Hart&);
+void insn_sub      (Hart&);
+void insn_subw     (Hart&);
+void insn_sw       (Hart&);
+void insn_xor      (Hart&);
+void insn_xori     (Hart&);
+
+/* Zifencei */
+void insn_fence_i (Hart&);
+
+/* RV64M */
+void insn_div    (Hart&);
+void insn_divu   (Hart&);
+void insn_divuw  (Hart&);
+void insn_divw   (Hart&);
+void insn_mul    (Hart&);
+void insn_mulh   (Hart&);
+void insn_mulhsu (Hart&);
+void insn_mulhu  (Hart&);
+void insn_mulw   (Hart&);
+void insn_rem    (Hart&);
+void insn_remu   (Hart&);
+void insn_remuw  (Hart&);
+void insn_remw   (Hart&);
+
+/* RV64A */
+#if 0
+void insn_amoadd_d  (Hart&);
+void insn_amoadd_w  (Hart&);
+void insn_amoand_d  (Hart&);
+void insn_amoand_w  (Hart&);
+void insn_amomax_d  (Hart&);
+void insn_amomax_w  (Hart&);
+void insn_amomaxu_d (Hart&);
+void insn_amomaxu_w (Hart&);
+void insn_amomin_d  (Hart&);
+void insn_amomin_w  (Hart&);
+void insn_amominu_d (Hart&);
+void insn_amominu_w (Hart&);
+void insn_amoor_d   (Hart&);
+void insn_amoor_w   (Hart&);
+void insn_amoswap_d (Hart&);
+void insn_amoswap_w (Hart&);
+void insn_amoxor_d  (Hart&);
+void insn_amoxor_w  (Hart&);
+void insn_lr_d      (Hart&);
+void insn_lr_w      (Hart&);
+void insn_sc_d      (Hart&);
+void insn_sc_w      (Hart&);
+#endif
+
+/* RV64F */
+void insn_fadd_s    (Hart&);
+void insn_fclass_s  (Hart&);
+void insn_fcvt_l_s  (Hart&);
+void insn_fcvt_lu_s (Hart&);
+void insn_fcvt_s_l  (Hart&);
+void insn_fcvt_s_lu (Hart&);
+void insn_fcvt_s_w  (Hart&);
+void insn_fcvt_s_wu (Hart&);
+void insn_fcvt_w_s  (Hart&);
+void insn_fcvt_wu_s (Hart&);
+void insn_fdiv_s    (Hart&);
+void insn_feq_s     (Hart&);
+void insn_fle_s     (Hart&);
+void insn_flt_s     (Hart&);
+void insn_flw       (Hart&);
+void insn_fmadd_s   (Hart&);
+void insn_fmax_s    (Hart&);
+void insn_fmin_s    (Hart&);
+void insn_fmsub_s   (Hart&);
+void insn_fmul_s    (Hart&);
+void insn_fmv_w_x   (Hart&);
+void insn_fmv_x_w   (Hart&);
+void insn_fnmadd_s  (Hart&);
+void insn_fnmsub_s  (Hart&);
+void insn_fsgnj_s   (Hart&);
+void insn_fsgnjn_s  (Hart&);
+void insn_fsgnjx_s  (Hart&);
+void insn_fsqrt_s   (Hart&);
+void insn_fsub_s    (Hart&);
+void insn_fsw       (Hart&);
+
+/* SYSTEM */
+void insn_csrrc      (Hart&);
+void insn_csrrci     (Hart&);
+void insn_csrrs      (Hart&);
+void insn_csrrsi     (Hart&);
+void insn_csrrw      (Hart&);
+void insn_csrrwi     (Hart&);
+void insn_ebreak     (Hart&);
+void insn_ecall      (Hart&);
+void insn_mret       (Hart&);
+void insn_sfence_vma (Hart&);
+void insn_sret       (Hart&);
+void insn_wfi        (Hart&);
+
+/* RV64C */
+void insn_c_add      (Hart&);
+void insn_c_addi     (Hart&);
+void insn_c_addi16sp (Hart&);
+void insn_c_addi4spn (Hart&);
+void insn_c_addiw    (Hart&);
+void insn_c_addw     (Hart&);
+void insn_c_and      (Hart&);
+void insn_c_andi     (Hart&);
+void insn_c_beqz     (Hart&);
+void insn_c_bnez     (Hart&);
+void insn_c_ebreak   (Hart&);
+void insn_c_illegal  (Hart&);
+void insn_c_j        (Hart&);
+void insn_c_jalr     (Hart&);
+void insn_c_jr       (Hart&);
+void insn_c_ld       (Hart&);
+void insn_c_ldsp     (Hart&);
+void insn_c_li       (Hart&);
+void insn_c_lui      (Hart&);
+void insn_c_lw       (Hart&);
+void insn_c_lwsp     (Hart&);
+void insn_c_mv       (Hart&);
+void insn_c_or       (Hart&);
+void insn_c_reserved (Hart&);
+void insn_c_sd       (Hart&);
+void insn_c_sdsp     (Hart&);
+void insn_c_slli     (Hart&);
+void insn_c_srai     (Hart&);
+void insn_c_srli     (Hart&);
+void insn_c_sub      (Hart&);
+void insn_c_subw     (Hart&);
+void insn_c_sw       (Hart&);
+void insn_c_swsp     (Hart&);
+void insn_c_xor      (Hart&);
+
+/* ET mask */
+void insn_maskand       (Hart&);
+void insn_masknot       (Hart&);
+void insn_maskor        (Hart&);
+void insn_maskpopc      (Hart&);
+void insn_maskpopc_rast (Hart&);
+void insn_maskpopcz     (Hart&);
+void insn_maskxor       (Hart&);
+void insn_mov_m_x       (Hart&);
+void insn_mova_m_x      (Hart&);
+void insn_mova_x_m      (Hart&);
+
+/* ET packed single */
+void insn_cubeface_ps    (Hart&);
+void insn_cubefaceidx_ps (Hart&);
+void insn_cubesgnsc_ps   (Hart&);
+void insn_cubesgntc_ps   (Hart&);
+void insn_fadd_ps        (Hart&);
+void insn_fbc_ps         (Hart&);
+void insn_fbci_ps        (Hart&);
+void insn_fbcx_ps        (Hart&);
+void insn_fclass_ps      (Hart&);
+void insn_fcmov_ps       (Hart&);
+void insn_fcmovm_ps      (Hart&);
+void insn_fcvt_f10_ps    (Hart&);
+void insn_fcvt_f11_ps    (Hart&);
+void insn_fcvt_f16_ps    (Hart&);
+void insn_fcvt_ps_f10    (Hart&);
+void insn_fcvt_ps_f11    (Hart&);
+void insn_fcvt_ps_f16    (Hart&);
+void insn_fcvt_ps_pw     (Hart&);
+void insn_fcvt_ps_pwu    (Hart&);
+void insn_fcvt_ps_rast   (Hart&);
+void insn_fcvt_ps_sn16   (Hart&);
+void insn_fcvt_ps_sn8    (Hart&);
+void insn_fcvt_ps_un10   (Hart&);
+void insn_fcvt_ps_un16   (Hart&);
+void insn_fcvt_ps_un2    (Hart&);
+void insn_fcvt_ps_un24   (Hart&);
+void insn_fcvt_ps_un8    (Hart&);
+void insn_fcvt_pw_ps     (Hart&);
+void insn_fcvt_pwu_ps    (Hart&);
+void insn_fcvt_rast_ps   (Hart&);
+void insn_fcvt_sn16_ps   (Hart&);
+void insn_fcvt_sn8_ps    (Hart&);
+void insn_fcvt_un10_ps   (Hart&);
+void insn_fcvt_un16_ps   (Hart&);
+void insn_fcvt_un24_ps   (Hart&);
+void insn_fcvt_un2_ps    (Hart&);
+void insn_fcvt_un8_ps    (Hart&);
+void insn_fdiv_ps        (Hart&);
+void insn_feq_ps         (Hart&);
+void insn_feqm_ps        (Hart&);
+void insn_fexp_ps        (Hart&);
+void insn_ffrc_ps        (Hart&);
+void insn_fg32b_ps       (Hart&);
+void insn_fg32h_ps       (Hart&);
+void insn_fg32w_ps       (Hart&);
+void insn_fgb_ps         (Hart&);
+void insn_fgh_ps         (Hart&);
+void insn_fgw_ps         (Hart&);
+void insn_fgwg_ps        (Hart&);
+void insn_fghg_ps        (Hart&);
+void insn_fgbg_ps        (Hart&);
+void insn_fgwl_ps        (Hart&);
+void insn_fghl_ps        (Hart&);
+void insn_fgbl_ps        (Hart&);
+void insn_fle_ps         (Hart&);
+void insn_flem_ps        (Hart&);
+void insn_flog_ps        (Hart&);
+void insn_flq2           (Hart&);
+void insn_flt_ps         (Hart&);
+void insn_fltm_ps        (Hart&);
+void insn_flw_ps         (Hart&);
+void insn_flwg_ps        (Hart&);
+void insn_flwl_ps        (Hart&);
+void insn_fmadd_ps       (Hart&);
+void insn_fmax_ps        (Hart&);
+void insn_fmin_ps        (Hart&);
+void insn_fmsub_ps       (Hart&);
+void insn_fmul_ps        (Hart&);
+void insn_fmvs_x_ps      (Hart&);
+void insn_fmvz_x_ps      (Hart&);
+void insn_fnmadd_ps      (Hart&);
+void insn_fnmsub_ps      (Hart&);
+void insn_frcp_fix_rast  (Hart&);
+void insn_frcp_ps        (Hart&);
+void insn_fround_ps      (Hart&);
+void insn_frsq_ps        (Hart&);
+void insn_fsc32b_ps      (Hart&);
+void insn_fsc32h_ps      (Hart&);
+void insn_fsc32w_ps      (Hart&);
+void insn_fscb_ps        (Hart&);
+void insn_fsch_ps        (Hart&);
+void insn_fscw_ps        (Hart&);
+void insn_fscwg_ps       (Hart&);
+void insn_fschg_ps       (Hart&);
+void insn_fscbg_ps       (Hart&);
+void insn_fscwl_ps       (Hart&);
+void insn_fschl_ps       (Hart&);
+void insn_fscbl_ps       (Hart&);
+void insn_fsgnj_ps       (Hart&);
+void insn_fsgnjn_ps      (Hart&);
+void insn_fsgnjx_ps      (Hart&);
+void insn_fsin_ps        (Hart&);
+void insn_fsq2           (Hart&);
+void insn_fsqrt_ps       (Hart&);
+void insn_fsub_ps        (Hart&);
+void insn_fsw_ps         (Hart&);
+void insn_fswg_ps        (Hart&);
+void insn_fswizz_ps      (Hart&);
+void insn_fswl_ps        (Hart&);
+
+/* ET packed integer */
+void insn_fadd_pi      (Hart&);
+void insn_faddi_pi     (Hart&);
+void insn_fand_pi      (Hart&);
+void insn_fandi_pi     (Hart&);
+void insn_fbci_pi      (Hart&);
+void insn_fdiv_pi      (Hart&);
+void insn_fdivu_pi     (Hart&);
+void insn_feq_pi       (Hart&);
+void insn_fle_pi       (Hart&);
+void insn_flt_pi       (Hart&);
+void insn_fltm_pi      (Hart&);
+void insn_fltu_pi      (Hart&);
+void insn_fsetm_pi     (Hart&);
+void insn_fmax_pi      (Hart&);
+void insn_fmaxu_pi     (Hart&);
+void insn_fmin_pi      (Hart&);
+void insn_fminu_pi     (Hart&);
+void insn_fmul_pi      (Hart&);
+void insn_fmulh_pi     (Hart&);
+void insn_fmulhu_pi    (Hart&);
+void insn_fnot_pi      (Hart&);
+void insn_for_pi       (Hart&);
+void insn_fpackrepb_pi (Hart&);
+void insn_fpackreph_pi (Hart&);
+void insn_frem_pi      (Hart&);
+void insn_fremu_pi     (Hart&);
+void insn_fsat8_pi     (Hart&);
+void insn_fsatu8_pi    (Hart&);
+void insn_fsll_pi      (Hart&);
+void insn_fslli_pi     (Hart&);
+void insn_fsra_pi      (Hart&);
+void insn_fsrai_pi     (Hart&);
+void insn_fsrl_pi      (Hart&);
+void insn_fsrli_pi     (Hart&);
+void insn_fsub_pi      (Hart&);
+void insn_fxor_pi      (Hart&);
+
+/* ET graphics scalar */
+void insn_bitmixb (Hart&);
+void insn_packb   (Hart&);
+
+/* ET atomic */
+void insn_amoaddg_d    (Hart&);
+void insn_amoaddg_w    (Hart&);
+void insn_amoaddl_d    (Hart&);
+void insn_amoaddl_w    (Hart&);
+void insn_amoandg_d    (Hart&);
+void insn_amoandg_w    (Hart&);
+void insn_amoandl_d    (Hart&);
+void insn_amoandl_w    (Hart&);
+void insn_amocmpswapg_d(Hart&);
+void insn_amocmpswapg_w(Hart&);
+void insn_amocmpswapl_d(Hart&);
+void insn_amocmpswapl_w(Hart&);
+void insn_amomaxg_d    (Hart&);
+void insn_amomaxg_w    (Hart&);
+void insn_amomaxl_d    (Hart&);
+void insn_amomaxl_w    (Hart&);
+void insn_amomaxug_d   (Hart&);
+void insn_amomaxug_w   (Hart&);
+void insn_amomaxul_d   (Hart&);
+void insn_amomaxul_w   (Hart&);
+void insn_amoming_d    (Hart&);
+void insn_amoming_w    (Hart&);
+void insn_amominl_d    (Hart&);
+void insn_amominl_w    (Hart&);
+void insn_amominug_d   (Hart&);
+void insn_amominug_w   (Hart&);
+void insn_amominul_d   (Hart&);
+void insn_amominul_w   (Hart&);
+void insn_amoorg_d     (Hart&);
+void insn_amoorg_w     (Hart&);
+void insn_amoorl_d     (Hart&);
+void insn_amoorl_w     (Hart&);
+void insn_amoswapg_d   (Hart&);
+void insn_amoswapg_w   (Hart&);
+void insn_amoswapl_d   (Hart&);
+void insn_amoswapl_w   (Hart&);
+void insn_amoxorg_d    (Hart&);
+void insn_amoxorg_w    (Hart&);
+void insn_amoxorl_d    (Hart&);
+void insn_amoxorl_w    (Hart&);
+void insn_famoaddg_pi  (Hart&);
+void insn_famoaddl_pi  (Hart&);
+void insn_famoandg_pi  (Hart&);
+void insn_famoandl_pi  (Hart&);
+void insn_famomaxg_pi  (Hart&);
+void insn_famomaxg_ps  (Hart&);
+void insn_famomaxl_pi  (Hart&);
+void insn_famomaxl_ps  (Hart&);
+void insn_famomaxug_pi (Hart&);
+void insn_famomaxul_pi (Hart&);
+void insn_famoming_pi  (Hart&);
+void insn_famoming_ps  (Hart&);
+void insn_famominl_pi  (Hart&);
+void insn_famominl_ps  (Hart&);
+void insn_famominug_pi (Hart&);
+void insn_famominul_pi (Hart&);
+void insn_famoorg_pi   (Hart&);
+void insn_famoorl_pi   (Hart&);
+void insn_famoswapg_pi (Hart&);
+void insn_famoswapl_pi (Hart&);
+void insn_famoxorg_pi  (Hart&);
+void insn_famoxorl_pi  (Hart&);
+void insn_sbl          (Hart&);
+void insn_sbg          (Hart&);
+void insn_shl          (Hart&);
+void insn_shg          (Hart&);
+
+
+} // namespace bemu
+
+#endif // BEMU_INSN_FUNC_H
