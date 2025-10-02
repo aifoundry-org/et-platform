@@ -26,7 +26,7 @@ typedef struct LVDPLL_MODE_CFG_s {
     const uint8_t offsets[36];
     const uint16_t values[36];
 
-} LVDPLL_SETTING_t;
+} __attribute__((aligned (64)))  LVDPLL_SETTING_t;
 
 static const LVDPLL_SETTING_t gs_lvdpll_settings[] = {
   { // /eng/ssmith/work/repos/soc/dv/ip/lvdpll/modes/reg/LVDPLL_mode_1_i100_o300_dvfs.csv
