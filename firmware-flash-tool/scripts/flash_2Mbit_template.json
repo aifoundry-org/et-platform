@@ -1,0 +1,68 @@
+{
+    "image" : {
+        "image_size" : 256,
+        "partitions" : [
+            {
+                "partition_size" : 128,
+                "priority" : 0,
+                "attempted_boot_count" : 17,
+                "completed_boot_count" : 18,
+                "regions" : [
+                    {
+                        "id" : "PRIORITY_DESIGNATOR",
+                        "size" : 4
+                    },
+                    {
+                        "id" : "BOOT_COUNTERS",
+                        "size" : 4
+                    },
+                    {
+                        "id" : "CONFIGURATION_DATA",
+                        "size" : 4
+                    },
+                    {
+                        "id" : "VAULTIP_FW",
+                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.13_rom_keys.sbi"
+                    },
+                    {
+                        "id" : "SP_CERTIFICATES",
+                        "size" : 4,
+                        "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp.crt"
+                    },
+                    {
+                        "id" : "PCIE_CONFIG",
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/pcie_config_data.img"
+                    },
+                    {
+                        "id" : "SP_BL1",
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/minimal_bl1.img"
+                    }
+                ]
+            },
+            {
+                "partition_size" : 128,
+                "priority" : 3,
+                "attempted_boot_count" : 27,
+                "completed_boot_count" : 26,
+                "regions" : [
+                    {
+                        "id" : "SP_CERTIFICATES",
+                        "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp.crt"
+                    },
+                    {
+                        "id" : "SP_BL1",
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/minimal_bl1.img"
+                    },
+                    {
+                        "id" : "PCIE_CONFIG",
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/pcie_config_data.img"
+                    },
+                    {
+                        "id" : "VAULTIP_FW",
+                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.13_rom_keys.sbi"
+                    }
+                ]
+            }
+        ]
+    }
+}
