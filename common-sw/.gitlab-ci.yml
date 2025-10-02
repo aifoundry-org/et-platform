@@ -1,0 +1,195 @@
+include:
+  - project: esperantotech/software/gitlab-ci-common
+    ref: cf690da44cf5fcb75c56c602182dd055ee81cb5e
+    file:
+      - pods/nano-pod.yaml
+      - pods/large-pod.yaml
+      - jobs/generic-k8s-job.yaml
+      - rules/jobs.yaml
+      - conan2/conan2-build.yaml
+      - conan2/conan2-capture_graph.yaml
+      - conan2/conan2-package.yaml
+      - conan2/conan2-promote.yaml
+
+  - project: esperantotech/software/gitlab-ci-common
+    ref: master
+    file:
+      - jobs/conan-jobs.yaml
+
+###### Variables, Matrix and Templates for Conan 2 ############################
+###### Should be NO hardcorded values inside the Conan2 jobs ##################
+###############################################################################
+variables:
+  PKG_NAME: "et-host-utils" # as defined in conafile.py "name" field
+  OS: "linux-ubuntu22.04"
+  OS_BUILD: "ubuntu-22.04" # for selecting docker image 
+  ARCH: "x86_64"
+  COMPILER: "gcc11"
+  PROFILE_PREFIX: "linux-ubuntu22.04-x86_64-gcc11"  # Should be change accordingly to $OS-$ARCH-$COMPILER
+  FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}-${LIB_TYPE}"
+  CLICOLOR_FORCE: "1" # force colors on Conan output
+
+.matrix: &matrix_conan2
+  - OS: [ "linux-ubuntu22.04" ]
+    OS_BUILD: [ "ubuntu-22.04" ] # for selecting docker image 
+    ARCH: [ "x86_64" ]
+    COMPILER: [ "gcc11" ]
+    BUILD_TYPE: [ release, debug ]
+    LIB_TYPE: [ static, shared ]
+
+###############################################################################
+stages:
+  - smoke
+  - generate_build
+  - build
+  - test
+  - package
+  - deploy
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+smoke_tests:conan1:
+  extends:
+    - .pod_large
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: smoke
+  rules:
+    - !reference [.development_job, rules]
+  parallel:
+    matrix:
+      - BUILD_TYPE: [ Release, Debug ]
+  variables:
+    TIMEOUT: 30m
+    CMD_BUILD: |
+      BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
+      conan remote disable conan-tmp
+      conan install . -pr:b=default -pr:h=linux-ubuntu22.04-x86_64-gcc11-$${BUILD_TYPE_LOWER} -o et-host-utils:with_tests=True -o et-host-utils:fvisibility=hidden --build missing
+      cmake --preset $${BUILD_TYPE_LOWER} -G Ninja
+      cmake --build --preset $${BUILD_TYPE_LOWER}
+      ctest --preset $${BUILD_TYPE_LOWER} --no-compress-output --output-on-failure --parallel 4
+
+generate_build:conan1:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: generate_build
+  needs:
+    - job: smoke_tests:conan1
+      optional: true
+  rules:
+    - !reference [.release_or_development_job, rules]
+  variables:
+    TIMEOUT: 15m
+    CMD_BUILD: |
+      cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m ci_build
+  artifacts:
+    expire_in: 1h
+    paths:
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
+
+package1:
+  stage: package
+  needs:
+    - generate_build:conan1
+  rules:
+    - !reference [.release_or_development_job, rules]
+  trigger:
+    include:
+      - artifact: conan/build_pipeline.yml
+        job: generate_build:conan1
+    strategy: depend
+
+
+promote1:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: deploy
+  needs:
+    - generate_build:conan1
+    - package1
+  rules:
+    - !reference [.release_job, rules]
+  variables:
+    PYTHONIOENCODING: utf-8
+    CMD_BUILD: |
+      cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m ci_promote
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+# This job captures the dependency graph of et-host-utils to ensure all following
+# jobs are not affected by external changes in artifactory
+capture_graph:conan2:
+  extends:
+    - .pod_large
+    - .template_job
+    - .capture_graph_script  # Template with all commands
+  stage: .pre
+  needs: []
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
+  rules:
+    - !reference [.release_or_development_job, rules]
+
+
+smoke_tests:conan2:
+  extends:
+    - .pod_large
+    - .template_job
+    - .build2_script
+  stage: smoke
+  needs: 
+    - capture_graph:conan2
+  rules:
+    - !reference [.development_job, rules]
+  variables:
+    CONAN2_OPTIONS: "-o ${PKG_NAME}/*:with_tests=True -o ${PKG_NAME}/*:fvisibility=hidden" # Used for "conan lock create" and "conan install"
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
+  parallel:
+    matrix: *matrix_conan2
+  script:
+    - !reference [.build2_script, script]
+    - cmake --preset conan-${BUILD_TYPE} -G Ninja 
+    - cmake --build --preset conan-${BUILD_TYPE}  # Build the project
+    - ctest --preset conan-${BUILD_TYPE} --no-compress-output --output-on-failure --parallel 4
+
+package2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .package2-script  # Template with all commands
+  stage: package
+  needs: 
+    - capture_graph:conan2
+    - job: smoke_tests:conan2
+      optional: true
+  rules:
+    - !reference  [.release_or_development_job, rules]
+  parallel:
+    matrix: *matrix_conan2
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
+
+
+promote2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .promote2-script  # Template with all commands
+  needs:
+    - package2
+  rules:
+    - !reference  [.release_or_development_job, rules]
+  stage: deploy
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/${OS_BUILD}-${COMPILER}-conan2:${CONAN2_DOCKER_IMAGE_VERSION}
