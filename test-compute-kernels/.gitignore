@@ -1,0 +1,14 @@
+# build-syste
+build/
+cmake-build-*/
+
+# conan
+test_package/build
+*.lock
+
+# conan ci
+lockfiles_info.json
+
+# IDEs
+.vscode/
+.idea
