@@ -1,0 +1,33 @@
+{
+    "partition" : {
+        "partition_size" : 1024,
+        "priority" : 0,
+        "attempted_boot_count" : 0,
+        "completed_boot_count" : 0,
+        "regions" : [
+            {
+                "id" : "0x1231",
+                "size" : 64,
+                "file" : "file_path"
+            },
+            {
+                "id" : "0x1234",
+                "size" : 64,
+                "file" : "file_path"
+            },
+            {
+                "id" : "0x1235",
+                "size" : 64,
+                "file" : "file_path"
+            },
+            {
+                "id" : "0x1236",
+                "size" : 64
+            },
+            {
+                "id" : "0x1237",
+                "file" : "file_path"
+            }
+        ]
+    }
+}
