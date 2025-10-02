@@ -1,0 +1,750 @@
+
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file ddr_controller.c
+    \brief A C module that implements the DDR memory subsystem.
+
+    Public interfaces:
+        ddr_config
+        ddr_error_control_init
+        ddr_error_control_deinit
+        ddr_enable_uce_interrupt
+        ddr_disable_ce_interrupt
+        ddr_disable_uce_interrupt
+        ddr_set_ce_threshold
+        ddr_get_ce_count
+        ddr_get_uce_count
+        ddr_error_threshold_isr
+        ddr_get_memory_details
+        ddr_get_memory_type
+*/
+/***********************************************************************/
+#include "mem_controller.h"
+#include "bl2_sp_memshire_pll.h"
+#include "dm_event_control.h"
+#include "hal_ddr_init.h"
+#include "delays.h"
+
+/*! \def MEM_PLL_PROGRAM_TRY_LIMIT
+    \brief MEM PLL program try limit
+*/
+#define MEM_PLL_PROGRAM_TRY_LIMIT 3
+
+static uint32_t memshire_frequency;
+static uint32_t ddr_frequency;
+/* MEMSHIRE PLL frequency modes (795MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode_795MHz[3] = { 50, 51, 52 };
+/* MEMSHIRE PLL frequency modes (933MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode_933MHz[3] = { 28, 29, 30 };
+/* MEMSHIRE PLL frequency modes (1066MHz) for different ref clocks, 100MHz, 24Mhz and 40MHz */
+static uint8_t min_lvdpll_mode_1066MHz[3] = { 19, 20, 21 };
+
+static struct ddr_mem_info_t ddr_mem_info = { 0 };
+
+static void ddr_error_threshold_isr(void);
+static void ddr_error_crit_isr(void);
+static void memshire_pll_output_enable(uint32_t memshire)
+{
+    uint64_t value;
+
+    value = ms_read_esr(memshire, ddrc_reset_ctl);
+    value |= 0x100;
+    ms_write_esr(memshire, ddrc_reset_ctl, value);
+}
+
+static void disable_memory_pll_bypass(uint32_t memshire)
+{
+    uint64_t value;
+
+    value = ms_read_esr(memshire, ddrc_reset_ctl);
+    value |= 0x100;
+    ms_write_esr(memshire, ddrc_reset_ctl, value);
+}
+
+uint64_t ms_read_chip_reg(uint32_t memshire, uint32_t mr_num)
+{
+    uint64_t data;
+
+    // set mr_num in MRCTRL1 (DDR controller register)
+    ms_write_ddrc_reg(memshire, 0, MRCTRL1, mr_num << 8);
+
+    // set type = read in MRCTRL0 (DDR controller register)
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, 0x1);
+
+    // setting bit 31 causes mrr to occur (Memshire register)
+    ms_write_ddrc_reg(memshire, 0, MRCTRL0, 0x80000001);
+
+    // wait for mrr u0 status to be set (Memshire register)
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d]Reading from memory chip, register 0x%08x\n", memshire,
+              mr_num);
+    data = ms_read_esr(memshire, ddrc_mrr_status) & 0x1;
+    while (data != 0x1)
+    {
+        data = ms_read_esr(memshire, ddrc_mrr_status) & 0x1;
+        usdelay(10);
+    }
+
+    // read data from ddrc_u0_mrr_data (Memshire register)
+    data = ms_read_esr(memshire, ddrc_u0_mrr_data);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d]Reading from memory chip, read 0x%016lx\n", memshire, data);
+
+    return data;
+}
+
+int configure_memshire_plls(const DDR_MODE *ddr_mode)
+{
+    uint8_t pll_mode;
+    uint8_t hpdpll_strap_pins;
+    int rv;
+    int try_num = 0;
+
+    hpdpll_strap_pins = get_hpdpll_strap_value();
+
+    /* [PLL Mode Spreadsheet]
+    https://docs.google.com/spreadsheets/d/0B45kZDfsf1VrbE5QOW1LZ1Zoc0VmWXRyMDJQMDViLUM2NGMw/ */
+
+    if (ddr_mode->frequency == DDR_FREQUENCY_800MHZ)
+    {
+        pll_mode = min_lvdpll_mode_795MHz[hpdpll_strap_pins];
+    }
+    else if (ddr_mode->frequency == DDR_FREQUENCY_933MHZ)
+    {
+        pll_mode = min_lvdpll_mode_933MHz[hpdpll_strap_pins];
+    }
+    else if (ddr_mode->frequency == DDR_FREQUENCY_1066MHZ)
+    {
+        pll_mode = min_lvdpll_mode_1066MHz[hpdpll_strap_pins];
+    }
+    else
+    {
+        return -1;
+    }
+
+    // Gating all memshire debug clocks
+    for (uint32_t memshire = 0; memshire < HW_NUMBER_OF_MEMSHIRE; memshire++)
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Disable debug clock\n", memshire);
+        ms_write_esr(memshire, ms_clk_gate_ctl, 0x1);
+    }
+
+    do
+    {
+        rv = program_memshire_pll(0, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) && (try_num < MEM_PLL_PROGRAM_TRY_LIMIT));
+
+    if (0 != rv)
+    {
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+
+    disable_memory_pll_bypass(0);
+
+    // Switch MemShire clock mux to use PLL output
+    memshire_pll_output_enable(0);
+
+    // Clear Lock monitor
+    memshire_pll_clear_lock_monitor(0);
+
+    do
+    {
+        rv = program_memshire_pll(4, pll_mode, &memshire_frequency, MEM_HPDPLL_LDO_KICK, 2);
+        try_num++;
+    } while ((0 != rv) && (try_num < MEM_PLL_PROGRAM_TRY_LIMIT));
+
+    if (0 != rv)
+    {
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+
+    disable_memory_pll_bypass(4);
+
+    // Switch MemShire clock mux to use PLL output
+    memshire_pll_output_enable(4);
+
+    // Clear Lock monitor
+    memshire_pll_clear_lock_monitor(4);
+
+    return 0;
+}
+
+#if !FAST_BOOT
+/*
+** following DDR initialization flow from hardware team
+*/
+
+/* Patch the Phys RAM to overwrite default config */
+static void ms_patch_phy_ram_before_training(uint32_t memshire)
+{
+    // SOC ODT to 0, default 0x3c, 0x3c00
+    ms_write_phy_ram(memshire, 0x5401e, 0x30);
+    ms_write_phy_ram(memshire, 0x54024, 0x30);
+    ms_write_phy_ram(memshire, 0x54037, 0x3000);
+    ms_write_phy_ram(memshire, 0x5403d, 0x3000);
+
+    uint32_t vref_dq = 0x19; // default set to 0xf
+    uint32_t mr14 = 0x40 | (vref_dq & 0x3f);
+    ms_write_phy_ram(memshire, 0x5401c, 0x4008 | (mr14 << 8)); // MR14 Channel A
+    ms_write_phy_ram(memshire, 0x54036, 0x0040 | mr14);        // MR14 Channel B
+}
+
+int ddr_config(DDR_MODE *ddr_mode)
+{
+    // algorithm/flow and config parameters are from hardware team
+    uint32_t config_ecc;
+    uint32_t config_real_pll;
+    uint32_t config_800mhz;
+    uint32_t config_933mhz;
+    uint32_t config_auto_precharge;
+    uint32_t config_debug_level; // one of PHY_MSG_VERBOSITY_xxxx
+    uint32_t config_sim_only;
+    uint32_t config_disable_unused_clks;
+    uint32_t config_train_poll_max_iterations;
+    uint32_t config_train_poll_iteration_delay;
+    uint32_t config_4gb = 0;
+    uint32_t config_8gb = 0;
+    uint32_t config_32gb = 0;
+    uint32_t ddr_density = 0;
+    bool config_training;
+    bool config_training_2d;
+
+    // local variables
+    uint32_t memshire;
+    const ms_dram_status_t *dram_status_ptr = ms_get_dram_status();
+
+    // decide frequency paramters
+    if (ddr_mode->frequency == DDR_FREQUENCY_800MHZ)
+    {
+        config_800mhz = 1;
+        config_933mhz = 0;
+    }
+    else if (ddr_mode->frequency == DDR_FREQUENCY_933MHZ)
+    {
+        config_800mhz = 0;
+        config_933mhz = 1;
+    }
+    else if (ddr_mode->frequency == DDR_FREQUENCY_1066MHZ)
+    {
+        config_800mhz = 0;
+        config_933mhz = 0;
+    }
+    else
+    {
+        return -1;
+    }
+
+    config_ecc = ddr_mode->ecc ? 1 : 0;
+    config_training = ddr_mode->training ? 1 : 0;
+    config_sim_only = ddr_mode->sim_only ? 1 : 0;
+
+    config_real_pll = 1;
+    config_auto_precharge = 0;
+    config_debug_level = PHY_MSG_VERBOSITY_STAGE_COMPLETION;
+    config_disable_unused_clks = 1;
+    config_train_poll_max_iterations = 50000;
+    config_train_poll_iteration_delay =
+        1000; // unit in ns.  less than 1000ns will simply do task yield
+    config_training_2d = true;
+
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_ecc=0x%08x\n", config_ecc);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_real_pll=0x%08x\n",
+              config_real_pll);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_800mhz=0x%08x\n", config_800mhz);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_933mhz=0x%08x\n", config_933mhz);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_auto_precharge=0x%08x\n",
+              config_auto_precharge);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_debug_level=0x%08x\n",
+              config_debug_level);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_sim_only=0x%08x\n",
+              config_sim_only);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_disable_unused_clks=0x%08x\n",
+              config_disable_unused_clks);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_train_poll_max_iterations=0x%08x\n",
+              config_train_poll_max_iterations);
+    Log_Write(LOG_LEVEL_DEBUG,
+              "DDR:[-1][txt]ddr_config: config_train_poll_iteration_delay=0x%08x\n",
+              config_train_poll_iteration_delay);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_4gb=0x%08x\n", config_4gb);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_8gb=0x%08x\n", config_8gb);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_32gb=0x%08x\n", config_32gb);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_training=0x%08x\n",
+              config_training);
+    Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: config_training_2d=0x%08x\n",
+              config_training_2d);
+    Log_Write(LOG_LEVEL_INFO, "DDR:[-1][txt]ddr_config: start\n");
+
+    FOR_EACH_MEMSHIRE(CHECK_MEMSHIRE_ID(memshire);)
+
+    FOR_EACH_MEMSHIRE(Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase1\n", memshire);
+                      ms_init_seq_phase1(memshire, config_ecc, config_real_pll, config_800mhz,
+                                         config_933mhz, config_training, config_4gb, config_8gb,
+                                         config_32gb, config_sim_only);)
+
+    FOR_EACH_MEMSHIRE(Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase2\n", memshire);
+                      ms_init_seq_phase2(memshire, config_real_pll);)
+
+    FOR_EACH_MEMSHIRE(Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase3_01\n", memshire);
+                      if (config_sim_only)
+                          ms_init_seq_phase3_01_skiptrain(memshire, config_800mhz, config_933mhz);
+                      else ms_init_seq_phase3_01(memshire, config_800mhz, config_933mhz);)
+
+    if (config_training)
+    {
+        FOR_EACH_MEMSHIRE(
+            uint32_t mem[8] = { 0 }; mem[memshire] = 1; Log_Write(
+                LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: ms_init_swizle_ca_bub\n", memshire);
+            ms_init_swizle_ca_bub(mem[0], mem[1], mem[2], mem[3], mem[4], mem[5], mem[6], mem[7]);)
+
+        FOR_EACH_MEMSHIRE(
+            uint32_t mem[8] = { 0 }; mem[memshire] = 1; Log_Write(
+                LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: ms_init_swizle_dq_bub\n", memshire);
+            ms_init_swizle_dq_bub(mem[0], mem[1], mem[2], mem[3], mem[4], mem[5], mem[6], mem[7]);)
+
+        Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: phase3_02\n");
+
+        ms_init_seq_phase3_02_no_loop(memshire, config_800mhz, config_933mhz);
+
+        FOR_EACH_MEMSHIRE_EVEN_FIRST(
+            Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Training 1D starts\n", memshire);
+            Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase3_03\n", memshire);
+            ms_patch_phy_ram_before_training(memshire);
+            ms_init_seq_phase3_03(memshire, config_debug_level, config_sim_only);)
+
+        Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: phase3_04\n");
+        ms_init_seq_phase3_04_no_loop(memshire, config_train_poll_max_iterations,
+                                      config_train_poll_iteration_delay);
+
+        if (config_training_2d && dram_status_ptr->system_status == 0x0)
+        {
+            Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: phase3_05\n");
+
+            FOR_EACH_MEMSHIRE(ms_write_ddrc_reg(memshire, 2, APBONLY0_MicroContMuxSel,
+                                                0x00000000); // MicroContMuxSel=0
+            )
+            Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: MicroContMuxSel=0\n");
+            ms_init_seq_phase3_05_no_loop(memshire, config_800mhz, config_933mhz);
+
+            FOR_EACH_MEMSHIRE_EVEN_FIRST(
+                Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]Training 2D starts\n", memshire);
+                Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase3_06\n", memshire);
+                ms_init_seq_phase3_06(memshire, config_debug_level, config_sim_only);)
+            Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt]ddr_config: phase3_07\n");
+            ms_init_seq_phase3_07_no_loop(memshire, config_train_poll_max_iterations,
+                                          config_train_poll_iteration_delay);
+        }
+
+        FOR_EACH_MEMSHIRE(
+            Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase3_08\n", memshire);
+            ms_init_seq_phase3_08(memshire, config_ecc, config_800mhz, config_933mhz, config_4gb,
+                                  config_8gb, config_32gb);)
+    }
+    FOR_EACH_MEMSHIRE(Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase4_01\n", memshire);
+                      if (config_sim_only)
+                          ms_init_seq_phase4_01_skiptrain(memshire, config_800mhz, config_933mhz);
+                      else ms_init_seq_phase4_01(memshire, config_800mhz, config_933mhz);)
+
+    FOR_EACH_MEMSHIRE(if (dram_status_ptr->physical_memshire_status[memshire] == WORKING) {
+        Log_Write(LOG_LEVEL_DEBUG, "DDR:[%d][txt]ddr_config: phase4_02\n", memshire);
+        /* Unused clocks are disabled at the end */
+        ms_init_seq_phase4_02(memshire, config_auto_precharge, 0, config_training);
+    })
+
+    Log_Write(LOG_LEVEL_INFO, "DDR:[-1][txt]DRAM status (bit=1: failure) = 0x%08x\n",
+              dram_status_ptr->system_status);
+    for (int i = 0; i < HW_NUMBER_OF_MEMSHIRE; ++i)
+    {
+        Log_Write(LOG_LEVEL_DEBUG, "DDR:[-1][txt] shire[%d] = %d\n", i,
+                  dram_status_ptr->physical_memshire_status[i]);
+    }
+
+    /* Obtain the DDR vendor ID */
+    ddr_mem_info.ddr_vendor_id = ms_verify_ddr_vendor(MEMSHIRE_BASE);
+    switch (ddr_mem_info.ddr_vendor_id)
+    {
+        case DDR_VENDOR_MICRON:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM vendor = MICRON\n",
+                      MEMSHIRE_BASE);
+            break;
+        case DDR_VENDOR_SKHYNIX:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM vendor = SKHYNIX\n",
+                      MEMSHIRE_BASE);
+            break;
+        case DDR_VENDOR_SAMSUNG:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM vendor = SAMSUNG\n",
+                      MEMSHIRE_BASE);
+            break;
+        default:
+            Log_Write(LOG_LEVEL_INFO,
+                      "DDR:[%d][txt]ddr_config: DRAM vendor = UNKNOWN: Value = 0x%x\n",
+                      MEMSHIRE_BASE, ddr_mem_info.ddr_vendor_id);
+            break;
+    }
+
+    /* Read the MR8 register once the interface has been trained to determine the density.
+    Read MS(0) since they should all be equivalent. */
+    ddr_density = ms_verify_ddr_density(MEMSHIRE_BASE);
+    switch (ddr_density)
+    {
+        case DDR_CAPACITY_32GB:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 32GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_32GB;
+            config_4gb = 0;
+            config_8gb = 0;
+            config_32gb = 1;
+            break;
+        case DDR_CAPACITY_16GB:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 16GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_16GB;
+            config_4gb = 0;
+            config_8gb = 0;
+            config_32gb = 0;
+            break;
+        case DDR_CAPACITY_8GB:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 8GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_8GB;
+            config_4gb = 0;
+            config_8gb = 1;
+            config_32gb = 0;
+            break;
+        default:
+            Log_Write(LOG_LEVEL_INFO, "DDR:[%d][txt]ddr_config: DRAM size = 4GB\n", MEMSHIRE_BASE);
+            ddr_mem_info.ddr_mem_size = SIZE_4GB;
+            config_4gb = 1;
+            config_8gb = 0;
+            config_32gb = 0;
+            break;
+    }
+
+    /* Disable the unused clocks */
+    if (config_disable_unused_clks)
+    {
+        mem_disable_unused_clocks();
+    }
+
+    if (dram_status_ptr->system_status == 0x0)
+        return 0;
+    else
+        return -1;
+}
+#endif //!FAST_BOOT
+
+static struct ddr_event_control_block event_control_block __attribute__((section(".data")));
+
+int32_t ddr_error_control_init(dm_event_isr_callback event_cb)
+{
+    event_control_block.ce_count = 0;
+    event_control_block.uce_count = 0;
+    event_control_block.ce_threshold = DDR_CORR_ERROR_THRESHOLD;
+    event_control_block.event_cb = event_cb;
+
+    ddr_enable_ce_interrupt();
+    ddr_enable_uce_interrupt();
+
+    return 0;
+}
+
+int32_t ddr_error_control_deinit(void)
+{
+    ddr_disable_ce_interrupt();
+    ddr_disable_uce_interrupt();
+
+    return 0;
+}
+
+int32_t ddr_enable_ce_interrupt(void)
+{
+    uint32_t memshire;
+    uint64_t int_normal_en;
+
+    FOR_EACH_MEMSHIRE(
+        INT_enableInterrupt(SPIO_PLIC_MEMSHIRE_NORM_E0_INTR + memshire, 1, ddr_error_threshold_isr);
+
+        /* enable single bit error interrupt */
+        int_normal_en = ms_read_esr(memshire, ddrc_normal_int_en);
+        int_normal_en = int_normal_en | 0x03;
+        ms_write_esr(memshire, ddrc_normal_int_en, int_normal_en);)
+
+    return 0;
+}
+
+int32_t ddr_enable_uce_interrupt(void)
+{
+    uint32_t memshire;
+    uint64_t int_critical_en;
+
+    FOR_EACH_MEMSHIRE(
+        INT_enableInterrupt(SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR + memshire, 1, ddr_error_crit_isr);
+
+        /* enable double bit error interrupt */
+        int_critical_en = ms_read_esr(memshire, ddrc_critical_int_en);
+        int_critical_en = int_critical_en | 0x180;
+        ms_write_esr(memshire, ddrc_critical_int_en, int_critical_en);)
+
+    return 0;
+}
+
+int32_t ddr_disable_ce_interrupt(void)
+{
+    uint32_t memshire;
+    uint64_t int_normal_en;
+
+    FOR_EACH_MEMSHIRE(INT_disableInterrupt(SPIO_PLIC_MEMSHIRE_NORM_E0_INTR + memshire);
+                      /* disable single bit error interrupt */
+                      int_normal_en = ms_read_esr(memshire, ddrc_normal_int_en);
+                      int_normal_en = int_normal_en & ~0x03ul;
+                      ms_write_esr(memshire, ddrc_normal_int_en, int_normal_en);
+
+    )
+
+    return 0;
+}
+
+int32_t ddr_disable_uce_interrupt(void)
+{
+    uint32_t memshire;
+    uint64_t int_critical_en;
+
+    FOR_EACH_MEMSHIRE(INT_disableInterrupt(SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR + memshire);
+
+                      /* disable double bit error interrupt */
+                      int_critical_en = ms_read_esr(memshire, ddrc_critical_int_en);
+                      int_critical_en = int_critical_en & ~0x180ul;
+                      ms_write_esr(memshire, ddrc_critical_int_en, int_critical_en);)
+
+    return 0;
+}
+
+int32_t ddr_set_ce_threshold(uint32_t ce_threshold)
+{
+    event_control_block.ce_threshold = ce_threshold;
+    return 0;
+}
+
+int32_t ddr_get_ce_count(uint32_t *ce_count)
+{
+    *ce_count = event_control_block.ce_count;
+    return 0;
+}
+
+int32_t ddr_get_uce_count(uint32_t *uce_count)
+{
+    *uce_count = event_control_block.uce_count;
+    return 0;
+}
+
+static void ddr_error_threshold_isr(void)
+{
+    uint32_t memshire;
+    uint32_t ulMaxID = ioread32(R_SP_PLIC_BASEADDR + SPIO_PLIC_MAXID_T0_ADDRESS);
+
+    if ((ulMaxID >= SPIO_PLIC_MEMSHIRE_NORM_E0_INTR) &&
+        (ulMaxID <= SPIO_PLIC_MEMSHIRE_NORM_W3_INTR))
+    {
+        memshire = (uint8_t)(ulMaxID - SPIO_PLIC_MEMSHIRE_NORM_E0_INTR);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "Wrong interrupt handler");
+        return;
+    }
+
+    if (++event_control_block.ce_count > event_control_block.ce_threshold)
+    {
+        struct event_message_t message;
+        uint64_t int_status;
+        uint64_t err_addres;
+        uint32_t mc_block;
+
+        /* read error info */
+        int_status = ms_read_esr(memshire, ddrc_int_status);
+        int_status = ((uint64_t)memshire << 32) | int_status;
+        mc_block = DDRC_INT_STATUS_ESR_MC0_ECC_CORRECTED_ERR_INTR_GET(int_status) ? 0 : 1;
+        err_addres = (uint64_t)ms_read_ddrc_reg(memshire, mc_block, ECCUADDR1) << 32 |
+                     ms_read_ddrc_reg(memshire, mc_block, ECCUADDR0);
+
+        /* add details in message header and fill payload */
+        FILL_EVENT_HEADER(&message.header, DRAM_CE, sizeof(struct event_message_t))
+        FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.ce_count, int_status,
+                           err_addres)
+
+        /* call the callback function and post message */
+        event_control_block.event_cb(CORRECTABLE, &message);
+    }
+}
+
+static void ddr_error_crit_isr(void)
+{
+    struct event_message_t message;
+    uint64_t int_status;
+    uint32_t memshire;
+    uint64_t err_addres;
+    uint32_t mc_block;
+    uint32_t ulMaxID = ioread32(R_SP_PLIC_BASEADDR + SPIO_PLIC_MAXID_T0_ADDRESS);
+
+    if ((ulMaxID >= SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR) &&
+        (ulMaxID <= SPIO_PLIC_MEMSHIRE_CRIT_W3_INTR))
+    {
+        memshire = (uint8_t)(ulMaxID - SPIO_PLIC_MEMSHIRE_CRIT_E0_INTR);
+    }
+    else
+    {
+        Log_Write(LOG_LEVEL_CRITICAL, "Wrong interrupt handler");
+        return;
+    }
+
+    event_control_block.uce_count++;
+
+    /* read error info */
+    int_status = ms_read_esr(memshire, ddrc_int_status);
+    int_status = ((uint64_t)memshire << 32) | int_status;
+    mc_block = DDRC_INT_STATUS_ESR_MC0_ECC_UNCORRECTED_ERR_INTR_GET(int_status) ? 0 : 1;
+
+    err_addres = (uint64_t)ms_read_ddrc_reg(memshire, mc_block, ECCUADDR1) << 32 |
+                 ms_read_ddrc_reg(memshire, mc_block, ECCUADDR0);
+
+    /* add details in message header and fill payload */
+    FILL_EVENT_HEADER(&message.header, DRAM_UCE, sizeof(struct event_message_t))
+    FILL_EVENT_PAYLOAD(&message.payload, CRITICAL, event_control_block.uce_count, int_status,
+                       err_addres)
+
+    /* call the callback function and post message */
+    event_control_block.event_cb(UNCORRECTABLE, &message);
+}
+
+int ddr_get_memory_vendor_ID(uint32_t *vendor_ID)
+{
+    *vendor_ID = ddr_mem_info.ddr_vendor_id;
+    return 0;
+}
+
+int ddr_get_memory_type(char *mem_type)
+{
+    char name[] = "LPDDR4X";
+    snprintf(mem_type, 8, "%s", name);
+
+    return 0;
+}
+
+int ddr_get_memory_size(uint64_t *mem_size_bytes)
+{
+    *mem_size_bytes = ddr_mem_info.ddr_mem_size;
+    return 0;
+}
+
+int32_t configure_memshire(void)
+{
+    memshire_frequency = 0;
+    ddr_frequency = 0;
+
+    DDR_MODE ddr_mode = { .frequency = DDR_FREQUENCY_933MHZ,
+                          .capacity = DDR_CAPACITY_16GB,
+                          .ecc = false,
+                          .training = true,
+                          .sim_only = false };
+
+    //TODO: decide ddr_mode based on, e.g. from storage
+
+    if (0 != release_memshire_from_reset())
+    {
+        Log_Write(LOG_LEVEL_ERROR, "release_memshire_from_reset() failed!\n");
+        return MEMSHIRE_COLD_RESET_CONFIG_ERROR;
+    }
+    Log_Write(LOG_LEVEL_INFO, "configure_memshire: release_memshire_from_reset completed\n");
+
+    if (0 != configure_memshire_plls(&ddr_mode))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "configure_memshire_plls() failed!\n");
+        return MEMSHIRE_PLL_CONFIG_ERROR;
+    }
+    Log_Write(LOG_LEVEL_INFO, "configure_memshire: configure_memshire_plls completed\n");
+#if !(FAST_BOOT || TEST_FRAMEWORK)
+    if (0 != ddr_config(&ddr_mode))
+    {
+        Log_Write(LOG_LEVEL_ERROR, "ddr_config() failed!\n");
+        return MEMSHIRE_DDR_CONFIG_ERROR;
+    }
+#else
+    /* TODO update the size on runtime for sysemu */
+    ddr_mem_info.ddr_mem_size = SIZE_16GB;
+#endif
+    Log_Write(LOG_LEVEL_INFO, "DRAM ready.\n");
+    if (ddr_mode.frequency == DDR_FREQUENCY_800MHZ)
+    {
+        ddr_frequency = 800;
+    }
+    else if (ddr_mode.frequency == DDR_FREQUENCY_933MHZ)
+    {
+        ddr_frequency = 933;
+    }
+    else if (ddr_mode.frequency == DDR_FREQUENCY_1066MHZ)
+    {
+        ddr_frequency = 1066;
+    }
+
+    Log_Write(LOG_LEVEL_CRITICAL, "configure_memshire: ddr_config completed\n");
+    return SUCCESS;
+}
+
+uint32_t get_memshire_frequency(void)
+{
+    return memshire_frequency;
+}
+
+uint32_t get_ddr_frequency(void)
+{
+    return ddr_frequency;
+}
+
+void memshire_pll_clear_lock_monitor(uint8_t ms_num)
+{
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[0]: sample_strobe
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[1]: lock_monitor_clear
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x3);
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x0);
+}
+
+uint32_t memshire_pll_get_lock_monitor(uint8_t ms_num)
+{
+    // PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL[0]: sample_strobe
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x1);
+    write_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR_CONTROL, 0x0);
+    return (uint32_t)(read_memshire_pll_reg(ms_num, PLL_REG_INDEX_REG_LOCK_MONITOR) &
+                      PLL_LOCK_MONITOR_MASK);
+}
+
+void print_memshire_pll_lock_monitors(void)
+{
+    uint32_t lock_monitor;
+
+    lock_monitor = memshire_pll_get_lock_monitor(0);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "MEMSHIRE WEST PLL lock monitor: %d\n", lock_monitor);
+    }
+    lock_monitor = memshire_pll_get_lock_monitor(4);
+    if (0 != lock_monitor)
+    {
+        Log_Write(LOG_LEVEL_WARNING, "MEMSHIRE EAST PLL lock monitor: %d\n", lock_monitor);
+    }
+}
+
+void clear_memshire_pll_lock_monitors(void)
+{
+    memshire_pll_clear_lock_monitor(0);
+    memshire_pll_clear_lock_monitor(4);
+}
+
+struct ddr_mem_info_t *mem_controller_get_ddr_info(void)
+{
+    /* return memory information including density and vendor id*/
+    return &ddr_mem_info;
+}

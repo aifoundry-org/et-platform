@@ -1,0 +1,254 @@
+include:
+  - project: esperantotech/software/gitlab-ci-common
+    ref: 9e27d5abc3e4538cf5ee705d0263ea3d415e6ef1
+    file:
+      - rules/generic-workflow-conan.yaml
+      - pods/nano-pod.yaml
+      - pods/medium-pod.yaml
+      - pods/large-pod.yaml
+      - jobs/generic-k8s-job.yaml
+      - jobs/conan-sonarqube-job.yaml
+      - rules/exec_maybe_interactively.yaml
+      - jobs/check-top-of-master-template.yaml
+      - jobs/sw-platform-trigger-template.yaml
+
+  - project: esperantotech/software/gitlab-ci-common
+    ref: master
+    file:
+      - jobs/conan-jobs.yaml
+
+  - project: esperantotech/software/sw-platform
+    ref: develop/system-sw
+    file:
+      - gitlab-ci/system-sw/misc/verify-merge-request.yaml
+
+stages:
+  - generate_build
+  - build
+  - test
+  - deploy
+
+default:
+  interruptible: true
+
+variables:
+  # These two variables are consumed by the jobs from /jobs/sw-platform-trigger.yaml
+  SW_PLATFORM_BRANCH: develop/system-sw
+  PIPELINE_CI_SUBPROJECT: device-bootloaders
+
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+.release_job:
+  rules:
+    - &release_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - &release_or_development_job_rule
+      if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH) || ($CI_PIPELINE_SOURCE == "merge_request_event")
+
+# Only run job in these cases:
+# - if there is a MR open
+.development_job:
+  rules:
+    - &development_job_rule
+      if: ($CI_PIPELINE_SOURCE == "merge_request_event") && ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH)
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+verify_project_changes:
+  extends:
+    - .template_job
+    - .pod_nano
+    - .verify_merge_request
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-22.04-et-sw-platform:0.0.12
+  stage: .pre
+  rules:
+    - *development_job_rule
+  variables:
+    PROJ_VER_FILE_NAME: CMakeLists.txt
+
+####
+
+check-on-top-of-master:
+  extends: .check-on-top-of-master
+  stage: .pre
+  needs: [ ]
+  rules:
+    - *development_job_rule
+
+####
+
+clang-format:
+  extends:
+    - .template_job
+    - .pod_nano
+  image: docker-sw-team.sc-artifactory1.esperanto.ai/convoke/ubuntu-22.04-et-sw-platform:0.0.12
+  stage: .pre
+  rules:
+    - *development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      git fetch origin master
+      git clang-format --style file --diff origin/master --extensions c,h
+      git clang-format --style file --diff origin/master --extensions c,h | grep -q -e "clang-format did not modify any files$" -e "^no modified files to format$"
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+capture-graph:
+  extends:
+    - .template_job
+    - .pod_medium
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: .pre
+  rules:
+    - *release_or_development_job_rule
+  variables:
+    CMD_SCRIPT: |
+      conan remote disable conan-tmp
+      conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build=missing --lockfile-out=deps_base.lock --base
+  artifacts:
+    when: always
+    expire_in: 2d
+    paths:
+      - deps_base.lock
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+create-sw-platform-branch:
+  extends: .create-sw-platform-branch
+  stage: generate_build
+  needs:
+    - verify_project_changes
+    - check-on-top-of-master
+    - clang-format
+  rules:
+    - *development_job_rule
+
+generate_build:conan:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: generate_build
+  needs:
+    - job: verify_project_changes
+      optional: true
+    - job: check-on-top-of-master
+      optional: true
+    - job: clang-format
+      optional: true
+  rules:
+    - *release_or_development_job_rule
+  variables:
+    TIMEOUT: 15m
+    CMD_BUILD: |
+      cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m ci_build
+  artifacts:
+    expire_in: 1d
+    paths:
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+create-sw-platform-trigger:
+  extends: .create-sw-platform-trigger
+  stage: build
+  needs:
+    - create-sw-platform-branch
+  rules:
+    - *development_job_rule
+
+build:conan:
+  extends:
+    - .exec_maybe_interactively
+  stage: build
+  needs:
+    - generate_build:conan
+  rules:
+    - *release_or_development_job_rule
+  trigger:
+    include:
+    - artifact: conan/build_pipeline.yml
+      job: generate_build:conan
+    strategy: depend
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+quality:sonarqube-check:
+  stage: build
+  extends:
+    - .template_sonarqube_conan_job
+    - .pod_medium
+    - .template-conan-linux-ubuntu22.04-gcc11
+  needs:
+    - capture-graph
+  rules:
+    - *release_or_development_job_rule
+  script:
+      - conan lock create conanfile.py -pr:b=default -pr:h=baremetal-rv64-gcc8.2-release --build missing --lockfile=deps_base.lock --lockfile-out=Release.lock
+      - conan install . --lockfile=Release.lock --build=missing -g VirtualRunEnv
+      - cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja 
+      - source build/Release/generators/conanrun.sh
+      - cp ${CI_PROJECT_DIR}/build/Release/compile_commands.json .
+      - sonar-scanner -Dsonar.cfamily.threads=${KUBERNETES_CPU_REQUEST}
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+tests:integration-repo:
+  extends: .meta-trigger
+  stage: test
+  needs:
+    - create-sw-platform-trigger
+    - build:conan
+  rules:
+    - *development_job_rule
+  trigger:
+    strategy: depend
+    include:
+      - artifact: generated-trigger-job.yaml
+        job: create-sw-platform-trigger
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+on_success:promote:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu22.04-gcc11
+  stage: deploy
+  needs:
+    - generate_build:conan
+    - build:conan
+  rules:
+    - *release_job_rule
+  variables:
+    PYTHONIOENCODING: utf-8
+    CMD_BUILD: |
+      cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m ci_promote

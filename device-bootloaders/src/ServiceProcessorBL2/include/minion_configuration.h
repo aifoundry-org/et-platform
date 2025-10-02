@@ -1,0 +1,390 @@
+/***********************************************************************
+*
+* Copyright (C) 2020 Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*
+************************************************************************/
+/*! \file minion_configuration.h
+    \brief A C header that defines the minion configuration service's
+    public interfaces.
+*/
+/***********************************************************************/
+#ifndef __MINION_CONFIGURATION_H__
+#define __MINION_CONFIGURATION_H__
+
+#include <stdint.h>
+#include "bl2_sp_pll.h"
+#include "bl2_reset.h"
+#include "sp_otp.h"
+#include "bl2_pmic_controller.h"
+#include "bl2_cache_control.h"
+#include "bl2_firmware_loader.h"
+#include "bl2_certificates.h"
+#include "bl_error_code.h"
+#include "transports/sp_mm_iface/sp_mm_comms_spec.h"
+#include "mm_iface.h"
+#include "dm.h"
+#include "sp_host_iface.h"
+#include "dm_event_def.h"
+
+/*! \def MINION_HANG_ERROR_THRESHOLD
+    \brief Minion hang errors threshold
+*/
+#define MINION_HANG_ERROR_THRESHOLD 1
+
+/*! \def MINION_EXCEPT_ERROR_THRESHOLD
+    \brief Minion exception errors threshold
+*/
+#define MINION_EXCEPT_ERROR_THRESHOLD 1
+
+/*! \def MM_HEARTBEAT_TIMEOUT_MSEC
+    \brief MM  heartbeat timeout period
+*/
+#define MM_HEARTBEAT_TIMEOUT_MSEC 10000
+
+/*! \def MM_MASTER_SHIRE_ID
+    \brief MM master shire ID
+*/
+#define MM_MASTER_SHIRE_ID 32
+
+/*! \def MM_MASTER_SHIRE_NEIGH_NUM
+    \brief MM master shire number of neighborhoods
+*/
+#define MM_MASTER_SHIRE_NEIGH_NUM 2
+
+/*! \def MM_HEARTBEAT_TIMEOUT_MSEC
+    \brief MM reset timeout period
+*/
+#define MM_RESET_TIMEOUT_MSEC 1000000
+
+/*! \def CM_SHIRE_MASK
+    \brief Shire mask of Compute Minions Shires.
+*/
+#define CM_SHIRE_MASK 0xFFFFFFFFUL
+/*! \def CM_HART_ID_2047
+    \brief Define for CM hart ID 2047
+*/
+#define CM_HART_ID_2047 2047
+
+/*! \def CM_HART_ID_2080
+    \brief Define for CM hart ID 2080
+*/
+#define CM_HART_ID_2080 2080
+
+/*! \def CM_HART_ID_2111
+    \brief Define for CM hart ID 2111
+*/
+#define CM_HART_ID_2111 2111
+
+/*! \def MINION_PLL_USE_STEP_CLOCK
+    \brief A macro to enable/disable step clock
+*/
+#define MINION_PLL_USE_STEP_CLOCK true
+
+/*! \fn Minion_Config_Get_Minion_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *minion_voltage_hex)
+    \brief This function returns a voltage operating value given
+            a freq value
+    \param Target Minion Frequency
+    \param pointer to output voltage
+    \return status
+*/
+int Minion_Config_Get_Minion_Voltage_Given_Freq(uint16_t target_frequency,
+                                                uint8_t *minion_voltage_hex);
+
+/*! \fn int Minion_Config_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency, uint8_t *sram_voltage_hex)
+    \brief This function returns a voltage operating value given
+            a freq value
+    \param Target Minion Frequency
+    \param pointer to output voltage
+    \return status
+*/
+int Minion_Config_Get_L2Cache_Voltage_Given_Freq(uint16_t target_frequency,
+                                                 uint8_t *sram_voltage_hex);
+
+/*! \fn int Minion_Program_Step_Clock_PLL(uint8_t mode)
+    \brief This function provide support to program the
+           Minion Shire Step Clock which is coming from
+           IO Shire HDPLL 4
+    \param value of the freq(in mode) to updated to
+    \return The function call status, pass/fail.
+*/
+int Minion_Program_Step_Clock_PLL(uint8_t mode);
+
+/*! \fn uint8_t pll_freq_to_mode(int32_t freq)
+    \brief This function returns the mode for a given
+           frequency
+    \param frequency
+    \return corresponding mode
+*/
+uint8_t pll_freq_to_mode(int32_t freq);
+
+/*! \fn int Minion_Enable_Master_Shire_Threads(void)
+    \brief This function enables mastershire threads
+    \param N/A
+    \return The function call status, pass/fail.
+*/
+int Minion_Enable_Master_Shire_Threads(void);
+
+/*! \fn int Minion_Configure_CM_Shire_Threads(bool enable)
+    \brief This function enables mastershire threads
+    \return The function call status, pass/fail.
+*/
+int Minion_Disable_CM_Shire_Threads(void);
+
+/*! \fn int Master_Minion_Reset(uint64_t minion_shires_mask)
+    \brief This function resets Master minion.
+    \return The function call status, pass/fail.
+*/
+int Master_Minion_Reset(void);
+
+/*! \fn int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask)
+    \This function resets the Compute Minion Shire threads
+    \param minion_shires_mask Minion Shire Mask
+    \return The function call status, pass/fail.
+*/
+int Compute_Minion_Reset_Threads(uint64_t minion_shires_mask);
+
+/*! \fn int Initialize_Minions(uint64_t shires_mask)
+    \brief This function brings all Minion shire out of reset and enables
+           all Shire Cache/Neigh logic, and clears up VPU state
+    \param minion_shires_mask Minion Shire Mask
+    \return The function call status, pass/fail.
+*/
+int Initialize_Minions(uint64_t shires_mask);
+
+/*! \fn int Minion_Configure_MPROT(uint64_t shire_mask)
+    \brief This function configures the MPROT ESR for Minion shires.
+    \param  shire_mask Shire Mask
+    \return Status indicating success or negative error
+*/
+int Minion_Configure_MPROT(uint64_t shire_mask);
+
+/*! \fn int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
+*                                             uint8_t lvdpll_mode, bool use_step_clock)
+    \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.
+    \param  minion_shires_mask Shire Mask to enable
+    \param  hpdpll_mode Frequency of the Step clock
+    \param  lvdpll_mode Frequency mode to enable the internal LVDPLL of each Shire
+    \param  to enable Minion to use Step clock
+    \return The function call status, pass/fail.
+*/
+int Minion_Configure_Minion_Shire_PLL(uint64_t minion_shires_mask, uint8_t hpdpll_mode,
+                                      uint8_t lvdpll_mode, bool use_step_clock);
+
+/*! \fn int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode,
+*                                             uint8_t lvdpll_mode, bool use_step_clock)
+    \brief This function configures the Minion PLLs to Step Clock, and bring them out of reset.
+    \param  hpdpll_mode Frequency of the Step clock
+    \param  lvdpll_mode Frequency mode to enable the internal LVDPLL of each Shire
+    \param  to enable Minion to use Step clock
+    \return The function call status, pass/fail.
+*/
+int Minion_Configure_Minion_Shire_PLL_no_mask(uint8_t hpdpll_mode, uint8_t lvdpll_mode,
+                                              bool use_step_clock);
+
+/*! \fn void Minion_Read_Active_Compute_Minion_Mask(void)
+    \brief This function reads the active CM shire mask from SP OTP
+    \param N/A
+    \return Active CM shire mask.
+*/
+uint64_t Minion_Read_Active_Compute_Minion_Mask(void);
+
+/*! \fn void Minion_Set_Active_Compute_Minion_Mask (uint64_t active_compute_minion_mask)
+    \brief This function stores the active CM shire mask value
+    \param active_compute_minion_mask Active CM shire mask 
+    \return N/A.
+*/
+void Minion_Set_Active_Compute_Minion_Mask(uint64_t active_compute_minion_mask);
+
+/*! \fn void Minion_Get_Active_Compute_Minion_Mask (void)
+    \brief This function returns the stored Active CM shire mask value
+    \param N/A
+    \return stored value of Active CM shire mask.
+*/
+uint64_t Minion_Get_Active_Compute_Minion_Mask(void);
+
+/*! \fn int Minion_Load_Authenticate_Firmware(void)
+    \brief This function loads and authenticates the
+           Minions firmware
+    \param  N/A
+    \return The function call status, pass/fail.
+*/
+int Minion_Load_Authenticate_Firmware(void);
+
+/*! \fn uint64_t Minion_Read_ESR(uint32_t address)
+    \brief This function supports reading a Minion Shire
+           ESR and returns value read
+    \param  address ESR address offset
+    \return value on offset of register address.
+*/
+uint64_t Minion_Read_ESR(uint32_t address);
+
+/*! \fn int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask)
+    \brief This function supports writing to a Minion Shire
+           ESR with specific data
+    \param  address ESR address offset
+    \param  data to be written to
+    \param  mmshire_mask Shire Mask
+    \return The function call status, pass/fail.
+*/
+int Minion_Write_ESR(uint32_t address, uint64_t data, uint64_t mmshire_mask);
+
+/*! \fn int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args)
+    \brief This function supports launching a compute Kernel on specific
+            Shires
+    \param  Minion Shire mask to launch Compute kernel on
+    \param  Arguments to the Compute Kernel
+    \return The function call status, pass/fail.
+*/
+int Minion_Kernel_Launch(uint64_t mmshire_mask, void *args);
+
+/*! \brief Sets the active Shire Mask global
+    \param active_shire_mask Mask of active Shires
+    \returns none
+*/
+void Minion_Set_Active_Shire_Mask(uint64_t active_shire_mask);
+
+/*! \fn void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id)
+    \brief Process the Minion State related host request
+    \param tag_id Tag ID
+    \param msg_id Unique enum representing specific command
+    \returns none
+*/
+void Minion_State_Host_Iface_Process_Request(tag_id_t tag_id, msg_id_t msg_id);
+
+/*! \fn uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void)
+    \brief Return current active shires mask.
+    \returns none
+*/
+uint64_t Minion_State_MM_Iface_Get_Active_Shire_Mask(void);
+
+/*! \fn void Minion_State_MM_Error_Handler(uint16_t error_type, int32_t error_code)
+    \brief Process the Minion State errors.
+    \param error_type Type of error occured.
+    \param error_code Unique enum representing specific error.
+    \returns none
+*/
+void Minion_State_MM_Error_Handler(uint16_t error_type, int32_t error_code);
+
+/*! \fn void Minion_State_MM_Heartbeat_Handler(void)
+    \brief Increment MM heartbeat.
+    \param none
+    \returns none
+*/
+void Minion_State_MM_Heartbeat_Handler(void);
+
+/*! \fn uint64_t Minion_State_Get_MM_Heartbeat_Count(void)
+    \brief Get MM heartbeat count.
+    \param none
+    \returns none
+*/
+uint64_t Minion_State_Get_MM_Heartbeat_Count(void);
+
+/*! \fn int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb)
+    \brief This function initializes the Minion error control subsystem, including
+           programming the default error thresholds, enabling the error interrupts
+           and setting up globals.
+    \param event_cb pointer to the error call back function
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Error_Control_Init(dm_event_isr_callback event_cb);
+
+/*! \fn int32_t Minion_State_Error_Control_Deinit(void)
+    \brief This function cleans up the minion error control subsystem.
+    \param none
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Error_Control_Deinit(void);
+
+/*! \fn int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t ce_threshold)
+    \brief This function programs the minion exception error threshold
+    \param ce_threshold threshold value to set
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Set_Exception_Error_Threshold(uint32_t ce_threshold);
+
+/*! \fn int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t ce_threshold)
+    \brief This function programs the minion hang error threshold
+    \param ce_threshold threshold value to set
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Set_Hang_Error_Threshold(uint32_t ce_threshold);
+
+/*! \fn int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count)
+    \brief This function returns the minion exception error count
+    \param err_count pointer to variable to hold count value
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Get_Exception_Error_Count(uint32_t *err_count);
+
+/*! \fn int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count)
+    \brief This function returns the minion hang error count
+    \param err_count pointer to variable to hold count value
+    \return Status indicating success or negative error
+*/
+
+int32_t Minion_State_Get_Hang_Error_Count(uint32_t *err_count);
+
+/*! \fn int8_t MM_Init_HeartBeat_Watchdog(void)
+    \brief This function creates watchdog timer for MM  heartbeat
+    \param NONE
+    \return Status indicating success or negative error
+*/
+int8_t MM_Init_HeartBeat_Watchdog(void);
+
+/*! \fn int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
+    \brief This function prints lock monitors of LVDPLLs
+    \param  shire_mask Shire Mask
+    \return The function call status, pass/fail.
+*/
+int print_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask);
+
+/*! \fn int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask)
+    \brief This function clears lock monitors of LVDPLLs
+    \param  shire_mask Shire Mask
+    \return The function call status, pass/fail.
+*/
+int clear_minion_shire_lvdpll_lock_monitors(uint64_t shire_mask);
+
+/*! \fn int8_t enable_sram_and_icache_interrupts(void)
+    \brief This function enables interrupts from SRAM and ICache.
+    \param NONE
+    \return Status indicating success or negative error
+*/
+int8_t enable_sram_and_icache_interrupts(void);
+
+/*! \fn int8_t disable_sram_and_icache_interrupts(void)
+    \brief This function disables interrupts from SRAM and ICache.
+    \param NONE
+    \return Status indicating success or negative error
+*/
+int8_t disable_sram_and_icache_interrupts(void);
+
+/*! \fn int Minion_VPU_RF_Init(uint8_t shire_id)
+ *  \brief This function initialized the VPU RF for all Minion.
+ *         listed on the shire_mask
+ *  \param shire_id Minion Shire ID
+ *  \return Status indicating success or negative error
+*/
+int Minion_VPU_RF_Init(uint8_t shireid);
+
+/*! \fn int Minion_Configure_Hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask)
+ *  \brief This function configures the Minion Shire with HPDPLL mode
+ *  \param hpdpll_mode HDPLL mode to configure
+ *  \param shire_mask active minion shire mask
+ *  \return Status indicating success or negative error
+*/
+
+int Minion_Configure_Hpdpll(uint8_t hpdpll_mode, uint64_t shire_mask);
+
+#endif
