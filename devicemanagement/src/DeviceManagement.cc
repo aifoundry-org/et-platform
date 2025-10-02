@@ -8,6 +8,7 @@
 #include "utils.h"
 
 #include <cerrno>
+#include <cstring>
 #include <chrono>
 #include <exception>
 #include <fstream>
