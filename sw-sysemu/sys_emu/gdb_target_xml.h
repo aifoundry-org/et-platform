@@ -1,0 +1,113 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------*/
+
+#ifndef GDB_TARGET_XML_H
+#define GDB_TARGET_XML_H
+
+const char gdb_target_xml[] =
+"<?xml version=\"1.0\"?>\n"
+"<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n"
+"<target>\n"
+"    <architecture>riscv:rv64</architecture>\n"
+"    <feature name=\"org.gnu.gdb.riscv.cpu\">\n"
+"        <reg name=\"zero\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"ra\" bitsize=\"64\" type=\"code_ptr\"/>\n"
+"        <reg name=\"sp\" bitsize=\"64\" type=\"data_ptr\"/>\n"
+"        <reg name=\"gp\" bitsize=\"64\" type=\"data_ptr\"/>\n"
+"        <reg name=\"tp\" bitsize=\"64\" type=\"data_ptr\"/>\n"
+"        <reg name=\"t0\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"t1\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"t2\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"fp\" bitsize=\"64\" type=\"data_ptr\"/>\n"
+"        <reg name=\"s1\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a0\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a1\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a2\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a3\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a4\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a5\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a6\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"a7\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s2\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s3\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s4\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s5\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s6\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s7\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s8\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s9\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s10\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"s11\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"t3\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"t4\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"t5\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"t6\" bitsize=\"64\" type=\"int\"/>\n"
+"        <reg name=\"pc\" bitsize=\"64\" type=\"code_ptr\"/>\n"
+"    </feature>\n"
+"    <feature name=\"org.gnu.gdb.riscv.fpu\">\n"
+"        <vector id=\"v8f32\" type=\"ieee_single\" count=\"8\"/>\n"
+"        <vector id=\"v8i32\" type=\"int32\" count=\"8\"/>\n"
+"        <vector id=\"v8i8\" type=\"int8\" count=\"8\"/>\n"
+"        <union id=\"vreg\">\n"
+"            <field name=\"float\" type=\"v8f32\"/>\n"
+"            <field name=\"int32\" type=\"v8i32\"/>\n"
+"            <field name=\"int8\" type=\"v8i8\"/>\n"
+"        </union>\n"
+"        <reg name=\"ft0\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft1\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft2\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft3\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft4\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft5\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft6\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft7\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs0\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs1\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa0\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa1\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa2\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa3\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa4\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa5\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa6\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fa7\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs2\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs3\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs4\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs5\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs6\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs7\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs8\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs9\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs10\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fs11\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft8\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft9\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft10\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"ft11\" bitsize=\"256\" type=\"vreg\"/>\n"
+"        <reg name=\"fflags\" bitsize=\"32\" type=\"int\"/>\n"
+"        <reg name=\"frm\" bitsize=\"32\" type=\"int\"/>\n"
+"        <reg name=\"fcsr\" bitsize=\"32\" type=\"int\"/>\n"
+"    </feature>\n"
+"    <xi:include href=\"target_csr.xml\"/>\n"
+"</target>"
+;
+
+const char gdb_target_csr_xml[] =
+"<?xml version=\"1.0\"?>\n"
+"<!DOCTYPE target SYSTEM \"gdb-target.dtd\">\n"
+"<feature name=\"org.gnu.gdb.riscv.csr\">\n"
+#define CSRDEF(num, lower, upper) "<reg name= \"" #lower "\" bitsize=\"64\"/>\n"
+#include "csrs.h"
+#undef CSRDEF
+"</feature>"
+;
+
+#endif

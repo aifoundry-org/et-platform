@@ -1,0 +1,4 @@
+*.asm
+*.elf
+*.globals.h
+*.out

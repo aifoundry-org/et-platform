@@ -1,0 +1,14 @@
+[requires]
+deviceApi/2.5.0
+
+device-minion-runtime/0.24.0
+device-bootloaders/0.21.0
+
+# overrides
+esperantoTrace/2.1.0
+et-common-libs/0.24.0
+etsoc_hal/1.7.0
+
+tf-protocol/1.4.0
+signedImageFormat/1.4.0
+esperanto-flash-tool/1.5.0
