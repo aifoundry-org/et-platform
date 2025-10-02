@@ -1,0 +1,6 @@
+argcomplete
+docker
+checksumdir
+python-jenkins
+junit-xml==1.8
+boto3==1.9.25

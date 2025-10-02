@@ -1,0 +1,190 @@
+
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+*/
+
+/* machine minion specific headers */
+#include "config/mm_config.h"
+#include "minion_cfg.h"
+#include "common_utils.h"
+
+/* minion_bl */
+#include <etsoc/isa/esr_defines.h>
+#include <etsoc/isa/atomic.h>
+#include <transports/mm_cm_iface/broadcast.h>
+
+/* etsoc_hal */
+#include <hwinc/etsoc_shire_other_esr.h>
+#include <hwinc/minion_lvdpll_program.h>
+#include "esr.h"
+
+struct pll_conf_reg_t pll_conf_reg __attribute__((section(".data"))) __attribute__((aligned(64)));
+
+struct pll_conf_reg_t {
+    uint64_t booted_shire_mask;
+    uint16_t minion_current_freq;
+    uint16_t minion_norm_freq;
+    uint8_t minion_lvdpll_strap;
+    uint8_t num_shires;
+};
+
+volatile struct pll_conf_reg_t *get_pll_conf_reg(void)
+{
+    return &pll_conf_reg;
+}
+
+// Configure Minion PLL to specific mode. This uses the broadcast mechanism hence all Minions
+// will be programmed to the same frequency.
+static int64_t minion_configure_cold_boot_pll(uint64_t shire_mask, uint8_t lvdpll_strap)
+{
+    atomic_store_local_8(&(get_pll_conf_reg()->minion_lvdpll_strap), lvdpll_strap);
+
+    if (0 != shire_mask)
+    {
+        atomic_store_local_8(
+            &(get_pll_conf_reg()->num_shires), (uint8_t)get_msb_set_pos(shire_mask));
+    }
+    atomic_store_local_64(&(get_pll_conf_reg()->booted_shire_mask), shire_mask);
+
+    // minion_current_freq will be set to proper value and used once
+    // dynamic frequency update is triggered
+    atomic_store_local_16(&(get_pll_conf_reg()->minion_current_freq), 0);
+
+    return 0;
+}
+
+// Update Minion PLL to specific frequency. This uses the broadcast mechanism hence all Minions
+// will be programmed to the same frequency.
+int64_t dynamic_minion_pll_frequency_update(uint64_t freq)
+{
+    int64_t status;
+    uint8_t lvdpll_strap = atomic_load_local_8(&(get_pll_conf_reg()->minion_lvdpll_strap));
+    uint8_t num_shires = atomic_load_local_8(&(get_pll_conf_reg()->num_shires));
+    uint64_t booted_shire_mask = atomic_load_local_64(&(get_pll_conf_reg()->booted_shire_mask));
+
+#if DVFS_USE_FCW == 1
+    uint16_t minion_current_freq = atomic_load_local_16(&(get_pll_conf_reg()->minion_current_freq));
+    if (0 == minion_current_freq)
+    {
+        status = dvfs_update_minion_pll_mode(freq_to_mode((uint16_t)freq, lvdpll_strap)
+                                                 booted_shire_mask,
+            num_shires, DVFS_POLL_FOR_LOCK);
+    }
+    else
+    {
+        uint16_t minion_norm_freq = atomic_load_local_16(&(get_pll_conf_reg()->minion_norm_freq));
+        uint16_t ref_clock = (lvdpll_strap == 0) ? 100 : (lvdpll_strap == 1) ? 24 : 40;
+        status = dvfs_fcw_update_minion_pll_freq(freq, booted_shire_mask, num_shires,
+            minion_current_freq, minion_norm_freq, ref_clock, DVFS_POLL_FOR_LOCK);
+    }
+#else
+    status = dvfs_update_minion_pll_mode(freq_to_mode((uint16_t)freq, lvdpll_strap),
+        booted_shire_mask, num_shires, DVFS_POLL_FOR_LOCK);
+#endif
+
+    atomic_store_local_16(&(get_pll_conf_reg()->minion_current_freq), (uint16_t)freq);
+
+    return status;
+}
+
+// Enable all Minion Threads which participate in Kernel Compute Execution
+static int64_t enable_compute_threads(uint64_t shire_mask)
+{
+    // Enable all Threads which will participate in Compute Kernel Execution
+    // within Compute Shire Minion
+    broadcast(0x0, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_THREAD0_DISABLE_REGNO);
+    broadcast(0x0, shire_mask, PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_THREAD1_DISABLE_REGNO);
+
+    // Enable parts of the Master Shire Threads which also participate in Compute Kernel Exection
+    // Note the rests of the MM threads has been enabled during BL2 phase hence keep mask to all threads
+    // to avoid disabling the rest of the threads
+    write_esr_new(PP_MACHINE, MM_SHIRE_ID, REGION_OTHER, 2,
+        ETSOC_SHIRE_OTHER_ESR_THREAD0_DISABLE_BYTE_ADDRESS, ~(MM_HART_MASK), 0);
+    write_esr_new(PP_MACHINE, MM_SHIRE_ID, REGION_OTHER, 2,
+        ETSOC_SHIRE_OTHER_ESR_THREAD1_DISABLE_BYTE_ADDRESS, ~(MM_HART_MASK), 0);
+
+    return 0;
+}
+
+int64_t configure_compute_minion(uint64_t shire_mask, uint64_t lvdpll_strap)
+{
+    int64_t status;
+    uint64_t cm_shire_mask = (shire_mask & CM_SHIRE_ID_MASK);
+
+    status = minion_configure_cold_boot_pll(cm_shire_mask, (uint8_t)lvdpll_strap);
+    if (status != 0)
+        return status;
+
+    status = enable_compute_threads(cm_shire_mask);
+
+    return status;
+}
+
+void disable_neigh(uint64_t shires_mask)
+{
+    uint64_t disable_neig_mask;
+    uint64_t minion_shires_mask = shires_mask;
+    uint32_t num_shires = get_msb_set_pos(shires_mask);
+
+    for (uint8_t shire_id = 0; shire_id <= num_shires; shire_id++)
+    {
+        if (minion_shires_mask & 1)
+        {
+            /* Reset neighborhoods in a given shire, only reset upper two in case
+               of MM shire */
+            disable_neig_mask = (shire_id == MM_SHIRE_ID) ? 0x3 : 0x0;
+
+            /* Read current Shire Config value */
+            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER,
+                ESR_OTHER_SUBREGION_OTHER, ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+
+            /* Disable Neighborhood */
+            config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, disable_neig_mask);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+
+            read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+        }
+        minion_shires_mask >>= 1;
+    }
+}
+
+int64_t enable_neigh(uint64_t shires_mask)
+{
+    uint64_t enable_neig_mask;
+    uint64_t minion_shires_mask = shires_mask;
+    uint32_t num_shires = get_msb_set_pos(shires_mask);
+
+    for (uint8_t shire_id = 0; shire_id <= num_shires; shire_id++)
+    {
+        if (minion_shires_mask & 1)
+        {
+            /* Read current Shire Config value */
+            uint64_t config = read_esr_new(PP_MACHINE, shire_id, REGION_OTHER,
+                ESR_OTHER_SUBREGION_OTHER, ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+
+            /* Re-enable all Neigh */
+            enable_neig_mask = 0xf;
+
+            /* Enable Neighborhood */
+            config = ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_NEIGH_EN_MODIFY(config, enable_neig_mask);
+            write_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, config, 0);
+
+            read_esr_new(PP_MACHINE, shire_id, REGION_OTHER, ESR_OTHER_SUBREGION_OTHER,
+                ETSOC_SHIRE_OTHER_ESR_SHIRE_CONFIG_ADDRESS, 0);
+        }
+        minion_shires_mask >>= 1;
+    }
+
+    /* Bring up the Compute Minions */
+    return (enable_compute_threads(shires_mask & CM_SHIRE_ID_MASK));
+}

@@ -1,0 +1,25 @@
+# Files
+*.orig
+*.elf
+*.bin
+*.lst
+*.hex
+*_BACKUP_*.*
+*_BASE_*.*
+*_LOCAL_*.*
+*_REMOTE_*.*
+
+# build
+build/
+cmake-build-*/
+
+# conan
+test_package/build
+*.lock
+
+# conan ci
+lockfiles_info.json
+
+# IDE(s)
+.vscode/
+.idea
