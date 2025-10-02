@@ -1,0 +1,23 @@
+# build
+build
+cmake-build-*
+CMakeUserPresets.json
+
+# conan
+conanbuildinfo.txt
+conaninfo.txt
+graph_info.json
+test_package/build
+*.lock
+
+# conan ci
+lockfiles_info.json
+build_pipeline.yml
+
+# IDE(s)
+.idea
+.vscode/
+
+# other
+*.swp
+test-plan-trace.ods
