@@ -1,0 +1,4 @@
+projects:
+  "cmake-modules":
+    folder: .
+    configs: [host]

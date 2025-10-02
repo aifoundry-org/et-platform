@@ -1,0 +1,165 @@
+include:
+  - project: esperantotech/software/gitlab-ci-common
+    ref: 1be8a1ec31da665910e1b2b193fcfa1d05866299
+    file:
+      - 'pods/nano-pod.yaml'
+      - 'jobs/generic-k8s-job.yaml'
+      - 'rules/generic-workflow-conan.yaml'
+  - project: esperantotech/software/gitlab-ci-common
+    ref: master
+    file:
+      - 'jobs/conan-jobs.yaml'
+
+stages:
+  - generate_build
+  - build
+  - package
+  - deploy
+
+variables:
+  OS: "linux-ubuntu22.04"
+  ARCH: "x86_64"
+  COMPILER: "gcc11"
+  BUILD_TYPE: "release"
+  FULL_BUILD_NAME: "${OS}-${ARCH}-${COMPILER}-${BUILD_TYPE}"
+  CLICOLOR_FORCE: "1" # force colors on Conan output
+
+
+# Only run job in these cases:
+# - if it's a tag pipeline
+# - if there is a commit pushed or merged to the default branch (pre-release)
+# - if there is a MR open (pre-release, unstable)
+.release_or_development_job:
+  rules:
+    - if: $CI_COMMIT_TAG || ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      variables:
+        DRY_RUN_PARAM: "--dry-run"
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+generate_build:conan:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: generate_build
+
+  variables:
+    TIMEOUT: 15m
+
+    CMD_BUILD: |
+      cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m ci_build
+  artifacts:
+    expire_in: 1h 
+    paths:
+      - conan/build_pipeline.yml
+      - conan/lockfiles_info.json
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+build:conan:
+  needs:
+  - generate_build:conan
+  stage: build
+  trigger:
+    include:
+    - artifact: conan/build_pipeline.yml
+      job: generate_build:conan
+    strategy: depend
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+on_success:promote:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan-linux-ubuntu18.04-gcc7
+  stage: deploy
+  needs:
+    - generate_build:conan
+    - build:conan
+  variables:
+    PYTHONIOENCODING: utf-8
+    CMD_BUILD: |
+      cd conan
+      python3 -m pip install "ecpt>=2.0.0,<3.0.0" --index-url https://sc-artifactory1.esperanto.ai/artifactory/api/pypi/pypi-virtual/simple
+      python3 -m ci_promote
+
+###############################################################################
+############################## Conan 2 ########################################
+###############################################################################
+
+capture_graph:conan2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: .pre
+  rules:
+    - !reference [.release_or_development_job, rules] 
+  needs: []
+  script:
+    - conan remove "*" -c
+    - conan remote disable "*"
+    - conan remote enable conan2-develop
+    - conan lock create conanfile.py --profile=${FULL_BUILD_NAME} --lockfile-out=conan.lock
+  artifacts:
+    expire_in: 2d
+    paths:
+      - conan.lock # Keep the lockfile as an artifact for later stages
+
+
+package2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: package
+  rules:
+    - !reference [.release_or_development_job, rules] 
+  needs: 
+    - capture_graph:conan2
+  script:
+    - conan remote disable "*"
+    - conan remote enable conan2-develop
+    - conan create . -pr:b=default -pr:h=${FULL_BUILD_NAME} --build=missing --lockfile=conan.lock --format=json > graph-${FULL_BUILD_NAME}.json
+    - conan list --graph=graph-${FULL_BUILD_NAME}.json --graph-binaries=build --format=json > pkglist-${FULL_BUILD_NAME}.json
+    - conan remote enable conan2-tmp
+    - conan upload --list=pkglist-${FULL_BUILD_NAME}.json -r=conan2-tmp --confirm --format=json > uploaded-${FULL_BUILD_NAME}.json
+  artifacts:
+    expire_in: 2d
+    paths:
+      - graph-${FULL_BUILD_NAME}.json # Keep the lockfile
+      - pkglist-${FULL_BUILD_NAME}.json # Keep the list
+      - uploaded-${FULL_BUILD_NAME}.json # Keep uploaded list
+
+
+promote2:
+  extends:
+    - .pod_nano
+    - .template_job
+    - .template-conan2-linux-ubuntu22.04-gcc11
+  stage: deploy
+  rules:
+    - !reference [.release_or_development_job, rules] 
+  needs:
+    - package2
+  script:
+    - conan pkglist merge $(find . -name "uploaded*.json" -exec echo --list={} \;) --format=json > pkglist-merged.json
+    - conan download --list=pkglist-merged.json --format=json -r=conan2-tmp > pkglist-downloaded.json 
+    - conan upload --list=pkglist-downloaded.json --format=json -r=conan2-develop --confirm ${DRY_RUN_PARAM} > pkglist-uploaded.json
+  artifacts:
+    expire_in: 2d
+    paths:
+      - pkglist-merged.json
+      - pkglist-downloaded.json
+      - pkglist-uploaded.json
