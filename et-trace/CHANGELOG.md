@@ -1,0 +1,213 @@
+# Changelog
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+[[_TOC_]]
+
+## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [2.1.0] - 2024-05-17
+### Added
+### Changed
+- [CI] updated docker to ubuntu 22.04
+- Unreleased 2.1.0
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [2.0.0] - 2023-08-03
+### Added
+- [SW-17430] Adding frequency and voltage stats in op stats
+### Changed
+- [SW-17874] Update conanfile.py for gitlab.com
+- [CI] Updated gitlab-ci.yml for gitlab.com
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.5.0]
+### Added
+### Changed
+- Optimizing Trace Power stats struct fields
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.4.0] - 2023-06-05
+### Added
+[SW-17172] Quote arbitrary strings instead of func-name:code in profiling.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.3.0] - 2023-04-19
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- [SW-16557] Fix the trace buffer threshold value to be within limits.
+### Security
+
+## [1.2.0] - 2023-03-15
+### Added
+### Changed
+- [SW-15697] Changing threshold data in CB to threshold notify flag.
+- [SW-16449] Generate pre-release packages by default and full SemVer pkgs on tags pipelines
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [1.1.1] 2023-01-18
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- [SW-15772] Reserved space for null terminator for string logs.
+
+
+## [1.1.0] - 2023-01-10
+### Added
+- [SW-15614] 'threshold_data' field in CB. Now, the threshold notification will be generated only once before buffer rollover.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+- [SW-15614] Removed nested locking from threshold notification.
+- Enforce printf style formated args for Trace_Format_String() through GCC.
+### Security
+
+## [1.0.0] - 2023-01-09
+### Added
+- Added implementation of Trace_Format_String_V() for va_list style calling.
+- Added user_profile_events for user code instrumentation
+- [SW-5479] Added support to report trace buffer threshold event to host.
+### Changed
+- Bumped version to 1.0.0.
+- Fixed vsnprintf calling.
+- Returned the number of bytes written from trace string functions.
+- [SW-15435] Embrace SemVer in et-trace decoding (Accept backwards compatible minor)
+### Deprecated
+### Removed
+- Removing deprecated Trace_PMC_Counters_Memory() and ET_TRACE_GET_MEM_SHIRE_COUNTER.
+- [SW-5479] Removing temporary workaround to remove dependencies.
+### Fixed
+- [SW-5479] Setting the threshold to max trace buffer size if 0 is passed in config.
+### Security
+
+## [0.9.0] - 2022-12-13
+### Added-
+- [SW-7460] Added ET_TRACE_VSNPRINTF configurable option and fixed Trace_Format_String() implementation.
+### Changed
+- [SW-10308] Separate out SC and MS APIs to log PMC events
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.8.0] - 2022-11-22
+### Added
+### Changed
+- [SW-14349] Replaced ET_TRACE_MEM_CPY with ET_TRACE_WRITE_MEM
+### Deprecated
+### Removed
+- [SW-14349] Removed ET_TRACE_MEM_CPY config option for encoder
+### Fixed
+- Conan build for running tests
+### Security
+
+## [0.7.0] - 2022-09-02
+### Added
+- [SW-13832] Add Trace_Event_Copy API
+- Added ET_TRACE_READ_MEM and ET_TRACE_WRITE_MEM macros.
+### Changed
+- [SW-14083]: Update power status structure to use current power as 16 bits instead of 8
+    - This is a breaking change, trace_event_power_status_t now returns 16-bit power value instead of 8-bit
+### Deprecated
+### Removed
+### Fixed
+- Read coherency issue in Trace_Event_Copy().
+### Security
+
+## [0.6.0] - 2022-8-15
+### Added
+- Enforce updation of CHANGELOG.md and patch version in merge request pipelines
+- Added resource utilization stats support
+- CMake option ENABLE_WARNINGS_AS_ERRORS in tests
+### Changed
+- Made Trace string length as configurable.
+- Adapt conan pipeline to conan 1.49
+- Set with_tests to False by default.
+### Deprecated
+### Removed
+### Fixed
+- [SW-13631] Aligned trace standard header to cache-line size.
+- Build warnings in tests.
+### Security
+
+## [0.5.0] - 2022-6-22
+### Added
+### Changed
+- Trace buffer trace lock acquire/release functions to runtime.
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.4.0] - 2022-06-08
+### Added
+- Custom events IDs new structs for Health Monitor events.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.3.0] - 2022-05-30
+### Added
+- Custom events IDs for SP, MM and CM.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.2.0] - 2022-05-25
+### Added
+- Support for variable length string message.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+## [0.1.0] - 2022-03-08
+Initial version
+### Added
+- This CHANGELOG file.
+- Conan recipe to package the project.
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+[Unreleased]: https://gitlab.esperanto.ai/software/et-trace/-/compare/v0.3.0...master
+[0.3.0]: https://gitlab.esperanto.ai/software/et-trace/-/compare/v0.3.0...master
+[0.2.0]: https://gitlab.esperanto.ai/software/et-trace/-/compare/v0.1.0...v0.2.0
+[0.1.0]: https://gitlab.esperanto.ai/software/et-trace/-/tags/v0.1.0
