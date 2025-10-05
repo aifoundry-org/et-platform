@@ -14,6 +14,7 @@
 #include "system.h"
 #include "utils.h"
 #include "preload.h"
+#include <unistd.h>
 #include <fstream>
 #include <future>
 #include <mutex>
