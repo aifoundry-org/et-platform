@@ -13,6 +13,7 @@
 #include <boost/crc.hpp>
 #include <chrono>
 #include <elfio/elfio.hpp>
+#include <cassert>
 #include <future>
 #include <mutex>
 #include <stdio.h>
