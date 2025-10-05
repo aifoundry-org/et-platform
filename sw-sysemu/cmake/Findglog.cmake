@@ -41,7 +41,9 @@ if (GLOG_FOUND)
     add_library(glog UNKNOWN IMPORTED GLOBAL)
     add_library(glog::glog ALIAS glog)
     target_include_directories(glog INTERFACE ${GLOG_INCLUDE_DIR})
-    set_target_properties(glog PROPERTIES IMPORTED_LOCATION ${GLOG_LIBRARY})
+    set_target_properties(glog
+        PROPERTIES IMPORTED_LOCATION ${GLOG_LIBRARY}
+        INTERFACE_COMPILE_DEFINITIONS "GLOG_USE_GLOG_EXPORT")
 
     set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
     set(GLOG_LIBRARIES ${GLOG_LIBRARY})
