@@ -73,6 +73,7 @@ target_link_libraries(DMTests
         GTest::GTest
         GTest::Main
         gflags::gflags
+        glog::glog
         ${CMAKE_DL_LIBS}
 )
 
