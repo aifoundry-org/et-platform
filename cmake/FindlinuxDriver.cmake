@@ -1,0 +1,8 @@
+
+if(NOT TARGET linuxDriver::linuxDriver)
+  add_library(linuxDriver::linuxDriver INTERFACE IMPORTED)
+  set_target_properties(linuxDriver::linuxDriver PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_INSTALL_PREFIX}/include
+  )
+  set(linuxDriver_FOUND TRUE)
+endif()
