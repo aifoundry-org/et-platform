@@ -1,0 +1,18 @@
+# Findgflags.cmake
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(PC_GFLAGS REQUIRED gflags)
+
+if(NOT TARGET gflags::gflags)
+    add_library(gflags::gflags INTERFACE IMPORTED)
+    set_target_properties(gflags::gflags PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${PC_GFLAGS_INCLUDE_DIRS}"
+        INTERFACE_COMPILE_OPTIONS "${PC_GFLAGS_CFLAGS_OTHER}"
+        INTERFACE_LINK_LIBRARIES "${PC_GFLAGS_LIBRARIES}"
+    )
+endif()
+
+
+message(STATUS "PC_GFLAGS_INCLUDE_DIRS: ${PC_GFLAGS_INCLUDE_DIRS}")
+message(STATUS "PC_GFLAGS_CFLAGS_OTHER: ${PC_GFLAGS_CFLAGS_OTHER}")
+message(STATUS "PC_GFLAGS_LIBRARIES: ${PC_GFLAGS_LIBRARIES}")
