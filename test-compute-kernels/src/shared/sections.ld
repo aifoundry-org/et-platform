@@ -81,6 +81,8 @@ SECTIONS
         . = ALIGN(4);
         __bss_end = .;
     }
+
+    /DISCARD/ : { *(.riscv.attributes) }
 }
 
 ASSERT((__bss_start == __bss_end), "bss not allowed in kernels");
