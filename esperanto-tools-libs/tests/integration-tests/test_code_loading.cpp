@@ -11,13 +11,20 @@
 #include "runtime/IRuntime.h"
 #include "sw-sysemu/SysEmuOptions.h"
 
-#include <experimental/filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
 #include <ios>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
 
 namespace {
 

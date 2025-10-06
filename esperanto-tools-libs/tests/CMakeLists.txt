@@ -55,7 +55,7 @@ macro(build_test_binary)
             sw-sysemu::sw-sysemu
             GTest::gtest            
             GTest::gmock
-            stdc++fs
+	    $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
             OpenMP::OpenMP_CXX
     )
     target_compile_definitions(${TEST_TARGET} 

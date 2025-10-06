@@ -8,12 +8,21 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include "tools/IBenchmarker.h"
-#include <experimental/filesystem>
 #include <gflags/gflags.h>
 #include <hostUtils/logging/Instance.h>
 #include <hostUtils/logging/Logger.h>
 #include <iomanip>
 #include <iostream>
+
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
 
 using namespace rt;
 
@@ -58,7 +67,7 @@ inline auto getDefaultSysemuOptions() {
   sysEmuOptions.masterMinionElfPath = MASTER_MINION_ELF;
   sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
   sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
-  sysEmuOptions.runDir = std::experimental::filesystem::current_path();
+  sysEmuOptions.runDir = fs::current_path();
   sysEmuOptions.maxCycles = kSysEmuMaxCycles;
   sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
   sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";

@@ -9,14 +9,22 @@
 #include "common/Constants.h"
 #include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
-#include <experimental/filesystem>
 #include <gtest/gtest.h>
 #include <hostUtils/logging/Logger.h>
 #include <mutex>
 #include <random>
 #include <thread>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
+
 using namespace rt;
 using namespace std::chrono_literals;
 namespace {

@@ -34,7 +34,7 @@ find_package(gflags REQUIRED)
 configure_file(src/Constants.h.in ${CMAKE_BINARY_DIR}/src/Constants.h)
 add_executable(bench src/bench.cpp ${CMAKE_BINARY_DIR}/src/Constants.h)
 target_include_directories(bench PRIVATE ${CMAKE_BINARY_DIR}/src)
-target_link_libraries(bench PRIVATE gflags::gflags stdc++fs benchmarker deviceLayer::deviceLayer nlohmann_json::nlohmann_json)
+target_link_libraries(bench PRIVATE gflags::gflags $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs> benchmarker deviceLayer::deviceLayer nlohmann_json::nlohmann_json)
 
 include(GNUInstallDirs)
 
@@ -48,7 +48,7 @@ set_target_properties(benchmarker PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE
 )
 
-target_link_libraries(benchmarker PRIVATE stdc++fs hostUtils::logging deviceLayer::deviceLayer)
+target_link_libraries(benchmarker PRIVATE $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs> hostUtils::logging deviceLayer::deviceLayer)
 target_link_libraries(benchmarker PUBLIC runtime::etrt_static)
 
 # Add package information

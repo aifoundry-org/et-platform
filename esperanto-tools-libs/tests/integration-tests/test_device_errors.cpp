@@ -9,11 +9,22 @@
 #include "runtime/IRuntime.h"
 #include "runtime/Types.h"
 #include <device-layer/IDeviceLayer.h>
-#include <experimental/bits/fs_fwd.h>
-#include <experimental/bits/fs_ops.h>
 #include <hostUtils/logging/Logger.h>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+#include <bits/fs_fwd.h>
+#include <bits/fs_ops.h>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
 #include <experimental/filesystem>
+#include <experimental/bits/fs_fwd.h>
+#include <experimental/bits/fs_ops.h>
+namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
+
 #include <fstream>
 #include <ios>
 #include <optional>

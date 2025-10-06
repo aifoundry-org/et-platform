@@ -7,7 +7,6 @@
 #include "runtime/Types.h"
 #include <cfloat>
 #include <common/Constants.h>
-#include <experimental/filesystem>
 #include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -19,7 +18,15 @@
 #include <runtime/IRuntime.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
 
 inline auto getSysemuDefaultOptions() {
   constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
@@ -42,7 +49,7 @@ inline auto getSysemuDefaultOptions() {
     sysEmuOptions.workerMinionElfPath = WORKER_MINION_ELF;
   }
   sysEmuOptions.executablePath = std::string(SYSEMU_INSTALL_DIR) + "sys_emu";
-  sysEmuOptions.runDir = std::experimental::filesystem::current_path();
+  sysEmuOptions.runDir = fs::current_path();
   sysEmuOptions.maxCycles = kSysEmuMaxCycles;
   sysEmuOptions.minionShiresMask = kSysEmuMinionShiresMask;
   sysEmuOptions.puUart0Path = sysEmuOptions.runDir + "/pu_uart0_tx.log";
