@@ -22,14 +22,21 @@
 #include <cereal/archives/json.hpp>
 #include <gtest/gtest.h>
 
-#include <experimental/filesystem>
 #include <fstream>
 #include <ios>
 #include <random>
 #include <sstream>
 #include <thread>
 
+#if __has_include(<filesystem>)
+#include <filesystem>
+namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+#include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
+#else
+#error "cannot include the filesystem library"
+#endif
 
 namespace rt::tests {
 
