@@ -25,11 +25,6 @@
 #include "etsoc/isa/hart.h"
 #include "etsoc/isa/utils.h"
 
-/*! \def CACHE_LINE_SIZE
-    \brief Define for cache line size.
-*/
-#define CACHE_LINE_SIZE 64
-
 /*! \struct local_fcc_barrier_t
     \brief Structure containing in and out local FCC barriers.
 */
