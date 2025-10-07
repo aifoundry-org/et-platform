@@ -50,17 +50,17 @@ typedef struct cmd_timeout_instance_ {
     of timeouts, PU Timer channel being used and global time elasped
     till now
 */
-typedef struct sw_timer_cb_ {
+typedef CACHE_STRUCT({
     uint64_t accum_period;
     spinlock_t resource_lock;
     cmd_timeout_t cmd_timeout_cb[SW_TIMER_MAX_SLOTS];
-} sw_timer_cb_t;
+}) sw_timer_cb_t;
 
 /*! \var sw_timer_cb_t SW_TIMER_CB
     \brief Global SW Timer Control Block
     \warning Not thread safe!
 */
-static sw_timer_cb_t SW_TIMER_CB __attribute__((aligned(64))) = { 0 };
+static sw_timer_cb_t SW_TIMER_CB = {{ 0 }};
 
 /*! \var bool SW_Timer_Interrupt_Flag
     \brief Global Flag to indicate PU Timer interrupt triggered

@@ -71,16 +71,16 @@ typedef struct sqw_cmds_status_ {
 /*! \typedef sqw_cb_t
     \brief Submission Queue Worker Control Block structure
 */
-typedef struct sqw_cb_ {
+typedef CACHE_STRUCT({
     sqw_cmds_status_t sqw_status[MM_SQ_COUNT];
     local_fcc_flag_t sqw_fcc_flags[MM_SQ_COUNT];
-} sqw_cb_t;
+}) sqw_cb_t;
 
 /*! \var sqw_cb_t SQW_CB
     \brief Global Submission Queue Worker Control Block
     \warning Not thread safe!
 */
-static sqw_cb_t SQW_CB __attribute__((aligned(64))) = { 0 };
+static sqw_cb_t SQW_CB = { 0 };
 
 /************************************************************************
 *

@@ -38,16 +38,16 @@
 #include "error_codes.h"
 #include "syscall_internal.h"
 
-typedef struct mm_config_ {
+typedef CACHE_STRUCT({
     uint64_t ddr_size;
     uint64_t host_managed_dram_size;
     uint64_t host_managed_dram_end;
     uint64_t cm_shire_mask;
     uint32_t minion_boot_freq;
     uint8_t lvdpll_strap;
-} mm_config_t;
+}) mm_config_t;
 
-static mm_config_t MM_Config_CB __attribute__((aligned(64))) = { 0 };
+static mm_config_t MM_Config_CB = { 0 };
 
 /************************************************************************
 *

@@ -51,17 +51,17 @@
     \brief SP interface control block that manages
     submission queue
 */
-typedef struct sp_iface_sq_cb_ {
+typedef CACHE_STRUCT ({
     spinlock_t vq_lock;
     uint32_t timeout_flag;
-} sp_iface_sq_cb_t;
+}) sp_iface_sq_cb_t;
 
 /*! \var sp_iface_sq_cb_t SP_SQ_CB
     \brief Global SP to MM submission
     queue interface
     \warning Not thread safe!
 */
-static sp_iface_sq_cb_t SP_SQ_CB __attribute__((aligned(64))) = { 0 };
+static sp_iface_sq_cb_t SP_SQ_CB = { 0 };
 
 /* Local prototypes */
 static int32_t sp_command_handler(const void *cmd_buffer);
