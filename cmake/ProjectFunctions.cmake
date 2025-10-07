@@ -80,7 +80,7 @@ function(HostProjectNoInstall name cmake_args)
 endfunction()
 
 #
-# Note: CMAKE_BUILD_TYPE is voluntarily left unset for now.
+# Note: CMAKE_BUILD_TYPE is set to Release for now.
 #
 function(DeviceProject name cmake_args)
     if(cmake_args)
@@ -92,6 +92,7 @@ function(DeviceProject name cmake_args)
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/${PROJECT_BASE_DIR}/${name}
         DEPENDS ${ARGN}
         CMAKE_ARGS
+                   -DCMAKE_BUILD_TYPE=Release
                    -DCMAKE_TOOLCHAIN_FILE=${STAGING_DIR}/lib/cmake/riscv64-ec-toolchain.cmake
                    -DCMAKE_INSTALL_PREFIX=${STAGING_DIR}
                    -DCMAKE_BUILD_WITH_INSTALL_RPATH=OFF
@@ -109,7 +110,7 @@ function(DeviceProject name cmake_args)
 endfunction()
 
 #
-# Note: CMAKE_BUILD_TYPE is voluntarily left unset for now.
+# Note: CMAKE_BUILD_TYPE is set to Release for now.
 #
 function(DeviceProjectNoInstall name cmake_args)
     if(cmake_args)
@@ -121,6 +122,7 @@ function(DeviceProjectNoInstall name cmake_args)
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/${PROJECT_BASE_DIR}/${name}
         DEPENDS ${ARGN}
         CMAKE_ARGS
+                   -DCMAKE_BUILD_TYPE=Release
                    -DCMAKE_TOOLCHAIN_FILE=${STAGING_DIR}/lib/cmake/riscv64-ec-toolchain.cmake
                    -DCMAKE_INSTALL_PREFIX=${STAGING_DIR}
                    -DCMAKE_BUILD_WITH_INSTALL_RPATH=OFF
