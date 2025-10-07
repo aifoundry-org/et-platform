@@ -33,6 +33,25 @@ extern "C" {
 #define ALIGN(x, a) (((x) + ((a)-1)) & ~((a)-1))
 
 /*
+ * Cache utils
+ */
+
+/*! \def CACHE_LINE_SIZE
+    \brief Define for cache line size.
+*/
+#define CACHE_LINE_SIZE 64
+
+/*! \def CACHE_STRUCT
+    \brief Define a structure completely enclosed in exclusive cache lines.
+*/
+#define CACHE_STRUCT(_f)						\
+    union {								\
+	struct _f;							\
+	char pad[((sizeof(struct _f) + CACHE_LINE_SIZE - 1) / CACHE_LINE_SIZE * CACHE_LINE_SIZE)]; \
+    } __attribute__((aligned(CACHE_LINE_SIZE)))
+
+
+/*
  * RISC-V
  */
 
