@@ -28,24 +28,24 @@
 /*! \struct local_fcc_barrier_t
     \brief Structure containing in and out local FCC barriers.
 */
-typedef struct {
+typedef CACHE_STRUCT({
     uint32_t in;
     uint32_t out;
-} __attribute__((aligned(CACHE_LINE_SIZE))) local_fcc_barrier_t;
+}) local_fcc_barrier_t;
 
 /*! \struct local_fcc_flag_t
     \brief Local FCC flag structure
 */
-typedef struct {
+typedef CACHE_STRUCT({
     uint32_t flag;
-} __attribute__((aligned(CACHE_LINE_SIZE))) local_fcc_flag_t;
+}) local_fcc_flag_t;
 
 /*! \struct global_fcc_flag_t
     \brief Global FCC flag structure
 */
-typedef struct {
+typedef CACHE_STRUCT({
     uint32_t flag;
-} __attribute__((aligned(CACHE_LINE_SIZE))) global_fcc_flag_t;
+}) global_fcc_flag_t;
 
 /*! \struct fcc_sync_cb_t
     \brief FCC based synchronization control block associates
@@ -59,12 +59,9 @@ typedef struct fcc_sync_cb_ {
 /*! \struct spinlock_t
     \brief Structure defining spinlock.
 */
-typedef struct {
-    union {
-        uint32_t flag;
-        uint8_t raw[CACHE_LINE_SIZE];
-    };
-} __attribute__((aligned(CACHE_LINE_SIZE))) spinlock_t;
+typedef CACHE_STRUCT({
+    uint32_t flag;
+}) spinlock_t;
 
 /*! \fn static inline void local_fcc_barrier_init(local_fcc_barrier_t *barrier)
     \brief  Initialize FCC barrier using local atomics
