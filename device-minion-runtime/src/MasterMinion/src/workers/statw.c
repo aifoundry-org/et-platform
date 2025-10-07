@@ -141,7 +141,7 @@
 /*! \typedef statw_cb
     \brief Device statistics worker control block
 */
-typedef struct {
+typedef CACHE_STRUCT({
     struct resource_value
         pcie_dma_read_bw; /* Reserve whole cache line for this to reduce the serialization
                                          among Worker Harts reading/writing on same cache line */
@@ -159,7 +159,7 @@ typedef struct {
     uint32_t minion_freq_mhz;
     uint32_t pmu_sampling_state;
     uint32_t pmu_sampling_timeout_flag;
-} __attribute__((packed, aligned(CACHE_LINE_SIZE))) statw_cb;
+})  __attribute__((packed)) statw_cb;
 
 /*! \typedef pmc_prev_counters
     \brief Struct to hold previous counter values for PMU
@@ -184,7 +184,7 @@ typedef struct {
     \brief Global Stat Worker Control Block
     \warning Not thread safe!
 */
-static statw_cb STATW_CB __attribute__((aligned(CACHE_LINE_SIZE))) = { 0 };
+static statw_cb STATW_CB = { 0 };
 
 static inline uint64_t statw_recalculate_cma(
     uint64_t old_value, uint64_t current_value, uint64_t sample_count)

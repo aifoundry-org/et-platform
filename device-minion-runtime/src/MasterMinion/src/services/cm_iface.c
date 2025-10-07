@@ -51,18 +51,18 @@
 /*! \typedef mm_cm_iface_cb_t
     \brief MM to CM Iface Control Block structure.
 */
-typedef struct mm_cm_iface_cb {
+typedef CACHE_STRUCT({
     spinlock_t mm_to_cm_broadcast_lock;
     uint32_t timeout_flag;
     cm_state_e cm_state;
     uint8_t sw_timer_idx;
-} mm_cm_iface_cb_t;
+}) mm_cm_iface_cb_t;
 
 /*! \var mm_cm_iface_cb_t MM_CM_CB
     \brief Global MM to CM Iface Control Block
     \warning Not thread safe!
 */
-static mm_cm_iface_cb_t MM_CM_CB __attribute__((aligned(64))) = { 0 };
+static mm_cm_iface_cb_t MM_CM_CB = { 0 };
 
 /*! \var uint32_t MM_CM_Broadcast_Last_Number
     \brief Global MM to CM Iface message last number

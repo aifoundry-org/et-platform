@@ -78,7 +78,7 @@
 /* Data structures */
 /*******************/
 /* Align the struct to cache line so that we can use local atomics on the array created below */
-typedef struct kernel_launch_info {
+typedef CACHE_STRUCT ({
     uint64_t launched_threads;
     uint64_t returned_threads;
     uint64_t completed_threads; /* Bitmask of threads that have already completed the launch */
@@ -95,7 +95,7 @@ typedef struct kernel_launch_info {
         };
         uint32_t raw_u32;
     };
-} __attribute__((aligned(CACHE_LINE_SIZE))) kernel_launch_info_t;
+}) kernel_launch_info_t;
 
 /***************/
 /* Global Data */

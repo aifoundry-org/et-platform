@@ -54,19 +54,19 @@
     Consists data structures to manage shire state of shires that play
     the role of compute workers
 */
-typedef struct cw_cb_t_ {
+typedef CACHE_STRUCT({
     uint64_t physically_avail_shires_mask;
     uint64_t booted_shires_mask;
     uint64_t shire_state;
     spinlock_t cm_reset_lock;
     uint32_t timeout_flag;
-} cw_cb_t;
+}) cw_cb_t;
 
 /*! \var cw_cb_t CW_CB
     \brief Global Compute Worker Control Block
     \warning Not thread safe!
 */
-static cw_cb_t CW_CB __attribute__((aligned(64))) = { 0 };
+static cw_cb_t CW_CB = {{ 0 }};
 
 /*! \def CM_BOOT_MASK_PTR
     \brief Global shared pointer to CM shires boot mask

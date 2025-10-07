@@ -53,31 +53,31 @@
     \brief DMA Worker Read Control Block structure.
     Used to maintain DMA Worker Read related resources.
 */
-typedef struct dmaw_read_cb {
+typedef CACHE_STRUCT ({
     dma_channel_status_cb_t chan_status_cb[PCIE_DMA_RD_CHANNEL_COUNT];
-} dmaw_read_cb_t;
+}) dmaw_read_cb_t;
 
 /*! \struct dmaw_write_cb_t
     \brief DMA Worker Write Control Block structure.
     Used to maintain DMA Worker Write related resources.
 */
-typedef struct dmaw_write_cb {
+typedef CACHE_STRUCT ({
     dma_channel_status_cb_t chan_status_cb[PCIE_DMA_WRT_CHANNEL_COUNT];
-} dmaw_write_cb_t;
+}) dmaw_write_cb_t;
 
 /*! \var dmaw_read_cb_t DMAW_Read_CB
     \brief Global DMA Read Control Block
     \warning Not thread safe!, used by minions in
     master shire, use local atomics for access.
 */
-static dmaw_read_cb_t DMAW_Read_CB __attribute__((aligned(64))) = { 0 };
+static dmaw_read_cb_t DMAW_Read_CB = { 0 };
 
 /*! \var dmaw_write_cb_t DMAW_Write_CB
     \brief Global DMA Write Control Block
     \warning Not thread safe!, used by minions in
     master shire, use local atomics for access.
 */
-static dmaw_write_cb_t DMAW_Write_CB __attribute__((aligned(64))) = { 0 };
+static dmaw_write_cb_t DMAW_Write_CB = { 0 };
 
 /*! \def DMAW_BYTES_PER_CYCLE_TO_MBPS
     \brief A helper macro to convert DMA bandwidth to MB/Sec using following formulae

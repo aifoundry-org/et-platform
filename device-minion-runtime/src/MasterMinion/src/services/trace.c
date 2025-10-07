@@ -103,22 +103,22 @@ static inline void et_trace_write_float(void *addr, float value)
 /*
  * Master Minion Trace control block.
  */
-typedef struct mm_trace_control_block {
+typedef CACHE_STRUCT({
     struct trace_control_block_t cb; /**!< Common Trace library control block. */
     uint64_t cm_shire_mask;          /**!< Compute Minion Shire mask to fetch Trace data from CM. */
     uint64_t cm_thread_mask;         /**!< Compute Minion Shire mask to fetch Trace data from CM. */
     spinlock_t mm_trace_cb_lock;     /**!< Lock to serialize operations on MM trace CB */
     spinlock_t
         trace_internal_cb_lock; /**!< Lock to serialize operation on CB internal fields other than MM CB (it has its own lock). */
-} __attribute__((aligned(64))) mm_trace_control_block_t;
+})  mm_trace_control_block_t;
 
 /* A local Trace control block for all Master Minions. */
-static mm_trace_control_block_t MM_Trace_CB = { .cb = { 0 },
+static mm_trace_control_block_t MM_Trace_CB = {{ .cb = { 0 },
     .cm_shire_mask = CM_DEFAULT_TRACE_SHIRE_MASK,
-    .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK };
+    .cm_thread_mask = CM_DEFAULT_TRACE_THREAD_MASK }};
 
 /* A local Trace control block for Master Minion Dev Stats. */
-static mm_trace_control_block_t MM_Stats_Trace_CB = { .cb = { 0 } };
+static mm_trace_control_block_t MM_Stats_Trace_CB = {{ .cb = { 0 } }};
 
 /* Trace buffer locking routines
    WARNING: This lock is shared with Trace encoder, So while using this in MM Trace component,

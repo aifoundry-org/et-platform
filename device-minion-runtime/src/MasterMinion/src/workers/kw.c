@@ -165,13 +165,13 @@ typedef struct kernel_instance_ {
     Used to maintain kernel instance and related resources
     for the life time of MM runtime.
 */
-typedef struct kw_cb_ {
+typedef CACHE_STRUCT({
     uint64_t host_managed_dram_end;
     fcc_sync_cb_t host2kw[MM_MAX_PARALLEL_KERNELS];
     spinlock_t resource_lock;
     kernel_instance_t kernels[MM_MAX_PARALLEL_KERNELS];
     uint32_t launch_wait_timeout_flag[SQW_NUM];
-} kw_cb_t;
+}) kw_cb_t;
 
 /*! \struct kw_internal_status
     \brief Kernel Worker's internal status structure to
@@ -189,7 +189,7 @@ struct kw_internal_status {
     \brief Global Kernel Worker Control Block
     \warning Not thread safe!
 */
-static kw_cb_t KW_CB __attribute__((aligned(64))) = { 0 };
+static kw_cb_t KW_CB = {{ 0 }};
 
 /* Local function prototypes */
 

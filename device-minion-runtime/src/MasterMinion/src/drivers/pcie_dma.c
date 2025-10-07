@@ -1,6 +1,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <etsoc/isa/utils.h>
 
 /* mm specific headers */
 #include "drivers/pcie_dma.h"
@@ -76,21 +77,22 @@ struct dma_mem_region {
 /*! \typedef pcie_dma_
     \brief PCIe DMA driver Control Block structure.
 */
-typedef struct pcie_dma_ {
+typedef CACHE_STRUCT({
     struct dma_mem_region valid_dma_targets[DMA_VALID_TARGETS_COUNT];
-} pcie_dma_t;
+}) pcie_dma_t;
+
 
 /*! \var pcie_dma_t PCIE_DMA_CB
     \brief Global PCIe DMA driver Control Block
     \warning Not thread safe!
 */
-static pcie_dma_t PCIE_DMA_CB __attribute__((aligned(64))) = {
+static pcie_dma_t PCIE_DMA_CB __attribute__((aligned(64))) = { {
     /* L3, but beginning reserved for minion stacks, end reserved for DMA config.
        End will be initialized at runtime in init */
     { { .begin = HOST_MANAGED_DRAM_START },
         /* Shire-cache scratch pads. Limit to first 4MB * 33 shires */
         { .begin = 0x80000000, .end = 0x883FFFFF } }
-};
+} };
 
 /************************************************************************
 *

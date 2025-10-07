@@ -37,16 +37,16 @@
 /*! \typedef sqw_hp_cb_t
     \brief High Priority Submission Queue Worker Control Block structure
 */
-typedef struct sqw_hp_cb_ {
+typedef CACHE_STRUCT({
     local_fcc_flag_t sqw_fcc_flags[MM_SQ_HP_COUNT];
     int32_t barrier_cmds_count[MM_SQ_HP_COUNT];
-} sqw_hp_cb_t;
+}) sqw_hp_cb_t;
 
 /*! \var sqw_hp_cb_t SQW_HP_CB
     \brief Global High Priority Submission Queue Worker Control Block
     \warning Not thread safe!
 */
-static sqw_hp_cb_t SQW_HP_CB __attribute__((aligned(64))) = { 0 };
+static sqw_hp_cb_t SQW_HP_CB = { 0 };
 
 /************************************************************************
 *
