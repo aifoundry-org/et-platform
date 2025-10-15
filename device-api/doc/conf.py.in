@@ -19,7 +19,7 @@ from exhale import utils
 # -- Project information -----------------------------------------------------
 
 project = 'Esperanto Device API'
-copyright = '2019, Esperanto Technologies'
+copyright = '2025 Ainekko, Co.'
 author = 'Esperanto'
 
 

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*-------------------------------------------------------------------------
- * Copyright (C) 2018, Esperanto Technologies Inc.
- * The copyright to the computer program(s) herein is the
- * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * Copyright (c) 2025 Ainekko, Co.
  *-------------------------------------------------------------------------
  */
 
