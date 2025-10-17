@@ -1,33 +1,28 @@
 cmake_minimum_required(VERSION 3.5)
 project(etsys)
 
-# Configure device toolchain.
-if (NOT DEFINED TOOLCHAIN_DIR)
-   set(TOOLCHAIN_DIR "/opt/nekko")
-endif()
-
-set(STAGING_DIR ${CMAKE_INSTALL_PREFIX})
-
-configure_file(cmake/riscv64-ec-toolchain.cmake.in ${STAGING_DIR}/lib/cmake/riscv64-ec-toolchain.cmake @ONLY)
-
 #
 # Allow projects to find cmake directory in source and installed paths
 #
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake-modules)
-list(APPEND CMAKE_MODULE_PATH ${STAGING_DIR}/lib/cmake)
-set(EXTERNAL_CACHE_FILE "${CMAKE_BINARY_DIR}/external_cache.cmake")
-file(WRITE "${EXTERNAL_CACHE_FILE}"
-    "set(CMAKE_MODULE_PATH \"${CMAKE_MODULE_PATH}\" CACHE PATH \"Module paths for external project\" FORCE)\n"
-)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 
+configure_file(cmake/riscv64-ec-toolchain.cmake.in ${CMAKE_INSTALL_PREFIX}/lib/cmake/riscv64-ec-toolchain.cmake @ONLY)
+
+set(ET_PLATFORM_PATH ${CMAKE_INSTALL_DIR})
 include(ProjectFunctions)
 
+#
+# Install CMake files useful for compiling subprojects.
+#
+file(COPY cmake/ProjectFunctions.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/aifoundry-utils)
+file(COPY cmake-modules DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 
 #
 # Manually install linux kernel driver ioctl.h
 #
-file(COPY et-driver/et_ioctl.h DESTINATION ${STAGING_DIR}/include)
+file(COPY et-driver/et_ioctl.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
 
 # External dependencies
