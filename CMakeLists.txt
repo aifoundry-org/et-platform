@@ -17,7 +17,10 @@ include(ProjectFunctions)
 # Install CMake files useful for compiling subprojects.
 #
 file(COPY cmake/ProjectFunctions.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/aifoundry-utils)
+file(COPY cmake/Findlibcap.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
+file(COPY cmake/Findgflags.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 file(COPY cmake-modules DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
+configure_file(cmake/FindlinuxDriver.cmake.in ${CMAKE_INSTALL_PREFIX}/lib/cmake/FindlinuxDriver.cmake @ONLY)
 
 #
 # Manually install linux kernel driver ioctl.h
