@@ -1,9 +1,9 @@
-.. Esperanto PCIe Driver documentation master file
+.. ET PCIe Driver documentation master file
    This file is the main template which inclues are sub pages.This 
    file should remain `toctree` directive.
 
 ###########################################################
-Welcome to Esperanto PCIe Driver' documentation!
+Welcome to ET PCIe Driver' documentation!
 ###########################################################
 
 

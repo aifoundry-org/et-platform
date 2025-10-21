@@ -78,7 +78,7 @@ add_custom_target(doc-pdf
 )
 
 install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/latex/latex/esperantopciedriver.pdf
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/latex/latex/etpciedriver.pdf
     DESTINATION ${DOCUMENTATION_INSTALL_DIR}
     COMPONENT documentation
     EXCLUDE_FROM_ALL

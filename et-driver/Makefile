@@ -1,10 +1,10 @@
 CFLAGS_MODULE+=-DET_MODULE_VERSION=\"0.20.0\"
 #subdir-ccflags-y += -I$(src)/include
 
-obj-m += esperanto.o
+obj-m += et-soc1.o
 
 ifeq (, $(findstring PCIE_LOOPBACK_DRIVER, $(EXTRA_CFLAGS)))
-esperanto-y := et_io.o \
+et-soc1-y := et_io.o \
 	       et_sysfs_mgmt_vq_stats.o \
 	       et_sysfs_ops_vq_stats.o \
 	       et_sysfs_mem_stats.o \
@@ -20,7 +20,7 @@ esperanto-y := et_io.o \
 	       et_pci_dev.o \
 	       et-soc1-pcie.o
 else
-esperanto-y := et_io_loopback.o \
+et-soc1-y := et_io_loopback.o \
 	       et_sysfs_mgmt_vq_stats.o \
 	       et_sysfs_ops_vq_stats.o \
 	       et_sysfs_mem_stats.o \

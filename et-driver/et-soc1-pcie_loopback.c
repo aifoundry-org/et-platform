@@ -40,15 +40,15 @@
 #include "et_vqueue.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
-MODULE_DESCRIPTION("PCIe loopback device driver for esperanto soc-1");
+MODULE_AUTHOR("Ainekko <troubles@nekko.ai>");
+MODULE_DESCRIPTION("PCIe loopback device driver for ET soc-1");
 #ifdef ET_MODULE_VERSION
 MODULE_VERSION(ET_MODULE_VERSION);
 #else
 #error ET_MODULE_VERSION is not available
 #endif
 
-#define DRIVER_NAME		  "Esperanto"
+#define DRIVER_NAME		  "ET"
 #define PCI_VENDOR_ID_REDHAT	  0x1b36
 #define PCI_DEVICE_ID_REDHAT_TEST 0x0005
 /* Define Vendor ID and Device ID to utilize QEMU PCI test device */

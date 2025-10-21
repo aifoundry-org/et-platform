@@ -1,4 +1,4 @@
-Welcome to Esperanto PCIe Driver' documentation!
+Welcome to ET PCIe Driver' documentation!
 ===========================================================
 .. toctree::
    :maxdepth: 2

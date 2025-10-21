@@ -32,7 +32,7 @@ DOXYFILE_ENCODING      = UTF-8
 # title of most generated pages and in a few other places.
 # The default value is: My Project.
 
-PROJECT_NAME           = "Esperanto Software"
+PROJECT_NAME           = "ET Software"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
@@ -44,7 +44,7 @@ PROJECT_NUMBER         = 0.1.0
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
 
-PROJECT_BRIEF          = "Software associated with the Esperanto SoC"
+PROJECT_BRIEF          = "Software associated with the ET SoC"
 
 # With the PROJECT_LOGO tag one can specify a logo or an icon that is included
 # in the documentation. The maximum height of the logo should not exceed 55
@@ -83,7 +83,7 @@ ALLOW_UNICODE_NAMES    = NO
 # information to generate all constant output in the proper language.
 # Possible values are: Afrikaans, Arabic, Armenian, Brazilian, Catalan, Chinese,
 # Chinese-Traditional, Croatian, Czech, Danish, Dutch, English (United States),
-# Esperanto, Farsi (Persian), Finnish, French, German, Greek, Hungarian,
+# ET, Farsi (Persian), Finnish, French, German, Greek, Hungarian,
 # Indonesian, Italian, Japanese, Japanese-en (Japanese with English messages),
 # Korean, Korean-en (Korean with English messages), Latvian, Lithuanian,
 # Macedonian, Norwegian, Persian (Farsi), Polish, Portuguese, Romanian, Russian,

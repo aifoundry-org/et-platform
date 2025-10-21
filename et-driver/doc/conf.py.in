@@ -18,9 +18,9 @@ from exhale import utils
 
 # -- Project information -----------------------------------------------------
 
-project = 'Esperanto PCIe Driver'
-copyright = '2025, Ainekko, Co.'
-author = 'Esperanto'
+project = 'ET PCIe Driver'
+copyright = '2025 Ainekko, Co.'
+author = 'Ainekko'
 
 
 # -- General configuration ---------------------------------------------------
@@ -52,16 +52,16 @@ def specificationsForKind(kind):
 
 # Setup the breathe extension
 breathe_projects = {
-    "Esperanto PCIe Driver": "./docs/xml"
+    "ET PCIe Driver": "./docs/xml"
 }
-breathe_default_project = "Esperanto PCIe Driver"
+breathe_default_project = "ET PCIe Driver"
 
 # Setup the exhale extension
 exhale_args = {
     # These arguments are required
     "containmentFolder":     "@CMAKE_CURRENT_BINARY_DIR@/api",
-    "rootFileName":          "EsperantoPCIeDriver_root.rst",
-    "rootFileTitle":         "Esperanto PCIe Driver Architecture",
+    "rootFileName":          "ETPCIeDriver_root.rst",
+    "rootFileTitle":         "ET PCIe Driver Architecture",
     "doxygenStripFromPath":   "@PROJECT_SOURCE_DIR@",
     # Suggested optional arguments
     "createTreeView":        True,

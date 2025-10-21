@@ -42,15 +42,15 @@
 #include "et_vqueue.h"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
-MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
+MODULE_AUTHOR("Ainekko <troubles@nekko.ai>");
+MODULE_DESCRIPTION("PCIe device driver for ET soc-1");
 #ifdef ET_MODULE_VERSION
 MODULE_VERSION(ET_MODULE_VERSION);
 #else
 #error ET_MODULE_VERSION is not available
 #endif
 
-#define DRIVER_NAME	       "Esperanto"
+#define DRIVER_NAME	       "ET"
 #define ET_PCIE_VENDOR_ID      0x1e0a
 #define ET_PCIE_TEST_DEVICE_ID 0x9038
 #define ET_PCIE_SOC1_ID	       0xeb01
