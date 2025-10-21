@@ -648,7 +648,11 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
+#else
+	vm_flags_set(vma, VM_DONTCOPY | VM_NORESERVE);
+#endif
 	vma->vm_ops = &esperanto_pcie_vm_ops;
 
 	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev, size, &dma_addr,
@@ -2607,6 +2611,7 @@ static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 		goto error_free_irq_vectors;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
 	rv = pci_enable_pcie_error_reporting(pdev);
 	if (rv) {
 		dev_warn(&pdev->dev,
@@ -2617,6 +2622,7 @@ static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 	} else {
 		et_dev->is_err_reporting = true;
 	}
+#endif
 
 	rv = et_mgmt_dev_init(et_dev, mgmt_discovery_timeout, miscdev_create);
 	if (rv) {
@@ -2636,10 +2642,12 @@ static int init_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_create)
 	return rv;
 
 error_pci_disable_pcie_error_reporting:
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
 	if (et_dev->is_err_reporting) {
 		pci_disable_pcie_error_reporting(pdev);
 		et_dev->is_err_reporting = false;
 	}
+#endif
 
 	pci_release_regions(pdev);
 
@@ -2671,10 +2679,12 @@ static void uninit_et_pci_dev(struct et_pci_dev *et_dev, bool miscdev_destroy)
 	et_ops_dev_destroy(et_dev, miscdev_destroy);
 	et_mgmt_dev_destroy(et_dev, miscdev_destroy);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
 	if (et_dev->is_err_reporting) {
 		pci_disable_pcie_error_reporting(pdev);
 		et_dev->is_err_reporting = false;
 	}
+#endif
 
 	if (!et_dev->is_initialized)
 		return;

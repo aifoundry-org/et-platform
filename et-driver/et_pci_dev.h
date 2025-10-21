@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
+#include <linux/version.h>
 #include <linux/workqueue.h>
 
 #include "et_ioctl.h"
@@ -162,7 +163,9 @@ struct et_mgmt_dev {
 struct et_pci_dev {
 	u8 devnum;
 	bool is_initialized;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
 	bool is_err_reporting;
+#endif
 	struct pci_dev *pdev;
 	struct pci_saved_state *pstate;
 	struct dev_config cfg;

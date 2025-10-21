@@ -536,7 +536,11 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
+#else
+	vm_flags_set(vma, VM_DONTCOPY | VM_NORESERVE);
+#endif
 	vma->vm_ops = &esperanto_pcie_vm_ops;
 
 	kern_vaddr = dma_alloc_coherent(&et_dev->pdev->dev, size, &dma_addr,
