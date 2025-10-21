@@ -1,3 +1,4 @@
+CFLAGS_MODULE+=-DET_MODULE_VERSION=\"0.20.0\"
 #subdir-ccflags-y += -I$(src)/include
 
 obj-m += esperanto.o
