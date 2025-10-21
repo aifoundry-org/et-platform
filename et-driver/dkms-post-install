@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cp udev-50-et.rules /etc/udev/rules.d/50-et.rules
+udevadm control -R
+#TODO: we may need to call load-driver.sh or install it as part of systemd services?

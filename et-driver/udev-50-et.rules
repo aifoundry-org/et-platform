@@ -1,0 +1,1 @@
+KERNEL=="et-soc1*", MODE="0666"
