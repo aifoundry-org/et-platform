@@ -1,8 +1,8 @@
 MODULE_DIR := $(CURDIR)
 KDIR := /lib/modules/$(shell uname -r)/build
 KMAKE := $(MAKE) -C $(KDIR) M=$(MODULE_DIR)
-ET_MODULE_VERSION=$(shell cat VERSION)
-CFLAGS_MODULE+=-DET_MODULE_VERSION=\"$(ET_MODULE_VERSION=)\"
+ET_MODULE_VERSION := $(or $(shell cat VERSION 2>/dev/null), $(shell cat $(src)/VERSION 2>/dev/null), unknown)
+CFLAGS_MODULE+=-DET_MODULE_VERSION=\"$(ET_MODULE_VERSION)\"
 #subdir-ccflags-y += -I$(src)/include
 
 obj-m += et-soc1.o
