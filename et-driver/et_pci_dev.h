@@ -163,7 +163,7 @@ struct et_mgmt_dev {
 struct et_pci_dev {
 	u8 devnum;
 	bool is_initialized;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0)) && (!defined(RHEL_MAJOR) || (RHEL_MAJOR < 9))
 	bool is_err_reporting;
 #endif
 	struct pci_dev *pdev;
