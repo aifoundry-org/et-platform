@@ -20,18 +20,16 @@ file(COPY cmake/ProjectFunctions.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/c
 file(COPY cmake/Findlibcap.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 file(COPY cmake/Findgflags.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 file(COPY cmake-modules DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
-configure_file(cmake/FindlinuxDriver.cmake.in ${CMAKE_INSTALL_PREFIX}/lib/cmake/FindlinuxDriver.cmake @ONLY)
-
-#
-# Manually install linux kernel driver ioctl.h
-#
-file(COPY et-driver/et_ioctl.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-
 
 # External dependencies
 ThirdParty(g3log https://github.com/KjellKod/g3log v1.1-408-g38dbddc "-DUSE_DYNAMIC_LOGGING_LEVELS=ON -DADD_G3LOG_UNIT_TEST=OFF -DINSTALL_G3LOG=ON")
 ThirdParty(easy_profiler https://github.com/yse/easy_profiler.git v2.1.0-66-gcc0e154 "")
 ThirdParty(cereal https://github.com/USCiLab/cereal.git v1.3.2 "-DJUST_INSTALL_CEREAL=ON")
+
+#
+# Install the public headers of the linux driver.
+#
+HostProject(et-driver "")
 
 #
 # Common Software
@@ -72,7 +70,7 @@ DeviceProject(test-compute-kernels ""
 #
 # Runtime
 #
-HostProject(sw-sysemu "" g3log common-sw)
+HostProject(sw-sysemu "" g3log common-sw et-driver)
 HostProject(devicelayer  "" common-sw sw-sysemu)
 HostProject(esperanto-tools-libs ""
             devicelayer device-api g3log cereal easy_profiler
