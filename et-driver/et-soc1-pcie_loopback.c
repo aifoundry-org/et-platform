@@ -536,7 +536,7 @@ static int esperanto_pcie_ops_mmap(struct file *fp, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)) && (!defined(RHEL_MAJOR) || (RHEL_MAJOR < 9))
 	vma->vm_flags |= VM_DONTCOPY | VM_NORESERVE;
 #else
 	vm_flags_set(vma, VM_DONTCOPY | VM_NORESERVE);
