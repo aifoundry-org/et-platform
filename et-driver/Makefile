@@ -64,7 +64,7 @@ dkms:
 	sudo modprobe et-soc1
 
 dkms-remove:
-	sudo modprobe -r et-soc1 
+	-sudo modprobe -r et-soc1
 	sudo dkms remove et-soc1/$(ET_MODULE_VERSION) --all
 
 akms:
