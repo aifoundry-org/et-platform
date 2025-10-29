@@ -30,7 +30,7 @@ file(COPY et-driver/et_ioctl.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
 
 # External dependencies
 ThirdParty(g3log https://github.com/KjellKod/g3log v1.1-408-g38dbddc "-DUSE_DYNAMIC_LOGGING_LEVELS=ON -DADD_G3LOG_UNIT_TEST=OFF -DINSTALL_G3LOG=ON")
-ThirdParty(easy_profiler https://github.com/yse/easy_profiler.git v2.1.0-66-gcc0e154 "")
+ThirdParty(easy_profiler https://github.com/yse/easy_profiler.git v2.1.0-66-gcc0e154 "-DEASY_PROFILER_NO_GUI=ON")
 ThirdParty(cereal https://github.com/USCiLab/cereal.git v1.3.2 "-DJUST_INSTALL_CEREAL=ON")
 
 #
