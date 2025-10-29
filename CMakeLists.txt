@@ -10,7 +10,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_INSTALL_PREFIX}/lib/cmake)
 
 configure_file(cmake/riscv64-ec-toolchain.cmake.in ${CMAKE_INSTALL_PREFIX}/lib/cmake/riscv64-ec-toolchain.cmake @ONLY)
 
-set(ET_PLATFORM_PATH ${CMAKE_INSTALL_DIR})
+set(ET_PLATFORM_PATH ${CMAKE_INSTALL_PREFIX})
 include(ProjectFunctions)
 
 #
