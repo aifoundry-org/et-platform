@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # ET Platform build environment
+  et-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Number of parallel build jobs (adjust based on your system)
+        BUILD_JOBS: 8
+    image: et-platform:latest
+    container_name: et-platform-builder
+    
+    # Mount the source code as a volume for development
+    volumes:
+      # Mount source code (read-only in production, read-write for development)
+      - ./:/workspace:rw
+      # Persist build artifacts
+      - et-build-cache:/workspace/build
+      # Persist installed binaries
+      - et-install:/opt/et
+    
+    # Set environment variables
+    environment:
+      - ET_INSTALL_DIR=/opt/et
+      - CMAKE_BUILD_TYPE=Release
+    
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          cpus: '4'
+          memory: 8G
+    
+    # Network configuration
+    networks:
+      - et-network
+    
+    # Healthcheck to verify the environment is ready
+    healthcheck:
+      test: ["CMD", "test", "-f", "/opt/et/bin/riscv64-unknown-elf-gcc"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Development container with mounted source
+  et-platform-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_JOBS: 8
+      # Cache build layers for faster rebuilds
+      cache_from:
+        - et-platform:latest
+    image: et-platform-dev:latest
+    container_name: et-platform-dev
+    
+    volumes:
+      # Mount source code for live development
+      - ./:/workspace:rw
+      # Separate build cache for dev
+      - et-dev-build-cache:/workspace/build
+      # Share installed binaries with main container
+      - et-install:/opt/et
+    
+    environment:
+      - ET_INSTALL_DIR=/opt/et
+      - CMAKE_BUILD_TYPE=Debug
+      - ENABLE_WARNINGS_AS_ERRORS=ON
+    
+    stdin_open: true
+    tty: true
+    
+    networks:
+      - et-network
+    
+    # Override command to provide development shell
+    command: /bin/bash
+    
+    profiles:
+      - dev
+
+# Named volumes for persistence
+volumes:
+  et-build-cache:
+    driver: local
+    name: et-platform-build-cache
+  et-dev-build-cache:
+    driver: local
+    name: et-platform-dev-build-cache
+  et-install:
+    driver: local
+    name: et-platform-install
+
+# Network for container communication
+networks:
+  et-network:
+    driver: bridge
+    name: et-platform-network

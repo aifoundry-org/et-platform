@@ -1,0 +1,77 @@
+# Git files
+.gitignore
+.gitattributes
+.gitmodules
+
+# Build directories
+build/
+build-*/
+**/build/
+*.o
+*.a
+*.so
+*.dylib
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation build artifacts
+doc/_build/
+docs/_build/
+*.pdf
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.tox/
+
+# Conan cache
+.conan/
+conan.lock
+
+# CMake cache
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Test and coverage reports
+*.gcov
+*.gcda
+*.gcno
+coverage/
+htmlcov/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+.backup/
+
+# Docker files (don't copy into container)
+Dockerfile
+docker-compose.yaml
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Package files
+*.tar.gz
+*.zip
+*.deb
+*.rpm
