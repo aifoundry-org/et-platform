@@ -18,7 +18,9 @@ extern "C" {
 
 #if defined(__cplusplus) && (__cplusplus >= 201103L)
 #include <cinttypes>
+#if (__cplusplus < 202002L)
 #include <cstdbool>
+#endif
 #else
 #include <inttypes.h>
 #include <stdbool.h>
