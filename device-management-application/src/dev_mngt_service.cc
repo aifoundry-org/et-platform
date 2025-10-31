@@ -30,6 +30,7 @@ namespace filesystem = std::experimental::filesystem;
 
 #include <fcntl.h>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <fstream>
 #include <getopt.h>
 #include <glog/logging.h>
