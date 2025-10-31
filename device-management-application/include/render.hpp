@@ -81,7 +81,7 @@ public:
   ExitComponent(ScreenInteractive& screen)
     : screen_(screen) {
   }
-  Element Render() override {
+  Element OnRender() override {
     screen_.ExitLoopClosure()();
     return text("");
   }
