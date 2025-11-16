@@ -59,7 +59,9 @@ CFLAGS += -Wall \
 	     -mcmodel=medany \
 	     -march=$(MINION_MARCH) \
 	     -mabi=$(MINION_MABI) \
-	     -Wa,-march=$(MINION_MARCH),-mabi=$(MINION_MABI)
+	     -Wa,-march=$(MINION_MARCH),-mabi=$(MINION_MABI) \
+	     -mno-riscv-attribute \
+	     -Wa,-mno-arch-attr
 
 CFLAGS += $(CFLAGS_STDLIB_$(USE_STDLIB))
 
