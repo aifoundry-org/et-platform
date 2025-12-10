@@ -1,0 +1,35 @@
+name: CI
+on:
+#- push    # we will enable this once we see a few good runs
+#- pull_request
+- workflow_dispatch
+
+jobs:
+  build:
+    name: Build
+    strategy:
+      matrix:
+        target:
+          # add more targets to build for more
+          - distro_name: ubuntu
+            distro_version: 24.04
+
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Check out code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: build in docker
+      uses: docker/build-push-action@v6
+      with:
+        push: false
+        file: docker/Dockerfile
+        tags: et-platform:latest
+        build-args: |
+          BASE_DISTRO=${{ matrix.target.distro_name }}
+          DISTRO_VERSION=${{ matrix.target.distro_version }}
