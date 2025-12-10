@@ -34,7 +34,11 @@ The main software components are:
 
 ## How to build ET Platform
 
-### 1. Create install directory
+You can build it locally, or in a docker container.
+
+### Local Build Instructions
+
+#### 1. Create install directory
 
 Start by creating a user writable `/opt/et`.
 
@@ -43,7 +47,7 @@ Start by creating a user writable `/opt/et`.
   $ sudo chown $(whoami) /opt/et
 ```
 
-### 2. Install the ET RISCV GNU Toolchain
+#### 2. Install the ET RISCV GNU Toolchain
 
 The next step is installing the full toolchain for _minions_ (gcc + newlib).
 
@@ -66,7 +70,7 @@ Once all the required libraries are installed, you can proceed to build the tool
 
 This will install `riscv-unknown-elf-gcc` and other toolchain utilities in `/opt/et/bin`
 
-### 3. Build the ET Platform.
+#### 3. Build the ET Platform.
 
 Now that the ET RISCV Toolchain is installed in `/opt/et`, we can proceed to compiling the full ET-Platform.
 
@@ -100,7 +104,7 @@ Then, it is time to fetch and build:
 
 This will compile all the ET-Platform software and install it in `/opt/et`.
 
-### 4. Run a simple test.
+#### 4. Run a simple test.
 
 Try to run a simple test with:
 
@@ -110,3 +114,25 @@ Try to run a simple test with:
 
 This will load and execute kernels on minions, using the software simulator.
 
+### Build in Docker
+
+To build in Docker, just run:
+
+```sh
+$ docker build -t et-platform -f docker/Dockerfile .
+```
+
+You can set the following build arguments via `--build-arg KEY=value`:
+
+- `BASE_DISTRO`: The distro to build on, default is `ubuntu`.
+- `DISTRO_VERSION`: The version of the distro to build. Default is `24.04`.
+- `ET_INSTALL_DIR`: What directory inside the final container to install ET Platform to. Default is `/opt/et`.
+- `FORCE_REBUILD`: Force rebuild of the toolchain, even if a cached version is available. Default is `false`.
+- `ETARCH`: The architecture to build the toolchain for. Default is `rv64imfc`.
+- `ETABI`: The ABI to build the toolchain for. Default is `lp64f`.
+- `BUILD_JOBS`: Number of parallel build jobs. Default is number of host CPU cores.
+
+In addition, you can use docker compose via the [docker-compose.yaml](docker-compose.yaml) file.
+
+**Note:** When building via Docker, whether `docker build` or compose, you **must** execute the command from he
+root of the repository, as the docker context needs to include all the source code.

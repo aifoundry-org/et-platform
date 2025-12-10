@@ -2,49 +2,43 @@
 # This Dockerfile creates a complete build environment for the ET Platform
 # including the RISC-V GNU toolchain and all necessary dependencies.
 
-ARG UBUNTU_VERSION=24.04
-FROM ubuntu:${UBUNTU_VERSION}
+ARG BASE_DISTRO=ubuntu
+ARG DISTRO_VERSION=24.04
+FROM ${BASE_DISTRO}:${DISTRO_VERSION} AS toolchain_builder
+
+ARG DISTRO_VERSION
+ARG BASE_DISTRO
+ARG ET_INSTALL_DIR=/opt/et
+ARG ETARCH=rv64imfc
+ARG ETABI=lp64f
+ARG FORCE_REBUILD=false
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set up the installation directory
-ENV ET_INSTALL_DIR=/opt/et
-ENV PATH="${ET_INSTALL_DIR}/bin:${PATH}"
+ENV ET_INSTALL_DIR=${ET_INSTALL_DIR}
 
-# Install base dependencies for RISC-V toolchain
-RUN apt-get update && apt-get install -y \
-    autoconf \
-    automake \
-    autotools-dev \
-    curl \
-    python3 \
-    python3-pip \
-    python3-tomli \
-    libmpc-dev \
-    libmpfr-dev \
-    libgmp-dev \
-    gawk \
-    build-essential \
-    bison \
-    flex \
-    texinfo \
-    gperf \
-    libtool \
-    patchutils \
-    bc \
-    zlib1g-dev \
-    libexpat-dev \
-    dos2unix \
-    ninja-build \
-    git \
-    cmake \
-    libglib2.0-dev \
-    libslirp-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Create the ET install directory
+RUN mkdir -p ${ET_INSTALL_DIR} && chmod 755 ${ET_INSTALL_DIR}
+
+# Download or build and install the RISC-V GNU Toolchain
+COPY ./docker/get_toolchain.sh /get_toolchain.sh
+RUN DEBUG=1 /get_toolchain.sh --force ${FORCE_REBUILD} --install-deps true --repo aifoundry-org/riscv-gnu-toolchain --install-dir ${ET_INSTALL_DIR} --base-distro ${BASE_DISTRO} --distro-version ${DISTRO_VERSION} --arch ${ETARCH} --abi ${ETABI}
+
+FROM ${BASE_DISTRO}:${DISTRO_VERSION} AS etplatform_builder
+ARG ET_INSTALL_DIR=/opt/et
+
+# Copy the RISC-V GNU Toolchain from the previous stage
+COPY --from=toolchain_builder ${ET_INSTALL_DIR} ${ET_INSTALL_DIR}
 
 # Install ET Platform build dependencies
 RUN apt-get update && apt-get install -y \
+    cmake \
+    dos2unix \
+    gcc \
+    g++ \
+    git \
     pkg-config \
     libjson-c-dev \
     libgtest-dev \
@@ -67,34 +61,17 @@ RUN apt-get update && apt-get install -y \
     xxd \
     && rm -rf /var/lib/apt/lists/*
 
-# Create the ET install directory
-RUN mkdir -p ${ET_INSTALL_DIR} && chmod 755 ${ET_INSTALL_DIR}
-
-# Build and install the RISC-V GNU Toolchain
-WORKDIR /tmp/toolchain
-RUN git clone https://github.com/aifoundry-org/riscv-gnu-toolchain && \
-    cd riscv-gnu-toolchain && \
-    ./configure \
-        --prefix=${ET_INSTALL_DIR} \
-        --with-arch=rv64imfc \
-        --with-abi=lp64f \
-        --with-languages=c,c++ \
-        --with-cmodel=medany && \
-    make -j$(nproc) && \
-    cd /tmp && \
-    rm -rf /tmp/toolchain
-
 # Set working directory for the ET Platform source
 WORKDIR /workspace
 
 # Copy the ET Platform source code
-COPY . /workspace/
+COPY . .
 
 # Normalize line endings for scripts copied from Windows hosts
-RUN find /workspace -type f -name '*.py' -exec dos2unix {} +
+RUN find . -type f -name '*.py' -exec dos2unix {} +
 
 # Create build directory
-RUN mkdir -p /workspace/build
+RUN mkdir -p ./build
 
 # Configure the build
 WORKDIR /workspace/build

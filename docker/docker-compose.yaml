@@ -4,13 +4,14 @@ services:
   # ET Platform build environment
   et-platform:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       args:
         # Ubuntu base image version passed through to the Dockerfile (defaults to Ubuntu 24.04)
-        UBUNTU_VERSION: ${UBUNTU_VERSION:-24.04}
+        BASE_DISTRO: ${BASE_DISTRO:-ubuntu}
+        DISTRO_VERSION: ${DISTRO_VERSION:-24.04}
         # Number of parallel build jobs (adjust based on your system)
-        BUILD_JOBS: 8
+        BUILD_JOBS: ${BUILD_JOBS:-8}
     image: et-platform:latest
     container_name: et-platform-builder
 
@@ -57,12 +58,13 @@ services:
   # Optional: Development container with mounted source
   et-platform-dev:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
       args:
         # Ubuntu base image version passed through to the Dockerfile (defaults to Ubuntu 24.04)
-        UBUNTU_VERSION: ${UBUNTU_VERSION:-24.04}
-        BUILD_JOBS: 8
+        BASE_DISTRO: ${BASE_DISTRO:-ubuntu}
+        DISTRO_VERSION: ${DISTRO_VERSION:-24.04}
+        BUILD_JOBS: ${BUILD_JOBS:-8}
       # Cache build layers for faster rebuilds
       cache_from:
         - et-platform:latest
