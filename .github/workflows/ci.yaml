@@ -27,9 +27,11 @@ jobs:
     - name: build in docker
       uses: docker/build-push-action@v6
       with:
+        context: .  # this is necessary for .git to be available inside the container
         push: false
         file: docker/Dockerfile
         tags: et-platform:latest
         build-args: |
           BASE_DISTRO=${{ matrix.target.distro_name }}
           DISTRO_VERSION=${{ matrix.target.distro_version }}
+          VERBOSE=1

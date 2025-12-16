@@ -28,6 +28,7 @@ RUN DEBUG=1 /get_toolchain.sh --force ${FORCE_REBUILD} --install-deps true --rep
 
 FROM ${BASE_DISTRO}:${DISTRO_VERSION} AS etplatform_builder
 ARG ET_INSTALL_DIR=/opt/et
+ARG VERBOSE
 
 # Copy the RISC-V GNU Toolchain from the previous stage
 COPY --from=toolchain_builder ${ET_INSTALL_DIR} ${ET_INSTALL_DIR}
@@ -82,7 +83,7 @@ RUN cmake \
 
 # Build the ET Platform (use ARG to allow override)
 ARG BUILD_JOBS=4
-RUN make -j${BUILD_JOBS}
+RUN make ${VERBOSE:+VERBOSE=1} -j${BUILD_JOBS}
 
 # Set the default working directory
 WORKDIR /workspace
