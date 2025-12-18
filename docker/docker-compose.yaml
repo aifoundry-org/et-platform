@@ -18,7 +18,7 @@ services:
     # Mount the source code as a volume for development
     volumes:
       # Mount source code (read-only in production, read-write for development)
-      - ./:/workspace:rw
+      - ../:/workspace:rw
       # Persist build artifacts
       - et-build-cache:/workspace/build
       # Persist installed binaries
@@ -73,7 +73,7 @@ services:
 
     volumes:
       # Mount source code for live development
-      - ./:/workspace:rw
+      - ../:/workspace:rw
       # Separate build cache for dev
       - et-dev-build-cache:/workspace/build
       # Share installed binaries with main container
