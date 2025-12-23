@@ -66,4 +66,17 @@ jobs:
           docker image ls
       - name: Run tests in docker
         run: |
-          docker run --rm et-platform:latest /bin/bash -c "/opt/et/bin/it_test_code_loading"
+          docker run --rm -w /out -v ${{ runner.temp }}/out:/out et-platform:latest /bin/bash -c "/opt/et/bin/it_test_code_loading"
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ${{ runner.temp }}/out
+          if-no-files-found: error
+      - name: Report test results
+        run: |
+          for file in ${{ runner.temp }}/out/*.log*; do
+            echo "===== Test result: $file ====="
+            cat "$file"
+            echo "================================"
+          done
