@@ -120,11 +120,9 @@ private:
 
     void reset(ResetCause cause = ResetCause::NONE);
 
-    // Static watchdog timeout handler, triggers warm reset
+    // Static watchdog timeout handler, triggers cold reset
     static void watchdog_timeout_handler(const Agent& agent) {
-        for (unsigned s = 0; s < EMU_NUM_COMPUTE_SHIRES; ++s) {
-            agent.chip->begin_warm_reset(s);
-        }
+        agent.chip->cold_reset();
     }
 
     uint32_t read_register(const Agent& agent, uint64_t offset);
