@@ -31,7 +31,7 @@ namespace bemu {
 // Exceptions
 
 
-inline Privilege effective_execution_mode(const Hart& cpu, mem_access_type macc)
+Privilege effective_execution_mode(const Hart& cpu, mem_access_type macc)
 {
     // Read mstatus
     const uint64_t  mstatus = cpu.mstatus;
