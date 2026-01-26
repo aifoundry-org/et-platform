@@ -6,7 +6,6 @@ VERBOSE ?= 0
 BUILD_DIR := build
 EMU       := ../../build/erbium_emu
 RISCV     ?= /opt/et/bin
-EMU_ARGS  ?= -minions 0xff -mins_dis
 
 # Verbosity
 VERBOSE_0 := @
@@ -62,7 +61,7 @@ run: $(tests_elf)
 	@npass=0; nfail=0; \
 	for test in $(tests); do \
 		echo "+ running $$test"; \
-		$(EMU) -l $(EMU_ARGS) -elf_load $(BUILD_DIR)/$$test.elf > $(BUILD_DIR)/$$test.out 2>&1; \
+		$(EMU) -l -elf_load $(BUILD_DIR)/$$test.elf > $(BUILD_DIR)/$$test.out 2>&1; \
 		if grep -q "Signal end test with FAIL" $(BUILD_DIR)/$$test.out; then \
 			echo "  FAIL"; \
 			nfail=$$((nfail + 1)); \
@@ -85,7 +84,7 @@ run: $(tests_elf)
 # Run individual test
 run/%: $(BUILD_DIR)/%.elf
 	@echo "+ running $*"
-	@$(EMU) -l $(EMU_ARGS) -elf_load $< > $(BUILD_DIR)/$*.out 2>&1; \
+	@$(EMU) -l -elf_load $< > $(BUILD_DIR)/$*.out 2>&1; \
 	if grep -q "Signal end test with FAIL" $(BUILD_DIR)/$*.out; then \
 		echo "  FAIL"; exit 1; \
 	elif grep -q "Signal end test with PASS" $(BUILD_DIR)/$*.out; then \
