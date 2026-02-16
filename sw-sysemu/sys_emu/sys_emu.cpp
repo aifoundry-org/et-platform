@@ -410,7 +410,9 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
     chip.cold_reset();
 
 
-    // Configure the simulation parameters
+#if EMU_ETSOC1
+    // Configure the simulation parameters (ET-SoC-1 only)
+    // Erbium honors ESR defaults set during cold_reset()
     for (unsigned shire = 0; shire < EMU_NUM_MINION_SHIRES; ++shire) {
         if (((cmd_options.shires_en >> shire) & 1) == 0) {
             chip.config_simulated_harts(shire, 0, false, false);
@@ -433,6 +435,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
                                     false, !cmd_options.sp_dis);
     }
 #endif
+#endif // EMU_ETSOC1
 
     // Reset the warm-reset part of the system
     for (unsigned shire = 0; shire < EMU_NUM_SHIRES; ++shire) {

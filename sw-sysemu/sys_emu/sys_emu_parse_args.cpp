@@ -36,11 +36,17 @@ static const char * help_msg =
 "                                cacheops  Cache operations with undefined behavior\n"
 "                                debug     Undefined behavior while in debug mode\n"
 "                                other     Other warnings\n"
+#if EMU_ETSOC1
 "     -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n"
 "     -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n"
+#endif
+#if EMU_ETSOC1
 "     -single_thread           Disable 2nd Minion thread\n"
+#endif
 #ifndef SDK_RELEASE
+#if EMU_ETSOC1
 "     -mins_dis                Minions (not including SP) start disabled\n"
+#endif
 #if EMU_HAS_SVCPROC
 "     -sp_dis                  SP starts disabled\n"
 #endif // EMU_HAS_SVCPROC
@@ -168,12 +174,18 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"ltrigger_start",         required_argument, nullptr, 0},
         {"ltrigger_stop",          required_argument, nullptr, 0},
         {"Werror",                 optional_argument, nullptr, 0},
+#if EMU_ETSOC1
         {"minions",                required_argument, nullptr, 0},
         {"shires",                 required_argument, nullptr, 0},
         {"master_min",             no_argument,       nullptr, 0}, // deprecated, use -shires <mask> to enable Master Shire and SP
+#endif
+#if EMU_ETSOC1
         {"single_thread",          no_argument,       nullptr, 0},
+#endif
 #ifndef SDK_RELEASE
+#if EMU_ETSOC1
         {"mins_dis",               no_argument,       nullptr, 0},
+#endif
 #if EMU_HAS_SVCPROC
         {"sp_dis",                 no_argument,       nullptr, 0},
 #endif
@@ -347,6 +359,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             }
             cmd_options.warning.make_error(category);
         }
+#if EMU_ETSOC1
         else if (!strcmp(name, "minions"))
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.minions_en);
@@ -359,18 +372,25 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             SE_WARN("Ignoring deprecated option '-master_min'");
         }
+#endif
+#if EMU_ETSOC1
         else if (!strcmp(name, "single_thread"))
         {
             cmd_options.second_thread = false;
         }
+#endif
+#if EMU_ETSOC1
         else if (!strcmp(name, "mins_dis"))
         {
             cmd_options.mins_dis = true;
         }
+#endif
+#if EMU_HAS_SVCPROC
         else if (!strcmp(name, "sp_dis"))
         {
             cmd_options.sp_dis = true;
         }
+#endif
         else if (!strcmp(name, "reset_pc"))
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.reset_pc);
