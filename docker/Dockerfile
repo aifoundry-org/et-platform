@@ -19,6 +19,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set up the installation directory
 ENV ET_INSTALL_DIR=${ET_INSTALL_DIR}
 
+# Updating PATH to include installed binaries
+ENV PATH="${ET_INSTALL_DIR}/bin:${PATH}"
+
 # Create the ET install directory
 RUN mkdir -p ${ET_INSTALL_DIR} && chmod 755 ${ET_INSTALL_DIR}
 
@@ -62,6 +65,7 @@ RUN apt-get install -y \
     python3-breathe \
     python3-jsonschema \
     libfmt-dev \
+    libfftw3-dev \
     xxd
 
 # Set working directory for the ET Platform source
