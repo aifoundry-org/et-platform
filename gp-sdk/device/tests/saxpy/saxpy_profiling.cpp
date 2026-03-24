@@ -9,6 +9,7 @@
 
 #include "entryPoint.h"
 #include <algorithm>
+#include <cstdint>
 #include "saxpy_kernel_arguments.h"
 #include "profiling.h"
 #include <etsoc/isa/tensors.h>

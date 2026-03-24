@@ -7,6 +7,7 @@
 #include <etsoc/common/utils.h>
 #include <etsoc/isa/hart.h>
 #include <algorithm>
+#include <cstdint>
 
 #include "entryPoint.h"
 #include "saxpy_kernel_arguments.h"

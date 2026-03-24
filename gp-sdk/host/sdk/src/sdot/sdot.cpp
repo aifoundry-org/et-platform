@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <getopt.h>
 #include <string>
+#include <cstdint>
 
 #include "sdot_kernel_arguments.h"
 #include "GenericLauncher.h"

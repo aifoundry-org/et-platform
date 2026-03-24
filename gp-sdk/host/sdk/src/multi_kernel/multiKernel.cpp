@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <getopt.h>
 #include <string>
+#include <cstdint>
 
 #include "saxpy_kernel_arguments.h"
 #include "GenericLauncher.h"
