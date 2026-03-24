@@ -85,6 +85,14 @@ HostProject(esperanto-tools-libs ""
 )
 
 #
+# GP-SDK
+#
+set(PROJECT_BASE_DIR "gp-sdk")
+HostProject(host "-DET_SDK_HOME=${ET_PLATFORM_PATH}" device-api devicelayer esperanto-tools-libs dnn-library)
+DeviceProject(device "-DET_SDK_HOME=${ET_PLATFORM_PATH} -DADDRESS:STRING=0x8006335000" dnn-library)
+set(PROJECT_BASE_DIR ".")
+
+#
 # Device Management and Control
 #
 HostProject(devicemanagement "" device-api common-sw devicelayer device-bootloaders)
