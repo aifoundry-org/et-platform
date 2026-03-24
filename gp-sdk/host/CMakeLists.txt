@@ -21,7 +21,9 @@ find_package(deviceApi REQUIRED)
 find_package(deviceLayer REQUIRED)
 find_package(runtime REQUIRED)
 find_package(esperantoTrace REQUIRED)
-find_package(FFTW3f REQUIRED)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFTW3F REQUIRED fftw3f)
 
 include(SanitizerSupport)
 

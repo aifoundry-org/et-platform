@@ -65,7 +65,7 @@ target_compile_definitions(fft_launcher PRIVATE FFT_VERIFICATION)
 target_link_libraries(fft_launcher 
     PRIVATE
         etsoc_gpsdk
-        FFTW3::fftw3f
+	${FFTW3F_LIBRARIES}
 )
 
 add_executable(multiKernel_launcher src/multi_kernel/multiKernel.cpp)
