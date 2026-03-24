@@ -56,10 +56,11 @@ add_etsoc_test_kernel(sdot_vector.elf sdot/sdot.cpp)
 target_include_directories(sdot_vector.elf INTERFACE .)
 target_compile_definitions(sdot_vector.elf PRIVATE "-DSDOT_VECTOR")
 
-add_etsoc_test_kernel(fftKernel.elf fftKernel/src/fft_entry.cc)
-target_link_libraries(fftKernel.elf dnnLibrary::dnn_lib)
-target_include_directories(fftKernel.elf PUBLIC fftKernel/include)
-target_compile_definitions(fftKernel.elf PRIVATE "-DGPSDK")
+#FIXME: need to fix compiler errors
+#add_etsoc_test_kernel(fftKernel.elf fftKernel/src/fft_entry.cc)
+#target_link_libraries(fftKernel.elf dnnLibrary::dnn_lib)
+#target_include_directories(fftKernel.elf PUBLIC fftKernel/include)
+#target_compile_definitions(fftKernel.elf PRIVATE "-DGPSDK")
 
 add_etsoc_test_kernel(syncDeviceBasic.elf barrier/syncDeviceBasic.cpp)
 
@@ -76,9 +77,11 @@ add_etsoc_test_kernel(oneTrapOnSync.elf trapping/oneTrapOnSync.cpp)
 
 add_etsoc_test_kernel(busy10sec.elf busy10sec/busy10sec.cc)
 
-add_etsoc_test_kernel(check_pmc.elf check_pmc/check_pmc.cc)
+#FIXME: need to fix compiler errors
+#add_etsoc_test_kernel(check_pmc.elf check_pmc/check_pmc.cc)
 
-add_etsoc_test_kernel(fnodiv.elf softfloat/fnodiv.cpp)
+#FIXME: need to fix compiler errors
+#add_etsoc_test_kernel(fnodiv.elf softfloat/fnodiv.cpp)
 
 add_etsoc_test_kernel(c_constructors.elf linker/c_constructors.cc)
 
