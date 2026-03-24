@@ -3,6 +3,42 @@
 
 #include <stdint.h>
 
+enum fdversion {fdlibm_ieee = -1, fdlibm_svid, fdlibm_xopen, fdlibm_posix};
+
+#define _LIB_VERSION_TYPE const enum fdversion
+#define _LIB_VERSION _fdlib_version
+
+/* if global variable _LIB_VERSION is not desirable, one may
+ * change the following to be a constant by:
+ *	#define _LIB_VERSION_TYPE const enum version
+ * In that case, after one initializes the value _LIB_VERSION (see
+ * s_lib_version.c) during compile time, it cannot be modified
+ * in the middle of a program
+ */
+/* extern  _LIB_VERSION_TYPE  _LIB_VERSION; */
+
+#define _IEEE_  fdlibm_ieee
+#define _SVID_  fdlibm_svid
+#define _XOPEN_ fdlibm_xopen
+#define _POSIX_ fdlibm_posix
+
+/*
+ * define and initialize _LIB_VERSION
+ */
+#ifdef _POSIX_MODE
+_LIB_VERSION_TYPE _LIB_VERSION = _POSIX_;
+#else
+#ifdef _XOPEN_MODE
+_LIB_VERSION_TYPE _LIB_VERSION = _XOPEN_;
+#else
+#ifdef _SVID3_MODE
+_LIB_VERSION_TYPE _LIB_VERSION = _SVID_;
+#else					/* default _IEEE_MODE */
+_LIB_VERSION_TYPE _LIB_VERSION = _IEEE_;
+#endif
+#endif
+#endif
+
 /* Most routines need to check whether a float is finite, infinite, or not a
    number, and many need to know whether the result of an operation will
    overflow.  These conditions depend on whether the largest exponent is
