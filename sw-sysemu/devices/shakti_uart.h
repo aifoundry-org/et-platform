@@ -104,22 +104,23 @@ struct ShaktiUart : public MemoryRegion {
             }
             break;
         case SHAKTI_UART_BAUD:
-            reg_baud = value;
+            reg_baud = value & 0xFFFFu;
             break;
         case SHAKTI_UART_DELAY:
-            reg_delay = value;
+            reg_delay = value & 0xFFFFu;
             break;
         case SHAKTI_UART_CONTROL:
-            reg_control = value;
+            reg_control = value & 0x07FEu;  // charsize, parity, stopbits
             break;
         case SHAKTI_UART_IEN:
-            reg_ien = value;
+            reg_ien = value & 0x01FFu;  // bits [8:0]
             break;
         case SHAKTI_UART_RX_THRESHOLD:
-            reg_rx_threshold = value;
+            reg_rx_threshold = value & 0xFFu;
             break;
         case SHAKTI_UART_STATUS:
-            // Read-only, ignore writes
+            if (value & (1u << 5))  // OVERRUN write-to-clear
+                error_overrun = false;
             break;
         default:
             break;
@@ -146,6 +147,7 @@ private:
     uint32_t reg_rx_threshold = 0;
     bool     rx_has_byte = false;
     uint8_t  rx_byte_buf = 0;
+    bool     error_overrun = false;
 
     // select() with timeout=0 checks if read() would block. However, it
     // returns "readable" both for actual data and for EOF — so select()
