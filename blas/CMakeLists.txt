@@ -18,4 +18,5 @@ function(add_etsoc_blas_kernel TARGET_NAME)
   install(TARGETS ${TARGET_NAME} ${TARGET_NAME}_dbg DESTINATION ${ARGS_INSTALL_DESTINATION})
 endfunction()
 
-add_subdirectory(level1)
+add_subdirectory(reference)
+add_subdirectory(optimized)

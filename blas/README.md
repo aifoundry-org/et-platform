@@ -8,10 +8,22 @@ hook by setting:
 - `CUSTOM_KERNELS_SRC_DIR=<repo>/blas`
 - `CUSTOM_KERNELS_BIN_DIR=<build-dir>/blas`
 
-Current layout:
+Layout conventions:
 
-- `level1/axpy`: scalar single-precision AXPY kernel scaffold
+- `blas/reference/` holds numerically conservative scalar baselines
+- `blas/optimized/` holds vector and tensor implementations
+- datatype directories sit below those roots
+- BLAS level and operation directories sit below the datatype
 
-The first goal here is a minimal, functional BLAS baseline. That means starting
-with simple scalar kernels and a clean directory structure before adding vector
-or tensor-specialized implementations.
+Current datatype plan:
+
+- `fp32` first
+- `fp16`, `bf16`, `int16`, and `int8` after that
+
+Current active kernel:
+
+- `reference/fp32/level1/axpy`
+
+The intent is to always keep a trustworthy reference kernel beside each
+optimized family so we can measure error growth as operation ordering and
+reduction strategies change.
