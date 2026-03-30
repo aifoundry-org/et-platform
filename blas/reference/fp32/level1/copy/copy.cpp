@@ -10,7 +10,7 @@
 #include <etsoc/common/utils.h>
 #include <etsoc/isa/hart.h>
 
-#include "axpy_kernel_arguments.h"
+#include "copy_kernel_arguments.h"
 #include "entryPoint.h"
 
 int entryPoint_0(KernelArguments* args);
@@ -36,7 +36,7 @@ int entryPoint_0(KernelArguments* args) {
   }
 
   for (size_t i = begin; i < end; ++i) {
-    args->y[i] = args->alpha * args->x[i] + args->y[i];
+    args->y[i] = args->x[i];
   }
 
   return 0;
