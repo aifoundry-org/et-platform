@@ -102,6 +102,11 @@ bool MainMemory::is_uart_enabled() const {
     return ptr->is_uart_enabled();
 }
 
+void MainMemory::uart_clock_tick(const Agent& agent, uint64_t cycle) {
+    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>*>(regions[uart_idx].get());
+    ptr->clock_tick(agent, cycle);
+}
+
 void MainMemory::plic_interrupt_pending_set(const Agent& agent, uint32_t source)
 {
     auto ptr = dynamic_cast<ER_PLIC<region_bases[plic_idx], region_sizes[plic_idx]>*>(regions[plic_idx].get());
