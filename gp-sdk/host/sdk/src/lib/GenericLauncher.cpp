@@ -24,12 +24,64 @@ constexpr size_t kNumHarts = 2048;
 constexpr size_t kTraceBufferSize = kTraceBytesPerHart * kNumHarts;
 constexpr bool enableKernelTraces = true;
 
+namespace {
+std::string getEtSdkHome() {
+  if (const char* etSdkHome = std::getenv("ET_SDK_HOME")) {
+    return etSdkHome;
+  }
+  return "/opt/et";
+}
+
+void setIfExists(std::string& dst, const std::filesystem::path& path) {
+  if (std::filesystem::exists(path)) {
+    dst = path.string();
+  }
+}
+
+std::filesystem::path resolveKernelPath(const std::filesystem::path& kernelPath, Mode mode) {
+  if (mode != Mode::SYSEMU) {
+    return kernelPath;
+  }
+
+  const auto kernelPathStr = kernelPath.string();
+  if (kernelPathStr.size() >= 4 && kernelPathStr.compare(kernelPathStr.size() - 4, 4, "_dbg") == 0) {
+    return kernelPath;
+  }
+
+  const auto debugKernelPath = std::filesystem::path(kernelPathStr + "_dbg");
+  if (std::filesystem::exists(debugKernelPath)) {
+    std::cout << "loadKernel() sysemu selected, using debug-linked kernel " << debugKernelPath << "\n";
+    return debugKernelPath;
+  }
+
+  return kernelPath;
+}
+} // namespace
+
 emu::SysEmuOptions getDefaultOptions(std::string const& simulator_params) {
 
   constexpr uint64_t kSysEmuMaxCycles = std::numeric_limits<uint64_t>::max();
   constexpr uint64_t kSysEmuMinionShiresMask = 0x1FFFFFFFFu;
 
   emu::SysEmuOptions sysEmuOptions;
+  const auto etSdkHome = std::filesystem::path(getEtSdkHome());
+
+  setIfExists(
+    sysEmuOptions.bootromTrampolineToBL2ElfPath,
+    etSdkHome / "lib/esperanto-fw/BootromTrampolineToBL2/BootromTrampolineToBL2.elf");
+  setIfExists(
+    sysEmuOptions.spBL2ElfPath,
+    etSdkHome / "lib/esperanto-fw/ServiceProcessorBL2/fast-boot/ServiceProcessorBL2_fast-boot.elf");
+  setIfExists(
+    sysEmuOptions.machineMinionElfPath,
+    etSdkHome / "lib/esperanto-fw/MachineMinion/MachineMinion.elf");
+  setIfExists(
+    sysEmuOptions.masterMinionElfPath,
+    etSdkHome / "lib/esperanto-fw/MasterMinion/MasterMinion.elf");
+  setIfExists(
+    sysEmuOptions.workerMinionElfPath,
+    etSdkHome / "lib/esperanto-fw/WorkerMinion/WorkerMinion.elf");
+  setIfExists(sysEmuOptions.executablePath, etSdkHome / "bin/sys_emu");
 
   sysEmuOptions.runDir = std::filesystem::current_path();
   sysEmuOptions.maxCycles = kSysEmuMaxCycles;
@@ -147,6 +199,7 @@ void GenericLauncher::initialize() {
     std::cout << "abortedKernelHandler"
               << " () rt reports that a kernel has been aborted (EventId: " << static_cast<int>(id) << ")\n";
     kernelAbort_++;
+    freeResources();
   };
 
   runtime_->setOnStreamErrorsCallback(streamErrorHandler);
@@ -253,7 +306,8 @@ void GenericLauncher::tearDown() {
 }
 
 rt::KernelId GenericLauncher::loadKernel(const std::string& kernelName, uint32_t deviceIdx) {
-  auto kernelContent = readFile(kernelName);
+  const auto resolvedKernelPath = resolveKernelPath(kernelName, config_.mode_);
+  auto kernelContent = readFile(resolvedKernelPath.string());
   if (kernelContent.empty()) {
     exit(-1);
   }
