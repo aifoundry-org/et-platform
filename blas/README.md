@@ -15,14 +15,19 @@ Layout conventions:
 - datatype directories sit below those roots
 - BLAS level and operation directories sit below the datatype
 
-Current datatype plan:
+Datatype rollout order:
 
 - `fp32` first
-- `fp16`, `bf16`, `int16`, and `int8` after that
+- `fp16`
+- `bf16`
+- `int16`
+- `int8`
 
-Current active kernel:
+Implementation policy:
 
-- `reference/fp32/level1/axpy`
+- every optimized kernel must have a matching reference kernel
+- reference and optimized kernels must keep the same external argument contract
+- numerical comparisons are always made against the reference implementation
 
 The intent is to always keep a trustworthy reference kernel beside each
 optimized family so we can measure error growth as operation ordering and
