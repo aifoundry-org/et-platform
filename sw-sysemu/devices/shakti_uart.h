@@ -13,12 +13,13 @@
 #include <unistd.h>
 #include <sys/select.h>
 #include "agent.h"
+#include "system.h"
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 
 namespace bemu {
 
-template <unsigned long long Base, size_t N>
+template <unsigned long long Base, size_t N, uint32_t PlicSource>
 struct ShaktiUart : public MemoryRegion {
     using addr_type     = typename MemoryRegion::addr_type;
     using size_type     = typename MemoryRegion::size_type;
@@ -67,6 +68,7 @@ struct ShaktiUart : public MemoryRegion {
                 (void)rx_fifo_pop(data);
             }
             *reinterpret_cast<uint32_t*>(result) = data;
+            sync_interrupt_line(agent, false);
             break;
         }
         case SHAKTI_UART_STATUS: {
@@ -75,6 +77,7 @@ struct ShaktiUart : public MemoryRegion {
             } else {
                 *reinterpret_cast<uint32_t*>(result) = STATUS_TX_EMPTY;
             }
+            sync_interrupt_line(agent, false);
             break;
         }
         case SHAKTI_UART_BAUD:
@@ -108,6 +111,7 @@ struct ShaktiUart : public MemoryRegion {
             if (agent.chip->is_uart_enabled()) {
                 tx_fifo_push(value & 0xFFu);
             }
+            sync_interrupt_line(agent, false);
             break;
         case SHAKTI_UART_BAUD:
             reg_baud = value & 0xFFFFu;
@@ -120,9 +124,11 @@ struct ShaktiUart : public MemoryRegion {
             break;
         case SHAKTI_UART_IEN:
             reg_ien = value & 0x01FFu;  // bits [8:0]
+            sync_interrupt_line(agent, true);
             break;
         case SHAKTI_UART_RX_THRESHOLD:
             reg_rx_threshold = value & 0xFFu;
+            sync_interrupt_line(agent, true);
             break;
         case SHAKTI_UART_STATUS:
             break;
@@ -143,10 +149,20 @@ struct ShaktiUart : public MemoryRegion {
     // periph_divider reset: count=15, output clk = sys_clk / (2 * 15) = /30
     static constexpr uint64_t UART_CLK_DIV = 30;
 
-    void clock_tick(const Agent&, uint64_t cycle) {
+    void clock_tick(const Agent& agent, uint64_t cycle) {
         if ((cycle % UART_CLK_DIV) != 0) return;
         drain_tx_fifo();
         poll_rx_fifo();
+
+        if (reg_ien == 0) return;
+        uint32_t pending = status_value(false) & reg_ien;
+        if (pending != 0) {
+            agent.chip->er_plic_interrupt_pending_set(PlicSource);
+            interrupt_asserted = true;
+        } else if (interrupt_asserted) {
+            agent.chip->er_plic_interrupt_pending_clear(PlicSource);
+            interrupt_asserted = false;
+        }
     }
 
     int tx_fd = -1;
@@ -168,6 +184,20 @@ private:
     size_t tx_fifo_tail() const { return (tx_fifo_head + tx_fifo_count) % FIFO_DEPTH; }
     size_t rx_fifo_tail() const { return (rx_fifo_head + rx_fifo_count) % FIFO_DEPTH; }
     bool     error_overrun = false;
+    bool     interrupt_asserted = false;
+
+    void sync_interrupt_line(const Agent& agent, bool poll_rx) {
+        if (poll_rx) poll_rx_fifo();
+        uint32_t pending = status_value(false) & reg_ien;
+        bool should_assert = (pending != 0);
+        if (should_assert != interrupt_asserted) {
+            interrupt_asserted = should_assert;
+            if (should_assert)
+                agent.chip->er_plic_interrupt_pending_set(PlicSource);
+            else
+                agent.chip->er_plic_interrupt_pending_clear(PlicSource);
+        }
+    }
 
     uint32_t status_value(bool poll_rx) {
         if (poll_rx) {
