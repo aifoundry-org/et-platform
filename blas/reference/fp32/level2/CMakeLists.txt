@@ -1,3 +1,8 @@
 add_subdirectory(gbmv)
 add_subdirectory(gemv)
 add_subdirectory(ger)
+add_subdirectory(sbmv)
+add_subdirectory(spmv)
+add_subdirectory(symv)
+add_subdirectory(syr)
+add_subdirectory(syr2)

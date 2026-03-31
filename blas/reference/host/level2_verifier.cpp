@@ -63,6 +63,67 @@ struct GerArgs {
   int32_t lda;
 };
 
+struct SymvArgs {
+  char uplo;
+  int32_t n;
+  float alpha;
+  const float* a;
+  int32_t lda;
+  const float* x;
+  int32_t incx;
+  float beta;
+  float* y;
+  int32_t incy;
+};
+
+struct SbmvArgs {
+  char uplo;
+  int32_t n;
+  int32_t k;
+  float alpha;
+  const float* a;
+  int32_t lda;
+  const float* x;
+  int32_t incx;
+  float beta;
+  float* y;
+  int32_t incy;
+};
+
+struct SpmvArgs {
+  char uplo;
+  int32_t n;
+  float alpha;
+  const float* ap;
+  const float* x;
+  int32_t incx;
+  float beta;
+  float* y;
+  int32_t incy;
+};
+
+struct SyrArgs {
+  char uplo;
+  int32_t n;
+  float alpha;
+  const float* x;
+  int32_t incx;
+  float* a;
+  int32_t lda;
+};
+
+struct Syr2Args {
+  char uplo;
+  int32_t n;
+  float alpha;
+  const float* x;
+  int32_t incx;
+  const float* y;
+  int32_t incy;
+  float* a;
+  int32_t lda;
+};
+
 struct Options {
   fs::path kernel_root = "";
   fs::path host_results_path = "blas/reference/host_level2_results.md";
@@ -106,7 +167,9 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "  -k, --kernel_root            root containing gemv/gbmv/ger kernel directories\n"
     "      --host_results_path      markdown file for host reference outputs\n"
     "      --device_results_path    markdown file for device outputs\n"
-    "      --case                   case to run (all, gemv_n, gemv_t, gbmv_n, gbmv_t, ger)\n"
+    "      --case                   case to run (all, gemv_n, gemv_t, gbmv_n, gbmv_t, ger,\n"
+    "                               symv_u, symv_l, sbmv_u, sbmv_l, spmv_u, spmv_l,\n"
+    "                               syr_u, syr_l, syr2_u, syr2_l)\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
     "  -d, --device_type            device type to use (sysemu, fake, silicon)\n"
     "  -e, --epsilon                comparison tolerance for float results\n";
@@ -257,6 +320,147 @@ std::vector<float> denseFromBand(const std::vector<float>& storage, int m, int n
   return dense;
 }
 
+bool isUpper(char uplo) {
+  return uplo == 'U' || uplo == 'u';
+}
+
+std::vector<float> makeSymmetricStorage(int n, int lda, char uplo) {
+  const bool upper = isUpper(uplo);
+  std::vector<float> storage(static_cast<size_t>(lda) * n, -999.0f);
+  for (int col = 0; col < n; ++col) {
+    const int rowBegin = upper ? 0 : col;
+    const int rowEnd = upper ? (col + 1) : n;
+    for (int row = rowBegin; row < rowEnd; ++row) {
+      storage[row + static_cast<size_t>(col) * lda] =
+        1.0f + static_cast<float>(row) * 0.5f + static_cast<float>(col) * 0.125f;
+    }
+  }
+  return storage;
+}
+
+float symmetricElement(const std::vector<float>& storage, int lda, int row, int col, char uplo) {
+  if (isUpper(uplo)) {
+    return row <= col ? storage[row + static_cast<size_t>(col) * lda]
+                      : storage[col + static_cast<size_t>(row) * lda];
+  }
+  return row >= col ? storage[row + static_cast<size_t>(col) * lda]
+                    : storage[col + static_cast<size_t>(row) * lda];
+}
+
+std::vector<float> denseFromSymmetricStorage(const std::vector<float>& storage, int n, int lda, char uplo) {
+  std::vector<float> dense(static_cast<size_t>(n) * n, 0.0f);
+  for (int row = 0; row < n; ++row) {
+    for (int col = 0; col < n; ++col) {
+      dense[row * n + col] = symmetricElement(storage, lda, row, col, uplo);
+    }
+  }
+  return dense;
+}
+
+std::vector<float> makeSymmetricBandStorage(int n, int k, int lda, char uplo) {
+  const bool upper = isUpper(uplo);
+  std::vector<float> storage(static_cast<size_t>(lda) * n, -999.0f);
+  for (int col = 0; col < n; ++col) {
+    if (upper) {
+      const int rowBegin = std::max(0, col - k);
+      for (int row = rowBegin; row <= col; ++row) {
+        storage[k + row - col + static_cast<size_t>(col) * lda] =
+          0.75f + static_cast<float>(row) * 0.5f + static_cast<float>(col) * 0.125f;
+      }
+    } else {
+      const int rowEnd = std::min(n, col + k + 1);
+      for (int row = col; row < rowEnd; ++row) {
+        storage[row - col + static_cast<size_t>(col) * lda] =
+          0.75f + static_cast<float>(row) * 0.5f + static_cast<float>(col) * 0.125f;
+      }
+    }
+  }
+  return storage;
+}
+
+float symmetricBandElement(const std::vector<float>& storage, int k, int lda, int row, int col, char uplo) {
+  if (isUpper(uplo)) {
+    if (row <= col) {
+      if (col - row > k) {
+        return 0.0f;
+      }
+      return storage[k + row - col + static_cast<size_t>(col) * lda];
+    }
+    if (row - col > k) {
+      return 0.0f;
+    }
+    return storage[k + col - row + static_cast<size_t>(row) * lda];
+  }
+
+  if (row >= col) {
+    if (row - col > k) {
+      return 0.0f;
+    }
+    return storage[row - col + static_cast<size_t>(col) * lda];
+  }
+  if (col - row > k) {
+    return 0.0f;
+  }
+  return storage[col - row + static_cast<size_t>(row) * lda];
+}
+
+std::vector<float> denseFromSymmetricBandStorage(const std::vector<float>& storage, int n, int k, int lda, char uplo) {
+  std::vector<float> dense(static_cast<size_t>(n) * n, 0.0f);
+  for (int row = 0; row < n; ++row) {
+    for (int col = 0; col < n; ++col) {
+      dense[row * n + col] = symmetricBandElement(storage, k, lda, row, col, uplo);
+    }
+  }
+  return dense;
+}
+
+size_t upperPackedIndex(int row, int col) {
+  return static_cast<size_t>(col) * (col + 1) / 2 + row;
+}
+
+size_t lowerPackedOffset(int n, int col) {
+  return static_cast<size_t>(col) * n - static_cast<size_t>(col) * (col - 1) / 2;
+}
+
+std::vector<float> makeSymmetricPackedStorage(int n, char uplo) {
+  std::vector<float> storage(static_cast<size_t>(n) * (n + 1) / 2, -999.0f);
+  if (isUpper(uplo)) {
+    for (int col = 0; col < n; ++col) {
+      for (int row = 0; row <= col; ++row) {
+        storage[upperPackedIndex(row, col)] =
+          1.25f + static_cast<float>(row) * 0.375f + static_cast<float>(col) * 0.25f;
+      }
+    }
+  } else {
+    for (int col = 0; col < n; ++col) {
+      const size_t offset = lowerPackedOffset(n, col);
+      for (int row = col; row < n; ++row) {
+        storage[offset + (row - col)] =
+          1.25f + static_cast<float>(row) * 0.375f + static_cast<float>(col) * 0.25f;
+      }
+    }
+  }
+  return storage;
+}
+
+float symmetricPackedElement(const std::vector<float>& storage, int n, int row, int col, char uplo) {
+  if (isUpper(uplo)) {
+    return row <= col ? storage[upperPackedIndex(row, col)] : storage[upperPackedIndex(col, row)];
+  }
+  return row >= col ? storage[lowerPackedOffset(n, col) + (row - col)]
+                    : storage[lowerPackedOffset(n, row) + (col - row)];
+}
+
+std::vector<float> denseFromSymmetricPackedStorage(const std::vector<float>& storage, int n, char uplo) {
+  std::vector<float> dense(static_cast<size_t>(n) * n, 0.0f);
+  for (int row = 0; row < n; ++row) {
+    for (int col = 0; col < n; ++col) {
+      dense[row * n + col] = symmetricPackedElement(storage, n, row, col, uplo);
+    }
+  }
+  return dense;
+}
+
 bool nearlyEqual(const std::vector<float>& lhs, const std::vector<float>& rhs, double epsilon) {
   return std::equal(lhs.begin(), lhs.end(), rhs.begin(), [epsilon](float a, float b) {
     return std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= epsilon;
@@ -327,6 +531,79 @@ void hostGer(int m, int n, float alpha, const std::vector<float>& x, int incx, c
     const float yValue = y[yBase + col * incy];
     for (int row = 0; row < m; ++row) {
       a[row + static_cast<size_t>(col) * lda] += alpha * x[xBase + row * incx] * yValue;
+    }
+  }
+}
+
+void hostSymv(char uplo, int n, float alpha, const std::vector<float>& a, int lda, const std::vector<float>& x,
+              int incx, float beta, std::vector<float>& y, int incy) {
+  const int xBase = startIndex(n, incx);
+  const int yBase = startIndex(n, incy);
+  for (int row = 0; row < n; ++row) {
+    float sum = 0.0f;
+    for (int col = 0; col < n; ++col) {
+      sum += symmetricElement(a, lda, row, col, uplo) * x[xBase + col * incx];
+    }
+    float& yValue = y[yBase + row * incy];
+    yValue = alpha * sum + beta * yValue;
+  }
+}
+
+void hostSbmv(char uplo, int n, int k, float alpha, const std::vector<float>& a, int lda, const std::vector<float>& x,
+              int incx, float beta, std::vector<float>& y, int incy) {
+  const int xBase = startIndex(n, incx);
+  const int yBase = startIndex(n, incy);
+  for (int row = 0; row < n; ++row) {
+    float sum = 0.0f;
+    for (int col = 0; col < n; ++col) {
+      sum += symmetricBandElement(a, k, lda, row, col, uplo) * x[xBase + col * incx];
+    }
+    float& yValue = y[yBase + row * incy];
+    yValue = alpha * sum + beta * yValue;
+  }
+}
+
+void hostSpmv(char uplo, int n, float alpha, const std::vector<float>& ap, const std::vector<float>& x, int incx,
+              float beta, std::vector<float>& y, int incy) {
+  const int xBase = startIndex(n, incx);
+  const int yBase = startIndex(n, incy);
+  for (int row = 0; row < n; ++row) {
+    float sum = 0.0f;
+    for (int col = 0; col < n; ++col) {
+      sum += symmetricPackedElement(ap, n, row, col, uplo) * x[xBase + col * incx];
+    }
+    float& yValue = y[yBase + row * incy];
+    yValue = alpha * sum + beta * yValue;
+  }
+}
+
+void hostSyr(char uplo, int n, float alpha, const std::vector<float>& x, int incx, std::vector<float>& a, int lda) {
+  const int xBase = startIndex(n, incx);
+  const bool upper = isUpper(uplo);
+  for (int col = 0; col < n; ++col) {
+    const float xCol = x[xBase + col * incx];
+    const int rowBegin = upper ? 0 : col;
+    const int rowEnd = upper ? (col + 1) : n;
+    for (int row = rowBegin; row < rowEnd; ++row) {
+      a[row + static_cast<size_t>(col) * lda] += alpha * x[xBase + row * incx] * xCol;
+    }
+  }
+}
+
+void hostSyr2(char uplo, int n, float alpha, const std::vector<float>& x, int incx, const std::vector<float>& y,
+              int incy, std::vector<float>& a, int lda) {
+  const int xBase = startIndex(n, incx);
+  const int yBase = startIndex(n, incy);
+  const bool upper = isUpper(uplo);
+  for (int col = 0; col < n; ++col) {
+    const float xCol = x[xBase + col * incx];
+    const float yCol = y[yBase + col * incy];
+    const int rowBegin = upper ? 0 : col;
+    const int rowEnd = upper ? (col + 1) : n;
+    for (int row = rowBegin; row < rowEnd; ++row) {
+      const float xRow = x[xBase + row * incx];
+      const float yRow = y[yBase + row * incy];
+      a[row + static_cast<size_t>(col) * lda] += alpha * xRow * yCol + alpha * yRow * xCol;
     }
   }
 }
@@ -626,6 +903,326 @@ VerificationPair verifyGerCase(ReferenceVerifierLauncher& launcher, const Option
   return result;
 }
 
+VerificationPair verifySymvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
+  const int n = 5;
+  const int lda = 6;
+  const int incx = 2;
+  const int incy = 1;
+  const float alpha = 1.25f;
+  const float beta = -0.75f;
+
+  const auto inputAStorage = makeSymmetricStorage(n, lda, uplo);
+  const auto inputALogical = denseFromSymmetricStorage(inputAStorage, n, lda, uplo);
+  const auto inputXLogical = makeLogicalVector(n, 0.5f, 0.375f);
+  const auto inputYLogical = makeLogicalVector(n, -1.0f, 0.25f);
+  auto hostXStorage = makeStridedStorage(inputXLogical, incx);
+  auto hostYStorage = makeStridedStorage(inputYLogical, incy);
+  auto deviceYStorage = hostYStorage;
+
+  hostSymv(uplo, n, alpha, inputAStorage, lda, hostXStorage, incx, beta, hostYStorage, incy);
+
+  auto kernelId = launcher.loadKernel((opt.kernel_root / "symv" / "blas_symv_reference_fp32.elf").string());
+  auto deviceA = launcher.allocateBytes(inputAStorage.size() * sizeof(float));
+  auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
+  auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
+
+  launcher.copyHostToDevice(inputAStorage.data(), deviceA, inputAStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(hostXStorage.data(), deviceX, hostXStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(deviceYStorage.data(), deviceY, deviceYStorage.size() * sizeof(float));
+
+  SymvArgs args{uplo, n, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceX), incx,
+                beta, reinterpret_cast<float*>(deviceY), incy};
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceY, deviceYStorage.data(), deviceYStorage.size() * sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  const std::string caseName = isUpper(uplo) ? "symv_u" : "symv_l";
+  std::ostringstream params;
+  params << "uplo=" << uplo << ", n=" << n << ", lda=" << lda << ", incx=" << incx
+         << ", incy=" << incy << ", alpha=" << alpha << ", beta=" << beta;
+  const std::string paramString = params.str();
+  const std::vector<float> hostOutputY = logicalFromStorage(hostYStorage, n, incy);
+  const std::vector<float> deviceOutputY = logicalFromStorage(deviceYStorage, n, incy);
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(hostOutputY, deviceOutputY, opt.epsilon);
+
+  launcher.freeBytes(deviceA);
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(deviceY);
+  launcher.unLoadKernel(kernelId);
+
+  VerificationPair result;
+  result.host.name = caseName;
+  result.host.params = paramString;
+  result.host.ok = ok;
+  result.host.vectors.push_back({"input_x", inputXLogical});
+  result.host.vectors.push_back({"input_y", inputYLogical});
+  result.host.vectors.push_back({"output_y", hostOutputY});
+  result.host.matrices.push_back({"input_a", n, n, inputALogical});
+
+  result.device.name = caseName;
+  result.device.params = paramString;
+  result.device.ok = ok;
+  result.device.vectors.push_back({"input_x", inputXLogical});
+  result.device.vectors.push_back({"input_y", inputYLogical});
+  result.device.vectors.push_back({"output_y", deviceOutputY});
+  result.device.matrices.push_back({"input_a", n, n, inputALogical});
+  return result;
+}
+
+VerificationPair verifySbmvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
+  const int n = 6;
+  const int k = 2;
+  const int lda = 3;
+  const int incx = 1;
+  const int incy = 2;
+  const float alpha = 0.875f;
+  const float beta = -1.125f;
+
+  const auto inputAStorage = makeSymmetricBandStorage(n, k, lda, uplo);
+  const auto inputALogical = denseFromSymmetricBandStorage(inputAStorage, n, k, lda, uplo);
+  const auto inputXLogical = makeLogicalVector(n, 1.0f, -0.125f);
+  const auto inputYLogical = makeLogicalVector(n, -2.0f, 0.5f);
+  auto hostXStorage = makeStridedStorage(inputXLogical, incx);
+  auto hostYStorage = makeStridedStorage(inputYLogical, incy);
+  auto deviceYStorage = hostYStorage;
+
+  hostSbmv(uplo, n, k, alpha, inputAStorage, lda, hostXStorage, incx, beta, hostYStorage, incy);
+
+  auto kernelId = launcher.loadKernel((opt.kernel_root / "sbmv" / "blas_sbmv_reference_fp32.elf").string());
+  auto deviceA = launcher.allocateBytes(inputAStorage.size() * sizeof(float));
+  auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
+  auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
+
+  launcher.copyHostToDevice(inputAStorage.data(), deviceA, inputAStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(hostXStorage.data(), deviceX, hostXStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(deviceYStorage.data(), deviceY, deviceYStorage.size() * sizeof(float));
+
+  SbmvArgs args{uplo, n, k, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceX), incx,
+                beta, reinterpret_cast<float*>(deviceY), incy};
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceY, deviceYStorage.data(), deviceYStorage.size() * sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  const std::string caseName = isUpper(uplo) ? "sbmv_u" : "sbmv_l";
+  std::ostringstream params;
+  params << "uplo=" << uplo << ", n=" << n << ", k=" << k << ", lda=" << lda << ", incx=" << incx
+         << ", incy=" << incy << ", alpha=" << alpha << ", beta=" << beta;
+  const std::string paramString = params.str();
+  const std::vector<float> hostOutputY = logicalFromStorage(hostYStorage, n, incy);
+  const std::vector<float> deviceOutputY = logicalFromStorage(deviceYStorage, n, incy);
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(hostOutputY, deviceOutputY, opt.epsilon);
+
+  launcher.freeBytes(deviceA);
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(deviceY);
+  launcher.unLoadKernel(kernelId);
+
+  VerificationPair result;
+  result.host.name = caseName;
+  result.host.params = paramString;
+  result.host.ok = ok;
+  result.host.vectors.push_back({"input_x", inputXLogical});
+  result.host.vectors.push_back({"input_y", inputYLogical});
+  result.host.vectors.push_back({"output_y", hostOutputY});
+  result.host.matrices.push_back({"input_a", n, n, inputALogical});
+
+  result.device.name = caseName;
+  result.device.params = paramString;
+  result.device.ok = ok;
+  result.device.vectors.push_back({"input_x", inputXLogical});
+  result.device.vectors.push_back({"input_y", inputYLogical});
+  result.device.vectors.push_back({"output_y", deviceOutputY});
+  result.device.matrices.push_back({"input_a", n, n, inputALogical});
+  return result;
+}
+
+VerificationPair verifySpmvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
+  const int n = 5;
+  const int incx = 2;
+  const int incy = 1;
+  const float alpha = -0.5f;
+  const float beta = 1.5f;
+
+  const auto inputAPacked = makeSymmetricPackedStorage(n, uplo);
+  const auto inputALogical = denseFromSymmetricPackedStorage(inputAPacked, n, uplo);
+  const auto inputXLogical = makeLogicalVector(n, 0.25f, 0.625f);
+  const auto inputYLogical = makeLogicalVector(n, 3.0f, -0.25f);
+  auto hostXStorage = makeStridedStorage(inputXLogical, incx);
+  auto hostYStorage = makeStridedStorage(inputYLogical, incy);
+  auto deviceYStorage = hostYStorage;
+
+  hostSpmv(uplo, n, alpha, inputAPacked, hostXStorage, incx, beta, hostYStorage, incy);
+
+  auto kernelId = launcher.loadKernel((opt.kernel_root / "spmv" / "blas_spmv_reference_fp32.elf").string());
+  auto deviceAP = launcher.allocateBytes(inputAPacked.size() * sizeof(float));
+  auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
+  auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
+
+  launcher.copyHostToDevice(inputAPacked.data(), deviceAP, inputAPacked.size() * sizeof(float));
+  launcher.copyHostToDevice(hostXStorage.data(), deviceX, hostXStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(deviceYStorage.data(), deviceY, deviceYStorage.size() * sizeof(float));
+
+  SpmvArgs args{uplo, n, alpha, reinterpret_cast<float*>(deviceAP), reinterpret_cast<float*>(deviceX), incx,
+                beta, reinterpret_cast<float*>(deviceY), incy};
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceY, deviceYStorage.data(), deviceYStorage.size() * sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  const std::string caseName = isUpper(uplo) ? "spmv_u" : "spmv_l";
+  std::ostringstream params;
+  params << "uplo=" << uplo << ", n=" << n << ", incx=" << incx << ", incy=" << incy
+         << ", alpha=" << alpha << ", beta=" << beta;
+  const std::string paramString = params.str();
+  const std::vector<float> hostOutputY = logicalFromStorage(hostYStorage, n, incy);
+  const std::vector<float> deviceOutputY = logicalFromStorage(deviceYStorage, n, incy);
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(hostOutputY, deviceOutputY, opt.epsilon);
+
+  launcher.freeBytes(deviceAP);
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(deviceY);
+  launcher.unLoadKernel(kernelId);
+
+  VerificationPair result;
+  result.host.name = caseName;
+  result.host.params = paramString;
+  result.host.ok = ok;
+  result.host.vectors.push_back({"input_x", inputXLogical});
+  result.host.vectors.push_back({"input_y", inputYLogical});
+  result.host.vectors.push_back({"output_y", hostOutputY});
+  result.host.matrices.push_back({"input_a", n, n, inputALogical});
+
+  result.device.name = caseName;
+  result.device.params = paramString;
+  result.device.ok = ok;
+  result.device.vectors.push_back({"input_x", inputXLogical});
+  result.device.vectors.push_back({"input_y", inputYLogical});
+  result.device.vectors.push_back({"output_y", deviceOutputY});
+  result.device.matrices.push_back({"input_a", n, n, inputALogical});
+  return result;
+}
+
+VerificationPair verifySyrCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
+  const int n = 5;
+  const int lda = 6;
+  const int incx = 2;
+  const float alpha = 0.625f;
+
+  const auto inputAStorage = makeSymmetricStorage(n, lda, uplo);
+  const auto inputALogical = denseFromSymmetricStorage(inputAStorage, n, lda, uplo);
+  const auto inputXLogical = makeLogicalVector(n, -0.5f, 0.375f);
+  auto hostAStorage = inputAStorage;
+  auto deviceAStorage = inputAStorage;
+  auto hostXStorage = makeStridedStorage(inputXLogical, incx);
+
+  hostSyr(uplo, n, alpha, hostXStorage, incx, hostAStorage, lda);
+
+  auto kernelId = launcher.loadKernel((opt.kernel_root / "syr" / "blas_syr_reference_fp32.elf").string());
+  auto deviceA = launcher.allocateBytes(deviceAStorage.size() * sizeof(float));
+  auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
+
+  launcher.copyHostToDevice(deviceAStorage.data(), deviceA, deviceAStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(hostXStorage.data(), deviceX, hostXStorage.size() * sizeof(float));
+
+  SyrArgs args{uplo, n, alpha, reinterpret_cast<float*>(deviceX), incx, reinterpret_cast<float*>(deviceA), lda};
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceA, deviceAStorage.data(), deviceAStorage.size() * sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  const std::string caseName = isUpper(uplo) ? "syr_u" : "syr_l";
+  std::ostringstream params;
+  params << "uplo=" << uplo << ", n=" << n << ", lda=" << lda << ", incx=" << incx << ", alpha=" << alpha;
+  const std::string paramString = params.str();
+  const std::vector<float> hostOutputA = denseFromSymmetricStorage(hostAStorage, n, lda, uplo);
+  const std::vector<float> deviceOutputA = denseFromSymmetricStorage(deviceAStorage, n, lda, uplo);
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(hostOutputA, deviceOutputA, opt.epsilon);
+
+  launcher.freeBytes(deviceA);
+  launcher.freeBytes(deviceX);
+  launcher.unLoadKernel(kernelId);
+
+  VerificationPair result;
+  result.host.name = caseName;
+  result.host.params = paramString;
+  result.host.ok = ok;
+  result.host.vectors.push_back({"input_x", inputXLogical});
+  result.host.matrices.push_back({"input_a", n, n, inputALogical});
+  result.host.matrices.push_back({"output_a", n, n, hostOutputA});
+
+  result.device.name = caseName;
+  result.device.params = paramString;
+  result.device.ok = ok;
+  result.device.vectors.push_back({"input_x", inputXLogical});
+  result.device.matrices.push_back({"input_a", n, n, inputALogical});
+  result.device.matrices.push_back({"output_a", n, n, deviceOutputA});
+  return result;
+}
+
+VerificationPair verifySyr2Case(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
+  const int n = 5;
+  const int lda = 6;
+  const int incx = 2;
+  const int incy = 1;
+  const float alpha = -0.875f;
+
+  const auto inputAStorage = makeSymmetricStorage(n, lda, uplo);
+  const auto inputALogical = denseFromSymmetricStorage(inputAStorage, n, lda, uplo);
+  const auto inputXLogical = makeLogicalVector(n, 0.25f, 0.5f);
+  const auto inputYLogical = makeLogicalVector(n, 1.0f, -0.375f);
+  auto hostAStorage = inputAStorage;
+  auto deviceAStorage = inputAStorage;
+  auto hostXStorage = makeStridedStorage(inputXLogical, incx);
+  auto hostYStorage = makeStridedStorage(inputYLogical, incy);
+
+  hostSyr2(uplo, n, alpha, hostXStorage, incx, hostYStorage, incy, hostAStorage, lda);
+
+  auto kernelId = launcher.loadKernel((opt.kernel_root / "syr2" / "blas_syr2_reference_fp32.elf").string());
+  auto deviceA = launcher.allocateBytes(deviceAStorage.size() * sizeof(float));
+  auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
+  auto deviceY = launcher.allocateBytes(hostYStorage.size() * sizeof(float));
+
+  launcher.copyHostToDevice(deviceAStorage.data(), deviceA, deviceAStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(hostXStorage.data(), deviceX, hostXStorage.size() * sizeof(float));
+  launcher.copyHostToDevice(hostYStorage.data(), deviceY, hostYStorage.size() * sizeof(float));
+
+  Syr2Args args{uplo, n, alpha, reinterpret_cast<float*>(deviceX), incx, reinterpret_cast<float*>(deviceY), incy,
+                reinterpret_cast<float*>(deviceA), lda};
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceA, deviceAStorage.data(), deviceAStorage.size() * sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  const std::string caseName = isUpper(uplo) ? "syr2_u" : "syr2_l";
+  std::ostringstream params;
+  params << "uplo=" << uplo << ", n=" << n << ", lda=" << lda << ", incx=" << incx
+         << ", incy=" << incy << ", alpha=" << alpha;
+  const std::string paramString = params.str();
+  const std::vector<float> hostOutputA = denseFromSymmetricStorage(hostAStorage, n, lda, uplo);
+  const std::vector<float> deviceOutputA = denseFromSymmetricStorage(deviceAStorage, n, lda, uplo);
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(hostOutputA, deviceOutputA, opt.epsilon);
+
+  launcher.freeBytes(deviceA);
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(deviceY);
+  launcher.unLoadKernel(kernelId);
+
+  VerificationPair result;
+  result.host.name = caseName;
+  result.host.params = paramString;
+  result.host.ok = ok;
+  result.host.vectors.push_back({"input_x", inputXLogical});
+  result.host.vectors.push_back({"input_y", inputYLogical});
+  result.host.matrices.push_back({"input_a", n, n, inputALogical});
+  result.host.matrices.push_back({"output_a", n, n, hostOutputA});
+
+  result.device.name = caseName;
+  result.device.params = paramString;
+  result.device.ok = ok;
+  result.device.vectors.push_back({"input_x", inputXLogical});
+  result.device.vectors.push_back({"input_y", inputYLogical});
+  result.device.matrices.push_back({"input_a", n, n, inputALogical});
+  result.device.matrices.push_back({"output_a", n, n, deviceOutputA});
+  return result;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -664,6 +1261,36 @@ int main(int argc, char** argv) {
   }
   if (opt.selected_case == "all" || opt.selected_case == "ger") {
     appendCase(verifyGerCase(launcher, opt));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "symv_u") {
+    appendCase(verifySymvCase(launcher, opt, 'U'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "symv_l") {
+    appendCase(verifySymvCase(launcher, opt, 'L'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "sbmv_u") {
+    appendCase(verifySbmvCase(launcher, opt, 'U'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "sbmv_l") {
+    appendCase(verifySbmvCase(launcher, opt, 'L'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "spmv_u") {
+    appendCase(verifySpmvCase(launcher, opt, 'U'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "spmv_l") {
+    appendCase(verifySpmvCase(launcher, opt, 'L'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "syr_u") {
+    appendCase(verifySyrCase(launcher, opt, 'U'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "syr_l") {
+    appendCase(verifySyrCase(launcher, opt, 'L'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "syr2_u") {
+    appendCase(verifySyr2Case(launcher, opt, 'U'));
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "syr2_l") {
+    appendCase(verifySyr2Case(launcher, opt, 'L'));
   }
 
   launcher.tearDown();
