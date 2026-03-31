@@ -21,8 +21,12 @@ target_link_libraries(blas_reference_level1_verifier PRIVATE etsoc_gpsdk)
 add_executable(blas_reference_level2_verifier level2_verifier.cpp)
 target_link_libraries(blas_reference_level2_verifier PRIVATE etsoc_gpsdk)
 
+add_executable(blas_reference_level3_verifier level3_verifier.cpp)
+target_link_libraries(blas_reference_level3_verifier PRIVATE etsoc_gpsdk)
+
 install(TARGETS
   blas_reference_level1_verifier
   blas_reference_level2_verifier
+  blas_reference_level3_verifier
   DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

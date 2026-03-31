@@ -1,0 +1,6 @@
+add_subdirectory(gemm)
+add_subdirectory(symm)
+add_subdirectory(syrk)
+add_subdirectory(syr2k)
+add_subdirectory(trmm)
+add_subdirectory(trsm)
