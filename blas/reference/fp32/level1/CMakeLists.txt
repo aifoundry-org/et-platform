@@ -1,4 +1,7 @@
 add_subdirectory(axpy)
+add_subdirectory(asum)
 add_subdirectory(copy)
+add_subdirectory(dot)
+add_subdirectory(norm2)
 add_subdirectory(scal)
 add_subdirectory(swap)

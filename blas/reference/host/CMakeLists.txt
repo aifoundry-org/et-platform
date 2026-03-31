@@ -18,4 +18,11 @@ add_subdirectory(${ET_PLATFORM_SOURCE_DIR}/gp-sdk/host gp-sdk-host)
 add_executable(blas_reference_level1_verifier level1_verifier.cpp)
 target_link_libraries(blas_reference_level1_verifier PRIVATE etsoc_gpsdk)
 
-install(TARGETS blas_reference_level1_verifier DESTINATION ${CMAKE_INSTALL_BINDIR})
+add_executable(blas_reference_level2_verifier level2_verifier.cpp)
+target_link_libraries(blas_reference_level2_verifier PRIVATE etsoc_gpsdk)
+
+install(TARGETS
+  blas_reference_level1_verifier
+  blas_reference_level2_verifier
+  DESTINATION ${CMAKE_INSTALL_BINDIR}
+)

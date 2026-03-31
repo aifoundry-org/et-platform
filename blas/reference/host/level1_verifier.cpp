@@ -45,6 +45,28 @@ struct SwapArgs {
   float* y;
 } __attribute__((packed));
 
+struct DotArgs {
+  uint64_t numElements;
+  const float* x;
+  const float* y;
+  float* partials;
+  float* res;
+} __attribute__((packed));
+
+struct Norm2Args {
+  uint64_t numElements;
+  const float* x;
+  float* partials;
+  float* res;
+} __attribute__((packed));
+
+struct AsumArgs {
+  uint64_t numElements;
+  const float* x;
+  float* partials;
+  float* res;
+} __attribute__((packed));
+
 struct Options {
   fs::path kernel_root = "";
   fs::path host_results_path = "blas/reference/host_results.md";
@@ -76,7 +98,7 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "Usage: [options]\n\n"
     "Quick verifier for BLAS reference Level 1 kernels.\n\n"
     "Optional switches:\n"
-    "  -k, --kernel_root            root containing axpy/copy/scal/swap kernel directories\n"
+    "  -k, --kernel_root            root containing BLAS Level 1 kernel directories\n"
     "      --host_results_path      markdown file for host reference outputs\n"
     "      --device_results_path    markdown file for device outputs\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
@@ -169,10 +191,38 @@ void host_swap(std::vector<float>& x, std::vector<float>& y) {
   }
 }
 
+float host_dot(const std::vector<float>& x, const std::vector<float>& y) {
+  float result = 0.0f;
+  for (size_t i = 0; i < x.size(); ++i) {
+    result += x[i] * y[i];
+  }
+  return result;
+}
+
+float host_norm2(const std::vector<float>& x) {
+  float result = 0.0f;
+  for (float value : x) {
+    result += value * value;
+  }
+  return std::sqrt(result);
+}
+
+float host_asum(const std::vector<float>& x) {
+  float result = 0.0f;
+  for (float value : x) {
+    result += std::fabs(value);
+  }
+  return result;
+}
+
 bool nearlyEqual(const std::vector<float>& lhs, const std::vector<float>& rhs, double epsilon) {
   return std::equal(lhs.begin(), lhs.end(), rhs.begin(), [epsilon](float a, float b) {
     return std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= epsilon;
   });
+}
+
+bool nearlyEqual(float lhs, float rhs, double epsilon) {
+  return std::fabs(static_cast<double>(lhs) - static_cast<double>(rhs)) <= epsilon;
 }
 
 std::vector<float> makeInputX(size_t size) {
@@ -413,6 +463,118 @@ OperationResult verifySwap(ReferenceVerifierLauncher& launcher, const Options& o
   return result;
 }
 
+OperationResult verifyDot(ReferenceVerifierLauncher& launcher, const Options& opt, const fs::path& kernelPath) {
+  auto x = makeInputX(opt.num_elements);
+  auto y = makeInputY(opt.num_elements);
+  const float expectedResult = host_dot(x, y);
+  std::vector<float> partials(opt.num_elements == 0 ? 1 : opt.num_elements, 0.0f);
+  float deviceResult = 0.0f;
+
+  auto kernelId = launcher.loadKernel(kernelPath.string());
+  auto deviceX = launcher.allocateBytes(x.size() * sizeof(float));
+  auto deviceY = launcher.allocateBytes(y.size() * sizeof(float));
+  auto devicePartials = launcher.allocateBytes(partials.size() * sizeof(float));
+  auto deviceResultBuffer = launcher.allocateBytes(sizeof(float));
+
+  launcher.copyHostToDevice(x.data(), deviceX, x.size() * sizeof(float));
+  launcher.copyHostToDevice(y.data(), deviceY, y.size() * sizeof(float));
+  launcher.copyHostToDevice(partials.data(), devicePartials, partials.size() * sizeof(float));
+
+  DotArgs args{static_cast<uint64_t>(x.size()), reinterpret_cast<float*>(deviceX), reinterpret_cast<float*>(deviceY),
+               reinterpret_cast<float*>(devicePartials), reinterpret_cast<float*>(deviceResultBuffer)};
+
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceResultBuffer, &deviceResult, sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  OperationResult result;
+  result.name = "dot";
+  result.input_x = x;
+  result.input_y = y;
+  result.output_label_y = "result";
+  result.output_y = {deviceResult};
+  result.ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedResult, deviceResult, opt.epsilon);
+
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(deviceY);
+  launcher.freeBytes(devicePartials);
+  launcher.freeBytes(deviceResultBuffer);
+  launcher.unLoadKernel(kernelId);
+  return result;
+}
+
+OperationResult verifyNorm2(ReferenceVerifierLauncher& launcher, const Options& opt, const fs::path& kernelPath) {
+  auto x = makeInputX(opt.num_elements);
+  const float expectedResult = host_norm2(x);
+  std::vector<float> partials(opt.num_elements == 0 ? 1 : opt.num_elements, 0.0f);
+  float deviceResult = 0.0f;
+
+  auto kernelId = launcher.loadKernel(kernelPath.string());
+  auto deviceX = launcher.allocateBytes(x.size() * sizeof(float));
+  auto devicePartials = launcher.allocateBytes(partials.size() * sizeof(float));
+  auto deviceResultBuffer = launcher.allocateBytes(sizeof(float));
+
+  launcher.copyHostToDevice(x.data(), deviceX, x.size() * sizeof(float));
+  launcher.copyHostToDevice(partials.data(), devicePartials, partials.size() * sizeof(float));
+
+  Norm2Args args{static_cast<uint64_t>(x.size()), reinterpret_cast<float*>(deviceX),
+                 reinterpret_cast<float*>(devicePartials), reinterpret_cast<float*>(deviceResultBuffer)};
+
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceResultBuffer, &deviceResult, sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  OperationResult result;
+  result.name = "norm2";
+  result.has_input_y = false;
+  result.input_x = x;
+  result.output_label_y = "result";
+  result.output_y = {deviceResult};
+  result.ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedResult, deviceResult, opt.epsilon);
+
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(devicePartials);
+  launcher.freeBytes(deviceResultBuffer);
+  launcher.unLoadKernel(kernelId);
+  return result;
+}
+
+OperationResult verifyAsum(ReferenceVerifierLauncher& launcher, const Options& opt, const fs::path& kernelPath) {
+  auto x = makeInputX(opt.num_elements);
+  const float expectedResult = host_asum(x);
+  std::vector<float> partials(opt.num_elements == 0 ? 1 : opt.num_elements, 0.0f);
+  float deviceResult = 0.0f;
+
+  auto kernelId = launcher.loadKernel(kernelPath.string());
+  auto deviceX = launcher.allocateBytes(x.size() * sizeof(float));
+  auto devicePartials = launcher.allocateBytes(partials.size() * sizeof(float));
+  auto deviceResultBuffer = launcher.allocateBytes(sizeof(float));
+
+  launcher.copyHostToDevice(x.data(), deviceX, x.size() * sizeof(float));
+  launcher.copyHostToDevice(partials.data(), devicePartials, partials.size() * sizeof(float));
+
+  AsumArgs args{static_cast<uint64_t>(x.size()), reinterpret_cast<float*>(deviceX),
+                reinterpret_cast<float*>(devicePartials), reinterpret_cast<float*>(deviceResultBuffer)};
+
+  launcher.kernelLaunch(kernelId, &args);
+  launcher.copyDeviceToHost(deviceResultBuffer, &deviceResult, sizeof(float));
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
+
+  OperationResult result;
+  result.name = "asum";
+  result.has_input_y = false;
+  result.input_x = x;
+  result.output_label_y = "result";
+  result.output_y = {deviceResult};
+  result.ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedResult, deviceResult, opt.epsilon);
+
+  launcher.freeBytes(deviceX);
+  launcher.freeBytes(devicePartials);
+  launcher.freeBytes(deviceResultBuffer);
+  launcher.unLoadKernel(kernelId);
+  return result;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -431,8 +593,14 @@ int main(int argc, char** argv) {
 
   const OperationResult deviceAxpy =
     verifyAxpy(launcher, opt, opt.kernel_root / "axpy" / "blas_axpy_reference_fp32.elf");
+  const OperationResult deviceAsum =
+    verifyAsum(launcher, opt, opt.kernel_root / "asum" / "blas_asum_reference_fp32.elf");
   const OperationResult deviceCopy =
     verifyCopy(launcher, opt, opt.kernel_root / "copy" / "blas_copy_reference_fp32.elf");
+  const OperationResult deviceDot =
+    verifyDot(launcher, opt, opt.kernel_root / "dot" / "blas_dot_reference_fp32.elf");
+  const OperationResult deviceNorm2 =
+    verifyNorm2(launcher, opt, opt.kernel_root / "norm2" / "blas_norm2_reference_fp32.elf");
   const OperationResult deviceScal =
     verifyScal(launcher, opt, opt.kernel_root / "scal" / "blas_scal_reference_fp32.elf");
   const OperationResult deviceSwap =
@@ -448,10 +616,22 @@ int main(int argc, char** argv) {
   host_axpy(hostResults.back().input_x, hostResults.back().output_y, hostResults.back().alpha);
   hostResults.back().ok = deviceAxpy.ok;
 
+  hostResults.emplace_back(deviceAsum);
+  hostResults.back().output_y = {host_asum(hostResults.back().input_x)};
+  hostResults.back().ok = deviceAsum.ok;
+
   hostResults.emplace_back(deviceCopy);
   hostResults.back().output_y = makeInputY(opt.num_elements);
   host_copy(hostResults.back().input_x, hostResults.back().output_y);
   hostResults.back().ok = deviceCopy.ok;
+
+  hostResults.emplace_back(deviceDot);
+  hostResults.back().output_y = {host_dot(hostResults.back().input_x, hostResults.back().input_y)};
+  hostResults.back().ok = deviceDot.ok;
+
+  hostResults.emplace_back(deviceNorm2);
+  hostResults.back().output_y = {host_norm2(hostResults.back().input_x)};
+  hostResults.back().ok = deviceNorm2.ok;
 
   hostResults.emplace_back(deviceScal);
   hostResults.back().output_x = hostResults.back().input_x;
@@ -465,14 +645,18 @@ int main(int argc, char** argv) {
   hostResults.back().ok = deviceSwap.ok;
 
   deviceResults.push_back(deviceAxpy);
+  deviceResults.push_back(deviceAsum);
   deviceResults.push_back(deviceCopy);
+  deviceResults.push_back(deviceDot);
+  deviceResults.push_back(deviceNorm2);
   deviceResults.push_back(deviceScal);
   deviceResults.push_back(deviceSwap);
 
   writeResultsMarkdown(opt.host_results_path, "Host", opt, hostResults);
   writeResultsMarkdown(opt.device_results_path, "Device", opt, deviceResults);
 
-  if (!deviceAxpy.ok || !deviceCopy.ok || !deviceScal.ok || !deviceSwap.ok) {
+  if (!deviceAxpy.ok || !deviceAsum.ok || !deviceCopy.ok || !deviceDot.ok || !deviceNorm2.ok ||
+      !deviceScal.ok || !deviceSwap.ok) {
     std::cerr << "BLAS Level 1 reference verification failed" << std::endl;
     return 1;
   }
