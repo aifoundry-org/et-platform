@@ -28,7 +28,7 @@ namespace bemu {
 // +----------------+----------------+----------+-------------------+
 // | 0x00_0200_0000 | 0x00_0200_0FFF |  4KiB    | SystemRegisters   |
 // | 0x00_0200_4000 | 0x00_0200_4FFF |  4KiB    | UART              |
-// | 0x00_0200_A000 | 0x00_0200_BFFF |  8KiB    | Boot ROM          |
+// | 0x00_0200_8000 | 0x00_0200_9FFF |  8KiB    | Boot ROM          |
 // | 0x00_0200_C000 | 0x00_0200_CFFF |  4KiB    | Scratch SRAM      |
 // | 0x00_4000_0000 | 0x00_40FF_FFFF | 16MiB    | MRAM              |
 // | 0x00_7FFF_D000 | 0x00_7FFF_FFFF | 12KiB    | OTP (read-only)   |
