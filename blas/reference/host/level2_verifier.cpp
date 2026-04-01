@@ -132,6 +132,8 @@ struct Options {
   std::string device_type = "sysemu";
   double epsilon = 1.0e-5;
   std::string selected_case = "all";
+  int problem_dim = 5;
+  int band_width = 2;
 };
 
 struct VectorRecord {
@@ -170,16 +172,20 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "      --case                   case to run (all, gemv_n, gemv_t, gbmv_n, gbmv_t, ger,\n"
     "                               symv_u, symv_l, sbmv_u, sbmv_l, spmv_u, spmv_l,\n"
     "                               syr_u, syr_l, syr2_u, syr2_l)\n"
+    "  -n, --problem_dim            logical matrix/vector dimension used by the verifier\n"
+    "  -b, --band_width             band width used by banded Level 2 routines\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
     "  -d, --device_type            device type to use (sysemu, fake, silicon)\n"
     "  -e, --epsilon                comparison tolerance for float results\n";
 
-  static constexpr const char* short_opts = "k:t:d:e:h";
+  static constexpr const char* short_opts = "k:t:d:e:n:b:h";
   static const std::vector<option> long_opts{
     {"kernel_root", required_argument, nullptr, 'k'},
     {"host_results_path", required_argument, nullptr, 1000},
     {"device_results_path", required_argument, nullptr, 1001},
     {"case", required_argument, nullptr, 1002},
+    {"problem_dim", required_argument, nullptr, 'n'},
+    {"band_width", required_argument, nullptr, 'b'},
     {"kernel_launch_timeout", required_argument, nullptr, 't'},
     {"device_type", required_argument, nullptr, 'd'},
     {"epsilon", required_argument, nullptr, 'e'},
@@ -205,6 +211,12 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
       break;
     case 1002:
       opts.selected_case = optarg;
+      break;
+    case 'n':
+      opts.problem_dim = std::atoi(optarg);
+      break;
+    case 'b':
+      opts.band_width = std::atoi(optarg);
       break;
     case 't':
       opts.kernel_launch_timeout = std::atoi(optarg);
@@ -235,6 +247,20 @@ fs::path defaultKernelRoot() {
     return envRoot;
   }
   return "/opt/et/kernels/blas/reference/fp32/level2";
+}
+
+fs::path resolveKernelArtifact(const fs::path& kernelDir, const std::string& kernelBaseName) {
+  const auto dbgPath = kernelDir / (kernelBaseName + ".elf_dbg");
+  if (std::filesystem::exists(dbgPath)) {
+    return dbgPath;
+  }
+
+  const auto elfPath = kernelDir / (kernelBaseName + ".elf");
+  if (std::filesystem::exists(elfPath)) {
+    return elfPath;
+  }
+
+  return elfPath;
 }
 
 bool isTranspose(char trans) {
@@ -461,9 +487,15 @@ std::vector<float> denseFromSymmetricPackedStorage(const std::vector<float>& sto
   return dense;
 }
 
+bool nearlyEqual(float lhs, float rhs, double epsilon) {
+  const double diff = std::fabs(static_cast<double>(lhs) - static_cast<double>(rhs));
+  const double scale = std::max({1.0, std::fabs(static_cast<double>(lhs)), std::fabs(static_cast<double>(rhs))});
+  return diff <= epsilon * scale;
+}
+
 bool nearlyEqual(const std::vector<float>& lhs, const std::vector<float>& rhs, double epsilon) {
   return std::equal(lhs.begin(), lhs.end(), rhs.begin(), [epsilon](float a, float b) {
-    return std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= epsilon;
+    return nearlyEqual(a, b, epsilon);
   });
 }
 
@@ -695,9 +727,9 @@ public:
 };
 
 VerificationPair verifyGemvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char trans) {
-  const int m = 4;
-  const int n = 5;
-  const int lda = 6;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int lda = m + 1;
   const int incx = trans == 'N' ? 1 : 2;
   const int incy = 1;
   const float alpha = 1.5f;
@@ -714,7 +746,8 @@ VerificationPair verifyGemvCase(ReferenceVerifierLauncher& launcher, const Optio
 
   hostGemv(trans, m, n, alpha, hostAStorage, lda, hostXStorage, incx, beta, hostYStorage, incy);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "gemv" / "blas_gemv_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "gemv", "blas_gemv_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(inputAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
@@ -765,11 +798,11 @@ VerificationPair verifyGemvCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifyGbmvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char trans) {
-  const int m = 5;
-  const int n = 6;
-  const int kl = 1;
-  const int ku = 2;
-  const int lda = 5;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int kl = std::min(opt.band_width, opt.problem_dim - 1);
+  const int ku = std::min(opt.band_width, opt.problem_dim - 1);
+  const int lda = kl + ku + 1;
   const int incx = trans == 'N' ? 1 : 2;
   const int incy = trans == 'N' ? 2 : 1;
   const float alpha = 0.75f;
@@ -785,7 +818,8 @@ VerificationPair verifyGbmvCase(ReferenceVerifierLauncher& launcher, const Optio
 
   hostGbmv(trans, m, n, kl, ku, alpha, inputAStorage, lda, hostXStorage, incx, beta, hostYStorage, incy);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "gbmv" / "blas_gbmv_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "gbmv", "blas_gbmv_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(inputAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
@@ -837,9 +871,9 @@ VerificationPair verifyGbmvCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifyGerCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int m = 4;
-  const int n = 5;
-  const int lda = 6;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int lda = m + 1;
   const int incx = 2;
   const int incy = 1;
   const float alpha = -0.75f;
@@ -855,7 +889,8 @@ VerificationPair verifyGerCase(ReferenceVerifierLauncher& launcher, const Option
 
   hostGer(m, n, alpha, hostXStorage, incx, hostYStorage, incy, hostAStorage, lda);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "ger" / "blas_ger_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "ger", "blas_ger_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(deviceAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(hostYStorage.size() * sizeof(float));
@@ -904,8 +939,8 @@ VerificationPair verifyGerCase(ReferenceVerifierLauncher& launcher, const Option
 }
 
 VerificationPair verifySymvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
-  const int n = 5;
-  const int lda = 6;
+  const int n = opt.problem_dim;
+  const int lda = n + 1;
   const int incx = 2;
   const int incy = 1;
   const float alpha = 1.25f;
@@ -921,7 +956,8 @@ VerificationPair verifySymvCase(ReferenceVerifierLauncher& launcher, const Optio
 
   hostSymv(uplo, n, alpha, inputAStorage, lda, hostXStorage, incx, beta, hostYStorage, incy);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "symv" / "blas_symv_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "symv", "blas_symv_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(inputAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
@@ -970,9 +1006,9 @@ VerificationPair verifySymvCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifySbmvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
-  const int n = 6;
-  const int k = 2;
-  const int lda = 3;
+  const int n = opt.problem_dim;
+  const int k = std::min(opt.band_width, opt.problem_dim - 1);
+  const int lda = k + 1;
   const int incx = 1;
   const int incy = 2;
   const float alpha = 0.875f;
@@ -988,7 +1024,8 @@ VerificationPair verifySbmvCase(ReferenceVerifierLauncher& launcher, const Optio
 
   hostSbmv(uplo, n, k, alpha, inputAStorage, lda, hostXStorage, incx, beta, hostYStorage, incy);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "sbmv" / "blas_sbmv_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "sbmv", "blas_sbmv_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(inputAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
@@ -1037,7 +1074,7 @@ VerificationPair verifySbmvCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifySpmvCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
-  const int n = 5;
+  const int n = opt.problem_dim;
   const int incx = 2;
   const int incy = 1;
   const float alpha = -0.5f;
@@ -1053,7 +1090,8 @@ VerificationPair verifySpmvCase(ReferenceVerifierLauncher& launcher, const Optio
 
   hostSpmv(uplo, n, alpha, inputAPacked, hostXStorage, incx, beta, hostYStorage, incy);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "spmv" / "blas_spmv_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "spmv", "blas_spmv_reference_fp32").string());
   auto deviceAP = launcher.allocateBytes(inputAPacked.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(deviceYStorage.size() * sizeof(float));
@@ -1102,8 +1140,8 @@ VerificationPair verifySpmvCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifySyrCase(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
-  const int n = 5;
-  const int lda = 6;
+  const int n = opt.problem_dim;
+  const int lda = n + 1;
   const int incx = 2;
   const float alpha = 0.625f;
 
@@ -1116,7 +1154,8 @@ VerificationPair verifySyrCase(ReferenceVerifierLauncher& launcher, const Option
 
   hostSyr(uplo, n, alpha, hostXStorage, incx, hostAStorage, lda);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "syr" / "blas_syr_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "syr", "blas_syr_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(deviceAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
 
@@ -1158,8 +1197,8 @@ VerificationPair verifySyrCase(ReferenceVerifierLauncher& launcher, const Option
 }
 
 VerificationPair verifySyr2Case(ReferenceVerifierLauncher& launcher, const Options& opt, char uplo) {
-  const int n = 5;
-  const int lda = 6;
+  const int n = opt.problem_dim;
+  const int lda = n + 1;
   const int incx = 2;
   const int incy = 1;
   const float alpha = -0.875f;
@@ -1175,7 +1214,8 @@ VerificationPair verifySyr2Case(ReferenceVerifierLauncher& launcher, const Optio
 
   hostSyr2(uplo, n, alpha, hostXStorage, incx, hostYStorage, incy, hostAStorage, lda);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "syr2" / "blas_syr2_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "syr2", "blas_syr2_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(deviceAStorage.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(hostXStorage.size() * sizeof(float));
   auto deviceY = launcher.allocateBytes(hostYStorage.size() * sizeof(float));

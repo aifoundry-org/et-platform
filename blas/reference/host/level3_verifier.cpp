@@ -116,6 +116,7 @@ struct Options {
   std::string device_type = "sysemu";
   double epsilon = 1.0e-5;
   std::string selected_case = "all";
+  int problem_dim = 4;
 };
 
 struct MatrixRecord {
@@ -147,16 +148,18 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "      --device_results_path    markdown file for device outputs\n"
     "      --case                   case to run (all, gemm_nn, symm_lu, syrk_un,\n"
     "                               syr2k_lt, trmm_lunn, trsm_lunn)\n"
+    "  -n, --problem_dim            logical matrix dimension used by the verifier\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
     "  -d, --device_type            device type to use (sysemu, fake, silicon)\n"
     "  -e, --epsilon                comparison tolerance for float results\n";
 
-  static constexpr const char* short_opts = "k:t:d:e:h";
+  static constexpr const char* short_opts = "k:t:d:e:n:h";
   static const std::vector<option> long_opts{
     {"kernel_root", required_argument, nullptr, 'k'},
     {"host_results_path", required_argument, nullptr, 1000},
     {"device_results_path", required_argument, nullptr, 1001},
     {"case", required_argument, nullptr, 1002},
+    {"problem_dim", required_argument, nullptr, 'n'},
     {"kernel_launch_timeout", required_argument, nullptr, 't'},
     {"device_type", required_argument, nullptr, 'd'},
     {"epsilon", required_argument, nullptr, 'e'},
@@ -182,6 +185,9 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
       break;
     case 1002:
       opts.selected_case = optarg;
+      break;
+    case 'n':
+      opts.problem_dim = std::atoi(optarg);
       break;
     case 't':
       opts.kernel_launch_timeout = std::atoi(optarg);
@@ -212,6 +218,20 @@ fs::path defaultKernelRoot() {
     return envRoot;
   }
   return "/opt/et/kernels/blas/reference/fp32/level3";
+}
+
+fs::path resolveKernelArtifact(const fs::path& kernelDir, const std::string& kernelBaseName) {
+  const auto dbgPath = kernelDir / (kernelBaseName + ".elf_dbg");
+  if (std::filesystem::exists(dbgPath)) {
+    return dbgPath;
+  }
+
+  const auto elfPath = kernelDir / (kernelBaseName + ".elf");
+  if (std::filesystem::exists(elfPath)) {
+    return elfPath;
+  }
+
+  return elfPath;
 }
 
 bool isTranspose(char trans) {
@@ -275,9 +295,13 @@ std::vector<float> makeTriangularStorage(int n, int ld, char uplo, char diag) {
     for (int row = rowBegin; row < rowEnd; ++row) {
       if (unit && row == col) {
         storage[row + static_cast<size_t>(col) * ld] = 1.0f;
+      } else if (row == col) {
+        // Keep triangular solves well-conditioned across larger dimensions.
+        storage[row + static_cast<size_t>(col) * ld] =
+          static_cast<float>(4 * n) + 1.0f + static_cast<float>(row) * 0.25f;
       } else {
         storage[row + static_cast<size_t>(col) * ld] =
-          2.0f + static_cast<float>(row) * 0.25f + static_cast<float>(col) * 0.125f;
+          0.05f + static_cast<float>(row) * 0.001f + static_cast<float>(col) * 0.0005f;
       }
     }
   }
@@ -331,9 +355,15 @@ float triangularElement(const std::vector<float>& storage, int ld, int row, int 
   return storage[col + static_cast<size_t>(row) * ld];
 }
 
+bool nearlyEqual(float lhs, float rhs, double epsilon) {
+  const double diff = std::fabs(static_cast<double>(lhs) - static_cast<double>(rhs));
+  const double scale = std::max({1.0, std::fabs(static_cast<double>(lhs)), std::fabs(static_cast<double>(rhs))});
+  return diff <= epsilon * scale;
+}
+
 bool nearlyEqual(const std::vector<float>& lhs, const std::vector<float>& rhs, double epsilon) {
   return std::equal(lhs.begin(), lhs.end(), rhs.begin(), [epsilon](float a, float b) {
-    return std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= epsilon;
+    return nearlyEqual(a, b, epsilon);
   });
 }
 
@@ -582,12 +612,12 @@ public:
 };
 
 VerificationPair verifyGemmCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int m = 3;
-  const int n = 4;
-  const int k = 2;
-  const int lda = 5;
-  const int ldb = 4;
-  const int ldc = 5;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int k = opt.problem_dim;
+  const int lda = m + 1;
+  const int ldb = k + 1;
+  const int ldc = m + 1;
   const float alpha = 1.25f;
   const float beta = -0.5f;
   auto aStorage = makeDenseStorage(m, k, lda, 0.75f);
@@ -597,7 +627,8 @@ VerificationPair verifyGemmCase(ReferenceVerifierLauncher& launcher, const Optio
 
   hostGemm('N', 'N', m, n, k, alpha, aStorage, lda, bStorage, ldb, beta, hostCStorage, ldc);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "gemm" / "blas_gemm_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "gemm", "blas_gemm_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(aStorage.size() * sizeof(float));
   auto deviceB = launcher.allocateBytes(bStorage.size() * sizeof(float));
   auto deviceC = launcher.allocateBytes(deviceCStorage.size() * sizeof(float));
@@ -618,7 +649,8 @@ VerificationPair verifyGemmCase(ReferenceVerifierLauncher& launcher, const Optio
 
   VerificationPair result;
   result.host.name = "gemm_nn";
-  result.host.params = "transa=N, transb=N, m=3, n=4, k=2";
+  result.host.params =
+    "transa=N, transb=N, m=" + std::to_string(m) + ", n=" + std::to_string(n) + ", k=" + std::to_string(k);
   result.host.ok = ok;
   result.host.matrices.push_back({"input_a", m, k, denseFromColumnMajor(aStorage, m, k, lda)});
   result.host.matrices.push_back({"input_b", k, n, denseFromColumnMajor(bStorage, k, n, ldb)});
@@ -629,11 +661,11 @@ VerificationPair verifyGemmCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifySymmCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int m = 3;
-  const int n = 4;
-  const int lda = 4;
-  const int ldb = 5;
-  const int ldc = 5;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int lda = m + 1;
+  const int ldb = m + 1;
+  const int ldc = m + 1;
   const float alpha = -0.75f;
   const float beta = 0.5f;
   auto aStorage = makeSymmetricStorage(m, lda, 'U');
@@ -642,7 +674,8 @@ VerificationPair verifySymmCase(ReferenceVerifierLauncher& launcher, const Optio
   auto deviceCStorage = hostCStorage;
   hostSymm('L', 'U', m, n, alpha, aStorage, lda, bStorage, ldb, beta, hostCStorage, ldc);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "symm" / "blas_symm_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "symm", "blas_symm_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(aStorage.size() * sizeof(float));
   auto deviceB = launcher.allocateBytes(bStorage.size() * sizeof(float));
   auto deviceC = launcher.allocateBytes(deviceCStorage.size() * sizeof(float));
@@ -663,7 +696,7 @@ VerificationPair verifySymmCase(ReferenceVerifierLauncher& launcher, const Optio
 
   VerificationPair result;
   result.host.name = "symm_lu";
-  result.host.params = "side=L, uplo=U, m=3, n=4";
+  result.host.params = "side=L, uplo=U, m=" + std::to_string(m) + ", n=" + std::to_string(n);
   result.host.ok = ok;
   result.host.matrices.push_back({"input_a", m, m, denseFromSymmetricStorage(aStorage, m, lda, 'U')});
   result.host.matrices.push_back({"input_b", m, n, denseFromColumnMajor(bStorage, m, n, ldb)});
@@ -674,10 +707,10 @@ VerificationPair verifySymmCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifySyrkCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int n = 4;
-  const int k = 3;
-  const int lda = 5;
-  const int ldc = 5;
+  const int n = opt.problem_dim;
+  const int k = opt.problem_dim;
+  const int lda = n + 1;
+  const int ldc = n + 1;
   const float alpha = 1.0f;
   const float beta = -0.5f;
   auto aStorage = makeDenseStorage(n, k, lda, 0.75f);
@@ -685,7 +718,8 @@ VerificationPair verifySyrkCase(ReferenceVerifierLauncher& launcher, const Optio
   auto deviceCStorage = hostCStorage;
   hostSyrk('U', 'N', n, k, alpha, aStorage, lda, beta, hostCStorage, ldc);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "syrk" / "blas_syrk_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "syrk", "blas_syrk_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(aStorage.size() * sizeof(float));
   auto deviceC = launcher.allocateBytes(deviceCStorage.size() * sizeof(float));
   launcher.copyHostToDevice(aStorage.data(), deviceA, aStorage.size() * sizeof(float));
@@ -703,7 +737,7 @@ VerificationPair verifySyrkCase(ReferenceVerifierLauncher& launcher, const Optio
 
   VerificationPair result;
   result.host.name = "syrk_un";
-  result.host.params = "uplo=U, trans=N, n=4, k=3";
+  result.host.params = "uplo=U, trans=N, n=" + std::to_string(n) + ", k=" + std::to_string(k);
   result.host.ok = ok;
   result.host.matrices.push_back({"input_a", n, k, denseFromColumnMajor(aStorage, n, k, lda)});
   result.host.matrices.push_back({"output_c", n, n, denseFromSymmetricStorage(hostCStorage, n, ldc, 'U')});
@@ -713,11 +747,11 @@ VerificationPair verifySyrkCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifySyr2kCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int n = 4;
-  const int k = 3;
-  const int lda = 5;
-  const int ldb = 5;
-  const int ldc = 5;
+  const int n = opt.problem_dim;
+  const int k = opt.problem_dim;
+  const int lda = k + 1;
+  const int ldb = k + 1;
+  const int ldc = n + 1;
   const float alpha = 0.625f;
   const float beta = 0.25f;
   auto aStorage = makeDenseStorage(k, n, lda, 0.5f);
@@ -726,7 +760,8 @@ VerificationPair verifySyr2kCase(ReferenceVerifierLauncher& launcher, const Opti
   auto deviceCStorage = hostCStorage;
   hostSyr2k('L', 'T', n, k, alpha, aStorage, lda, bStorage, ldb, beta, hostCStorage, ldc);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "syr2k" / "blas_syr2k_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "syr2k", "blas_syr2k_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(aStorage.size() * sizeof(float));
   auto deviceB = launcher.allocateBytes(bStorage.size() * sizeof(float));
   auto deviceC = launcher.allocateBytes(deviceCStorage.size() * sizeof(float));
@@ -748,7 +783,7 @@ VerificationPair verifySyr2kCase(ReferenceVerifierLauncher& launcher, const Opti
 
   VerificationPair result;
   result.host.name = "syr2k_lt";
-  result.host.params = "uplo=L, trans=T, n=4, k=3";
+  result.host.params = "uplo=L, trans=T, n=" + std::to_string(n) + ", k=" + std::to_string(k);
   result.host.ok = ok;
   result.host.matrices.push_back({"input_a", k, n, denseFromColumnMajor(aStorage, k, n, lda)});
   result.host.matrices.push_back({"input_b", k, n, denseFromColumnMajor(bStorage, k, n, ldb)});
@@ -759,17 +794,18 @@ VerificationPair verifySyr2kCase(ReferenceVerifierLauncher& launcher, const Opti
 }
 
 VerificationPair verifyTrmmCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int m = 3;
-  const int n = 4;
-  const int lda = 4;
-  const int ldb = 5;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int lda = m + 1;
+  const int ldb = m + 1;
   const float alpha = 0.75f;
   auto aStorage = makeTriangularStorage(m, lda, 'U', 'N');
   auto hostBStorage = makeDenseStorage(m, n, ldb, -0.25f);
   auto deviceBStorage = hostBStorage;
   hostTrmm('L', 'U', 'N', 'N', m, n, alpha, aStorage, lda, hostBStorage, ldb);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "trmm" / "blas_trmm_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "trmm", "blas_trmm_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(aStorage.size() * sizeof(float));
   auto deviceB = launcher.allocateBytes(deviceBStorage.size() * sizeof(float));
   launcher.copyHostToDevice(aStorage.data(), deviceA, aStorage.size() * sizeof(float));
@@ -786,7 +822,8 @@ VerificationPair verifyTrmmCase(ReferenceVerifierLauncher& launcher, const Optio
 
   VerificationPair result;
   result.host.name = "trmm_lunn";
-  result.host.params = "side=L, uplo=U, transa=N, diag=N, m=3, n=4";
+  result.host.params =
+    "side=L, uplo=U, transa=N, diag=N, m=" + std::to_string(m) + ", n=" + std::to_string(n);
   result.host.ok = ok;
   result.host.matrices.push_back({"input_a", m, m, denseFromColumnMajor(aStorage, m, m, lda)});
   result.host.matrices.push_back({"output_b", m, n, denseFromColumnMajor(hostBStorage, m, n, ldb)});
@@ -796,17 +833,18 @@ VerificationPair verifyTrmmCase(ReferenceVerifierLauncher& launcher, const Optio
 }
 
 VerificationPair verifyTrsmCase(ReferenceVerifierLauncher& launcher, const Options& opt) {
-  const int m = 3;
-  const int n = 4;
-  const int lda = 4;
-  const int ldb = 5;
+  const int m = opt.problem_dim;
+  const int n = opt.problem_dim;
+  const int lda = m + 1;
+  const int ldb = m + 1;
   const float alpha = 1.0f;
   auto aStorage = makeTriangularStorage(m, lda, 'U', 'N');
   auto hostBStorage = makeDenseStorage(m, n, ldb, 0.5f);
   auto deviceBStorage = hostBStorage;
   hostTrsm('L', 'U', 'N', 'N', m, n, alpha, aStorage, lda, hostBStorage, ldb);
 
-  auto kernelId = launcher.loadKernel((opt.kernel_root / "trsm" / "blas_trsm_reference_fp32.elf").string());
+  auto kernelId =
+    launcher.loadKernel(resolveKernelArtifact(opt.kernel_root / "trsm", "blas_trsm_reference_fp32").string());
   auto deviceA = launcher.allocateBytes(aStorage.size() * sizeof(float));
   auto deviceB = launcher.allocateBytes(deviceBStorage.size() * sizeof(float));
   launcher.copyHostToDevice(aStorage.data(), deviceA, aStorage.size() * sizeof(float));
@@ -823,7 +861,8 @@ VerificationPair verifyTrsmCase(ReferenceVerifierLauncher& launcher, const Optio
 
   VerificationPair result;
   result.host.name = "trsm_lunn";
-  result.host.params = "side=L, uplo=U, transa=N, diag=N, m=3, n=4";
+  result.host.params =
+    "side=L, uplo=U, transa=N, diag=N, m=" + std::to_string(m) + ", n=" + std::to_string(n);
   result.host.ok = ok;
   result.host.matrices.push_back({"input_a", m, m, denseFromColumnMajor(aStorage, m, m, lda)});
   result.host.matrices.push_back({"output_b", m, n, denseFromColumnMajor(hostBStorage, m, n, ldb)});

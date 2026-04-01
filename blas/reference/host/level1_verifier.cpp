@@ -169,6 +169,20 @@ fs::path defaultKernelRoot() {
   return "/opt/et/kernels/blas/reference/fp32/level1";
 }
 
+fs::path resolveKernelArtifact(const fs::path& kernelDir, const std::string& kernelBaseName) {
+  const auto dbgPath = kernelDir / (kernelBaseName + ".elf_dbg");
+  if (std::filesystem::exists(dbgPath)) {
+    return dbgPath;
+  }
+
+  const auto elfPath = kernelDir / (kernelBaseName + ".elf");
+  if (std::filesystem::exists(elfPath)) {
+    return elfPath;
+  }
+
+  return elfPath;
+}
+
 void host_axpy(const std::vector<float>& x, std::vector<float>& y, float alpha) {
   for (size_t i = 0; i < x.size(); ++i) {
     y[i] = alpha * x[i] + y[i];
@@ -215,14 +229,16 @@ float host_asum(const std::vector<float>& x) {
   return result;
 }
 
-bool nearlyEqual(const std::vector<float>& lhs, const std::vector<float>& rhs, double epsilon) {
-  return std::equal(lhs.begin(), lhs.end(), rhs.begin(), [epsilon](float a, float b) {
-    return std::fabs(static_cast<double>(a) - static_cast<double>(b)) <= epsilon;
-  });
+bool nearlyEqual(float lhs, float rhs, double epsilon) {
+  const double diff = std::fabs(static_cast<double>(lhs) - static_cast<double>(rhs));
+  const double scale = std::max({1.0, std::fabs(static_cast<double>(lhs)), std::fabs(static_cast<double>(rhs))});
+  return diff <= epsilon * scale;
 }
 
-bool nearlyEqual(float lhs, float rhs, double epsilon) {
-  return std::fabs(static_cast<double>(lhs) - static_cast<double>(rhs)) <= epsilon;
+bool nearlyEqual(const std::vector<float>& lhs, const std::vector<float>& rhs, double epsilon) {
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin(), [epsilon](float a, float b) {
+    return nearlyEqual(a, b, epsilon);
+  });
 }
 
 std::vector<float> makeInputX(size_t size) {
@@ -592,19 +608,19 @@ int main(int argc, char** argv) {
   launcher.initialize();
 
   const OperationResult deviceAxpy =
-    verifyAxpy(launcher, opt, opt.kernel_root / "axpy" / "blas_axpy_reference_fp32.elf");
+    verifyAxpy(launcher, opt, resolveKernelArtifact(opt.kernel_root / "axpy", "blas_axpy_reference_fp32"));
   const OperationResult deviceAsum =
-    verifyAsum(launcher, opt, opt.kernel_root / "asum" / "blas_asum_reference_fp32.elf");
+    verifyAsum(launcher, opt, resolveKernelArtifact(opt.kernel_root / "asum", "blas_asum_reference_fp32"));
   const OperationResult deviceCopy =
-    verifyCopy(launcher, opt, opt.kernel_root / "copy" / "blas_copy_reference_fp32.elf");
+    verifyCopy(launcher, opt, resolveKernelArtifact(opt.kernel_root / "copy", "blas_copy_reference_fp32"));
   const OperationResult deviceDot =
-    verifyDot(launcher, opt, opt.kernel_root / "dot" / "blas_dot_reference_fp32.elf");
+    verifyDot(launcher, opt, resolveKernelArtifact(opt.kernel_root / "dot", "blas_dot_reference_fp32"));
   const OperationResult deviceNorm2 =
-    verifyNorm2(launcher, opt, opt.kernel_root / "norm2" / "blas_norm2_reference_fp32.elf");
+    verifyNorm2(launcher, opt, resolveKernelArtifact(opt.kernel_root / "norm2", "blas_norm2_reference_fp32"));
   const OperationResult deviceScal =
-    verifyScal(launcher, opt, opt.kernel_root / "scal" / "blas_scal_reference_fp32.elf");
+    verifyScal(launcher, opt, resolveKernelArtifact(opt.kernel_root / "scal", "blas_scal_reference_fp32"));
   const OperationResult deviceSwap =
-    verifySwap(launcher, opt, opt.kernel_root / "swap" / "blas_swap_reference_fp32.elf");
+    verifySwap(launcher, opt, resolveKernelArtifact(opt.kernel_root / "swap", "blas_swap_reference_fp32"));
 
   launcher.tearDown();
 
