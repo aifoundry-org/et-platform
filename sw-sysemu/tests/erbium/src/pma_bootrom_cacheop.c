@@ -14,7 +14,7 @@
 #include "test.h"
 
 #define MRAM_BASE       0x40000000ull
-#define SRAM_BASE       0x0200E000ull
+#define SRAM_BASE       0x0200C000ull
 #define BOOTROM_BASE    0x0200A000ull
 
 /* CSR addresses */
