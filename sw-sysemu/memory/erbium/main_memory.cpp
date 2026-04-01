@@ -5,6 +5,7 @@
 
 #include "memory/erbium/main_memory.h"
 #include "emu_defines.h"
+#include "devices/mram_bridge_er.h"
 #include "devices/plic_er.h"
 #include "devices/shakti_uart.h"
 #include "devices/sysregs_er.h"
@@ -17,7 +18,7 @@ namespace bemu {
 void MainMemory::reset()
 {
     regions[erbreg_idx].reset(new SysregsEr<region_bases[erbreg_idx]>());
-    regions[mram_bridge_idx].reset(new DenseRegion<region_bases[mram_bridge_idx], region_sizes[mram_bridge_idx]>());
+    regions[mram_bridge_idx].reset(new MramBridgeEr<region_bases[mram_bridge_idx], region_sizes[mram_bridge_idx]>());
     regions[uart_idx].reset(new ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>());
     regions[bootrom_idx].reset(new DenseRegion<region_bases[bootrom_idx], region_sizes[bootrom_idx], false>());
     regions[sram_idx].reset(new DenseRegion<region_bases[sram_idx], region_sizes[sram_idx]>());
@@ -95,6 +96,16 @@ int MainMemory::uart_get_tx_fd() const {
 int MainMemory::uart_get_rx_fd() const {
     auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>*>(regions[uart_idx].get());
     return ptr->rx_fd;
+}
+
+bool MainMemory::is_mram_dsleep() const {
+    auto ptr = dynamic_cast<SysregsEr<region_bases[erbreg_idx]>*>(regions[erbreg_idx].get());
+    return ptr->is_mram_dsleep();
+}
+
+void MainMemory::mram_bridge_set_slverr(uint32_t bits) {
+    auto ptr = dynamic_cast<MramBridgeEr<region_bases[mram_bridge_idx], region_sizes[mram_bridge_idx]>*>(regions[mram_bridge_idx].get());
+    ptr->set_slverr(bits);
 }
 
 bool MainMemory::is_uart_enabled() const {
