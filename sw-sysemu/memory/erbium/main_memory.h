@@ -123,6 +123,10 @@ public:
 
     void wdt_clock_tick(const Agent& agent, uint64_t cycle);
 
+    // MRAM helpers
+    bool is_mram_dsleep() const;
+    void mram_bridge_set_slverr(uint32_t bits);
+
     // UART helpers
     void uart_set_tx_fd(int fd);
     void uart_set_rx_fd(int fd);

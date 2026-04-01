@@ -56,6 +56,7 @@ struct SysregsEr : public MemoryRegion {
     void wdt_clock_tick(const Agent& agent, uint64_t cycle);
 
     bool is_uart_enabled() const { return system_config & SYSTEM_CONFIG_UART_ENABLE; }
+    bool is_mram_dsleep() const { return !mram_powered; }
 
 private:
 
@@ -93,6 +94,8 @@ private:
 
     static constexpr uint32_t SPIN_LOCK_LOCK                    = 1 << 0;
 
+    static constexpr uint32_t POWER_DOMAIN_REQ_MRAM_DSLEEP_EN   = 1 << 16;
+
     static constexpr uint32_t SOFT_RESET_MRAM_RST_B             = 1 << 2;
 
     // Register Values
@@ -112,6 +115,9 @@ private:
     uint32_t cpu_divider;
     uint32_t system_divider;
     uint32_t periph_divider;
+
+    // MRAM power state: starts off, turns on when mram_dsleep_en is first written 0
+    bool mram_powered = false;
 
     // Watchdog device with 4-cycle divider (250MHz from 1GHz system clock)
     Watchdog<4> watchdog;
