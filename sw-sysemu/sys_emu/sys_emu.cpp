@@ -434,7 +434,7 @@ sys_emu::sys_emu(const sys_emu_cmd_options &cmd_options, api_communicate *api_co
 
 #if EMU_HAS_SHAKTI_UART
     if (!cmd_options.uart_rx_file.empty()) {
-        int fd = open(cmd_options.uart_rx_file.c_str(), O_RDONLY | O_NONBLOCK | O_CREAT | O_TRUNC, 0666);
+        int fd = open(cmd_options.uart_rx_file.c_str(), O_RDONLY | O_NONBLOCK);
         if (fd < 0) {
             LOG_AGENT(FTL, agent, "Error opening \"%s\"", cmd_options.uart_rx_file.c_str());
         }
