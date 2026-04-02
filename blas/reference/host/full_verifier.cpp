@@ -33,18 +33,19 @@ struct Options {
   std::vector<std::string> modes{"sysemu", "silicon"};
   int kernel_launch_timeout = 30;
   double epsilon = 1.0e-5;
-  size_t level1_num_elements = 16;
-  size_t level2_problem_dim = 5;
-  size_t level3_problem_dim = 4;
+  std::vector<size_t> level1_num_elements{16, 64, 128, 256, 512};
+  std::vector<size_t> level2_problem_dims{16, 32, 64, 128, 256};
+  std::vector<size_t> level3_problem_dims{16, 32, 64, 128};
   size_t level2_band_width = 2;
   size_t sysemu_level1_num_elements_limit = 0;
   size_t sysemu_level2_problem_dim_limit = 0;
-  size_t sysemu_level3_problem_dim_limit = 64;
+  size_t sysemu_level3_problem_dim_limit = 128;
 };
 
 struct RunRecord {
   std::string level;
   std::string mode;
+  size_t problem_size = 0;
   fs::path verifier;
   fs::path kernel_root;
   fs::path host_results_path;
@@ -70,6 +71,14 @@ std::vector<std::string> splitCsv(const std::string& value) {
     begin = end + 1;
   }
   return items;
+}
+
+std::vector<size_t> parseSizeCsv(const std::string& value) {
+  std::vector<size_t> sizes;
+  for (const auto& token : splitCsv(value)) {
+    sizes.push_back(static_cast<size_t>(std::stoul(token)));
+  }
+  return sizes;
 }
 
 bool isSupportedLevel(const std::string& level) {
@@ -128,13 +137,13 @@ Options parseArgs(int argc, char** argv) {
     "      --modes                  comma-separated modes to run (default: sysemu,silicon)\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
     "  -e, --epsilon                comparison tolerance for float results\n"
-    "  -n, --level1_num_elements    number of elements for Level 1 verification\n"
-    "      --level2_problem_dim     logical problem dimension for Level 2 verification\n"
+    "  -n, --level1_num_elements    comma-separated Level 1 element counts\n"
+    "      --level2_problem_dim     comma-separated Level 2 problem dimensions\n"
     "      --level2_band_width      band width for Level 2 banded routines\n"
-    "      --level3_problem_dim     logical problem dimension for Level 3 verification\n"
+    "      --level3_problem_dim     comma-separated Level 3 problem dimensions\n"
     "      --sysemu_level1_num_elements_limit  skip sysemu Level 1 above this element count (0 disables)\n"
     "      --sysemu_level2_problem_dim_limit   skip sysemu Level 2 above this problem dimension (0 disables)\n"
-    "      --sysemu_level3_problem_dim_limit   skip sysemu Level 3 above this problem dimension (default: 64)\n";
+    "      --sysemu_level3_problem_dim_limit   skip sysemu Level 3 above this problem dimension (default: 128)\n";
 
   static constexpr const char* shortOpts = "k:o:t:e:n:h";
   static const std::vector<option> longOpts{
@@ -188,16 +197,16 @@ Options parseArgs(int argc, char** argv) {
       opts.epsilon = std::stod(optarg);
       break;
     case 'n':
-      opts.level1_num_elements = static_cast<size_t>(std::stoul(optarg));
+      opts.level1_num_elements = parseSizeCsv(optarg);
       break;
     case 1003:
-      opts.level2_problem_dim = static_cast<size_t>(std::stoul(optarg));
+      opts.level2_problem_dims = parseSizeCsv(optarg);
       break;
     case 1004:
       opts.level2_band_width = static_cast<size_t>(std::stoul(optarg));
       break;
     case 1005:
-      opts.level3_problem_dim = static_cast<size_t>(std::stoul(optarg));
+      opts.level3_problem_dims = parseSizeCsv(optarg);
       break;
     case 1006:
       opts.sysemu_level1_num_elements_limit = static_cast<size_t>(std::stoul(optarg));
@@ -236,14 +245,14 @@ Options parseArgs(int argc, char** argv) {
   return opts;
 }
 
-size_t sysemuProblemSizeForLevel(const Options& opts, const std::string& level) {
+const std::vector<size_t>& problemSizesForLevel(const Options& opts, const std::string& level) {
   if (level == "1") {
     return opts.level1_num_elements;
   }
   if (level == "2") {
-    return opts.level2_problem_dim;
+    return opts.level2_problem_dims;
   }
-  return opts.level3_problem_dim;
+  return opts.level3_problem_dims;
 }
 
 size_t sysemuProblemLimitForLevel(const Options& opts, const std::string& level) {
@@ -256,7 +265,7 @@ size_t sysemuProblemLimitForLevel(const Options& opts, const std::string& level)
   return opts.sysemu_level3_problem_dim_limit;
 }
 
-std::string sysemuSkipReason(const Options& opts, const std::string& level, const std::string& mode) {
+std::string sysemuSkipReason(const Options& opts, const std::string& level, const std::string& mode, size_t problemSize) {
   if (normalizeModeArg(mode) != "sysemu") {
     return "";
   }
@@ -266,7 +275,6 @@ std::string sysemuSkipReason(const Options& opts, const std::string& level, cons
     return "";
   }
 
-  const size_t problemSize = sysemuProblemSizeForLevel(opts, level);
   if (problemSize <= limit) {
     return "";
   }
@@ -287,7 +295,7 @@ fs::path verifierPath(const fs::path& verifierBinDir, const std::string& level) 
 }
 
 std::vector<std::string> buildArgs(const Options& opts, const std::string& level, const std::string& mode,
-                                   const fs::path& hostResults, const fs::path& deviceResults) {
+                                   size_t problemSize, const fs::path& hostResults, const fs::path& deviceResults) {
   const std::string normalizedMode = normalizeModeArg(mode);
   const fs::path levelKernelRoot = opts.kernel_root / ("level" + level);
 
@@ -303,15 +311,15 @@ std::vector<std::string> buildArgs(const Options& opts, const std::string& level
 
   if (level == "1") {
     args.emplace_back("--num_elements");
-    args.emplace_back(std::to_string(opts.level1_num_elements));
+    args.emplace_back(std::to_string(problemSize));
   } else if (level == "2") {
     args.emplace_back("--problem_dim");
-    args.emplace_back(std::to_string(opts.level2_problem_dim));
+    args.emplace_back(std::to_string(problemSize));
     args.emplace_back("--band_width");
     args.emplace_back(std::to_string(opts.level2_band_width));
   } else if (level == "3") {
     args.emplace_back("--problem_dim");
-    args.emplace_back(std::to_string(opts.level3_problem_dim));
+    args.emplace_back(std::to_string(problemSize));
   }
 
   return args;
@@ -375,16 +383,37 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
   out << "- results_dir: `" << opts.results_dir.string() << "`\n";
   out << "- kernel_launch_timeout: `" << opts.kernel_launch_timeout << "`\n";
   out << "- epsilon: `" << opts.epsilon << "`\n";
-  out << "- level1_num_elements: `" << opts.level1_num_elements << "`\n\n";
-  out << "- level2_problem_dim: `" << opts.level2_problem_dim << "`\n";
+  out << "- level1_num_elements: `";
+  for (size_t i = 0; i < opts.level1_num_elements.size(); ++i) {
+    if (i != 0) {
+      out << ",";
+    }
+    out << opts.level1_num_elements[i];
+  }
+  out << "`\n\n";
+  out << "- level2_problem_dim: `";
+  for (size_t i = 0; i < opts.level2_problem_dims.size(); ++i) {
+    if (i != 0) {
+      out << ",";
+    }
+    out << opts.level2_problem_dims[i];
+  }
+  out << "`\n";
   out << "- level2_band_width: `" << opts.level2_band_width << "`\n";
-  out << "- level3_problem_dim: `" << opts.level3_problem_dim << "`\n\n";
+  out << "- level3_problem_dim: `";
+  for (size_t i = 0; i < opts.level3_problem_dims.size(); ++i) {
+    if (i != 0) {
+      out << ",";
+    }
+    out << opts.level3_problem_dims[i];
+  }
+  out << "`\n\n";
   out << "- sysemu_level1_num_elements_limit: `" << opts.sysemu_level1_num_elements_limit << "`\n";
   out << "- sysemu_level2_problem_dim_limit: `" << opts.sysemu_level2_problem_dim_limit << "`\n";
   out << "- sysemu_level3_problem_dim_limit: `" << opts.sysemu_level3_problem_dim_limit << "`\n\n";
 
-  out << "| level | mode | status | host results | device results | log |\n";
-  out << "| --- | --- | --- | --- | --- | --- |\n";
+  out << "| level | mode | size | status | host results | device results | log |\n";
+  out << "| --- | --- | ---: | --- | --- | --- | --- |\n";
   for (const auto& record : records) {
     const std::string status = record.skipped
       ? ("skipped (" + record.skip_reason + ")")
@@ -394,6 +423,7 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
     const std::string logPath = "`" + record.log_path.string() + "`";
     out << "| level" << record.level
         << " | " << record.mode
+        << " | " << record.problem_size
         << " | " << status
         << " | " << hostPath
         << " | " << devicePath
@@ -414,6 +444,7 @@ int main(int argc, char** argv) {
       const std::string normalizedMode = normalizeModeArg(mode);
       const std::string label = modeLabel(normalizedMode);
       for (const auto& level : opts.levels) {
+        const auto& problemSizes = problemSizesForLevel(opts, level);
         const fs::path verifier = verifierPath(opts.verifier_bin_dir, level);
         if (!fs::exists(verifier)) {
           throw std::runtime_error("Missing verifier binary: " + verifier.string());
@@ -424,61 +455,65 @@ int main(int argc, char** argv) {
           throw std::runtime_error("Missing kernel root: " + levelKernelRoot.string());
         }
 
-        const fs::path resultDir = opts.results_dir / label / ("level" + level);
-        const fs::path hostResults = resultDir / "host_results.md";
-        const fs::path deviceResults = resultDir / "device_results.md";
-        const fs::path logPath = resultDir / "verifier.log";
-        fs::create_directories(resultDir);
+        for (const auto problemSize : problemSizes) {
+          const fs::path resultDir = opts.results_dir / label / ("level" + level) / std::to_string(problemSize);
+          const fs::path hostResults = resultDir / "host_results.md";
+          const fs::path deviceResults = resultDir / "device_results.md";
+          const fs::path logPath = resultDir / "verifier.log";
+          fs::create_directories(resultDir);
 
-        const std::string skipReason = sysemuSkipReason(opts, level, normalizedMode);
-        if (!skipReason.empty()) {
-          std::ofstream log(logPath);
-          if (!log.is_open()) {
-            throw std::runtime_error("Unable to open log file: " + logPath.string());
+          const std::string skipReason = sysemuSkipReason(opts, level, normalizedMode, problemSize);
+          if (!skipReason.empty()) {
+            std::ofstream log(logPath);
+            if (!log.is_open()) {
+              throw std::runtime_error("Unable to open log file: " + logPath.string());
+            }
+            log << skipReason << '\n';
+
+            std::cout << "[skip] level" << level << " " << label << " size " << problemSize << ": " << skipReason << std::endl;
+
+            RunRecord record;
+            record.level = level;
+            record.mode = label;
+            record.problem_size = problemSize;
+            record.verifier = verifier;
+            record.kernel_root = levelKernelRoot;
+            record.host_results_path = hostResults;
+            record.device_results_path = deviceResults;
+            record.log_path = logPath;
+            record.exit_code = 0;
+            record.skipped = true;
+            record.skip_reason = skipReason;
+            records.push_back(record);
+            continue;
           }
-          log << skipReason << '\n';
 
-          std::cout << "[skip] level" << level << " " << label << ": " << skipReason << std::endl;
+          const auto args = buildArgs(opts, level, normalizedMode, problemSize, hostResults, deviceResults);
+
+          std::ostringstream cmd;
+          for (size_t i = 0; i < args.size(); ++i) {
+            if (i != 0) {
+              cmd << ' ';
+            }
+            cmd << args[i];
+          }
+          std::cout << "[run] level" << level << " " << label << " size " << problemSize << ": " << cmd.str() << std::endl;
 
           RunRecord record;
           record.level = level;
           record.mode = label;
+          record.problem_size = problemSize;
           record.verifier = verifier;
           record.kernel_root = levelKernelRoot;
           record.host_results_path = hostResults;
           record.device_results_path = deviceResults;
           record.log_path = logPath;
-          record.exit_code = 0;
-          record.skipped = true;
-          record.skip_reason = skipReason;
+          record.exit_code = runChild(args, logPath);
           records.push_back(record);
-          continue;
-        }
 
-        const auto args = buildArgs(opts, level, normalizedMode, hostResults, deviceResults);
-
-        std::ostringstream cmd;
-        for (size_t i = 0; i < args.size(); ++i) {
-          if (i != 0) {
-            cmd << ' ';
+          if (record.exit_code != 0) {
+            allOk = false;
           }
-          cmd << args[i];
-        }
-        std::cout << "[run] level" << level << " " << label << ": " << cmd.str() << std::endl;
-
-        RunRecord record;
-        record.level = level;
-        record.mode = label;
-        record.verifier = verifier;
-        record.kernel_root = levelKernelRoot;
-        record.host_results_path = hostResults;
-        record.device_results_path = deviceResults;
-        record.log_path = logPath;
-        record.exit_code = runChild(args, logPath);
-        records.push_back(record);
-
-        if (record.exit_code != 0) {
-          allOk = false;
         }
       }
     }
