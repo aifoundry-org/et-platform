@@ -347,6 +347,7 @@ OperationResult verifyAxpy(ReferenceVerifierLauncher& launcher, const Options& o
                 reinterpret_cast<float*>(deviceYBuffer), alpha};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceYBuffer, deviceY.data(), deviceY.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
@@ -384,6 +385,7 @@ OperationResult verifyCopy(ReferenceVerifierLauncher& launcher, const Options& o
                 reinterpret_cast<float*>(deviceYBuffer)};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceYBuffer, deviceY.data(), deviceY.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
@@ -416,6 +418,7 @@ OperationResult verifyScal(ReferenceVerifierLauncher& launcher, const Options& o
   ScalArgs args{static_cast<uint64_t>(deviceX.size()), reinterpret_cast<float*>(deviceXBuffer), alpha};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceXBuffer, deviceX.data(), deviceX.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
@@ -456,6 +459,7 @@ OperationResult verifySwap(ReferenceVerifierLauncher& launcher, const Options& o
                 reinterpret_cast<float*>(deviceYBuffer)};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceXBuffer, deviceX.data(), deviceX.size() * sizeof(float));
   launcher.copyDeviceToHost(deviceYBuffer, deviceY.data(), deviceY.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
@@ -500,6 +504,7 @@ OperationResult verifyDot(ReferenceVerifierLauncher& launcher, const Options& op
                reinterpret_cast<float*>(devicePartials), reinterpret_cast<float*>(deviceResultBuffer)};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceResultBuffer, &deviceResult, sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
@@ -537,6 +542,7 @@ OperationResult verifyNorm2(ReferenceVerifierLauncher& launcher, const Options& 
                  reinterpret_cast<float*>(devicePartials), reinterpret_cast<float*>(deviceResultBuffer)};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceResultBuffer, &deviceResult, sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
@@ -573,6 +579,7 @@ OperationResult verifyAsum(ReferenceVerifierLauncher& launcher, const Options& o
                 reinterpret_cast<float*>(devicePartials), reinterpret_cast<float*>(deviceResultBuffer)};
 
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceResultBuffer, &deviceResult, sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 

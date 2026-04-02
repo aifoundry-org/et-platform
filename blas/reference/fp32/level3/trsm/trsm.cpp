@@ -43,7 +43,7 @@ int entryPoint_0(KernelArguments* args) {
 
   const bool leftSide = isLeftSide(args->side);
   const bool upper = isUpper(args->uplo);
-  const bool transA = isTransposed(args->transA);
+  const bool transA = isTransposed(args->transa);
   const bool unitDiag = isUnitDiag(args->diag);
 
   const auto minionId = get_relative_thread_id();
@@ -75,29 +75,29 @@ int entryPoint_0(KernelArguments* args) {
           // Solve A * x = b where A is upper triangular
           // Back substitution from bottom
           for (int64_t i = args->m - 1; i >= 0; --i) {
-            float sum = args->alpha * args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = i + 1; k < args->m; ++k) {
-              sum -= args->A[static_cast<size_t>(i) + static_cast<size_t>(k) * args->lda] *
-                     args->B[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
+              sum -= args->a[static_cast<size_t>(i) + static_cast<size_t>(k) * args->lda] *
+                     args->b[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
+              sum /= args->a[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
             }
-            args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
           }
         } else {
           // Solve A * x = b where A is lower triangular
           // Forward substitution from top
           for (int64_t i = 0; i < args->m; ++i) {
-            float sum = args->alpha * args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = 0; k < i; ++k) {
-              sum -= args->A[static_cast<size_t>(i) + static_cast<size_t>(k) * args->lda] *
-                     args->B[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
+              sum -= args->a[static_cast<size_t>(i) + static_cast<size_t>(k) * args->lda] *
+                     args->b[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
+              sum /= args->a[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
             }
-            args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
           }
         }
       } else {
@@ -105,28 +105,28 @@ int entryPoint_0(KernelArguments* args) {
         if (upper) {
           // A^T is lower, so forward substitution
           for (int64_t i = 0; i < args->m; ++i) {
-            float sum = args->alpha * args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = 0; k < i; ++k) {
-              sum -= args->A[static_cast<size_t>(k) + static_cast<size_t>(i) * args->lda] *
-                     args->B[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
+              sum -= args->a[static_cast<size_t>(k) + static_cast<size_t>(i) * args->lda] *
+                     args->b[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
+              sum /= args->a[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
             }
-            args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
           }
         } else {
           // A^T is upper, so back substitution
           for (int64_t i = args->m - 1; i >= 0; --i) {
-            float sum = args->alpha * args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = i + 1; k < args->m; ++k) {
-              sum -= args->A[static_cast<size_t>(k) + static_cast<size_t>(i) * args->lda] *
-                     args->B[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
+              sum -= args->a[static_cast<size_t>(k) + static_cast<size_t>(i) * args->lda] *
+                     args->b[static_cast<size_t>(k) + static_cast<size_t>(j) * args->ldb];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
+              sum /= args->a[static_cast<size_t>(i) + static_cast<size_t>(i) * args->lda];
             }
-            args->B[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[static_cast<size_t>(i) + static_cast<size_t>(j) * args->ldb] = sum;
           }
         }
       }
@@ -154,29 +154,29 @@ int entryPoint_0(KernelArguments* args) {
           // Solve x * A = b where A is upper triangular
           // Forward substitution from left
           for (int64_t j = 0; j < args->n; ++j) {
-            float sum = args->alpha * args->B[i + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[i + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = 0; k < j; ++k) {
-              sum -= args->B[i + static_cast<size_t>(k) * args->ldb] *
-                     args->A[static_cast<size_t>(k) + static_cast<size_t>(j) * args->lda];
+              sum -= args->b[i + static_cast<size_t>(k) * args->ldb] *
+                     args->a[static_cast<size_t>(k) + static_cast<size_t>(j) * args->lda];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
+              sum /= args->a[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
             }
-            args->B[i + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[i + static_cast<size_t>(j) * args->ldb] = sum;
           }
         } else {
           // Solve x * A = b where A is lower triangular
           // Back substitution from right
           for (int64_t j = args->n - 1; j >= 0; --j) {
-            float sum = args->alpha * args->B[i + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[i + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = j + 1; k < args->n; ++k) {
-              sum -= args->B[i + static_cast<size_t>(k) * args->ldb] *
-                     args->A[static_cast<size_t>(k) + static_cast<size_t>(j) * args->lda];
+              sum -= args->b[i + static_cast<size_t>(k) * args->ldb] *
+                     args->a[static_cast<size_t>(k) + static_cast<size_t>(j) * args->lda];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
+              sum /= args->a[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
             }
-            args->B[i + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[i + static_cast<size_t>(j) * args->ldb] = sum;
           }
         }
       } else {
@@ -184,28 +184,28 @@ int entryPoint_0(KernelArguments* args) {
         if (upper) {
           // A^T is lower
           for (int64_t j = args->n - 1; j >= 0; --j) {
-            float sum = args->alpha * args->B[i + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[i + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = j + 1; k < args->n; ++k) {
-              sum -= args->B[i + static_cast<size_t>(k) * args->ldb] *
-                     args->A[static_cast<size_t>(j) + static_cast<size_t>(k) * args->lda];
+              sum -= args->b[i + static_cast<size_t>(k) * args->ldb] *
+                     args->a[static_cast<size_t>(j) + static_cast<size_t>(k) * args->lda];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
+              sum /= args->a[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
             }
-            args->B[i + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[i + static_cast<size_t>(j) * args->ldb] = sum;
           }
         } else {
           // A^T is upper
           for (int64_t j = 0; j < args->n; ++j) {
-            float sum = args->alpha * args->B[i + static_cast<size_t>(j) * args->ldb];
+            float sum = args->alpha * args->b[i + static_cast<size_t>(j) * args->ldb];
             for (int64_t k = 0; k < j; ++k) {
-              sum -= args->B[i + static_cast<size_t>(k) * args->ldb] *
-                     args->A[static_cast<size_t>(j) + static_cast<size_t>(k) * args->lda];
+              sum -= args->b[i + static_cast<size_t>(k) * args->ldb] *
+                     args->a[static_cast<size_t>(j) + static_cast<size_t>(k) * args->lda];
             }
             if (!unitDiag) {
-              sum /= args->A[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
+              sum /= args->a[static_cast<size_t>(j) + static_cast<size_t>(j) * args->lda];
             }
-            args->B[i + static_cast<size_t>(j) * args->ldb] = sum;
+            args->b[i + static_cast<size_t>(j) * args->ldb] = sum;
           }
         }
       }

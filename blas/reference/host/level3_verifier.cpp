@@ -638,6 +638,7 @@ VerificationPair verifyGemmCase(ReferenceVerifierLauncher& launcher, const Optio
   GemmArgs args{'N', 'N', m, n, k, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceB), ldb,
                 beta, reinterpret_cast<float*>(deviceC), ldc};
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceC, deviceCStorage.data(), deviceCStorage.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   const bool ok = !launcher.checkKernelExecutionErrors() &&
@@ -685,6 +686,7 @@ VerificationPair verifySymmCase(ReferenceVerifierLauncher& launcher, const Optio
   SymmArgs args{'L', 'U', m, n, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceB), ldb,
                 beta, reinterpret_cast<float*>(deviceC), ldc};
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceC, deviceCStorage.data(), deviceCStorage.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   const bool ok = !launcher.checkKernelExecutionErrors() &&
@@ -726,6 +728,7 @@ VerificationPair verifySyrkCase(ReferenceVerifierLauncher& launcher, const Optio
   launcher.copyHostToDevice(deviceCStorage.data(), deviceC, deviceCStorage.size() * sizeof(float));
   SyrkArgs args{'U', 'N', n, k, alpha, reinterpret_cast<float*>(deviceA), lda, beta, reinterpret_cast<float*>(deviceC), ldc};
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceC, deviceCStorage.data(), deviceCStorage.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   const bool ok = !launcher.checkKernelExecutionErrors() &&
@@ -771,6 +774,7 @@ VerificationPair verifySyr2kCase(ReferenceVerifierLauncher& launcher, const Opti
   Syr2kArgs args{'L', 'T', n, k, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceB), ldb,
                  beta, reinterpret_cast<float*>(deviceC), ldc};
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceC, deviceCStorage.data(), deviceCStorage.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   const bool ok = !launcher.checkKernelExecutionErrors() &&
@@ -812,6 +816,7 @@ VerificationPair verifyTrmmCase(ReferenceVerifierLauncher& launcher, const Optio
   launcher.copyHostToDevice(deviceBStorage.data(), deviceB, deviceBStorage.size() * sizeof(float));
   TrmmArgs args{'L', 'U', 'N', 'N', m, n, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceB), ldb};
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceB, deviceBStorage.data(), deviceBStorage.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   const bool ok = !launcher.checkKernelExecutionErrors() &&
@@ -851,6 +856,7 @@ VerificationPair verifyTrsmCase(ReferenceVerifierLauncher& launcher, const Optio
   launcher.copyHostToDevice(deviceBStorage.data(), deviceB, deviceBStorage.size() * sizeof(float));
   TrsmArgs args{'L', 'U', 'N', 'N', m, n, alpha, reinterpret_cast<float*>(deviceA), lda, reinterpret_cast<float*>(deviceB), ldb};
   launcher.kernelLaunch(kernelId, &args);
+  launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   launcher.copyDeviceToHost(deviceB, deviceBStorage.data(), deviceBStorage.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
   const bool ok = !launcher.checkKernelExecutionErrors() &&
