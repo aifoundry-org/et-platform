@@ -100,6 +100,12 @@ struct sys_emu_cmd_options {
 
     std::vector<set_xreg_info> set_xreg;
 
+#if EMU_ERBIUM
+    std::string boot_elf;
+    uint64_t    payload_pc                   = 0;
+    uint64_t    payload_sp                   = 0;
+#endif
+
     bool        coherency_check              = false;
     uint64_t    max_cycles                   = 10000000;
     bool        mins_dis                     = false;
