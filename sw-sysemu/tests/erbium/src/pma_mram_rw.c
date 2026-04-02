@@ -10,7 +10,7 @@
 #include "test.h"
 #include <stdint.h>
 
-#define MRAM_BASE 0x40000000ull
+#define MRAM_BASE 0x40000100ull  /* past 256-byte boot protocol region */
 #define TEST_PATTERN 0xDEADBEEFCAFEFEEDull
 
 int main() {

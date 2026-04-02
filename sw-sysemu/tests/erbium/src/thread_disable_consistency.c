@@ -20,8 +20,8 @@
 
 #define ESR_THREAD0_DISABLE       0x80F40240ULL
 #define ESR_THREAD1_DISABLE       0x80F40010ULL
-#define MRAM_BASE                 0x40000000ULL
-#define MARKERS                   (MRAM_BASE + 0x100)
+#define MRAM_BASE                 0x40000100ULL  /* past 256-byte boot protocol region */
+#define MARKERS                   (MRAM_BASE)
 
 int main() {
     volatile uint64_t *thread0_disable = (volatile uint64_t *)ESR_THREAD0_DISABLE;

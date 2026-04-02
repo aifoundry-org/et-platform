@@ -16,7 +16,7 @@
 
 #define ESR_THREAD0_DISABLE       0x80F40240ULL
 #define ESR_THREAD1_DISABLE       0x80F40010ULL
-#define MRAM_BASE                 0x40000000ULL
+#define MRAM_BASE                 0x40000100ULL  /* past 256-byte boot protocol region */
 #define NUM_HARTS                 16
 
 #define CSR_FLB  0x820

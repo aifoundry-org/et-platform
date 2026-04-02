@@ -11,8 +11,10 @@ BOOTROM_BASE = 0x0002008000;
 BOOTROM_SIZE = 8K;
 SRAM_BASE    = 0x000200C000;
 SRAM_SIZE    = 4K;
-MRAM_BASE    = 0x0040000000;
-MRAM_SIZE    = 16M;
+MSYS_BASE    = 0x0040000000;
+MSYS_SIZE    = 256;
+MRAM_BASE    = 0x0040000100;
+MRAM_SIZE    = 0xFFFF00;
 
 /* Stack configuration */
 MAX_THREADS     = 16;
@@ -22,6 +24,7 @@ STACK_SIZE_LOG2 = 6;
 MEMORY {
     BOOTROM  (rx)  : org = BOOTROM_BASE, len = BOOTROM_SIZE
     SRAM     (rwx) : org = SRAM_BASE,    len = SRAM_SIZE
+    MSYS     (r)   : org = MSYS_BASE,    len = MSYS_SIZE
     MRAM     (rwx) : org = MRAM_BASE,    len = MRAM_SIZE
 }
 
