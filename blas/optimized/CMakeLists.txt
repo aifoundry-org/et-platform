@@ -1,1 +1,1 @@
-# Optimized kernels are added here as vector and tensor implementations land.
+add_subdirectory(fp32)
