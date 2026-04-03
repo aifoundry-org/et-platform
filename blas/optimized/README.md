@@ -25,9 +25,9 @@ Current kernels:
 
 - `fp32/level1/axpy`: scalar inner loop unrolled by 4 with the same minion
   partitioning and external contract as the reference kernel
-- `fp32/level1/dot`: scalar inner loop unrolled by 4 with independent
-  accumulators, scalar tail handling, and the same cross-minion partial
-  reduction contract as the reference kernel
+- `fp32/level1/dot`: ET packed-SIMD loads plus packed multiply/add in the main
+  loop, with a masked packed-SIMD tail in the default artifact and a scalar-tail
+  comparison artifact kept alongside it
 - `fp32/level2/gemv`: output-row partitioning across minions with an unrolled
   inner reduction for both transpose modes
 - `fp32/level3/gemm`: single-minion 4x4 blocked `NN` micro-kernel with K
@@ -40,3 +40,13 @@ Current validation policy:
 - treat release-ELF bring-up as a separate runtime/toolchain issue
 - do not treat a release-ELF failure by itself as evidence that the optimized
   kernel math is wrong when the matching `_dbg` artifact passes
+
+Current ET-SIMD bring-up notes:
+
+- `fp32/level1/dot` now uses ET packed-SIMD loads and packed multiply/add in
+  the main loop
+- the default optimized `dot` artifact uses a masked packed-SIMD tail to avoid
+  switching back into scalar FP arithmetic while packed state is still live in
+  the overlaid `f` register file
+- `blas_dot_optimized_fp32_scalar_tail.elf{,_dbg}` is retained as a comparison
+  artifact for validating the scalar-tail alternative
