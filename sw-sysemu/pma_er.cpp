@@ -174,6 +174,12 @@ uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_mram(addr)) {
+        // MRAM in deep sleep: set slverr sticky bits and fault
+        if (cpu.chip->memory.is_mram_dsleep()) {
+            cpu.chip->memory.mram_bridge_set_slverr(0x04 | 0x08); // mram_not_ready | mram_unpowered
+            throw_access_fault(vaddr, macc);
+        }
+
         uint16_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
 
         Privilege mode = effective_execution_mode(cpu, macc);
@@ -330,6 +336,12 @@ uint64_t pma_check_fetch_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_mram(addr)) {
+        // MRAM in deep sleep: all accesses fault
+        if (cpu.chip->memory.is_mram_dsleep()) {
+            cpu.chip->memory.mram_bridge_set_slverr(0x04 | 0x08); // mram_not_ready | mram_unpowered
+            throw_access_fault(vaddr, Mem_Access_Fetch);
+        }
+
         // MRAM subject to MPROT protection
         uint16_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
 
