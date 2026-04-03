@@ -23,6 +23,10 @@ _boot:
   csrrw x0, mip, x0
   csrwi tensor_mask, 0
 
+  /* Wake MRAM from deep sleep (clear mram_dsleep_en in PowerDomainReq) */
+  li    t0, 0x02000038
+  sw    zero, 0(t0)
+
   /* Set mtvec to default trap handler (at 0x02009000) */
   la    t0, default_trap_handler
   csrw  mtvec, t0
