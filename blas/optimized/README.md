@@ -28,8 +28,9 @@ Current kernels:
 - `fp32/level1/dot`: ET packed-SIMD loads plus packed multiply/add in the main
   loop, with a masked packed-SIMD tail in the default artifact and a scalar-tail
   comparison artifact kept alongside it
-- `fp32/level2/gemv`: output-row partitioning across minions with an unrolled
-  inner reduction for both transpose modes
+- `fp32/level2/gemv`: ET packed-SIMD vectorization across contiguous output-row
+  blocks for the non-transpose, unit-stride path, with scalar fallback for
+  transpose and non-unit-stride cases
 - `fp32/level3/gemm`: single-minion 4x4 blocked `NN` micro-kernel with K
   strip-mining for a bounded working set, plus reference-compatible fallbacks
   for the remaining transpose combinations
