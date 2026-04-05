@@ -69,8 +69,14 @@ ESPERANTO_FLASH_REGION_ID_t region_name_to_id(const char * name) {
 }
 
 const char * region_id_to_name(ESPERANTO_FLASH_REGION_ID_t id) {
-    if (ESPERANTO_FLASH_REGION_ID_INVALID <= id && id < ESPERANTO_FLASH_REGION_ID_AFTER_LAST_SUPPORTED_VALUE) {
-        return regions_info[id - 1].name;
+    uint32_t n;
+
+    if (ESPERANTO_FLASH_REGION_ID_INVALID < id && id < ESPERANTO_FLASH_REGION_ID_AFTER_LAST_SUPPORTED_VALUE) {
+        for (n = 0; n < regions_count; n++) {
+            if (regions_info[n].id == id) {
+                return regions_info[n].name;
+            }
+        }
     }
     return NULL;
 }
