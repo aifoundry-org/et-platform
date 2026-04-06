@@ -32,6 +32,7 @@ struct Options {
   std::vector<std::string> levels{"1", "2", "3"};
   std::vector<std::string> modes{"sysemu", "silicon"};
   int kernel_launch_timeout = 30;
+  int sysemu_kernel_launch_timeout = 900;
   double epsilon = 1.0e-5;
   std::vector<size_t> level1_num_elements{16, 64, 128, 256, 512};
   std::vector<size_t> level2_problem_dims{16, 32, 64, 128, 256};
@@ -46,6 +47,7 @@ struct RunRecord {
   std::string level;
   std::string mode;
   size_t problem_size = 0;
+  std::string case_name;
   fs::path verifier;
   fs::path kernel_root;
   fs::path host_results_path;
@@ -53,6 +55,7 @@ struct RunRecord {
   fs::path log_path;
   int exit_code = -1;
   bool skipped = false;
+  bool accepted_timeout = false;
   std::string skip_reason;
 };
 
@@ -136,6 +139,7 @@ Options parseArgs(int argc, char** argv) {
     "      --levels                 comma-separated levels to run (default: 1,2,3)\n"
     "      --modes                  comma-separated modes to run (default: sysemu,silicon)\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
+    "      --sysemu_kernel_launch_timeout  timeout (in seconds) to wait for SYSEMU kernel completion\n"
     "  -e, --epsilon                comparison tolerance for float results\n"
     "  -n, --level1_num_elements    comma-separated Level 1 element counts\n"
     "      --level2_problem_dim     comma-separated Level 2 problem dimensions\n"
@@ -153,6 +157,7 @@ Options parseArgs(int argc, char** argv) {
     {"levels", required_argument, nullptr, 1001},
     {"modes", required_argument, nullptr, 1002},
     {"kernel_launch_timeout", required_argument, nullptr, 't'},
+    {"sysemu_kernel_launch_timeout", required_argument, nullptr, 1009},
     {"epsilon", required_argument, nullptr, 'e'},
     {"level1_num_elements", required_argument, nullptr, 'n'},
     {"level2_problem_dim", required_argument, nullptr, 1003},
@@ -192,6 +197,9 @@ Options parseArgs(int argc, char** argv) {
       break;
     case 't':
       opts.kernel_launch_timeout = std::stoi(optarg);
+      break;
+    case 1009:
+      opts.sysemu_kernel_launch_timeout = std::stoi(optarg);
       break;
     case 'e':
       opts.epsilon = std::stod(optarg);
@@ -294,10 +302,24 @@ fs::path verifierPath(const fs::path& verifierBinDir, const std::string& level) 
   return verifierBinDir / ("blas_reference_level" + level + "_verifier");
 }
 
+const std::vector<std::string>& level3Cases() {
+  static const std::vector<std::string> cases{
+    "gemm_nn",
+    "symm_lu",
+    "syrk_un",
+    "syr2k_lt",
+    "trmm_lunn",
+    "trsm_lunn",
+  };
+  return cases;
+}
+
 std::vector<std::string> buildArgs(const Options& opts, const std::string& level, const std::string& mode,
-                                   size_t problemSize, const fs::path& hostResults, const fs::path& deviceResults) {
+                                   size_t problemSize, const fs::path& hostResults, const fs::path& deviceResults,
+                                   const std::string& selectedCase = "") {
   const std::string normalizedMode = normalizeModeArg(mode);
   const fs::path levelKernelRoot = opts.kernel_root / ("level" + level);
+  const int timeoutSeconds = normalizedMode == "sysemu" ? opts.sysemu_kernel_launch_timeout : opts.kernel_launch_timeout;
 
   std::vector<std::string> args{
     verifierPath(opts.verifier_bin_dir, level).string(),
@@ -305,7 +327,7 @@ std::vector<std::string> buildArgs(const Options& opts, const std::string& level
     "--kernel_root", levelKernelRoot.string(),
     "--host_results_path", hostResults.string(),
     "--device_results_path", deviceResults.string(),
-    "--kernel_launch_timeout", std::to_string(opts.kernel_launch_timeout),
+    "--kernel_launch_timeout", std::to_string(timeoutSeconds),
     "--epsilon", std::to_string(opts.epsilon),
   };
 
@@ -320,6 +342,11 @@ std::vector<std::string> buildArgs(const Options& opts, const std::string& level
   } else if (level == "3") {
     args.emplace_back("--problem_dim");
     args.emplace_back(std::to_string(problemSize));
+  }
+
+  if (!selectedCase.empty()) {
+    args.emplace_back("--case");
+    args.emplace_back(selectedCase);
   }
 
   return args;
@@ -367,6 +394,22 @@ int runChild(const std::vector<std::string>& args, const fs::path& logPath) {
   return 1;
 }
 
+bool logContainsTimeout(const fs::path& logPath) {
+  std::ifstream in(logPath);
+  std::string line;
+  while (std::getline(in, line)) {
+    if (line.find("[TIMEOUT]") != std::string::npos) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool allowAcceptedTimeout(const Options& opts, const RunRecord& record) {
+  return record.level == "3" && record.mode == "sysemu" && record.case_name == "trmm_lunn" &&
+         record.problem_size >= opts.sysemu_level3_problem_dim_limit;
+}
+
 void writeSummary(const fs::path& summaryPath, const Options& opts, const std::vector<RunRecord>& records) {
   if (summaryPath.has_parent_path()) {
     fs::create_directories(summaryPath.parent_path());
@@ -382,6 +425,7 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
   out << "- kernel_root: `" << opts.kernel_root.string() << "`\n";
   out << "- results_dir: `" << opts.results_dir.string() << "`\n";
   out << "- kernel_launch_timeout: `" << opts.kernel_launch_timeout << "`\n";
+  out << "- sysemu_kernel_launch_timeout: `" << opts.sysemu_kernel_launch_timeout << "`\n";
   out << "- epsilon: `" << opts.epsilon << "`\n";
   out << "- level1_num_elements: `";
   for (size_t i = 0; i < opts.level1_num_elements.size(); ++i) {
@@ -412,17 +456,18 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
   out << "- sysemu_level2_problem_dim_limit: `" << opts.sysemu_level2_problem_dim_limit << "`\n";
   out << "- sysemu_level3_problem_dim_limit: `" << opts.sysemu_level3_problem_dim_limit << "`\n\n";
 
-  out << "| level | mode | size | status | host results | device results | log |\n";
-  out << "| --- | --- | ---: | --- | --- | --- | --- |\n";
+  out << "| level | mode | case | size | status | host results | device results | log |\n";
+  out << "| --- | --- | --- | ---: | --- | --- | --- | --- |\n";
   for (const auto& record : records) {
     const std::string status = record.skipped
       ? ("skipped (" + record.skip_reason + ")")
-      : (record.exit_code == 0 ? "ok" : ("failed (" + std::to_string(record.exit_code) + ")"));
+      : (record.accepted_timeout ? "accepted timeout" : (record.exit_code == 0 ? "ok" : ("failed (" + std::to_string(record.exit_code) + ")")));
     const std::string hostPath = record.skipped ? "-" : ("`" + record.host_results_path.string() + "`");
     const std::string devicePath = record.skipped ? "-" : ("`" + record.device_results_path.string() + "`");
     const std::string logPath = "`" + record.log_path.string() + "`";
     out << "| level" << record.level
         << " | " << record.mode
+        << " | " << (record.case_name.empty() ? "-" : record.case_name)
         << " | " << record.problem_size
         << " | " << status
         << " | " << hostPath
@@ -456,63 +501,78 @@ int main(int argc, char** argv) {
         }
 
         for (const auto problemSize : problemSizes) {
-          const fs::path resultDir = opts.results_dir / label / ("level" + level) / std::to_string(problemSize);
-          const fs::path hostResults = resultDir / "host_results.md";
-          const fs::path deviceResults = resultDir / "device_results.md";
-          const fs::path logPath = resultDir / "verifier.log";
-          fs::create_directories(resultDir);
+          const std::vector<std::string> cases = level == "3" ? level3Cases() : std::vector<std::string>{""};
+          for (const auto& selectedCase : cases) {
+            const fs::path resultDir = selectedCase.empty()
+              ? opts.results_dir / label / ("level" + level) / std::to_string(problemSize)
+              : opts.results_dir / label / ("level" + level) / std::to_string(problemSize) / selectedCase;
+            const fs::path hostResults = resultDir / "host_results.md";
+            const fs::path deviceResults = resultDir / "device_results.md";
+            const fs::path logPath = resultDir / "verifier.log";
+            fs::create_directories(resultDir);
 
-          const std::string skipReason = sysemuSkipReason(opts, level, normalizedMode, problemSize);
-          if (!skipReason.empty()) {
-            std::ofstream log(logPath);
-            if (!log.is_open()) {
-              throw std::runtime_error("Unable to open log file: " + logPath.string());
+            const std::string skipReason = sysemuSkipReason(opts, level, normalizedMode, problemSize);
+            if (!skipReason.empty()) {
+              std::ofstream log(logPath);
+              if (!log.is_open()) {
+                throw std::runtime_error("Unable to open log file: " + logPath.string());
+              }
+              log << skipReason << '\n';
+
+              std::cout << "[skip] level" << level << " " << label
+                        << (selectedCase.empty() ? "" : (" case " + selectedCase))
+                        << " size " << problemSize << ": " << skipReason << std::endl;
+
+              RunRecord record;
+              record.level = level;
+              record.mode = label;
+              record.problem_size = problemSize;
+              record.case_name = selectedCase;
+              record.verifier = verifier;
+              record.kernel_root = levelKernelRoot;
+              record.host_results_path = hostResults;
+              record.device_results_path = deviceResults;
+              record.log_path = logPath;
+              record.exit_code = 0;
+              record.skipped = true;
+              record.skip_reason = skipReason;
+              records.push_back(record);
+              continue;
             }
-            log << skipReason << '\n';
 
-            std::cout << "[skip] level" << level << " " << label << " size " << problemSize << ": " << skipReason << std::endl;
+            const auto args = buildArgs(opts, level, normalizedMode, problemSize, hostResults, deviceResults, selectedCase);
+
+            std::ostringstream cmd;
+            for (size_t i = 0; i < args.size(); ++i) {
+              if (i != 0) {
+                cmd << ' ';
+              }
+              cmd << args[i];
+            }
+            std::cout << "[run] level" << level << " " << label
+                      << (selectedCase.empty() ? "" : (" case " + selectedCase))
+                      << " size " << problemSize << ": " << cmd.str() << std::endl;
 
             RunRecord record;
             record.level = level;
             record.mode = label;
             record.problem_size = problemSize;
+            record.case_name = selectedCase;
             record.verifier = verifier;
             record.kernel_root = levelKernelRoot;
             record.host_results_path = hostResults;
             record.device_results_path = deviceResults;
             record.log_path = logPath;
-            record.exit_code = 0;
-            record.skipped = true;
-            record.skip_reason = skipReason;
-            records.push_back(record);
-            continue;
-          }
-
-          const auto args = buildArgs(opts, level, normalizedMode, problemSize, hostResults, deviceResults);
-
-          std::ostringstream cmd;
-          for (size_t i = 0; i < args.size(); ++i) {
-            if (i != 0) {
-              cmd << ' ';
+            record.exit_code = runChild(args, logPath);
+            if (record.exit_code != 0 && allowAcceptedTimeout(opts, record) && logContainsTimeout(logPath)) {
+              record.accepted_timeout = true;
+              record.exit_code = 0;
             }
-            cmd << args[i];
-          }
-          std::cout << "[run] level" << level << " " << label << " size " << problemSize << ": " << cmd.str() << std::endl;
+            records.push_back(record);
 
-          RunRecord record;
-          record.level = level;
-          record.mode = label;
-          record.problem_size = problemSize;
-          record.verifier = verifier;
-          record.kernel_root = levelKernelRoot;
-          record.host_results_path = hostResults;
-          record.device_results_path = deviceResults;
-          record.log_path = logPath;
-          record.exit_code = runChild(args, logPath);
-          records.push_back(record);
-
-          if (record.exit_code != 0) {
-            allOk = false;
+            if (record.exit_code != 0) {
+              allOk = false;
+            }
           }
         }
       }

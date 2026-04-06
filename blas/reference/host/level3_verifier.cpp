@@ -886,38 +886,40 @@ int main(int argc, char** argv) {
     opt.kernel_root = defaultKernelRoot();
   }
 
-  Config config{modeFromString(opt.device_type), 1};
-  config.dump();
-  ReferenceVerifierLauncher launcher(config, static_cast<int>(argvPendingToParse.size()), argvPendingToParse.data());
-  launcher.initialize();
-
   std::vector<CaseResult> hostResults;
   std::vector<CaseResult> deviceResults;
   const auto appendCase = [&](VerificationPair pair) {
     hostResults.push_back(std::move(pair.host));
     deviceResults.push_back(std::move(pair.device));
   };
+  const auto runIsolatedCase = [&](auto&& verifyCase) {
+    Config config{modeFromString(opt.device_type), 1};
+    config.dump();
+    ReferenceVerifierLauncher launcher(config, static_cast<int>(argvPendingToParse.size()), argvPendingToParse.data());
+    launcher.initialize();
+    auto pair = verifyCase(launcher, opt);
+    launcher.tearDown();
+    appendCase(std::move(pair));
+  };
 
   if (opt.selected_case == "all" || opt.selected_case == "gemm_nn") {
-    appendCase(verifyGemmCase(launcher, opt));
+    runIsolatedCase(verifyGemmCase);
   }
   if (opt.selected_case == "all" || opt.selected_case == "symm_lu") {
-    appendCase(verifySymmCase(launcher, opt));
+    runIsolatedCase(verifySymmCase);
   }
   if (opt.selected_case == "all" || opt.selected_case == "syrk_un") {
-    appendCase(verifySyrkCase(launcher, opt));
+    runIsolatedCase(verifySyrkCase);
   }
   if (opt.selected_case == "all" || opt.selected_case == "syr2k_lt") {
-    appendCase(verifySyr2kCase(launcher, opt));
+    runIsolatedCase(verifySyr2kCase);
   }
   if (opt.selected_case == "all" || opt.selected_case == "trmm_lunn") {
-    appendCase(verifyTrmmCase(launcher, opt));
+    runIsolatedCase(verifyTrmmCase);
   }
   if (opt.selected_case == "all" || opt.selected_case == "trsm_lunn") {
-    appendCase(verifyTrsmCase(launcher, opt));
+    runIsolatedCase(verifyTrsmCase);
   }
-
-  launcher.tearDown();
 
   if (deviceResults.empty()) {
     std::cerr << "Unknown case: " << opt.selected_case << std::endl;
