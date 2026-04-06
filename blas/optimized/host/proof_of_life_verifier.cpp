@@ -62,6 +62,7 @@ struct Options {
   fs::path device_results_path = "blas/optimized/proof_of_life_device.md";
   int kernel_launch_timeout = 30;
   std::string device_type = "silicon";
+  std::string selected_case = "all";
   int saxpy_num_elements = 259;
   int gemv_m = 17;
   int gemv_n = 19;
@@ -92,6 +93,11 @@ struct CaseResult {
   std::vector<MatrixRecord> matrices;
 };
 
+struct VerificationPair {
+  CaseResult host;
+  CaseResult device;
+};
+
 Options parseArgs(int argc, char* const* argv, std::vector<char*>& nextlevel) {
   static constexpr const char* helpMsg =
     "Usage: [options]\n\n"
@@ -100,6 +106,7 @@ Options parseArgs(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "  -k, --kernel_root            root containing optimized fp32 kernels\n"
     "      --host_results_path      markdown file for host reference outputs\n"
     "      --device_results_path    markdown file for device outputs\n"
+    "      --case                   case to run (all, saxpy, sgemv_n, sgemm_vector_nn, sgemm_tensor_nn)\n"
     "  -t, --kernel_launch_timeout  timeout (in seconds) to wait for kernel completion\n"
     "  -d, --device_type            device type to use (sysemu, fake, silicon)\n"
     "      --saxpy_num_elements     vector length for SAXPY\n"
@@ -115,6 +122,7 @@ Options parseArgs(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     {"kernel_root", required_argument, nullptr, 'k'},
     {"host_results_path", required_argument, nullptr, 1000},
     {"device_results_path", required_argument, nullptr, 1001},
+    {"case", required_argument, nullptr, 1008},
     {"kernel_launch_timeout", required_argument, nullptr, 't'},
     {"device_type", required_argument, nullptr, 'd'},
     {"saxpy_num_elements", required_argument, nullptr, 1002},
@@ -143,6 +151,9 @@ Options parseArgs(int argc, char* const* argv, std::vector<char*>& nextlevel) {
       break;
     case 1001:
       opts.device_results_path = optarg;
+      break;
+    case 1008:
+      opts.selected_case = optarg;
       break;
     case 't':
       opts.kernel_launch_timeout = std::atoi(optarg);
@@ -384,11 +395,15 @@ public:
   }
 };
 
-CaseResult verifySaxpy(ProofLauncher& launcher, const Options& opt) {
-  CaseResult result;
-  result.name = "saxpy";
-  result.params = "n=" + std::to_string(opt.saxpy_num_elements);
-  result.kernel_artifact = resolveKernelArtifact(opt.kernel_root / "level1" / "axpy", "blas_axpy_optimized_fp32");
+VerificationPair verifySaxpy(ProofLauncher& launcher, const Options& opt) {
+  VerificationPair pair;
+  pair.host.name = "saxpy";
+  pair.device.name = pair.host.name;
+  pair.host.params = "n=" + std::to_string(opt.saxpy_num_elements);
+  pair.device.params = pair.host.params;
+  pair.host.kernel_artifact =
+    resolveKernelArtifact(opt.kernel_root / "level1" / "axpy", "blas_axpy_optimized_fp32");
+  pair.device.kernel_artifact = pair.host.kernel_artifact;
 
   const float alpha = 2.5f;
   auto x = makeVector(opt.saxpy_num_elements, 1.0f, 0.25f);
@@ -397,7 +412,7 @@ CaseResult verifySaxpy(ProofLauncher& launcher, const Options& opt) {
   auto expectedY = yInitial;
   hostAxpy(x, expectedY, alpha);
 
-  auto kernelId = launcher.loadKernel(result.kernel_artifact.string());
+  auto kernelId = launcher.loadKernel(pair.device.kernel_artifact.string());
   auto deviceX = launcher.allocateBytes(x.size() * sizeof(float));
   auto deviceYBuffer = launcher.allocateBytes(deviceY.size() * sizeof(float));
   launcher.copyHostToDevice(x.data(), deviceX, x.size() * sizeof(float));
@@ -410,22 +425,31 @@ CaseResult verifySaxpy(ProofLauncher& launcher, const Options& opt) {
   launcher.copyDeviceToHost(deviceYBuffer, deviceY.data(), deviceY.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
-  result.ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedY, deviceY, opt.epsilon);
-  result.vectors.push_back({"input_x", x});
-  result.vectors.push_back({"input_y", yInitial});
-  result.vectors.push_back({"output_y", deviceY});
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedY, deviceY, opt.epsilon);
+  pair.host.ok = ok;
+  pair.device.ok = ok;
+  pair.host.vectors.push_back({"input_x", x});
+  pair.host.vectors.push_back({"input_y", yInitial});
+  pair.host.vectors.push_back({"output_y", expectedY});
+  pair.device.vectors.push_back({"input_x", x});
+  pair.device.vectors.push_back({"input_y", yInitial});
+  pair.device.vectors.push_back({"output_y", deviceY});
 
   launcher.freeBytes(deviceX);
   launcher.freeBytes(deviceYBuffer);
   launcher.unLoadKernel(kernelId);
-  return result;
+  return pair;
 }
 
-CaseResult verifySgemv(ProofLauncher& launcher, const Options& opt) {
-  CaseResult result;
-  result.name = "sgemv_n";
-  result.params = "m=" + std::to_string(opt.gemv_m) + ",n=" + std::to_string(opt.gemv_n);
-  result.kernel_artifact = resolveKernelArtifact(opt.kernel_root / "level2" / "gemv", "blas_gemv_optimized_fp32");
+VerificationPair verifySgemv(ProofLauncher& launcher, const Options& opt) {
+  VerificationPair pair;
+  pair.host.name = "sgemv_n";
+  pair.device.name = pair.host.name;
+  pair.host.params = "m=" + std::to_string(opt.gemv_m) + ",n=" + std::to_string(opt.gemv_n);
+  pair.device.params = pair.host.params;
+  pair.host.kernel_artifact =
+    resolveKernelArtifact(opt.kernel_root / "level2" / "gemv", "blas_gemv_optimized_fp32");
+  pair.device.kernel_artifact = pair.host.kernel_artifact;
 
   const int lda = opt.gemv_m;
   const float alpha = 1.75f;
@@ -437,7 +461,7 @@ CaseResult verifySgemv(ProofLauncher& launcher, const Options& opt) {
   auto expectedY = yInitial;
   hostGemv('N', opt.gemv_m, opt.gemv_n, alpha, a, lda, x, 1, beta, expectedY, 1);
 
-  auto kernelId = launcher.loadKernel(result.kernel_artifact.string());
+  auto kernelId = launcher.loadKernel(pair.device.kernel_artifact.string());
   auto deviceA = launcher.allocateBytes(a.size() * sizeof(float));
   auto deviceX = launcher.allocateBytes(x.size() * sizeof(float));
   auto deviceYBuffer = launcher.allocateBytes(deviceY.size() * sizeof(float));
@@ -452,25 +476,36 @@ CaseResult verifySgemv(ProofLauncher& launcher, const Options& opt) {
   launcher.copyDeviceToHost(deviceYBuffer, deviceY.data(), deviceY.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
-  result.ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedY, deviceY, opt.epsilon);
-  result.vectors.push_back({"input_x", x});
-  result.vectors.push_back({"input_y", yInitial});
-  result.vectors.push_back({"output_y", deviceY});
-  result.matrices.push_back({"input_a", opt.gemv_m, opt.gemv_n, denseFromColumnMajor(a, opt.gemv_m, opt.gemv_n, lda)});
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedY, deviceY, opt.epsilon);
+  const MatrixRecord aRecord{"input_a", opt.gemv_m, opt.gemv_n, denseFromColumnMajor(a, opt.gemv_m, opt.gemv_n, lda)};
+  pair.host.ok = ok;
+  pair.device.ok = ok;
+  pair.host.vectors.push_back({"input_x", x});
+  pair.host.vectors.push_back({"input_y", yInitial});
+  pair.host.vectors.push_back({"output_y", expectedY});
+  pair.host.matrices.push_back(aRecord);
+  pair.device.vectors.push_back({"input_x", x});
+  pair.device.vectors.push_back({"input_y", yInitial});
+  pair.device.vectors.push_back({"output_y", deviceY});
+  pair.device.matrices.push_back(aRecord);
 
   launcher.freeBytes(deviceA);
   launcher.freeBytes(deviceX);
   launcher.freeBytes(deviceYBuffer);
   launcher.unLoadKernel(kernelId);
-  return result;
+  return pair;
 }
 
-CaseResult verifySgemm(ProofLauncher& launcher, const Options& opt) {
-  CaseResult result;
-  result.name = "sgemm_nn";
-  result.params = "m=" + std::to_string(opt.gemm_m) + ",n=" + std::to_string(opt.gemm_n) +
-                  ",k=" + std::to_string(opt.gemm_k);
-  result.kernel_artifact = resolveKernelArtifact(opt.kernel_root / "level3" / "gemm", "blas_gemm_optimized_fp32");
+VerificationPair verifySgemmVariant(
+  ProofLauncher& launcher, const Options& opt, const std::string& caseName, const std::string& kernelBaseName) {
+  VerificationPair pair;
+  pair.host.name = caseName;
+  pair.device.name = caseName;
+  pair.host.params = "m=" + std::to_string(opt.gemm_m) + ",n=" + std::to_string(opt.gemm_n) +
+                     ",k=" + std::to_string(opt.gemm_k);
+  pair.device.params = pair.host.params;
+  pair.host.kernel_artifact = resolveKernelArtifact(opt.kernel_root / "level3" / "gemm", kernelBaseName);
+  pair.device.kernel_artifact = pair.host.kernel_artifact;
 
   const int lda = opt.gemm_m;
   const int ldb = opt.gemm_k;
@@ -484,7 +519,7 @@ CaseResult verifySgemm(ProofLauncher& launcher, const Options& opt) {
   auto expectedC = cInitial;
   hostGemm('N', 'N', opt.gemm_m, opt.gemm_n, opt.gemm_k, alpha, a, lda, b, ldb, beta, expectedC, ldc);
 
-  auto kernelId = launcher.loadKernel(result.kernel_artifact.string());
+  auto kernelId = launcher.loadKernel(pair.device.kernel_artifact.string());
   auto deviceA = launcher.allocateBytes(a.size() * sizeof(float));
   auto deviceB = launcher.allocateBytes(b.size() * sizeof(float));
   auto deviceCBuffer = launcher.allocateBytes(deviceC.size() * sizeof(float));
@@ -499,17 +534,29 @@ CaseResult verifySgemm(ProofLauncher& launcher, const Options& opt) {
   launcher.copyDeviceToHost(deviceCBuffer, deviceC.data(), deviceC.size() * sizeof(float));
   launcher.waitKernelCompletion(std::chrono::seconds(opt.kernel_launch_timeout));
 
-  result.ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedC, deviceC, opt.epsilon);
-  result.matrices.push_back({"input_a", opt.gemm_m, opt.gemm_k, denseFromColumnMajor(a, opt.gemm_m, opt.gemm_k, lda)});
-  result.matrices.push_back({"input_b", opt.gemm_k, opt.gemm_n, denseFromColumnMajor(b, opt.gemm_k, opt.gemm_n, ldb)});
-  result.matrices.push_back({"input_c", opt.gemm_m, opt.gemm_n, denseFromColumnMajor(cInitial, opt.gemm_m, opt.gemm_n, ldc)});
-  result.matrices.push_back({"output_c", opt.gemm_m, opt.gemm_n, denseFromColumnMajor(deviceC, opt.gemm_m, opt.gemm_n, ldc)});
+  const bool ok = !launcher.checkKernelExecutionErrors() && nearlyEqual(expectedC, deviceC, opt.epsilon);
+  const MatrixRecord aRecord{"input_a", opt.gemm_m, opt.gemm_k, denseFromColumnMajor(a, opt.gemm_m, opt.gemm_k, lda)};
+  const MatrixRecord bRecord{"input_b", opt.gemm_k, opt.gemm_n, denseFromColumnMajor(b, opt.gemm_k, opt.gemm_n, ldb)};
+  const MatrixRecord cInputRecord{
+    "input_c", opt.gemm_m, opt.gemm_n, denseFromColumnMajor(cInitial, opt.gemm_m, opt.gemm_n, ldc)};
+  pair.host.ok = ok;
+  pair.device.ok = ok;
+  pair.host.matrices.push_back(aRecord);
+  pair.host.matrices.push_back(bRecord);
+  pair.host.matrices.push_back(cInputRecord);
+  pair.host.matrices.push_back(
+    {"output_c", opt.gemm_m, opt.gemm_n, denseFromColumnMajor(expectedC, opt.gemm_m, opt.gemm_n, ldc)});
+  pair.device.matrices.push_back(aRecord);
+  pair.device.matrices.push_back(bRecord);
+  pair.device.matrices.push_back(cInputRecord);
+  pair.device.matrices.push_back(
+    {"output_c", opt.gemm_m, opt.gemm_n, denseFromColumnMajor(deviceC, opt.gemm_m, opt.gemm_n, ldc)});
 
   launcher.freeBytes(deviceA);
   launcher.freeBytes(deviceB);
   launcher.freeBytes(deviceCBuffer);
   launcher.unLoadKernel(kernelId);
-  return result;
+  return pair;
 }
 
 } // namespace
@@ -517,36 +564,57 @@ CaseResult verifySgemm(ProofLauncher& launcher, const Options& opt) {
 int main(int argc, char** argv) {
   std::vector<char*> argvPendingToParse{argv[0]};
   Options opt = parseArgs(argc, argv, argvPendingToParse);
+  setenv("ET_DISABLE_KERNEL_TRACES", "1", 0);
 
   if (opt.kernel_root.empty()) {
     opt.kernel_root = defaultKernelRoot();
   }
 
-  Config config{modeFromString(opt.device_type), 1};
-  config.dump();
-
-  ProofLauncher launcher(config, static_cast<int>(argvPendingToParse.size()), argvPendingToParse.data());
-  launcher.initialize();
-
-  const CaseResult deviceSaxpy = verifySaxpy(launcher, opt);
-  const CaseResult deviceSgemv = verifySgemv(launcher, opt);
-  const CaseResult deviceSgemm = verifySgemm(launcher, opt);
-
-  launcher.tearDown();
-
   std::vector<CaseResult> hostResults;
   std::vector<CaseResult> deviceResults;
-  hostResults.push_back(deviceSaxpy);
-  hostResults.push_back(deviceSgemv);
-  hostResults.push_back(deviceSgemm);
-  deviceResults.push_back(deviceSaxpy);
-  deviceResults.push_back(deviceSgemv);
-  deviceResults.push_back(deviceSgemm);
+  const auto appendCase = [&](VerificationPair pair) {
+    hostResults.push_back(std::move(pair.host));
+    deviceResults.push_back(std::move(pair.device));
+  };
+  const auto runIsolatedCase = [&](auto&& verifyCase) {
+    Config config{modeFromString(opt.device_type), 1};
+    config.dump();
+    ProofLauncher launcher(config, static_cast<int>(argvPendingToParse.size()), argvPendingToParse.data());
+    launcher.initialize();
+    auto pair = verifyCase(launcher, opt);
+    launcher.tearDown();
+    appendCase(std::move(pair));
+  };
+
+  if (opt.selected_case == "all" || opt.selected_case == "saxpy") {
+    runIsolatedCase(verifySaxpy);
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "sgemv_n") {
+    runIsolatedCase(verifySgemv);
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "sgemm_vector_nn") {
+    runIsolatedCase([](ProofLauncher& launcher, const Options& options) {
+      return verifySgemmVariant(launcher, options, "sgemm_vector_nn", "blas_gemm_optimized_fp32_vector");
+    });
+  }
+  if (opt.selected_case == "all" || opt.selected_case == "sgemm_tensor_nn") {
+    runIsolatedCase([](ProofLauncher& launcher, const Options& options) {
+      return verifySgemmVariant(launcher, options, "sgemm_tensor_nn", "blas_gemm_optimized_fp32_tensor");
+    });
+  }
+
+  if (deviceResults.empty()) {
+    std::cerr << "Unknown case: " << opt.selected_case << std::endl;
+    return 1;
+  }
 
   writeResults(opt.host_results_path, "Host", opt, hostResults);
   writeResults(opt.device_results_path, "Device", opt, deviceResults);
 
-  if (!deviceSaxpy.ok || !deviceSgemv.ok || !deviceSgemm.ok) {
+  const bool ok = std::all_of(deviceResults.begin(), deviceResults.end(), [](const CaseResult& result) {
+    return result.ok;
+  });
+  if (!ok) {
     std::cerr << "Optimized BLAS proof-of-life verification failed" << std::endl;
     return 1;
   }

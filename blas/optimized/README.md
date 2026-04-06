@@ -31,9 +31,15 @@ Current kernels:
 - `fp32/level2/gemv`: ET packed-SIMD vectorization across contiguous output-row
   blocks for the non-transpose, unit-stride path, with scalar fallback for
   transpose and non-unit-stride cases
-- `fp32/level3/gemm`: single-minion 4x4 blocked `NN` micro-kernel with K
-  strip-mining for a bounded working set, plus reference-compatible fallbacks
-  for the remaining transpose combinations
+- `fp32/level3/gemm`:
+  - `blas_gemm_optimized_fp32_vector`: single-minion 4x4 blocked `NN`
+    micro-kernel with K strip-mining for lower-latency execution
+  - `blas_gemm_optimized_fp32_tensor`: tensor-engine tiled `NN` path for
+    higher-throughput execution, with scalar fallback for unsupported tails and
+    non-`NN` cases
+  - current tensor bring-up keeps the tensor engine on the bulk of each tile
+    and applies a post-store scalar correction for the dropped final inner term
+    observed on the current hardware path
 
 Current validation policy:
 

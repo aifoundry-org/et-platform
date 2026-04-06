@@ -22,7 +22,6 @@
 constexpr size_t kTraceBytesPerHart = 4096;
 constexpr size_t kNumHarts = 2048;
 constexpr size_t kTraceBufferSize = kTraceBytesPerHart * kNumHarts;
-constexpr bool enableKernelTraces = true;
 
 namespace {
 std::string getEtSdkHome() {
@@ -30,6 +29,20 @@ std::string getEtSdkHome() {
     return etSdkHome;
   }
   return "/opt/et";
+}
+
+bool kernelTracesEnabled() {
+  if (const char* disable = std::getenv("ET_DISABLE_KERNEL_TRACES")) {
+    if (disable[0] == '1' || disable[0] == 'y' || disable[0] == 'Y' || disable[0] == 't' || disable[0] == 'T') {
+      return false;
+    }
+  }
+  if (const char* enable = std::getenv("ET_ENABLE_KERNEL_TRACES")) {
+    if (enable[0] == '0' || enable[0] == 'n' || enable[0] == 'N' || enable[0] == 'f' || enable[0] == 'F') {
+      return false;
+    }
+  }
+  return true;
 }
 
 void setIfExists(std::string& dst, const std::filesystem::path& path) {
@@ -227,7 +240,7 @@ void GenericLauncher::writeSysemuTraceDumpCookie(void) {
 
 void GenericLauncher::createUserTraces(void) {
   // Alloc space on device for user traces. Note: This buffer will be reused across differnet kernel launches.
-  if (enableKernelTraces) {
+  if (kernelTracesEnabled()) {
 
     for (uint32_t idx = 0; idx < numDev_; idx++) {
       std::byte* addrptr = runtime_->mallocDevice(devices_[idx], kTraceBufferSize);
@@ -277,7 +290,7 @@ void GenericLauncher::removeSysemuTraceDumpCookie(void) {
 
 void GenericLauncher::tearDown() {
 
-  if (enableKernelTraces) {
+  if (kernelTracesEnabled()) {
     for (uint32_t deviceIdx = 0; deviceIdx < numDev_; deviceIdx++) {
       runtime_->freeDevice(devices_[deviceIdx], traceDeviceBuffer_[deviceIdx]);
     }
@@ -331,7 +344,7 @@ constexpr uint64_t getTraceThreadMask() {
 }
 
 void GenericLauncher::dumpTracesToFile(uint64_t fileIdx, rt::KernelId kernelId, uint32_t deviceIdx) {
-  if (not enableKernelTraces) {
+  if (!kernelTracesEnabled()) {
     return;
   }
   // geting device traces.
@@ -399,7 +412,7 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
   kOpts.setBarrier(true);
   kOpts.setFlushL3(false);
   kOpts.setCoreDumpFilePath(cwd.string());
-  if (enableKernelTraces) {
+  if (kernelTracesEnabled()) {
     kOpts.setUserTracing(reinterpret_cast<uint64_t>(traceDeviceBuffer_[deviceIdx]), kTraceBufferSize, 0, shireMask,
                          getTraceThreadMask(), TRACE_EVENT_ENABLE_ALL, TRACE_FILTER_ENABLE_ALL);
   }
