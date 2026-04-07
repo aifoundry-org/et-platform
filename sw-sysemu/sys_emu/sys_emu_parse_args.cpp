@@ -9,8 +9,13 @@
 #include "sys_emu.h"
 
 static const char * help_msg =
+#if EMU_ERBIUM
+"\n Erbium System Emulator\n\n"
+"     erbium_emu [options]\n\n"
+#elif EMU_ETSOC1
 "\n ET System Emulator\n\n"
 "     sys_emu [options]\n\n"
+#endif
 " Where options are:\n"
 #ifndef SDK_RELEASE
 "     -elf_load <path>         Path to an ELF file to load. Can be used multiple times.\n"
