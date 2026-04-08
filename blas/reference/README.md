@@ -25,5 +25,9 @@ Verification policy:
 - larger problems should be checked across host and `silicon`
 - the full verifier enforces this with per-level `sysemu` size limits
 - the default policy keeps `sysemu` enabled for Level 3 only up to
-  `problem_dim=64`; larger Level 3 runs are recorded as policy skips in the
+  `problem_dim=128`; larger Level 3 runs are recorded as policy skips in the
   summary
+- for `silicon`, `kernel_launch_timeout` is a minimum, not a fixed cap
+- the full verifier automatically raises timeouts for larger workloads,
+  especially Level 3, so large `O(N^3)` kernels are not misclassified as
+  failures just because the small-problem watchdog was too short

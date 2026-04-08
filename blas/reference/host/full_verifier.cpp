@@ -48,6 +48,7 @@ struct RunRecord {
   std::string mode;
   size_t problem_size = 0;
   std::string case_name;
+  int timeout_seconds = 0;
   fs::path verifier;
   fs::path kernel_root;
   fs::path host_results_path;
@@ -316,10 +317,9 @@ const std::vector<std::string>& level3Cases() {
 
 std::vector<std::string> buildArgs(const Options& opts, const std::string& level, const std::string& mode,
                                    size_t problemSize, const fs::path& hostResults, const fs::path& deviceResults,
-                                   const std::string& selectedCase = "") {
+                                   int timeoutSeconds, const std::string& selectedCase = "") {
   const std::string normalizedMode = normalizeModeArg(mode);
   const fs::path levelKernelRoot = opts.kernel_root / ("level" + level);
-  const int timeoutSeconds = normalizedMode == "sysemu" ? opts.sysemu_kernel_launch_timeout : opts.kernel_launch_timeout;
 
   std::vector<std::string> args{
     verifierPath(opts.verifier_bin_dir, level).string(),
@@ -350,6 +350,38 @@ std::vector<std::string> buildArgs(const Options& opts, const std::string& level
   }
 
   return args;
+}
+
+int effectiveKernelTimeoutSeconds(const Options& opts, const std::string& level, const std::string& mode,
+                                  size_t problemSize) {
+  if (normalizeModeArg(mode) == "sysemu") {
+    return opts.sysemu_kernel_launch_timeout;
+  }
+
+  int timeoutSeconds = opts.kernel_launch_timeout;
+  if (level == "1") {
+    if (problemSize > 2048) {
+      timeoutSeconds = std::max(timeoutSeconds, 300);
+    } else if (problemSize > 512) {
+      timeoutSeconds = std::max(timeoutSeconds, 120);
+    }
+  } else if (level == "2") {
+    if (problemSize > 1024) {
+      timeoutSeconds = std::max(timeoutSeconds, 900);
+    } else if (problemSize > 256) {
+      timeoutSeconds = std::max(timeoutSeconds, 300);
+    }
+  } else if (level == "3") {
+    if (problemSize > 1024) {
+      timeoutSeconds = std::max(timeoutSeconds, 1800);
+    } else if (problemSize > 512) {
+      timeoutSeconds = std::max(timeoutSeconds, 900);
+    } else if (problemSize > 128) {
+      timeoutSeconds = std::max(timeoutSeconds, 300);
+    }
+  }
+
+  return timeoutSeconds;
 }
 
 int runChild(const std::vector<std::string>& args, const fs::path& logPath) {
@@ -426,6 +458,7 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
   out << "- results_dir: `" << opts.results_dir.string() << "`\n";
   out << "- kernel_launch_timeout: `" << opts.kernel_launch_timeout << "`\n";
   out << "- sysemu_kernel_launch_timeout: `" << opts.sysemu_kernel_launch_timeout << "`\n";
+  out << "- silicon timeout policy: `kernel_launch_timeout is treated as a minimum; larger silicon workloads are automatically given more time`\n";
   out << "- epsilon: `" << opts.epsilon << "`\n";
   out << "- level1_num_elements: `";
   for (size_t i = 0; i < opts.level1_num_elements.size(); ++i) {
@@ -456,8 +489,8 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
   out << "- sysemu_level2_problem_dim_limit: `" << opts.sysemu_level2_problem_dim_limit << "`\n";
   out << "- sysemu_level3_problem_dim_limit: `" << opts.sysemu_level3_problem_dim_limit << "`\n\n";
 
-  out << "| level | mode | case | size | status | host results | device results | log |\n";
-  out << "| --- | --- | --- | ---: | --- | --- | --- | --- |\n";
+  out << "| level | mode | case | size | timeout_s | status | host results | device results | log |\n";
+  out << "| --- | --- | --- | ---: | ---: | --- | --- | --- | --- |\n";
   for (const auto& record : records) {
     const std::string status = record.skipped
       ? ("skipped (" + record.skip_reason + ")")
@@ -469,6 +502,7 @@ void writeSummary(const fs::path& summaryPath, const Options& opts, const std::v
         << " | " << record.mode
         << " | " << (record.case_name.empty() ? "-" : record.case_name)
         << " | " << record.problem_size
+        << " | " << record.timeout_seconds
         << " | " << status
         << " | " << hostPath
         << " | " << devicePath
@@ -509,6 +543,7 @@ int main(int argc, char** argv) {
             const fs::path hostResults = resultDir / "host_results.md";
             const fs::path deviceResults = resultDir / "device_results.md";
             const fs::path logPath = resultDir / "verifier.log";
+            const int timeoutSeconds = effectiveKernelTimeoutSeconds(opts, level, normalizedMode, problemSize);
             fs::create_directories(resultDir);
 
             const std::string skipReason = sysemuSkipReason(opts, level, normalizedMode, problemSize);
@@ -528,6 +563,7 @@ int main(int argc, char** argv) {
               record.mode = label;
               record.problem_size = problemSize;
               record.case_name = selectedCase;
+              record.timeout_seconds = timeoutSeconds;
               record.verifier = verifier;
               record.kernel_root = levelKernelRoot;
               record.host_results_path = hostResults;
@@ -540,7 +576,8 @@ int main(int argc, char** argv) {
               continue;
             }
 
-            const auto args = buildArgs(opts, level, normalizedMode, problemSize, hostResults, deviceResults, selectedCase);
+            const auto args = buildArgs(opts, level, normalizedMode, problemSize, hostResults, deviceResults,
+                                        timeoutSeconds, selectedCase);
 
             std::ostringstream cmd;
             for (size_t i = 0; i < args.size(); ++i) {
@@ -558,6 +595,7 @@ int main(int argc, char** argv) {
             record.mode = label;
             record.problem_size = problemSize;
             record.case_name = selectedCase;
+            record.timeout_seconds = timeoutSeconds;
             record.verifier = verifier;
             record.kernel_root = levelKernelRoot;
             record.host_results_path = hostResults;
