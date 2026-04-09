@@ -237,12 +237,12 @@ uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_sysreg(addr)) {
-        // System registers: 64-bit aligned, 32/64-bit access, M/S privilege,
+        // System registers: 64-bit aligned, 32-bit access, M/S privilege,
         // no AMO/TensorOp/CacheOp
         Privilege mode = effective_execution_mode(cpu, macc);
         if (amo
             || ts_tl_co
-            || ((size != 4) && (size != 8))
+            || (size != 4)
             || !addr_is_size_aligned(addr, 8)
             || (mode == Privilege::U))
         {
