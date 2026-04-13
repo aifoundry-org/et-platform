@@ -11,6 +11,7 @@
 #include "entryPoint.h"
 #include "sync.h"
 #include "flbLock.h"
+#include "gpsdk_launch_runtime.h"
 #include <etsoc/common/utils.h>
 #include <etsoc/isa/barriers.h>
 #include <etsoc/isa/cacheops-umode.h>
@@ -49,16 +50,88 @@ namespace device_config {
 extern DeviceConfig config;
 /* Global pointer to environment struct allocated by the host */
 const __thread kernel_environment_t* env_ = nullptr;
+GpSdkLaunchTopology topology_ = {
+  0U,
+  gpsdk::launch::kAllMinionsMask,
+  gpsdk::launch::kMinionsPerShire,
+  gpsdk::launch::kMinionsPerShire,
+  0U,
+};
 const kernel_environment_t fallback_env = {{0, 0, 0, 0}, 0xFFFFFFFF, 600};
 } // namespace device_config
 
 /* Number of times the kernel has been launched */
 alignas (CACHE_LINE_SIZE) uint64_t numberOfBoots __attribute__((section("persistentData"))) = {1};
+devicebarrier_t __deviceBarrierState[2048] = {};
 
 void resetBSS();
 void resetData();
 bool hasGlobalData();
 extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env);
+
+namespace {
+
+const gpsdk::launch::RuntimeArgsHeader* getRuntimeArgsHeader(const void* args) {
+  if (args == nullptr) {
+    return nullptr;
+  }
+
+  const auto* header = reinterpret_cast<const gpsdk::launch::RuntimeArgsHeader*>(args);
+  if ((header->magic != gpsdk::launch::kRuntimeArgsMagic) || (header->version != gpsdk::launch::kRuntimeArgsVersion) ||
+      (header->headerSize != sizeof(gpsdk::launch::RuntimeArgsHeader))) {
+    return nullptr;
+  }
+  return header;
+}
+
+device_config::GpSdkLaunchTopology getLaunchTopology(const gpsdk::launch::RuntimeArgsHeader* header) {
+  device_config::GpSdkLaunchTopology topology = {
+    0U,
+    gpsdk::launch::kAllMinionsMask,
+    gpsdk::launch::kMinionsPerShire,
+    gpsdk::launch::kMinionsPerShire,
+    0U,
+  };
+
+  if (header == nullptr) {
+    return topology;
+  }
+
+  topology.flags = header->flags;
+  topology.activeNeighborhood = header->activeNeighborhood;
+
+  if ((header->flags & gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire) &&
+      gpsdk::launch::isValidNeighborhood(header->activeNeighborhood)) {
+    topology.activeMinionMaskPerShire = gpsdk::launch::minionMaskForNeighborhood(header->activeNeighborhood);
+    topology.activeMinionsPerShire = gpsdk::launch::kMinionsPerNeighborhood;
+  } else {
+    topology.flags = 0U;
+    topology.activeNeighborhood = 0U;
+  }
+
+  topology.activeThreadsPerShire = topology.activeMinionsPerShire * static_cast<uint32_t>(device_config::config.threadsPerCore);
+  return topology;
+}
+
+void* getUserArgsPointer(void* args, const gpsdk::launch::RuntimeArgsHeader* header) {
+  if (header == nullptr) {
+    return args;
+  }
+  if (header->payloadSize == 0U) {
+    return nullptr;
+  }
+  return reinterpret_cast<std::byte*>(args) + sizeof(gpsdk::launch::RuntimeArgsHeader);
+}
+
+bool isActiveKernelHart(uint32_t shireId, uint32_t localMinionId, uint64_t shireMask) {
+  if (((shireMask >> shireId) & 0x1ULL) == 0ULL) {
+    return false;
+  }
+
+  return isActiveMinionInShire(localMinionId);
+}
+
+} // namespace
 
 /* wake up all threads on the shire-Mask group system */
 static inline void wakeUpThreads(uint64_t shire_mask) {
@@ -69,7 +142,7 @@ static inline void wakeUpThreads(uint64_t shire_mask) {
   volatile uint64_t* broadcast_address =
     (volatile uint64_t*)ESR_SHIRE_PROT_ADDR(PRV_U, THIS_SHIRE, ESR_SHIRE_BROADCAST1); // 0x013ff5fff8
 
-  constexpr uint64_t thread_mask = 0xffffffff;
+  const uint64_t thread_mask = getActiveMinionMaskPerShire();
   *broadcast_data = thread_mask;
   // broadcast to threads 0
   *broadcast_address =
@@ -168,6 +241,10 @@ static void callInitArrayFunctions() {
 /// @param env struct containing shire_mask and frequency
 /// @return Returns 0 if the kernel finished execution correctly
 extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
+  const auto* runtimeArgsHeader = getRuntimeArgsHeader(args);
+  device_config::topology_ = getLaunchTopology(runtimeArgsHeader);
+  args = getUserArgsPointer(args, runtimeArgsHeader);
+
   uint32_t hart = get_hart_id();
   uint32_t threadId = hart & 1;
   uint32_t minionId = hart >> 1;
@@ -181,6 +258,10 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
 
   if (device_config::config.threadsPerCore == 1 && threadId == 1) {
     // exit if thread 1 is unused
+    return 0;
+  }
+
+  if (!isActiveKernelHart(shireId, minionId, shireMask)) {
     return 0;
   }
 
@@ -243,8 +324,7 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
 /// @brief Obtains the number of threads assigned to a kernel
 /// @return Returns an integer, possible values range from 0 to N (where N = get_num_threads()-1).
 int get_num_threads() {
-  return __builtin_popcountll(device_config::env_->shire_mask) * SOC_MINIONS_PER_SHIRE *
-         device_config::config.threadsPerCore;
+  return __builtin_popcountll(device_config::env_->shire_mask) * static_cast<int>(getActiveThreadsPerShire());
 }
 
 /// @brief Obtains the mask of shires assigned to the kernel
@@ -263,15 +343,23 @@ int get_relative_thread_id() {
 /// @param shireMask bit-mask of the active shires, must be consecutive
 /// @return Returns an integer ranging from 0 to 1023 if threadsPerCore == 1, from 0 to 2047 if threadsPerCore == 2
 inline int get_relative_thread_id(uint64_t shireMask) {
-  constexpr int NUM_HARTS_PER_MINION = 2;
-  auto hartId = static_cast<int>(get_hart_id());
-  int startingHart = static_cast<int>(__builtin_ctzll(shireMask) * SOC_MINIONS_PER_SHIRE * 2);
+  const auto hartId = static_cast<uint32_t>(get_hart_id());
+  const auto threadId = hartId & 0x1U;
+  const auto minionId = (hartId >> 1) & 0x1FU;
+  const auto shireId = hartId >> 6;
 
-  // return -1 ifs not an active thread
-  if (hartId < startingHart) {
+  if (((shireMask >> shireId) & 0x1ULL) == 0ULL) {
     return -1;
   }
 
-  int threadId = (hartId / (NUM_HARTS_PER_MINION / device_config::config.threadsPerCore)) - startingHart;
-  return threadId;
+  if (!isActiveMinionInShire(minionId)) {
+    return -1;
+  }
+
+  const uint64_t priorShiresMask = (shireId == 0U) ? 0ULL : (shireMask & ((1ULL << shireId) - 1ULL));
+  const int relativeShireId = static_cast<int>(__builtin_popcountll(priorShiresMask));
+  const int relativeMinionInShire = static_cast<int>(minionId) - static_cast<int>(getActiveNeighborhoodBaseMinion());
+  const int relativeMinionId = (relativeShireId * static_cast<int>(getActiveMinionsPerShire())) + relativeMinionInShire;
+
+  return (relativeMinionId * device_config::config.threadsPerCore) + static_cast<int>(threadId);
 }

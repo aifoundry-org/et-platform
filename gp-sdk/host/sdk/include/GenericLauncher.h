@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <vector>
 
+#include "gpsdk_launch_runtime.h"
+
 #if __has_include("filesystem")
 #include <filesystem>
 #elif __has_include("experimental/filesystem")
@@ -225,7 +227,8 @@ public:
     "  '', --enableCoreDump          enable core dump generation on device failures\n"
     "  '', --useRuntimeMultiProcess  Server/Client mode will be use by app running it as a client.\n"
     "  '', --runtimeSocket           Socket filename to be use.\n"
-    "  '', --simulator_params        Hyperparameters to pass to simulator, overrides default values\n";
+    "  '', --simulator_params        Hyperparameters to pass to simulator, overrides default values\n"
+    "  '', --active_neighborhood     Restrict execution to one neighborhood per shire (0-3).\n";
 
 private:
   std::vector<std::byte> readFile(const std::string& path);
@@ -243,6 +246,7 @@ private:
   fs::path gp_sdk_device_installdir_;
   std::string simulator_params_;
   bool useRuntimeMultiProcess_ = false;
+  int activeNeighborhood_ = -1;
   std::string sysemuTraceDumpCookiePath_ =
     std::filesystem::path(std::filesystem::temp_directory_path().string() + "/" + "sysemuTraceDumpCookie." +
                           std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin");

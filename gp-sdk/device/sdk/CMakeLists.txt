@@ -14,6 +14,7 @@ add_library(etsoc_crt0 STATIC
 target_include_directories(etsoc_crt0
     PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include
+        ${CMAKE_CURRENT_LIST_DIR}/../../common/include
 )
 
 target_compile_options(etsoc_crt0 PRIVATE -fno-exceptions -falign-functions=64 -O3 -g3)
@@ -97,7 +98,6 @@ target_link_libraries(libcpp_throw_stub
 add_library(libc_stub STATIC libc_stub/et_errno.cc libc_stub/et_atexit.cc)
 
 add_subdirectory(libautogen)
-
 
 
 

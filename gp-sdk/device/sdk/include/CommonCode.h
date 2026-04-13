@@ -18,6 +18,8 @@
 #include <etsoc/isa/tensors.h>
 #include <system/abi.h>
 
+#include "gpsdk_launch_runtime.h"
+
 static inline uint8_t readByte(uint8_t * addr);
 static inline void writeByte(uint8_t * addr, uint8_t val);
 static inline void evictCacheLine(uint64_t dst, uint8_t * addr);
@@ -196,6 +198,16 @@ void evictCacheLine(uint64_t dst, uint8_t * addr) {
 
 namespace device_config {
 extern const __thread kernel_environment_t * env_;
+
+typedef struct {
+  uint32_t flags;
+  uint32_t activeMinionMaskPerShire;
+  uint32_t activeMinionsPerShire;
+  uint32_t activeThreadsPerShire;
+  uint8_t activeNeighborhood;
+} GpSdkLaunchTopology;
+
+extern GpSdkLaunchTopology topology_;
 }
 
 
@@ -214,6 +226,34 @@ static inline uint32_t getMinionBaseFrequency() {
  */
 static inline uint64_t getKernelShireMask() {
   return device_config::env_->shire_mask;
+}
+
+static inline bool isRestrictedTopologyEnabled() {
+  return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire) != 0U;
+}
+
+static inline uint32_t getActiveMinionMaskPerShire() {
+  return device_config::topology_.activeMinionMaskPerShire;
+}
+
+static inline uint32_t getActiveMinionsPerShire() {
+  return device_config::topology_.activeMinionsPerShire;
+}
+
+static inline uint32_t getActiveThreadsPerShire() {
+  return device_config::topology_.activeThreadsPerShire;
+}
+
+static inline uint32_t getActiveNeighborhood() {
+  return device_config::topology_.activeNeighborhood;
+}
+
+static inline uint32_t getActiveNeighborhoodBaseMinion() {
+  return getActiveNeighborhood() * gpsdk::launch::kMinionsPerNeighborhood;
+}
+
+static inline bool isActiveMinionInShire(uint32_t localMinionId) {
+  return ((getActiveMinionMaskPerShire() >> localMinionId) & 0x1U) != 0U;
 }
 
 int get_num_threads();

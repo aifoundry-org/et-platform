@@ -9,7 +9,7 @@ set(DEVICE_KERNELS_DIR ${PROJECT_SOURCE_DIR}/../device/tests)
 add_library(etsoc_gpsdk STATIC 
     src/lib/GenericLauncher.cpp 
 )
-target_include_directories(etsoc_gpsdk PUBLIC include sdk/include)
+target_include_directories(etsoc_gpsdk PUBLIC include ${CMAKE_CURRENT_LIST_DIR}/../../common/include sdk/include)
 target_link_libraries(etsoc_gpsdk 
     PUBLIC 
         deviceLayer::deviceLayer

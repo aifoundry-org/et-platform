@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <cstring>
 #include <runtime/DeviceLayerFake.h>
 #include <runtime/Types.h>
 #include <sw-sysemu/SysEmuOptions.h>
@@ -15,6 +16,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <tuple>
+#include <vector>
 
 #include "GenericLauncher.h"
 
@@ -402,6 +404,9 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
   rt::KernelLaunchOptions kOpts;
   std::string coreFileName;
   std::filesystem::path cwd;
+  std::vector<std::byte> wrappedParams;
+  const std::byte* launchParams = params;
+  size_t launchParamsSize = size;
 
   if (enableCoreDump_) {
     coreFileName = "core." + std::to_string(getpid()) + ".etsoc." + std::to_string((int)kernelId) + "." +
@@ -420,7 +425,23 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     kOpts.setStackConfig(ptr, stackSize);
   }
 
-  runtime_->kernelLaunch(defaultStreams_[deviceIdx], kernelId, params, size, kOpts);
+  if (activeNeighborhood_ >= 0) {
+    gpsdk::launch::RuntimeArgsHeader header;
+    header.flags = gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire;
+    header.activeNeighborhood = static_cast<uint8_t>(activeNeighborhood_);
+    header.payloadSize = static_cast<uint32_t>(size);
+
+    wrappedParams.resize(sizeof(header) + size);
+    memcpy(wrappedParams.data(), &header, sizeof(header));
+    if (size != 0) {
+      memcpy(wrappedParams.data() + sizeof(header), params, size);
+    }
+
+    launchParams = wrappedParams.data();
+    launchParamsSize = wrappedParams.size();
+  }
+
+  runtime_->kernelLaunch(defaultStreams_[deviceIdx], kernelId, launchParams, launchParamsSize, kOpts);
 }
 
 void GenericLauncher::resetRuntime() {
@@ -444,6 +465,7 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"useRuntimeMultiProcess", no_argument, nullptr, 0},
                                                          {"runtimeSocket", required_argument, nullptr, 0},
                                                          {"simulator_params", required_argument, nullptr, 0},
+                                                         {"active_neighborhood", required_argument, nullptr, 0},
                                                          {nullptr, 0, nullptr, 0}};
 
   int ret = 0;
@@ -483,6 +505,13 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
       useRuntimeMultiProcess_ = true;
     } else if (!strcmp(name, "runtimeSocket")) {
       runtimeSocketName_ = optarg;
+    } else if (!strcmp(name, "active_neighborhood")) {
+      activeNeighborhood_ = std::stoi(optarg, nullptr, 0);
+      if (!gpsdk::launch::isValidNeighborhood(static_cast<uint32_t>(activeNeighborhood_))) {
+        std::cout << "Invalid --active_neighborhood value " << activeNeighborhood_
+                  << ". Expected a value in the range [0, 3]." << std::endl;
+        exit(1);
+      }
     }
   }
 
