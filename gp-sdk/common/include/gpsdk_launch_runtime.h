@@ -21,6 +21,7 @@ constexpr uint32_t kAllMinionsMask = 0xFFFFFFFFU;
 
 enum LaunchFlags : uint32_t {
   kLaunchFlagSingleNeighborhoodPerShire = 1U << 0,
+  kLaunchFlagScratchpadStarCluster = 1U << 1,
 };
 
 struct alignas(64) RuntimeArgsHeader {
@@ -30,7 +31,9 @@ struct alignas(64) RuntimeArgsHeader {
   uint32_t flags = 0U;
   uint32_t payloadSize = 0U;
   uint8_t activeNeighborhood = 0U;
-  uint8_t reserved[43] = {};
+  uint8_t reserved0[3] = {};
+  uint64_t computeShireMask = 0ULL;
+  uint8_t reserved[32] = {};
 };
 
 static_assert(sizeof(RuntimeArgsHeader) == 64U, "RuntimeArgsHeader must occupy exactly one cache line");

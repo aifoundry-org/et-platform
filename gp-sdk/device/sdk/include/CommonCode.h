@@ -201,6 +201,8 @@ extern const __thread kernel_environment_t * env_;
 
 typedef struct {
   uint32_t flags;
+  uint64_t launchedShireMask;
+  uint64_t computeShireMask;
   uint32_t activeMinionMaskPerShire;
   uint32_t activeMinionsPerShire;
   uint32_t activeThreadsPerShire;
@@ -228,8 +230,20 @@ static inline uint64_t getKernelShireMask() {
   return device_config::env_->shire_mask;
 }
 
+static inline uint64_t getLaunchedShireMask() {
+  return device_config::topology_.launchedShireMask;
+}
+
+static inline uint64_t getComputeShireMask() {
+  return device_config::topology_.computeShireMask;
+}
+
 static inline bool isRestrictedTopologyEnabled() {
-  return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire) != 0U;
+  return device_config::topology_.flags != 0U;
+}
+
+static inline bool isScratchpadStarClusterEnabled() {
+  return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagScratchpadStarCluster) != 0U;
 }
 
 static inline uint32_t getActiveMinionMaskPerShire() {

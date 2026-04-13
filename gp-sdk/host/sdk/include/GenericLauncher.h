@@ -228,10 +228,12 @@ public:
     "  '', --useRuntimeMultiProcess  Server/Client mode will be use by app running it as a client.\n"
     "  '', --runtimeSocket           Socket filename to be use.\n"
     "  '', --simulator_params        Hyperparameters to pass to simulator, overrides default values\n"
-    "  '', --active_neighborhood     Restrict execution to one neighborhood per shire (0-3).\n";
+    "  '', --active_neighborhood     Restrict execution to one neighborhood per shire (0-3).\n"
+    "  '', --scratchpad_star         Expand a single center shire into a center+N/S/E/W scratchpad cluster.\n";
 
 private:
   std::vector<std::byte> readFile(const std::string& path);
+  uint64_t getLaunchShireMask(uint64_t requestedShireMask) const;
   void doKernelLaunch(rt::KernelId, std::byte* params, size_t size, std::byte* stackPtr, size_t stackSize,
                       uint64_t shireMask, uint32_t deviceIdx);
   void resetRuntime();
@@ -247,6 +249,7 @@ private:
   std::string simulator_params_;
   bool useRuntimeMultiProcess_ = false;
   int activeNeighborhood_ = -1;
+  bool scratchpadStarCluster_ = false;
   std::string sysemuTraceDumpCookiePath_ =
     std::filesystem::path(std::filesystem::temp_directory_path().string() + "/" + "sysemuTraceDumpCookie." +
                           std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin");

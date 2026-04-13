@@ -71,6 +71,36 @@ std::filesystem::path resolveKernelPath(const std::filesystem::path& kernelPath,
 
   return kernelPath;
 }
+
+constexpr uint32_t kScratchpadStarRows = 4U;
+constexpr uint32_t kScratchpadStarCols = 8U;
+
+uint64_t expandScratchpadStarCluster(uint64_t centerShireMask) {
+  if (__builtin_popcountll(centerShireMask) != 1) {
+    std::cout << "Invalid --scratchpad_star configuration. --shire_mask must select exactly one center shire."
+              << std::endl;
+    exit(1);
+  }
+
+  const auto centerShire = static_cast<uint32_t>(__builtin_ctzll(centerShireMask));
+  if (centerShire >= (kScratchpadStarRows * kScratchpadStarCols)) {
+    std::cout << "Invalid --scratchpad_star center shire " << centerShire
+              << ". Expected a compute shire in the range [0, 31]." << std::endl;
+    exit(1);
+  }
+
+  // Assume the 32 compute shires are numbered row-major on a 4x8 mesh.
+  const auto row = centerShire / kScratchpadStarCols;
+  const auto col = centerShire % kScratchpadStarCols;
+  if ((row == 0U) || (row == (kScratchpadStarRows - 1U)) || (col == 0U) || (col == (kScratchpadStarCols - 1U))) {
+    std::cout << "Invalid --scratchpad_star center shire " << centerShire
+              << ". The center must not be on the edge of the 4x8 compute-shire mesh." << std::endl;
+    exit(1);
+  }
+
+  return centerShireMask | (1ULL << (centerShire - 1U)) | (1ULL << (centerShire + 1U)) |
+         (1ULL << (centerShire - kScratchpadStarCols)) | (1ULL << (centerShire + kScratchpadStarCols));
+}
 } // namespace
 
 emu::SysEmuOptions getDefaultOptions(std::string const& simulator_params) {
@@ -399,12 +429,17 @@ void GenericLauncher::waitKernelCompletion(std::chrono::seconds timeout, uint32_
   return;
 }
 
+uint64_t GenericLauncher::getLaunchShireMask(uint64_t requestedShireMask) const {
+  return scratchpadStarCluster_ ? expandScratchpadStarCluster(requestedShireMask) : requestedShireMask;
+}
+
 void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, size_t size, std::byte* ptr,
                                      size_t stackSize, uint64_t shireMask, uint32_t deviceIdx) {
   rt::KernelLaunchOptions kOpts;
   std::string coreFileName;
   std::filesystem::path cwd;
   std::vector<std::byte> wrappedParams;
+  const auto launchShireMask = getLaunchShireMask(shireMask);
   const std::byte* launchParams = params;
   size_t launchParamsSize = size;
 
@@ -413,7 +448,7 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
                    std::to_string((int)deviceIdx);
     cwd = std::filesystem::current_path() / coreFileName;
   }
-  kOpts.setShireMask(shireMask);
+  kOpts.setShireMask(launchShireMask);
   kOpts.setBarrier(true);
   kOpts.setFlushL3(false);
   kOpts.setCoreDumpFilePath(cwd.string());
@@ -425,10 +460,16 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     kOpts.setStackConfig(ptr, stackSize);
   }
 
-  if (activeNeighborhood_ >= 0) {
+  if ((activeNeighborhood_ >= 0) || scratchpadStarCluster_) {
     gpsdk::launch::RuntimeArgsHeader header;
-    header.flags = gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire;
-    header.activeNeighborhood = static_cast<uint8_t>(activeNeighborhood_);
+    header.computeShireMask = shireMask;
+    if (activeNeighborhood_ >= 0) {
+      header.flags |= gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire;
+      header.activeNeighborhood = static_cast<uint8_t>(activeNeighborhood_);
+    }
+    if (scratchpadStarCluster_) {
+      header.flags |= gpsdk::launch::kLaunchFlagScratchpadStarCluster;
+    }
     header.payloadSize = static_cast<uint32_t>(size);
 
     wrappedParams.resize(sizeof(header) + size);
@@ -466,6 +507,7 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"runtimeSocket", required_argument, nullptr, 0},
                                                          {"simulator_params", required_argument, nullptr, 0},
                                                          {"active_neighborhood", required_argument, nullptr, 0},
+                                                         {"scratchpad_star", no_argument, nullptr, 0},
                                                          {nullptr, 0, nullptr, 0}};
 
   int ret = 0;
@@ -512,6 +554,8 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                   << ". Expected a value in the range [0, 3]." << std::endl;
         exit(1);
       }
+    } else if (!strcmp(name, "scratchpad_star")) {
+      scratchpadStarCluster_ = true;
     }
   }
 
@@ -536,7 +580,8 @@ bool GenericLauncher::checkKernelExecutionErrors() {
 
 std::tuple<std::byte*, size_t> GenericLauncher::allocDeviceStack(size_t threadStackSize, uint64_t shireMask) {
   constexpr size_t kNumThreadsPerShire = 64;
-  size_t totalStackSize = __builtin_popcount(shireMask) * kNumThreadsPerShire * threadStackSize;
+  const auto launchShireMask = getLaunchShireMask(shireMask);
+  size_t totalStackSize = __builtin_popcountll(launchShireMask) * kNumThreadsPerShire * threadStackSize;
   std::byte* ptrStack = runtime_->mallocDevice(devices_[devIdx_], totalStackSize, 4096);
   return make_tuple(ptrStack, totalStackSize);
 }

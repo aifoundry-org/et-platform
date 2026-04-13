@@ -50,11 +50,14 @@ namespace device_config {
 extern DeviceConfig config;
 /* Global pointer to environment struct allocated by the host */
 const __thread kernel_environment_t* env_ = nullptr;
+__thread kernel_environment_t visible_env_ = {{0, 0, 0, 0}, 0xFFFFFFFF, 600};
 GpSdkLaunchTopology topology_ = {
   0U,
+  0xFFFFFFFFULL,
+  0xFFFFFFFFULL,
   gpsdk::launch::kAllMinionsMask,
   gpsdk::launch::kMinionsPerShire,
-  gpsdk::launch::kMinionsPerShire,
+  0U,
   0U,
 };
 const kernel_environment_t fallback_env = {{0, 0, 0, 0}, 0xFFFFFFFF, 600};
@@ -84,32 +87,46 @@ const gpsdk::launch::RuntimeArgsHeader* getRuntimeArgsHeader(const void* args) {
   return header;
 }
 
-device_config::GpSdkLaunchTopology getLaunchTopology(const gpsdk::launch::RuntimeArgsHeader* header) {
+device_config::GpSdkLaunchTopology getLaunchTopology(const gpsdk::launch::RuntimeArgsHeader* header,
+                                                     const kernel_environment_t* env) {
+  const uint64_t launchedShireMask = (env != nullptr) ? env->shire_mask : 0xFFFFFFFFULL;
   device_config::GpSdkLaunchTopology topology = {
     0U,
+    launchedShireMask,
+    launchedShireMask,
     gpsdk::launch::kAllMinionsMask,
     gpsdk::launch::kMinionsPerShire,
-    gpsdk::launch::kMinionsPerShire,
+    0U,
     0U,
   };
 
   if (header == nullptr) {
+    topology.activeThreadsPerShire =
+      topology.activeMinionsPerShire * static_cast<uint32_t>(device_config::config.threadsPerCore);
     return topology;
   }
 
   topology.flags = header->flags;
   topology.activeNeighborhood = header->activeNeighborhood;
 
+  if ((header->computeShireMask == 0ULL) || ((header->computeShireMask & ~launchedShireMask) != 0ULL)) {
+    topology.flags = 0U;
+    topology.activeNeighborhood = 0U;
+  } else {
+    topology.computeShireMask = header->computeShireMask;
+  }
+
   if ((header->flags & gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire) &&
       gpsdk::launch::isValidNeighborhood(header->activeNeighborhood)) {
     topology.activeMinionMaskPerShire = gpsdk::launch::minionMaskForNeighborhood(header->activeNeighborhood);
     topology.activeMinionsPerShire = gpsdk::launch::kMinionsPerNeighborhood;
-  } else {
-    topology.flags = 0U;
+  } else if ((header->flags & gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire) != 0U) {
+    topology.flags &= ~gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire;
     topology.activeNeighborhood = 0U;
   }
 
-  topology.activeThreadsPerShire = topology.activeMinionsPerShire * static_cast<uint32_t>(device_config::config.threadsPerCore);
+  topology.activeThreadsPerShire =
+    topology.activeMinionsPerShire * static_cast<uint32_t>(device_config::config.threadsPerCore);
   return topology;
 }
 
@@ -202,6 +219,11 @@ static bool hasInitArrays() {
 /// Initialize per hart  Thread Local Storage.
 /// note: each hart in the system should call this function.
 static void initializeTLS(kernel_environment_t * env) {
+  // Expose compute-visible topology through the GP-SDK environment while retaining the full launched mask
+  // separately in device_config::topology_.
+  device_config::visible_env_ = env ? *env : device_config::fallback_env;
+  device_config::visible_env_.shire_mask = getComputeShireMask();
+  device_config::env_ = &device_config::visible_env_;
 
   auto tlsSize = (&__tbss_end - &__tdata_start) * sizeof(__tbss_end);
   if (tlsSize == 0) {
@@ -216,10 +238,6 @@ static void initializeTLS(kernel_environment_t * env) {
 
   // initialize tp with the tls Base address for this hart
   asm volatile("mv tp, %[tlsHartBase] \n" : : [ tlsHartBase ] "r"(tlsHartBase));
-
-  // at this point, tls storage is ready to use on this hart. let's setup the env ptr so 
-  // it can be easily acessed. a fallback env is supported for backwads compatibility.
-  device_config::env_ = env ? env : &device_config::fallback_env;
 
 }
 
@@ -242,7 +260,7 @@ static void callInitArrayFunctions() {
 /// @return Returns 0 if the kernel finished execution correctly
 extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
   const auto* runtimeArgsHeader = getRuntimeArgsHeader(args);
-  device_config::topology_ = getLaunchTopology(runtimeArgsHeader);
+  device_config::topology_ = getLaunchTopology(runtimeArgsHeader, env);
   args = getUserArgsPointer(args, runtimeArgsHeader);
 
   uint32_t hart = get_hart_id();
@@ -250,7 +268,7 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
   uint32_t minionId = hart >> 1;
   uint32_t shireId = minionId >> 5;
   minionId = minionId & 0x1F;
-  uint64_t shireMask = (env != nullptr) ? env->shire_mask : 0xFFFFFFFF;
+  const uint64_t computeShireMask = getComputeShireMask();
 
    
   if (shireId >= 33)
@@ -261,7 +279,7 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
     return 0;
   }
 
-  if (!isActiveKernelHart(shireId, minionId, shireMask)) {
+  if (!isActiveKernelHart(shireId, minionId, computeShireMask)) {
     return 0;
   }
 
@@ -283,7 +301,7 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
   }
 
   // global data: initialize and forwared to user-code.
-  if (get_relative_thread_id(shireMask) == 0) {
+  if (get_relative_thread_id(computeShireMask) == 0) {
     // Reset .bss and .data sections on each kernel launch
     resetBSS();
     resetData();
@@ -297,7 +315,7 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
 
     // call init array (dynamic initializatoin) functions from thrad 0
     callInitArrayFunctions();
-    wakeUpThreads(shireMask);
+    wakeUpThreads(computeShireMask);
   }
 
   // Wait initialization to complete and forward to user-code.
@@ -324,19 +342,19 @@ extern "C" int deviceGpSdkEntry(void* args, kernel_environment_t* env) {
 /// @brief Obtains the number of threads assigned to a kernel
 /// @return Returns an integer, possible values range from 0 to N (where N = get_num_threads()-1).
 int get_num_threads() {
-  return __builtin_popcountll(device_config::env_->shire_mask) * static_cast<int>(getActiveThreadsPerShire());
+  return __builtin_popcountll(getComputeShireMask()) * static_cast<int>(getActiveThreadsPerShire());
 }
 
 /// @brief Obtains the mask of shires assigned to the kernel
 /// @return Returns a bitmask, the i-th bit represent the physical i minion shire of the device.
 uint64_t get_shire_mask() {
-  return device_config::env_->shire_mask;
+  return getComputeShireMask();
 }
 
 /// @brief Obtains the relative thread id assigned to the hart
 /// @return Returns an integer ranging from 32 to 1024 if threadsPerCore == 1, from 64 to 2048 if threadsPerCore == 2
 int get_relative_thread_id() {
-  return get_relative_thread_id(device_config::env_->shire_mask);
+  return get_relative_thread_id(getComputeShireMask());
 }
 
 /// @brief Obtains the relative thread id assigned to the hart based on the provided shireMask
