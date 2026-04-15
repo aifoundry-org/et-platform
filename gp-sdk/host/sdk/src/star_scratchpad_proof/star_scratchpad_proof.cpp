@@ -25,7 +25,7 @@ struct Options {
 Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
   static constexpr const char* help_msg =
     "Usage: [options]\n\n"
-    "Launch the star scratchpad probe kernel and verify neighboring shire scratchpad contents.\n\n"
+    "Launch a scratchpad-cluster validation kernel and verify the center success marker.\n\n"
     "Required:\n"
     "  -k, --kernel_path             path to kernel elf file to execute.\n\n"
     "Optional:\n"
@@ -92,7 +92,7 @@ inline uint32_t getCenterShire(uint32_t shireMask) {
 }
 
 inline void computeStarNeighbors(uint32_t centerShire, uint32_t* neighbors) {
-  for (uint32_t idx = 0; idx < gpsdk::star_scratchpad::kNeighborCount; ++idx) {
+  for (uint32_t idx = 0; idx < gpsdk::star_scratchpad::kStarNeighborCount; ++idx) {
     neighbors[idx] = gpsdk::star_scratchpad::neighborShire(centerShire, idx);
   }
 }
@@ -152,9 +152,9 @@ int main(int argc, char** argv) {
             << markerValue << std::dec << "\n";
 
   if (opt.read_neighbor_probes) {
-    uint32_t neighbors[gpsdk::star_scratchpad::kNeighborCount];
+    uint32_t neighbors[gpsdk::star_scratchpad::kStarNeighborCount];
     computeStarNeighbors(centerShire, neighbors);
-    for (uint32_t idx = 0; idx < gpsdk::star_scratchpad::kNeighborCount; ++idx) {
+    for (uint32_t idx = 0; idx < gpsdk::star_scratchpad::kStarNeighborCount; ++idx) {
       const auto address = gpsdk::star_scratchpad::probeAddress(neighbors[idx], idx);
       const auto value = launcher.readU64(address);
       const auto expected = makeProbeValue(centerShire, neighbors[idx], 0U);

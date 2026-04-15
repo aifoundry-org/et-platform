@@ -229,7 +229,8 @@ public:
     "  '', --runtimeSocket           Socket filename to be use.\n"
     "  '', --simulator_params        Hyperparameters to pass to simulator, overrides default values\n"
     "  '', --active_neighborhood     Restrict execution to one neighborhood per shire (0-3).\n"
-    "  '', --scratchpad_star         Expand a single center shire into a center+N/S/E/W scratchpad cluster.\n";
+    "  '', --scratchpad_star         Expand a center shire into a 5-shire N/S/E/W scratchpad cluster (8 MiB pool).\n"
+    "  '', --scratchpad_block        Expand a center shire into a 9-shire surround scratchpad block (16 MiB pool).\n";
 
 private:
   std::vector<std::byte> readFile(const std::string& path);
@@ -250,6 +251,7 @@ private:
   bool useRuntimeMultiProcess_ = false;
   int activeNeighborhood_ = -1;
   bool scratchpadStarCluster_ = false;
+  bool scratchpadBlockCluster_ = false;
   std::string sysemuTraceDumpCookiePath_ =
     std::filesystem::path(std::filesystem::temp_directory_path().string() + "/" + "sysemuTraceDumpCookie." +
                           std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin");

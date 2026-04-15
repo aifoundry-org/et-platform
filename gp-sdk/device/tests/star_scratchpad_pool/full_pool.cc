@@ -32,7 +32,12 @@ int entryPoint([[maybe_unused]] KernelArguments* args) {
   }
 
   et_assert(gpsdk::device::star_scratchpad::isAvailable());
-  et_assert(gpsdk::device::star_scratchpad::capacity() == (8ULL << 20));
+  if (isScratchpadBlockClusterEnabled()) {
+    et_assert(gpsdk::device::star_scratchpad::capacity() == (16ULL << 20));
+  } else {
+    et_assert(isScratchpadStarClusterEnabled());
+    et_assert(gpsdk::device::star_scratchpad::capacity() == (8ULL << 20));
+  }
 
   const auto centerShire = gpsdk::device::star_scratchpad::getCenterShireId();
 

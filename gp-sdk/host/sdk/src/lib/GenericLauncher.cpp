@@ -119,16 +119,16 @@ std::filesystem::path resolveKernelPath(const std::filesystem::path& kernelPath,
 constexpr uint32_t kScratchpadStarRows = 4U;
 constexpr uint32_t kScratchpadStarCols = 8U;
 
-uint64_t expandScratchpadStarCluster(uint64_t centerShireMask) {
+uint32_t getScratchpadCenterShire(uint64_t centerShireMask, const char* optionName) {
   if (__builtin_popcountll(centerShireMask) != 1) {
-    std::cout << "Invalid --scratchpad_star configuration. --shire_mask must select exactly one center shire."
+    std::cout << "Invalid " << optionName << " configuration. --shire_mask must select exactly one center shire."
               << std::endl;
     exit(1);
   }
 
   const auto centerShire = static_cast<uint32_t>(__builtin_ctzll(centerShireMask));
   if (centerShire >= (kScratchpadStarRows * kScratchpadStarCols)) {
-    std::cout << "Invalid --scratchpad_star center shire " << centerShire
+    std::cout << "Invalid " << optionName << " center shire " << centerShire
               << ". Expected a compute shire in the range [0, 31]." << std::endl;
     exit(1);
   }
@@ -137,13 +137,29 @@ uint64_t expandScratchpadStarCluster(uint64_t centerShireMask) {
   const auto row = centerShire / kScratchpadStarCols;
   const auto col = centerShire % kScratchpadStarCols;
   if ((row == 0U) || (row == (kScratchpadStarRows - 1U)) || (col == 0U) || (col == (kScratchpadStarCols - 1U))) {
-    std::cout << "Invalid --scratchpad_star center shire " << centerShire
+    std::cout << "Invalid " << optionName << " center shire " << centerShire
               << ". The center must not be on the edge of the 4x8 compute-shire mesh." << std::endl;
     exit(1);
   }
 
+  return centerShire;
+}
+
+uint64_t expandScratchpadStarCluster(uint64_t centerShireMask) {
+  const auto centerShire = getScratchpadCenterShire(centerShireMask, "--scratchpad_star");
+
   return centerShireMask | (1ULL << (centerShire - 1U)) | (1ULL << (centerShire + 1U)) |
          (1ULL << (centerShire - kScratchpadStarCols)) | (1ULL << (centerShire + kScratchpadStarCols));
+}
+
+uint64_t expandScratchpadBlockCluster(uint64_t centerShireMask) {
+  const auto centerShire = getScratchpadCenterShire(centerShireMask, "--scratchpad_block");
+
+  return centerShireMask | (1ULL << (centerShire - kScratchpadStarCols - 1U)) |
+         (1ULL << (centerShire - kScratchpadStarCols)) | (1ULL << (centerShire - kScratchpadStarCols + 1U)) |
+         (1ULL << (centerShire - 1U)) | (1ULL << (centerShire + 1U)) |
+         (1ULL << (centerShire + kScratchpadStarCols - 1U)) | (1ULL << (centerShire + kScratchpadStarCols)) |
+         (1ULL << (centerShire + kScratchpadStarCols + 1U));
 }
 } // namespace
 
@@ -501,6 +517,9 @@ void GenericLauncher::waitKernelCompletion(std::chrono::seconds timeout, uint32_
 }
 
 uint64_t GenericLauncher::getLaunchShireMask(uint64_t requestedShireMask) const {
+  if (scratchpadBlockCluster_) {
+    return expandScratchpadBlockCluster(requestedShireMask);
+  }
   return scratchpadStarCluster_ ? expandScratchpadStarCluster(requestedShireMask) : requestedShireMask;
 }
 
@@ -531,7 +550,7 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     kOpts.setStackConfig(ptr, stackSize);
   }
 
-  if ((activeNeighborhood_ >= 0) || scratchpadStarCluster_) {
+  if ((activeNeighborhood_ >= 0) || scratchpadStarCluster_ || scratchpadBlockCluster_) {
     gpsdk::launch::RuntimeArgsHeader header;
     header.computeShireMask = shireMask;
     if (activeNeighborhood_ >= 0) {
@@ -540,6 +559,9 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     }
     if (scratchpadStarCluster_) {
       header.flags |= gpsdk::launch::kLaunchFlagScratchpadStarCluster;
+    }
+    if (scratchpadBlockCluster_) {
+      header.flags |= gpsdk::launch::kLaunchFlagScratchpadBlockCluster;
     }
     header.payloadSize = static_cast<uint32_t>(size);
 
@@ -579,6 +601,7 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"simulator_params", required_argument, nullptr, 0},
                                                          {"active_neighborhood", required_argument, nullptr, 0},
                                                          {"scratchpad_star", no_argument, nullptr, 0},
+                                                         {"scratchpad_block", no_argument, nullptr, 0},
                                                          {nullptr, 0, nullptr, 0}};
 
   int ret = 0;
@@ -627,7 +650,14 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
       }
     } else if (!strcmp(name, "scratchpad_star")) {
       scratchpadStarCluster_ = true;
+    } else if (!strcmp(name, "scratchpad_block")) {
+      scratchpadBlockCluster_ = true;
     }
+  }
+
+  if (scratchpadStarCluster_ && scratchpadBlockCluster_) {
+    std::cout << "--scratchpad_star and --scratchpad_block are mutually exclusive." << std::endl;
+    exit(1);
   }
 
   /* It needs to do again because on invoke sysemu if is the case, It calls getopts again */

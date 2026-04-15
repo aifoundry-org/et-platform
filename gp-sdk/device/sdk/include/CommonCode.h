@@ -246,6 +246,10 @@ static inline bool isScratchpadStarClusterEnabled() {
   return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagScratchpadStarCluster) != 0U;
 }
 
+static inline bool isScratchpadBlockClusterEnabled() {
+  return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagScratchpadBlockCluster) != 0U;
+}
+
 static inline uint32_t getActiveMinionMaskPerShire() {
   return device_config::topology_.activeMinionMaskPerShire;
 }
