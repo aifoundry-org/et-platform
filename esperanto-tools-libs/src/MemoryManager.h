@@ -20,6 +20,7 @@ public:
   explicit MemoryManager(uint64_t dramBaseAddr, size_t totalMemoryBytes, uint32_t blockSize = kBlockSize);
 
   std::byte* malloc(size_t size, uint32_t alignment);
+  std::byte* reserve(std::byte* ptr, size_t size);
   void free(std::byte* ptr);
 
   uint32_t getBlockSize() const;

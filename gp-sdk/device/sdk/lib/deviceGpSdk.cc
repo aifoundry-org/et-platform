@@ -219,12 +219,6 @@ static bool hasInitArrays() {
 /// Initialize per hart  Thread Local Storage.
 /// note: each hart in the system should call this function.
 static void initializeTLS(kernel_environment_t * env) {
-  // Expose compute-visible topology through the GP-SDK environment while retaining the full launched mask
-  // separately in device_config::topology_.
-  device_config::visible_env_ = env ? *env : device_config::fallback_env;
-  device_config::visible_env_.shire_mask = getComputeShireMask();
-  device_config::env_ = &device_config::visible_env_;
-
   auto tlsSize = (&__tbss_end - &__tdata_start) * sizeof(__tbss_end);
   if (tlsSize == 0) {
     return;
@@ -238,6 +232,12 @@ static void initializeTLS(kernel_environment_t * env) {
 
   // initialize tp with the tls Base address for this hart
   asm volatile("mv tp, %[tlsHartBase] \n" : : [ tlsHartBase ] "r"(tlsHartBase));
+
+  // Expose compute-visible topology through the GP-SDK environment while retaining the full launched mask
+  // separately in device_config::topology_. TLS-backed state must only be touched after tp is valid.
+  device_config::visible_env_ = env ? *env : device_config::fallback_env;
+  device_config::visible_env_.shire_mask = getComputeShireMask();
+  device_config::env_ = &device_config::visible_env_;
 
 }
 

@@ -130,7 +130,13 @@ target_link_libraries(stack_launcher
         etsoc_gpsdk
 )
 
-install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher
+add_executable(star_scratchpad_proof src/star_scratchpad_proof/star_scratchpad_proof.cpp)
+target_link_libraries(star_scratchpad_proof
+    PRIVATE
+        etsoc_gpsdk
+)
+
+install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher star_scratchpad_proof
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}

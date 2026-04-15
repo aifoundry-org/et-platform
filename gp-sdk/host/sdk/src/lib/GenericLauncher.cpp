@@ -13,8 +13,10 @@
 #include <runtime/Types.h>
 #include <sw-sysemu/SysEmuOptions.h>
 
+#include <chrono>
 #include <getopt.h>
 #include <stdio.h>
+#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -45,6 +47,48 @@ bool kernelTracesEnabled() {
     }
   }
   return true;
+}
+
+bool debugLoadPhasesEnabled() {
+  if (const char* value = std::getenv("GPSDK_DEBUG_LOAD_PHASES")) {
+    switch (value[0]) {
+    case '0':
+    case 'n':
+    case 'N':
+    case 'f':
+    case 'F':
+      return false;
+    default:
+      return true;
+    }
+  }
+  return false;
+}
+
+bool skipLoadWaitEnabled() {
+  if (const char* value = std::getenv("GPSDK_SKIP_LOAD_WAIT")) {
+    switch (value[0]) {
+    case '0':
+    case 'n':
+    case 'N':
+    case 'f':
+    case 'F':
+      return false;
+    default:
+      return true;
+    }
+  }
+  return false;
+}
+
+std::chrono::milliseconds getLoadQuiesceDelay() {
+  if (const char* value = std::getenv("GPSDK_LOAD_QUIESCE_MS")) {
+    try {
+      return std::chrono::milliseconds(std::max(0, std::stoi(value)));
+    } catch (...) {
+    }
+  }
+  return std::chrono::milliseconds(1000);
 }
 
 void setIfExists(std::string& dst, const std::filesystem::path& path) {
@@ -351,15 +395,42 @@ void GenericLauncher::tearDown() {
 }
 
 rt::KernelId GenericLauncher::loadKernel(const std::string& kernelName, uint32_t deviceIdx) {
+  const bool debugLoadPhases = debugLoadPhasesEnabled();
+  const bool skipLoadWait = skipLoadWaitEnabled();
   const auto resolvedKernelPath = resolveKernelPath(kernelName, config_.mode_);
+  if (debugLoadPhases) {
+    std::cout << "loadKernel() resolved kernel path " << resolvedKernelPath << "\n";
+  }
   auto kernelContent = readFile(resolvedKernelPath.string());
   if (kernelContent.empty()) {
     exit(-1);
   }
   assert(devices_.size() > deviceIdx);
   auto st = defaultStreams_[deviceIdx];
+  std::optional<rt::StreamId> tempLoadStream;
+  if (skipLoadWait) {
+    tempLoadStream = runtime_->createStream(devices_[deviceIdx]);
+    st = *tempLoadStream;
+  }
+  if (debugLoadPhases) {
+    std::cout << "loadKernel() invoking runtime_->loadCode on stream " << int(st) << "\n";
+  }
   auto res = runtime_->loadCode(st, kernelContent.data(), kernelContent.size());
-  runtime_->waitForEvent(res.event_);
+  if (debugLoadPhases) {
+    std::cout << "loadKernel() loadCode returned kernel " << int(res.kernel_) << " event " << int(res.event_)
+              << " addr " << std::hex << res.loadAddress_ << std::dec << "\n";
+  }
+  if (skipLoadWait) {
+    const auto delay = getLoadQuiesceDelay();
+    std::cout << "loadKernel() skipping load wait for event " << int(res.event_) << ", quiescing for "
+              << delay.count() << " ms\n";
+    std::this_thread::sleep_for(delay);
+  } else {
+    runtime_->waitForEvent(res.event_);
+  }
+  if (tempLoadStream.has_value()) {
+    runtime_->destroyStream(*tempLoadStream);
+  }
   std::cout << __func__ << "() kernel " << int(res.kernel_) << " loaded at " << std::hex << res.loadAddress_ << "\n";
 
   return res.kernel_;
