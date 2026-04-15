@@ -1014,6 +1014,9 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     if (scratchpadNestedStarCluster_) {
       header.flags |= gpsdk::launch::kLaunchFlagScratchpadNestedStarCluster;
     }
+    if (erbiumSim_) {
+      header.flags |= gpsdk::launch::kLaunchFlagErbiumSim;
+    }
     if (usesScratchpadCluster) {
       const auto layout =
         getScratchpadClusterLayout(scratchpadStarCluster_, scratchpadBlockCluster_, scratchpadNestedStarCluster_);
@@ -1063,6 +1066,7 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"active_neighborhood", required_argument, nullptr, 0},
                                                          {"scratchpad_star", no_argument, nullptr, 0},
                                                          {"scratchpad_block", no_argument, nullptr, 0},
+                                                         {"erbium_sim", no_argument, nullptr, 0},
                                                          {"topology_probe_kernel", required_argument, nullptr, 0},
                                                          {"topology_cache", required_argument, nullptr, 0},
                                                          {"rebuild_topology_cache", no_argument, nullptr, 0},
@@ -1117,6 +1121,8 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
       scratchpadStarCluster_ = true;
     } else if (!strcmp(name, "scratchpad_block")) {
       scratchpadBlockCluster_ = true;
+    } else if (!strcmp(name, "erbium_sim")) {
+      erbiumSim_ = true;
     } else if (!strcmp(name, "topology_probe_kernel")) {
       topologyProbeKernelPath_ = optarg;
     } else if (!strcmp(name, "topology_cache")) {
@@ -1133,6 +1139,12 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
     static_cast<uint32_t>(scratchpadNestedStarCluster_);
   if (scratchpadClusterModes > 1U) {
     std::cout << "--scratchpad_star, --scratchpad_block, and --scratchpad_nested_star are mutually exclusive."
+              << std::endl;
+    exit(1);
+  }
+
+  if (erbiumSim_ && (scratchpadClusterModes == 0U)) {
+    std::cout << "--erbium_sim requires one of --scratchpad_star, --scratchpad_block, or --scratchpad_nested_star."
               << std::endl;
     exit(1);
   }

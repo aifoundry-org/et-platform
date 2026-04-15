@@ -12,6 +12,7 @@
 */
 
 // Global
+#include <cstddef>
 #include <inttypes.h>
 #include <etsoc/common/utils.h>
 #include <etsoc/isa/cacheops-umode.h>
@@ -23,6 +24,9 @@
 static inline uint8_t readByte(uint8_t * addr);
 static inline void writeByte(uint8_t * addr, uint8_t val);
 static inline void evictCacheLine(uint64_t dst, uint8_t * addr);
+static inline bool isFormat0ScratchpadAddress(uint64_t addr);
+static inline bool isAccessibleErbiumSimScratchpadAddress(uint64_t addr, size_t sizeBytes);
+static inline void assertErbiumSimScratchpadAddress(const void* ptr, size_t sizeBytes);
 
 /**
  * Copies \p num_bytes bytes from the object pointed to by \p src to the object pointed to by \p dst. Both object
@@ -34,6 +38,8 @@ static inline void evictCacheLine(uint64_t dst, uint8_t * addr);
  * number of bytes to copy
  */
 static inline int global_memcpy(void * dst, const void * src, size_t num_bytes) {
+  assertErbiumSimScratchpadAddress(dst, num_bytes);
+  assertErbiumSimScratchpadAddress(src, num_bytes);
   
   constexpr size_t stride = 32; // vector width is 32 bytes
   /* cast to 1-byte ptr type, needed for pointer arithmetic */
@@ -124,6 +130,8 @@ static inline int local_memcpy(void * dst, const void * src, size_t num_bytes) {
  * \param num_bytes number of bytes to write
  */
 static inline int global_memset(void * ptr, const int value, size_t num_bytes) {
+  (void)value;
+  assertErbiumSimScratchpadAddress(ptr, num_bytes);
   /* vector width is 32 bytes (256-bit) */
   constexpr int64_t stride = 32;
 
@@ -259,6 +267,10 @@ static inline bool isScratchpadNestedStarClusterEnabled() {
   return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagScratchpadNestedStarCluster) != 0U;
 }
 
+static inline bool isErbiumSimEnabled() {
+  return (device_config::topology_.flags & gpsdk::launch::kLaunchFlagErbiumSim) != 0U;
+}
+
 static inline uint32_t getActiveMinionMaskPerShire() {
   return device_config::topology_.activeMinionMaskPerShire;
 }
@@ -295,6 +307,64 @@ static inline uint32_t getScratchpadRelayShire(uint32_t index) {
 static inline uint32_t getScratchpadAuxiliaryShire(uint32_t index) {
   et_assert(index < getScratchpadAuxiliaryCount());
   return device_config::topology_.scratchpadAuxiliaryShires[index];
+}
+
+static inline bool isScratchpadClusterShire(uint32_t shireId) {
+  if (shireId == getEffectiveCenterShire()) {
+    return true;
+  }
+
+  for (uint32_t idx = 0U; idx < getScratchpadRelayCount(); ++idx) {
+    if (getScratchpadRelayShire(idx) == shireId) {
+      return true;
+    }
+  }
+
+  for (uint32_t idx = 0U; idx < getScratchpadAuxiliaryCount(); ++idx) {
+    if (getScratchpadAuxiliaryShire(idx) == shireId) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static inline uint32_t getFormat0ScratchpadShireId(uint64_t addr) {
+  return static_cast<uint32_t>((addr - 0x80000000ULL) >> 23);
+}
+
+static inline uint64_t getFormat0ScratchpadOffset(uint64_t addr) {
+  return (addr - 0x80000000ULL) & ((1ULL << 23) - 1ULL);
+}
+
+static inline bool isFormat0ScratchpadAddress(uint64_t addr) {
+  if (addr < 0x80000000ULL) {
+    return false;
+  }
+
+  return getFormat0ScratchpadOffset(addr) < 0x280000ULL;
+}
+
+static inline bool isAccessibleErbiumSimScratchpadAddress(uint64_t addr, size_t sizeBytes) {
+  if (!isFormat0ScratchpadAddress(addr) || (sizeBytes == 0U)) {
+    return true;
+  }
+
+  const auto shireId = getFormat0ScratchpadShireId(addr);
+  const auto offset = getFormat0ScratchpadOffset(addr);
+  if (static_cast<uint64_t>(sizeBytes) > (0x280000ULL - offset)) {
+    return false;
+  }
+
+  return isScratchpadClusterShire(shireId);
+}
+
+static inline void assertErbiumSimScratchpadAddress(const void* ptr, size_t sizeBytes) {
+  if (!isErbiumSimEnabled() || (ptr == nullptr) || (sizeBytes == 0U)) {
+    return;
+  }
+
+  et_assert(isAccessibleErbiumSimScratchpadAddress(reinterpret_cast<uint64_t>(ptr), sizeBytes));
 }
 
 static inline uint32_t getActiveNeighborhoodBaseMinion() {

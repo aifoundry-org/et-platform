@@ -8,6 +8,7 @@ If this works, you have:
 - GP-SDK host code built
 - GP-SDK device code built
 - the per-device nested-scratchpad topology inferred
+- GP-SDK format-0 scratchpad accesses fenced to the selected cluster
 - a real kernel running on silicon and using the inferred `16 MiB` nested scratchpad pool
 
 ## What You Are Running
@@ -115,6 +116,7 @@ env \
     -t 120 \
     --shire_mask=0x200 \
     --active_neighborhood=0 \
+    --erbium_sim \
     --topology_probe_kernel=/home/lea/Developement/etsoc/et-platform/build/device-prefix/src/device-build/tests/shire_latency_probe.elf_dbg
 ```
 
@@ -162,6 +164,7 @@ env \
     -t 120 \
     --shire_mask=0x200 \
     --active_neighborhood=0 \
+    --erbium_sim \
     --topology_probe_kernel=/home/lea/Developement/etsoc/et-platform/build/device-prefix/src/device-build/tests/shire_latency_probe.elf_dbg \
     --rebuild_topology_cache
 ```

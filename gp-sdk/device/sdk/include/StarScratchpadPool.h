@@ -50,8 +50,10 @@ inline uint64_t address(uint64_t logicalOffset, uint64_t sizeBytes = 1U) {
   et_assert(gpsdk::star_scratchpad::isValidPoolRange(logicalOffset, sizeBytes, getLayout()));
   const auto shardIndex = gpsdk::star_scratchpad::poolShardIndex(logicalOffset);
   et_assert(shardIndex < getScratchpadAuxiliaryCount());
-  return gpsdk::star_scratchpad::format0Address(getScratchpadAuxiliaryShire(shardIndex),
-                                                gpsdk::star_scratchpad::poolShardOffset(logicalOffset));
+  const auto addr = gpsdk::star_scratchpad::format0Address(getScratchpadAuxiliaryShire(shardIndex),
+                                                           gpsdk::star_scratchpad::poolShardOffset(logicalOffset));
+  assertErbiumSimScratchpadAddress(reinterpret_cast<const void*>(addr), sizeBytes);
+  return addr;
 }
 
 template <typename T = std::byte>
@@ -60,8 +62,9 @@ inline volatile T* ptr(uint64_t logicalOffset = 0U) {
 }
 
 inline volatile uint64_t* successMarkerPtr() {
-  return reinterpret_cast<volatile uint64_t*>(
-    gpsdk::star_scratchpad::successMarkerAddress(getCenterShireId()));
+  const auto addr = gpsdk::star_scratchpad::successMarkerAddress(getCenterShireId());
+  assertErbiumSimScratchpadAddress(reinterpret_cast<const void*>(addr), sizeof(uint64_t));
+  return reinterpret_cast<volatile uint64_t*>(addr);
 }
 
 } // namespace gpsdk::device::star_scratchpad
