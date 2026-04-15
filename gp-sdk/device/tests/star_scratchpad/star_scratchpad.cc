@@ -9,7 +9,9 @@
 #include <etsoc/isa/hart.h>
 
 #include "CommonCode.h"
+#include "StarScratchpadPool.h"
 #include "entryPoint.h"
+#include "gpsdk_star_scratchpad.h"
 #include "sync.h"
 
 class KernelArguments;
@@ -18,14 +20,7 @@ DECLARE_KERNEL_ENTRY_POINTS(entryPoint, nullptr);
 
 namespace {
 
-constexpr uint32_t kStarCols = 8U;
 constexpr uint32_t kStarNeighborCount = 4U;
-constexpr uint64_t kScpRegionBaseAddress = 0x80000000ULL;
-constexpr uint64_t kScpShireSize = 0x280000ULL;
-constexpr uint64_t kProbeBaseOffset = kScpShireSize - 0x4000ULL;
-constexpr uint64_t kProbeNeighborStride = 0x400ULL;
-constexpr uint64_t kSuccessMarkerOffset = kProbeBaseOffset + 0x2000ULL;
-constexpr uint64_t kSuccessMarker = 0x5354415250524F42ULL;
 
 inline uint64_t makeProbeValue(uint32_t centerShire, uint32_t neighborShire, uint32_t relativeThreadId) {
   return (0x5A5A000000000000ULL | (static_cast<uint64_t>(centerShire) << 24) |
@@ -33,22 +28,13 @@ inline uint64_t makeProbeValue(uint32_t centerShire, uint32_t neighborShire, uin
 }
 
 inline void computeStarNeighbors(uint32_t centerShire, uint32_t* neighbors) {
-  neighbors[0] = centerShire - kStarCols;
-  neighbors[1] = centerShire + 1U;
-  neighbors[2] = centerShire + kStarCols;
-  neighbors[3] = centerShire - 1U;
+  for (uint32_t idx = 0; idx < kStarNeighborCount; ++idx) {
+    neighbors[idx] = gpsdk::star_scratchpad::neighborShire(centerShire, idx);
+  }
 }
 
 inline volatile uint64_t* getProbeAddress(uint32_t shireId, uint32_t neighborIdx) {
-  const auto offset = kProbeBaseOffset + (static_cast<uint64_t>(neighborIdx) * kProbeNeighborStride);
-  const auto address = (((static_cast<uint64_t>(shireId) << 23) & 0x3F800000ULL) + kScpRegionBaseAddress + offset);
-  return reinterpret_cast<volatile uint64_t*>(address);
-}
-
-inline volatile uint64_t* getSuccessMarkerAddress(uint32_t shireId) {
-  const auto address = (((static_cast<uint64_t>(shireId) << 23) & 0x3F800000ULL) + kScpRegionBaseAddress +
-                        kSuccessMarkerOffset);
-  return reinterpret_cast<volatile uint64_t*>(address);
+  return reinterpret_cast<volatile uint64_t*>(gpsdk::star_scratchpad::probeAddress(shireId, neighborIdx));
 }
 
 } // namespace
@@ -64,7 +50,7 @@ int entryPoint([[maybe_unused]] KernelArguments* args) {
   et_assert(__builtin_popcountll(getComputeShireMask()) == 1);
   et_assert(__builtin_popcountll(getLaunchedShireMask()) == 5);
 
-  const auto centerShire = get_shire_id();
+  const auto centerShire = gpsdk::device::star_scratchpad::getCenterShireId();
   et_assert(getComputeShireMask() == (1ULL << centerShire));
 
   uint32_t neighbors[kStarNeighborCount];
@@ -82,7 +68,8 @@ int entryPoint([[maybe_unused]] KernelArguments* args) {
     et_assert(value == expected);
   }
 
-  atomic_store_global_64(getSuccessMarkerAddress(centerShire), kSuccessMarker);
+  atomic_store_global_64(gpsdk::device::star_scratchpad::successMarkerPtr(),
+                         gpsdk::star_scratchpad::kSuccessMarkerValue);
 
   return 0;
 }

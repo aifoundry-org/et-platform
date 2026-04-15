@@ -4,28 +4,22 @@
 //------------------------------------------------------------------------------
 
 #include <cstdlib>
+#include <cstring>
 #include <getopt.h>
 #include <stdexcept>
 #include <string>
 
 #include "GenericLauncher.h"
+#include "gpsdk_star_scratchpad.h"
 
 namespace {
-
-constexpr uint32_t kStarCols = 8U;
-constexpr uint32_t kStarNeighborCount = 4U;
-constexpr uint64_t kScpRegionBaseAddress = 0x80000000ULL;
-constexpr uint64_t kScpShireSize = 0x280000ULL;
-constexpr uint64_t kProbeBaseOffset = kScpShireSize - 0x4000ULL;
-constexpr uint64_t kProbeNeighborStride = 0x400ULL;
-constexpr uint64_t kSuccessMarkerOffset = kProbeBaseOffset + 0x2000ULL;
-constexpr uint64_t kSuccessMarker = 0x5354415250524F42ULL;
 
 struct Options {
   fs::path kernel_path = "";
   int kernel_launch_timeout = 10;
   std::string device_type = "sysemu";
   uint32_t shire_mask = 0xFFFFFFFF;
+  bool read_neighbor_probes = false;
 };
 
 Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
@@ -37,13 +31,15 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "Optional:\n"
     "  -t, --kernel_launch_timeout   timeout (in seconds) to wait for kernel completion.\n"
     "  -d, --device_type             device type to use (sysemu, fake, silicon).\n"
-    "  -m, --shire_mask              single-bit center shire mask used for compute.\n";
+    "  -m, --shire_mask              single-bit center shire mask used for compute.\n"
+    "      --read_neighbor_probes    attempt host-side reads of the four probe slots.\n";
 
   static constexpr const char* short_opts = "k:t:d:m:h";
   static const std::vector<struct option> long_opts_vect{{"kernel_path", required_argument, nullptr, 'k'},
                                                          {"kernel_launch_timeout", required_argument, nullptr, 't'},
                                                          {"device_type", required_argument, nullptr, 'd'},
                                                          {"shire_mask", required_argument, nullptr, 'm'},
+                                                         {"read_neighbor_probes", no_argument, nullptr, 0},
                                                          {"help", no_argument, nullptr, 'h'},
                                                          {nullptr, 0, nullptr, 0}};
 
@@ -53,6 +49,11 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
   opterr = 0;
 
   while ((ret = getopt_long_only(argc, argv, short_opts, long_opts_vect.data(), &index)) != -1) {
+    if ((ret == 0) && !std::strcmp(long_opts_vect[index].name, "read_neighbor_probes")) {
+      opts.read_neighbor_probes = true;
+      continue;
+    }
+
     switch (ret) {
     case 'k':
       opts.kernel_path = optarg;
@@ -91,24 +92,14 @@ inline uint32_t getCenterShire(uint32_t shireMask) {
 }
 
 inline void computeStarNeighbors(uint32_t centerShire, uint32_t* neighbors) {
-  neighbors[0] = centerShire - kStarCols;
-  neighbors[1] = centerShire + 1U;
-  neighbors[2] = centerShire + kStarCols;
-  neighbors[3] = centerShire - 1U;
+  for (uint32_t idx = 0; idx < gpsdk::star_scratchpad::kNeighborCount; ++idx) {
+    neighbors[idx] = gpsdk::star_scratchpad::neighborShire(centerShire, idx);
+  }
 }
 
 inline uint64_t makeProbeValue(uint32_t centerShire, uint32_t neighborShire, uint32_t relativeThreadId) {
   return (0x5A5A000000000000ULL | (static_cast<uint64_t>(centerShire) << 24) |
           (static_cast<uint64_t>(neighborShire) << 8) | static_cast<uint64_t>(relativeThreadId));
-}
-
-inline uint64_t getProbeAddress(uint32_t shireId, uint32_t neighborIdx) {
-  const auto offset = kProbeBaseOffset + (static_cast<uint64_t>(neighborIdx) * kProbeNeighborStride);
-  return (((static_cast<uint64_t>(shireId) << 23) & 0x3F800000ULL) + kScpRegionBaseAddress + offset);
-}
-
-inline uint64_t getSuccessMarkerAddress(uint32_t shireId) {
-  return (((static_cast<uint64_t>(shireId) << 23) & 0x3F800000ULL) + kScpRegionBaseAddress + kSuccessMarkerOffset);
 }
 
 class Launcher : public GenericLauncher {
@@ -148,30 +139,33 @@ int main(int argc, char** argv) {
   }
 
   const auto centerShire = getCenterShire(opt.shire_mask);
-  const auto markerAddress = getSuccessMarkerAddress(centerShire);
+  const auto markerAddress = gpsdk::star_scratchpad::successMarkerAddress(centerShire);
   const auto markerValue = launcher.readU64(markerAddress);
-  if (markerValue != kSuccessMarker) {
+  if (markerValue != gpsdk::star_scratchpad::kSuccessMarkerValue) {
     std::cout << "Success marker mismatch at center shire " << centerShire << " address 0x" << std::hex
-              << markerAddress << ": got 0x" << markerValue << " expected 0x" << kSuccessMarker << std::dec << "\n";
+              << markerAddress << ": got 0x" << markerValue << " expected 0x"
+              << gpsdk::star_scratchpad::kSuccessMarkerValue << std::dec << "\n";
     return 2;
   }
 
   std::cout << "Success marker center shire " << centerShire << " address 0x" << std::hex << markerAddress << " = 0x"
             << markerValue << std::dec << "\n";
 
-  uint32_t neighbors[kStarNeighborCount];
-  computeStarNeighbors(centerShire, neighbors);
-  for (uint32_t idx = 0; idx < kStarNeighborCount; ++idx) {
-    const auto address = getProbeAddress(neighbors[idx], idx);
-    const auto value = launcher.readU64(address);
-    const auto expected = makeProbeValue(centerShire, neighbors[idx], 0U);
-    if (value == expected) {
-      std::cout << "Diagnostic probe " << idx << " shire " << neighbors[idx] << " address 0x" << std::hex << address
-                << " = 0x" << value << std::dec << "\n";
-    } else {
-      std::cout << "Diagnostic probe " << idx << " shire " << neighbors[idx] << " address 0x" << std::hex << address
-                << " returned 0x" << value << " expected 0x" << expected
-                << " (host-side DMA visibility is limited for some scratchpad shires)" << std::dec << "\n";
+  if (opt.read_neighbor_probes) {
+    uint32_t neighbors[gpsdk::star_scratchpad::kNeighborCount];
+    computeStarNeighbors(centerShire, neighbors);
+    for (uint32_t idx = 0; idx < gpsdk::star_scratchpad::kNeighborCount; ++idx) {
+      const auto address = gpsdk::star_scratchpad::probeAddress(neighbors[idx], idx);
+      const auto value = launcher.readU64(address);
+      const auto expected = makeProbeValue(centerShire, neighbors[idx], 0U);
+      if (value == expected) {
+        std::cout << "Diagnostic probe " << idx << " shire " << neighbors[idx] << " address 0x" << std::hex
+                  << address << " = 0x" << value << std::dec << "\n";
+      } else {
+        std::cout << "Diagnostic probe " << idx << " shire " << neighbors[idx] << " address 0x" << std::hex
+                  << address << " returned 0x" << value << " expected 0x" << expected
+                  << " (host-side DMA visibility is limited for some scratchpad shires)" << std::dec << "\n";
+      }
     }
   }
 

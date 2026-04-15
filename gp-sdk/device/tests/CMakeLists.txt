@@ -27,6 +27,7 @@ add_etsoc_test_kernel(print.elf print/print.cc)
 add_etsoc_test_kernel(print2.elf print2/print2.cc)
 
 add_etsoc_test_kernel(star_scratchpad_probe.elf star_scratchpad/star_scratchpad.cc)
+add_etsoc_test_kernel(star_scratchpad_pool.elf star_scratchpad_pool/full_pool.cc)
 
 add_etsoc_test_kernel(bss.elf kernelLaunch/resetBSS.cc)
 
