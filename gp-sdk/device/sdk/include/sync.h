@@ -25,6 +25,7 @@
 
 #include <profiling.h>
 
+#include "CommonCode.h"
 #include "entryPoint.h"
 #include "flbLock.h"
 

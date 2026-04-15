@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <inttypes.h>
 #include <etsoc/common/utils.h>
+#include <etsoc/isa/atomic.h>
 #include <etsoc/isa/cacheops-umode.h>
 #include <etsoc/isa/tensors.h>
 #include <system/abi.h>
@@ -26,7 +27,9 @@ static inline void writeByte(uint8_t * addr, uint8_t val);
 static inline void evictCacheLine(uint64_t dst, uint8_t * addr);
 static inline bool isFormat0ScratchpadAddress(uint64_t addr);
 static inline bool isAccessibleErbiumSimScratchpadAddress(uint64_t addr, size_t sizeBytes);
-static inline void assertErbiumSimScratchpadAddress(const void* ptr, size_t sizeBytes);
+static inline void assertErbiumSimScratchpadAddress(const volatile void* ptr, size_t sizeBytes);
+static inline void assertErbiumSimTensorLineAccess(uint64_t addr, uint64_t stride, uint64_t lineCount,
+                                                   size_t accessBytes);
 
 /**
  * Copies \p num_bytes bytes from the object pointed to by \p src to the object pointed to by \p dst. Both object
@@ -338,7 +341,10 @@ static inline uint64_t getFormat0ScratchpadOffset(uint64_t addr) {
 }
 
 static inline bool isFormat0ScratchpadAddress(uint64_t addr) {
-  if (addr < 0x80000000ULL) {
+  constexpr uint64_t kFormat0BaseAddress = 0x80000000ULL;
+  constexpr uint64_t kFormat0AddressSpaceBytes = (1ULL << (23 + 7));
+
+  if ((addr < kFormat0BaseAddress) || (addr >= (kFormat0BaseAddress + kFormat0AddressSpaceBytes))) {
     return false;
   }
 
@@ -359,13 +365,193 @@ static inline bool isAccessibleErbiumSimScratchpadAddress(uint64_t addr, size_t 
   return isScratchpadClusterShire(shireId);
 }
 
-static inline void assertErbiumSimScratchpadAddress(const void* ptr, size_t sizeBytes) {
+static inline void assertErbiumSimScratchpadAddress(const volatile void* ptr, size_t sizeBytes) {
   if (!isErbiumSimEnabled() || (ptr == nullptr) || (sizeBytes == 0U)) {
     return;
   }
 
   et_assert(isAccessibleErbiumSimScratchpadAddress(reinterpret_cast<uint64_t>(ptr), sizeBytes));
 }
+
+static inline void assertErbiumSimTensorLineAccess(uint64_t addr, uint64_t stride, uint64_t lineCount,
+                                                   size_t accessBytes) {
+  if (!isErbiumSimEnabled() || (lineCount == 0U)) {
+    return;
+  }
+
+  for (uint64_t line = 0U; line < lineCount; ++line) {
+    assertErbiumSimScratchpadAddress(reinterpret_cast<const void*>(addr + (line * stride)), accessBytes);
+  }
+}
+
+static inline uint8_t gpsdk_checked_atomic_load_global_8(volatile const uint8_t* address) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint8_t));
+  return ::atomic_load_global_8(address);
+}
+
+static inline uint16_t gpsdk_checked_atomic_load_global_16(volatile const uint16_t* address) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint16_t));
+  return ::atomic_load_global_16(address);
+}
+
+static inline uint32_t gpsdk_checked_atomic_load_global_32(volatile const uint32_t* address) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  return ::atomic_load_global_32(address);
+}
+
+static inline uint64_t gpsdk_checked_atomic_load_global_64(volatile const uint64_t* address) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  return ::atomic_load_global_64(address);
+}
+
+static inline void gpsdk_checked_atomic_store_global_8(volatile uint8_t* address, uint8_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint8_t));
+  ::atomic_store_global_8(address, value);
+}
+
+static inline void gpsdk_checked_atomic_store_global_16(volatile uint16_t* address, uint16_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint16_t));
+  ::atomic_store_global_16(address, value);
+}
+
+static inline void gpsdk_checked_atomic_store_global_32(volatile uint32_t* address, uint32_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  ::atomic_store_global_32(address, value);
+}
+
+static inline void gpsdk_checked_atomic_store_global_64(volatile uint64_t* address, uint64_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  ::atomic_store_global_64(address, value);
+}
+
+static inline uint32_t gpsdk_checked_atomic_add_global_32(volatile uint32_t* address, uint32_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  return ::atomic_add_global_32(address, value);
+}
+
+static inline uint64_t gpsdk_checked_atomic_add_global_64(volatile uint64_t* address, uint64_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  return ::atomic_add_global_64(address, value);
+}
+
+static inline uint32_t gpsdk_checked_atomic_or_global_32(volatile uint32_t* address, uint32_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  return ::atomic_or_global_32(address, value);
+}
+
+static inline uint64_t gpsdk_checked_atomic_or_global_64(volatile uint64_t* address, uint64_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  return ::atomic_or_global_64(address, value);
+}
+
+static inline uint32_t gpsdk_checked_atomic_and_global_32(volatile uint32_t* address, uint32_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  return ::atomic_and_global_32(address, value);
+}
+
+static inline uint64_t gpsdk_checked_atomic_and_global_64(volatile uint64_t* address, uint64_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  return ::atomic_and_global_64(address, value);
+}
+
+static inline uint32_t gpsdk_checked_atomic_exchange_global_32(volatile uint32_t* address, uint32_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  return ::atomic_exchange_global_32(address, value);
+}
+
+static inline uint64_t gpsdk_checked_atomic_exchange_global_64(volatile uint64_t* address, uint64_t value) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  return ::atomic_exchange_global_64(address, value);
+}
+
+static inline uint32_t gpsdk_checked_atomic_compare_and_exchange_global_32(volatile uint32_t* address,
+                                                                           uint32_t expected, uint32_t desired) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint32_t));
+  return ::atomic_compare_and_exchange_global_32(address, expected, desired);
+}
+
+static inline uint64_t gpsdk_checked_atomic_compare_and_exchange_global_64(volatile uint64_t* address,
+                                                                           uint64_t expected, uint64_t desired) {
+  assertErbiumSimScratchpadAddress(address, sizeof(uint64_t));
+  return ::atomic_compare_and_exchange_global_64(address, expected, desired);
+}
+
+static inline void gpsdk_checked_tensor_load(bool use_tmask, bool use_coop, uint64_t dst_start,
+                                             uint64_t transformation, uint64_t use_tenb, uint64_t addr,
+                                             uint64_t offset, uint64_t num_lines, uint64_t stride, uint64_t id) {
+  (void)use_tmask;
+  (void)use_coop;
+  (void)dst_start;
+  (void)transformation;
+  (void)use_tenb;
+  (void)offset;
+  (void)id;
+  assertErbiumSimTensorLineAccess(addr, stride, num_lines, 64U);
+  ::tensor_load(use_tmask, use_coop, dst_start, transformation, use_tenb, addr, offset, num_lines, stride, id);
+}
+
+static inline void gpsdk_checked_et_tensor_load(et_tensor_load_conf_t* conf) {
+  et_assert(conf != nullptr);
+  assertErbiumSimTensorLineAccess(conf->addr, conf->stride, conf->num_lines, 64U);
+  ::et_tensor_load(conf);
+}
+
+static inline void gpsdk_checked_tensor_load_setup_b(bool use_coop, uint64_t addr, uint64_t num_lines,
+                                                     uint64_t stride, uint64_t id) {
+  (void)use_coop;
+  (void)id;
+  assertErbiumSimTensorLineAccess(addr, stride, num_lines, 64U);
+  ::tensor_load_setup_b(use_coop, addr, num_lines, stride, id);
+}
+
+static inline void gpsdk_checked_et_tensor_load_l2scp(et_tensor_load_l2scp_conf_t* conf) {
+  et_assert(conf != nullptr);
+  assertErbiumSimTensorLineAccess(conf->addr, conf->stride, conf->num_lines, 64U);
+  ::et_tensor_load_l2scp(conf);
+}
+
+static inline void gpsdk_checked_tensor_store_scp(uint64_t entry_stride, uint64_t start_scp_entry, uint64_t Arows,
+                                                  uint64_t addr, uint64_t stride) {
+  (void)entry_stride;
+  (void)start_scp_entry;
+  assertErbiumSimTensorLineAccess(addr, stride, Arows, 64U);
+  ::tensor_store_scp(entry_stride, start_scp_entry, Arows, addr, stride);
+}
+
+static inline void gpsdk_checked_tensor_store(uint64_t reg_stride, uint64_t start_reg, uint64_t cols, uint64_t Arows,
+                                              uint64_t addr, uint64_t coop_store, uint64_t stride) {
+  (void)reg_stride;
+  (void)start_reg;
+  (void)cols;
+  (void)coop_store;
+  assertErbiumSimTensorLineAccess(addr, stride, Arows, 64U);
+  ::tensor_store(reg_stride, start_reg, cols, Arows, addr, coop_store, stride);
+}
+
+#define atomic_load_global_8 gpsdk_checked_atomic_load_global_8
+#define atomic_load_global_16 gpsdk_checked_atomic_load_global_16
+#define atomic_load_global_32 gpsdk_checked_atomic_load_global_32
+#define atomic_load_global_64 gpsdk_checked_atomic_load_global_64
+#define atomic_store_global_8 gpsdk_checked_atomic_store_global_8
+#define atomic_store_global_16 gpsdk_checked_atomic_store_global_16
+#define atomic_store_global_32 gpsdk_checked_atomic_store_global_32
+#define atomic_store_global_64 gpsdk_checked_atomic_store_global_64
+#define atomic_add_global_32 gpsdk_checked_atomic_add_global_32
+#define atomic_add_global_64 gpsdk_checked_atomic_add_global_64
+#define atomic_or_global_32 gpsdk_checked_atomic_or_global_32
+#define atomic_or_global_64 gpsdk_checked_atomic_or_global_64
+#define atomic_and_global_32 gpsdk_checked_atomic_and_global_32
+#define atomic_and_global_64 gpsdk_checked_atomic_and_global_64
+#define atomic_exchange_global_32 gpsdk_checked_atomic_exchange_global_32
+#define atomic_exchange_global_64 gpsdk_checked_atomic_exchange_global_64
+#define atomic_compare_and_exchange_global_32 gpsdk_checked_atomic_compare_and_exchange_global_32
+#define atomic_compare_and_exchange_global_64 gpsdk_checked_atomic_compare_and_exchange_global_64
+#define tensor_load gpsdk_checked_tensor_load
+#define et_tensor_load gpsdk_checked_et_tensor_load
+#define tensor_load_setup_b gpsdk_checked_tensor_load_setup_b
+#define et_tensor_load_l2scp gpsdk_checked_et_tensor_load_l2scp
+#define tensor_store_scp gpsdk_checked_tensor_store_scp
+#define tensor_store gpsdk_checked_tensor_store
 
 static inline uint32_t getActiveNeighborhoodBaseMinion() {
   return getActiveNeighborhood() * gpsdk::launch::kMinionsPerNeighborhood;

@@ -7,6 +7,7 @@
 #include <etsoc/common/utils.h>
 #include <etsoc/isa/hart.h>
 
+#include "CommonCode.h"
 #include "entryPoint.h"
 #include "etsoc/isa/atomic.h"
 

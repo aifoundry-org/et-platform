@@ -8,6 +8,7 @@
 #include <etsoc/isa/hart.h>
 #include "etsoc/isa/atomic.h"
 
+#include "CommonCode.h"
 #include "entryPoint.h"
 
 class KernelArguments;
