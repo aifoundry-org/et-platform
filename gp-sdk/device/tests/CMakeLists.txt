@@ -28,6 +28,8 @@ add_etsoc_test_kernel(print2.elf print2/print2.cc)
 
 add_etsoc_test_kernel(star_scratchpad_probe.elf star_scratchpad/star_scratchpad.cc)
 add_etsoc_test_kernel(star_scratchpad_pool.elf star_scratchpad_pool/full_pool.cc)
+add_etsoc_test_kernel(shire_latency_probe.elf topology_probe/shire_latency_probe.cc)
+add_etsoc_test_kernel(nested_scratchpad_stencil.elf nested_scratchpad_stencil/nested_scratchpad_stencil.cc)
 
 add_etsoc_test_kernel(bss.elf kernelLaunch/resetBSS.cc)
 

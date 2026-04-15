@@ -138,12 +138,7 @@ public:
   }
 
   uint32_t resolveCenterShire(uint64_t requestedShireMask, gpsdk::star_scratchpad::ClusterLayout layout) {
-    const auto activeComputeShireMask = runtime_->getDeviceProperties(devices_[0]).computeMinionShireMask_;
-    const auto selection = gpsdk::star_scratchpad::selectCluster(requestedShireMask, activeComputeShireMask, layout);
-    if (!selection.valid()) {
-      throw std::runtime_error("Unable to resolve scratchpad cluster center");
-    }
-    return selection.effectiveCenterShire;
+    return resolveScratchpadClusterSelection(requestedShireMask, layout).effectiveCenterShire;
   }
 };
 
@@ -168,6 +163,9 @@ int main(int argc, char** argv) {
   }
 
   const auto centerShire = launcher.resolveCenterShire(opt.shire_mask, getClusterLayout(opt));
+  if (opt.scratchpad_nested_star) {
+    std::cout << "Using per-device topology cache " << launcher.getTopologyCachePath() << "\n";
+  }
   const auto markerAddress = gpsdk::star_scratchpad::successMarkerAddress(centerShire);
   const auto markerValue = launcher.readU64(markerAddress);
   if (markerValue != gpsdk::star_scratchpad::kSuccessMarkerValue) {

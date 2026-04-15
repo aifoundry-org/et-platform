@@ -13,11 +13,14 @@ namespace gpsdk::launch {
 
 constexpr uint64_t kRuntimeArgsMagic = 0x475053444B534849ULL;
 constexpr uint16_t kRuntimeArgsVersion = 1U;
+constexpr uint8_t kInvalidShireId = 0xFFU;
 
 constexpr uint32_t kMinionsPerShire = 32U;
 constexpr uint32_t kNeighborhoodsPerShire = 4U;
 constexpr uint32_t kMinionsPerNeighborhood = kMinionsPerShire / kNeighborhoodsPerShire;
 constexpr uint32_t kAllMinionsMask = 0xFFFFFFFFU;
+constexpr uint32_t kMaxScratchpadRelayShires = 4U;
+constexpr uint32_t kMaxScratchpadAuxiliaryShires = 8U;
 
 enum LaunchFlags : uint32_t {
   kLaunchFlagSingleNeighborhoodPerShire = 1U << 0,
@@ -33,9 +36,23 @@ struct alignas(64) RuntimeArgsHeader {
   uint32_t flags = 0U;
   uint32_t payloadSize = 0U;
   uint8_t activeNeighborhood = 0U;
-  uint8_t reserved0[3] = {};
+  uint8_t effectiveCenterShire = kInvalidShireId;
+  uint8_t scratchpadRelayCount = 0U;
+  uint8_t scratchpadAuxiliaryCount = 0U;
   uint64_t computeShireMask = 0ULL;
-  uint8_t reserved[32] = {};
+  uint8_t scratchpadRelayShires[kMaxScratchpadRelayShires] = {
+    kInvalidShireId, kInvalidShireId, kInvalidShireId, kInvalidShireId};
+  uint8_t scratchpadAuxiliaryShires[kMaxScratchpadAuxiliaryShires] = {
+    kInvalidShireId,
+    kInvalidShireId,
+    kInvalidShireId,
+    kInvalidShireId,
+    kInvalidShireId,
+    kInvalidShireId,
+    kInvalidShireId,
+    kInvalidShireId,
+  };
+  uint8_t reserved[16] = {};
 };
 
 static_assert(sizeof(RuntimeArgsHeader) == 64U, "RuntimeArgsHeader must occupy exactly one cache line");

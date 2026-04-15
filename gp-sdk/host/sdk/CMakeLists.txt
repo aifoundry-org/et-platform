@@ -136,7 +136,25 @@ target_link_libraries(star_scratchpad_proof
         etsoc_gpsdk
 )
 
-install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher star_scratchpad_proof
+add_executable(shire_latency_probe src/topology_probe/shire_latency_probe.cpp)
+target_link_libraries(shire_latency_probe
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(nested_scratchpad_demo src/nested_scratchpad_demo/nested_scratchpad_demo.cpp)
+target_link_libraries(nested_scratchpad_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(nested_scratchpad_stencil_demo src/nested_scratchpad_stencil_demo/nested_scratchpad_stencil_demo.cpp)
+target_link_libraries(nested_scratchpad_stencil_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher star_scratchpad_proof shire_latency_probe nested_scratchpad_demo nested_scratchpad_stencil_demo
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}

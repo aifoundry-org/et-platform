@@ -207,6 +207,11 @@ typedef struct {
   uint32_t activeMinionsPerShire;
   uint32_t activeThreadsPerShire;
   uint8_t activeNeighborhood;
+  uint8_t effectiveCenterShire;
+  uint8_t scratchpadRelayCount;
+  uint8_t scratchpadAuxiliaryCount;
+  uint8_t scratchpadRelayShires[gpsdk::launch::kMaxScratchpadRelayShires];
+  uint8_t scratchpadAuxiliaryShires[gpsdk::launch::kMaxScratchpadAuxiliaryShires];
 } GpSdkLaunchTopology;
 
 extern GpSdkLaunchTopology topology_;
@@ -268,6 +273,28 @@ static inline uint32_t getActiveThreadsPerShire() {
 
 static inline uint32_t getActiveNeighborhood() {
   return device_config::topology_.activeNeighborhood;
+}
+
+static inline uint32_t getEffectiveCenterShire() {
+  return device_config::topology_.effectiveCenterShire;
+}
+
+static inline uint32_t getScratchpadRelayCount() {
+  return device_config::topology_.scratchpadRelayCount;
+}
+
+static inline uint32_t getScratchpadAuxiliaryCount() {
+  return device_config::topology_.scratchpadAuxiliaryCount;
+}
+
+static inline uint32_t getScratchpadRelayShire(uint32_t index) {
+  et_assert(index < getScratchpadRelayCount());
+  return device_config::topology_.scratchpadRelayShires[index];
+}
+
+static inline uint32_t getScratchpadAuxiliaryShire(uint32_t index) {
+  et_assert(index < getScratchpadAuxiliaryCount());
+  return device_config::topology_.scratchpadAuxiliaryShires[index];
 }
 
 static inline uint32_t getActiveNeighborhoodBaseMinion() {

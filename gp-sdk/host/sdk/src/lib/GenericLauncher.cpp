@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include <cassert>
+#include <algorithm>
 #include <esperanto/et-trace/encoder.h>
 #include <fstream>
 #include <iostream>
@@ -14,7 +15,12 @@
 #include <sw-sysemu/SysEmuOptions.h>
 
 #include <chrono>
+#include <iomanip>
 #include <getopt.h>
+#include <limits>
+#include <optional>
+#include <set>
+#include <sstream>
 #include <stdio.h>
 #include <thread>
 #include <tuple>
@@ -22,11 +28,22 @@
 
 #include "GenericLauncher.h"
 #include "gpsdk_star_scratchpad.h"
+#include "gpsdk_topology_probe.h"
 
 // Trace Buffer realted constants.
 constexpr size_t kTraceBytesPerHart = 4096;
 constexpr size_t kNumHarts = 2048;
 constexpr size_t kTraceBufferSize = kTraceBytesPerHart * kNumHarts;
+
+struct GenericLauncher::InferredTopology {
+  uint64_t activeComputeShireMask = 0ULL;
+  std::array<std::array<uint16_t, gpsdk::topology_probe::kVisibleComputeShires>,
+             gpsdk::topology_probe::kVisibleComputeShires>
+    averageCycles = {};
+  std::array<gpsdk::star_scratchpad::ClusterSelection, gpsdk::topology_probe::kVisibleComputeShires> nestedSelections = {};
+  std::array<bool, gpsdk::topology_probe::kVisibleComputeShires> hasNestedSelection = {};
+  std::filesystem::path cachePath;
+};
 
 namespace {
 std::string getEtSdkHome() {
@@ -90,6 +107,252 @@ std::chrono::milliseconds getLoadQuiesceDelay() {
     }
   }
   return std::chrono::milliseconds(1000);
+}
+
+constexpr uint32_t kTopologyCacheVersion = 1U;
+constexpr uint32_t kTopologyNeighborCount = 4U;
+constexpr uint32_t kTopologyLeafCountPerRelay = 2U;
+
+std::string formatMask(uint64_t mask) {
+  std::ostringstream oss;
+  oss << "0x" << std::hex << mask;
+  return oss.str();
+}
+
+std::filesystem::path defaultTopologyCacheDir() {
+  if (const char* home = std::getenv("HOME")) {
+    return std::filesystem::path(home) / ".cache" / "et" / "gpsdk";
+  }
+  return std::filesystem::temp_directory_path() / "gpsdk-topology";
+}
+
+struct MatrixRowOrdering {
+  std::array<uint32_t, gpsdk::topology_probe::kVisibleComputeShires> nodes = {};
+};
+
+std::array<uint32_t, gpsdk::topology_probe::kVisibleComputeShires> sortedNeighbors(
+  const GenericLauncher::InferredTopology& topology, uint32_t centerShire) {
+  std::array<uint32_t, gpsdk::topology_probe::kVisibleComputeShires> ordered = {};
+  for (uint32_t idx = 0U; idx < ordered.size(); ++idx) {
+    ordered[idx] = idx;
+  }
+
+  const auto& centerRow = topology.averageCycles[centerShire];
+  std::sort(ordered.begin(), ordered.end(), [&](uint32_t lhs, uint32_t rhs) {
+    if (lhs == centerShire) {
+      return true;
+    }
+    if (rhs == centerShire) {
+      return false;
+    }
+    if (centerRow[lhs] != centerRow[rhs]) {
+      return centerRow[lhs] < centerRow[rhs];
+    }
+    return lhs < rhs;
+  });
+  return ordered;
+}
+
+std::vector<uint32_t> activeShiresFromMask(uint64_t mask) {
+  std::vector<uint32_t> shires;
+  while (mask != 0ULL) {
+    const auto shire = static_cast<uint32_t>(__builtin_ctzll(mask));
+    shires.push_back(shire);
+    mask &= (mask - 1ULL);
+  }
+  return shires;
+}
+
+std::optional<gpsdk::star_scratchpad::ClusterSelection> buildNestedSelection(
+  const GenericLauncher::InferredTopology& topology, uint32_t centerShire) {
+  if (((topology.activeComputeShireMask >> centerShire) & 0x1ULL) == 0ULL) {
+    return std::nullopt;
+  }
+
+  const auto ordered = sortedNeighbors(topology, centerShire);
+  gpsdk::star_scratchpad::ClusterSelection selection;
+  selection.effectiveCenterShire = centerShire;
+  selection.computeShireMask = (1ULL << centerShire);
+  selection.relayCount = gpsdk::star_scratchpad::kNestedRelayCount;
+  selection.auxiliaryCount = gpsdk::star_scratchpad::kNestedLeafCount;
+
+  std::array<uint32_t, kTopologyNeighborCount> relays = {};
+  uint32_t relayFound = 0U;
+  for (uint32_t candidate : ordered) {
+    if ((candidate == centerShire) || (((topology.activeComputeShireMask >> candidate) & 0x1ULL) == 0ULL)) {
+      continue;
+    }
+    relays[relayFound++] = candidate;
+    if (relayFound == kTopologyNeighborCount) {
+      break;
+    }
+  }
+
+  if (relayFound != kTopologyNeighborCount) {
+    return std::nullopt;
+  }
+
+  std::set<uint32_t> usedLeaves;
+  for (uint32_t relayIdx = 0U; relayIdx < relays.size(); ++relayIdx) {
+    const auto relay = relays[relayIdx];
+    selection.relayShires[relayIdx] = static_cast<uint8_t>(relay);
+
+    const auto relayOrdered = sortedNeighbors(topology, relay);
+    uint32_t chosenLeafs = 0U;
+    for (uint32_t candidate : relayOrdered) {
+      if ((candidate == relay) || (candidate == centerShire) ||
+          (((topology.activeComputeShireMask >> candidate) & 0x1ULL) == 0ULL)) {
+        continue;
+      }
+
+      bool isRelay = false;
+      for (uint32_t relayCheck : relays) {
+        if (candidate == relayCheck) {
+          isRelay = true;
+          break;
+        }
+      }
+      if (isRelay || usedLeaves.count(candidate) != 0U) {
+        continue;
+      }
+
+      selection.auxiliaryShires[(relayIdx * kTopologyLeafCountPerRelay) + chosenLeafs] = static_cast<uint8_t>(candidate);
+      selection.launchedShireMask |= (1ULL << candidate);
+      usedLeaves.insert(candidate);
+      ++chosenLeafs;
+      if (chosenLeafs == kTopologyLeafCountPerRelay) {
+        break;
+      }
+    }
+
+    if (chosenLeafs != kTopologyLeafCountPerRelay) {
+      return std::nullopt;
+    }
+
+    selection.launchedShireMask |= (1ULL << relay);
+  }
+
+  selection.launchedShireMask |= (1ULL << centerShire);
+  return selection;
+}
+
+bool loadTopologyCacheFile(const std::filesystem::path& cachePath, GenericLauncher::InferredTopology& topology) {
+  std::ifstream input(cachePath);
+  if (!input.is_open()) {
+    return false;
+  }
+
+  uint32_t version = 0U;
+  std::string token;
+  input >> token >> version;
+  if (!input.good() || (token != "version") || (version != kTopologyCacheVersion)) {
+    return false;
+  }
+
+  std::string maskText;
+  input >> token >> maskText;
+  if (!input.good() || (token != "active_mask")) {
+    return false;
+  }
+  topology.activeComputeShireMask = std::stoull(maskText, nullptr, 0);
+
+  for (uint32_t row = 0U; row < gpsdk::topology_probe::kVisibleComputeShires; ++row) {
+    input >> token;
+    if (!input.good() || (token != "row")) {
+      return false;
+    }
+    uint32_t rowIndex = 0U;
+    input >> rowIndex;
+    if (rowIndex != row) {
+      return false;
+    }
+    for (uint32_t col = 0U; col < gpsdk::topology_probe::kVisibleComputeShires; ++col) {
+      uint32_t cycles = 0U;
+      input >> cycles;
+      topology.averageCycles[row][col] = static_cast<uint16_t>(cycles);
+    }
+  }
+
+  while (input >> token) {
+    if (token != "nested") {
+      return false;
+    }
+    uint32_t center = 0U;
+    input >> center;
+    if (center >= gpsdk::topology_probe::kVisibleComputeShires) {
+      return false;
+    }
+
+    auto& selection = topology.nestedSelections[center];
+    selection.effectiveCenterShire = center;
+    selection.computeShireMask = (1ULL << center);
+
+    std::string launchedMaskText;
+    input >> token >> launchedMaskText;
+    if (token != "launched_mask") {
+      return false;
+    }
+    selection.launchedShireMask = std::stoull(launchedMaskText, nullptr, 0);
+
+    uint32_t relayCount = 0U;
+    input >> token >> relayCount;
+    if (token != "relays") {
+      return false;
+    }
+    selection.relayCount = static_cast<uint8_t>(relayCount);
+    for (uint32_t idx = 0U; idx < relayCount; ++idx) {
+      uint32_t relay = 0U;
+      input >> relay;
+      selection.relayShires[idx] = static_cast<uint8_t>(relay);
+    }
+
+    uint32_t auxiliaryCount = 0U;
+    input >> token >> auxiliaryCount;
+    if (token != "aux") {
+      return false;
+    }
+    selection.auxiliaryCount = static_cast<uint8_t>(auxiliaryCount);
+    for (uint32_t idx = 0U; idx < auxiliaryCount; ++idx) {
+      uint32_t auxiliary = 0U;
+      input >> auxiliary;
+      selection.auxiliaryShires[idx] = static_cast<uint8_t>(auxiliary);
+    }
+
+    topology.hasNestedSelection[center] = true;
+  }
+
+  topology.cachePath = cachePath;
+  return true;
+}
+
+void saveTopologyCacheFile(const std::filesystem::path& cachePath, const GenericLauncher::InferredTopology& topology) {
+  std::filesystem::create_directories(cachePath.parent_path());
+  std::ofstream output(cachePath, std::ios::trunc);
+  output << "version " << kTopologyCacheVersion << "\n";
+  output << "active_mask " << formatMask(topology.activeComputeShireMask) << "\n";
+  for (uint32_t row = 0U; row < gpsdk::topology_probe::kVisibleComputeShires; ++row) {
+    output << "row " << row;
+    for (uint32_t col = 0U; col < gpsdk::topology_probe::kVisibleComputeShires; ++col) {
+      output << " " << topology.averageCycles[row][col];
+    }
+    output << "\n";
+  }
+  for (uint32_t center = 0U; center < gpsdk::topology_probe::kVisibleComputeShires; ++center) {
+    if (!topology.hasNestedSelection[center]) {
+      continue;
+    }
+    const auto& selection = topology.nestedSelections[center];
+    output << "nested " << center << " launched_mask " << formatMask(selection.launchedShireMask) << " relays "
+           << static_cast<uint32_t>(selection.relayCount);
+    for (uint32_t idx = 0U; idx < selection.relayCount; ++idx) {
+      output << " " << static_cast<uint32_t>(selection.relayShires[idx]);
+    }
+    output << " aux " << static_cast<uint32_t>(selection.auxiliaryCount);
+    for (uint32_t idx = 0U; idx < selection.auxiliaryCount; ++idx) {
+      output << " " << static_cast<uint32_t>(selection.auxiliaryShires[idx]);
+    }
+    output << "\n";
+  }
 }
 
 void setIfExists(std::string& dst, const std::filesystem::path& path) {
@@ -211,6 +474,173 @@ std::vector<std::byte> GenericLauncher::readFile(const std::string& path) {
   std::vector<std::byte> fileContent(size);
   file.read(reinterpret_cast<char*>(fileContent.data()), size);
   return fileContent;
+}
+
+std::string GenericLauncher::getTopologyCachePath(uint32_t deviceIdx) const {
+  if (!topologyCachePathOverride_.empty()) {
+    return topologyCachePathOverride_.string();
+  }
+
+  if ((runtime_ == nullptr) || (deviceIdx >= devices_.size())) {
+    return (defaultTopologyCacheDir() / ("device-" + std::to_string(deviceIdx) + ".topology")).string();
+  }
+
+  const auto props = runtime_->getDeviceProperties(devices_.at(deviceIdx));
+  std::ostringstream oss;
+  oss << "device-" << deviceIdx << "-mask-" << std::hex << props.computeMinionShireMask_ << "-spare-"
+      << props.spareComputeMinionShireId_ << ".topology";
+  return (defaultTopologyCacheDir() / oss.str()).string();
+}
+
+gpsdk::star_scratchpad::ClusterSelection GenericLauncher::resolveScratchpadClusterSelection(
+  uint64_t requestedShireMask, gpsdk::star_scratchpad::ClusterLayout layout, uint32_t deviceIdx) {
+  return resolveScratchpadClusterSelectionImpl(requestedShireMask, layout, deviceIdx);
+}
+
+const GenericLauncher::InferredTopology& GenericLauncher::getOrCreateInferredTopology(uint32_t deviceIdx) {
+  auto found = inferredTopologies_.find(deviceIdx);
+  if (found != inferredTopologies_.end()) {
+    return *found->second;
+  }
+
+  auto topology = std::make_shared<InferredTopology>();
+  const auto cachePath = std::filesystem::path(getTopologyCachePath(deviceIdx));
+  if (!rebuildTopologyCache_ && loadTopologyCacheFile(cachePath, *topology)) {
+    std::cout << "Loaded per-device topology cache from " << cachePath << ".\n";
+    auto [it, _] = inferredTopologies_.emplace(deviceIdx, std::move(topology));
+    return *it->second;
+  }
+
+  if (topologyProbeKernelPath_.empty()) {
+    throw std::runtime_error("Nested scratchpad topology requires --topology_probe_kernel on first use for this device");
+  }
+
+  topology->activeComputeShireMask = runtime_->getDeviceProperties(devices_.at(deviceIdx)).computeMinionShireMask_;
+  topology->cachePath = cachePath;
+
+  const auto probeKernelId = loadKernel(topologyProbeKernelPath_.string(), deviceIdx);
+  auto* const resultsBuffer =
+    runtime_->mallocDevice(devices_.at(deviceIdx), sizeof(gpsdk::topology_probe::ShireLatencyResults));
+  auto* const hostResults = new gpsdk::topology_probe::ShireLatencyResults{};
+
+  const auto activeShires = activeShiresFromMask(topology->activeComputeShireMask);
+  for (const auto centerShire : activeShires) {
+    gpsdk::topology_probe::ProbeArguments args;
+    args.targetShireMask = topology->activeComputeShireMask;
+    args.resultsAddress = reinterpret_cast<uint64_t>(resultsBuffer);
+
+    std::vector<std::byte> wrappedArgs;
+    const std::byte* launchArgs = reinterpret_cast<const std::byte*>(&args);
+    size_t launchArgSize = sizeof(args);
+
+    if (activeNeighborhood_ >= 0) {
+      gpsdk::launch::RuntimeArgsHeader header;
+      header.flags = gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire;
+      header.payloadSize = static_cast<uint32_t>(sizeof(args));
+      header.activeNeighborhood = static_cast<uint8_t>(activeNeighborhood_);
+      header.computeShireMask = (1ULL << centerShire);
+      header.effectiveCenterShire = static_cast<uint8_t>(centerShire);
+      wrappedArgs.resize(sizeof(header) + sizeof(args));
+      memcpy(wrappedArgs.data(), &header, sizeof(header));
+      memcpy(wrappedArgs.data() + sizeof(header), &args, sizeof(args));
+      launchArgs = wrappedArgs.data();
+      launchArgSize = wrappedArgs.size();
+    }
+
+    rt::KernelLaunchOptions kOpts;
+    kOpts.setShireMask(1ULL << centerShire);
+    kOpts.setBarrier(true);
+    kOpts.setFlushL3(false);
+    runtime_->kernelLaunch(defaultStreams_[deviceIdx], probeKernelId, launchArgs, launchArgSize, kOpts);
+    waitKernelCompletion(std::chrono::seconds(30), deviceIdx);
+    if (checkKernelExecutionErrors()) {
+      delete hostResults;
+      runtime_->freeDevice(devices_.at(deviceIdx), resultsBuffer);
+      unLoadKernel(probeKernelId);
+      throw std::runtime_error("Topology probe kernel failed");
+    }
+
+    runtime_->memcpyDeviceToHost(defaultStreams_[deviceIdx], resultsBuffer, reinterpret_cast<std::byte*>(hostResults),
+                                 sizeof(*hostResults));
+    if (!runtime_->waitForStream(defaultStreams_[deviceIdx], std::chrono::seconds(5))) {
+      delete hostResults;
+      runtime_->freeDevice(devices_.at(deviceIdx), resultsBuffer);
+      unLoadKernel(probeKernelId);
+      throw std::runtime_error("Timed out reading topology probe results");
+    }
+
+    if ((hostResults->magic != gpsdk::topology_probe::kResultsMagic) || (hostResults->centerShire != centerShire)) {
+      delete hostResults;
+      runtime_->freeDevice(devices_.at(deviceIdx), resultsBuffer);
+      unLoadKernel(probeKernelId);
+      throw std::runtime_error("Invalid topology probe results");
+    }
+
+    for (uint32_t target = 0U; target < gpsdk::topology_probe::kVisibleComputeShires; ++target) {
+      topology->averageCycles[centerShire][target] = static_cast<uint16_t>(
+        (hostResults->loadBestCycles[target] + hostResults->storeBestCycles[target]) / 2ULL);
+    }
+  }
+
+  delete hostResults;
+  runtime_->freeDevice(devices_.at(deviceIdx), resultsBuffer);
+  unLoadKernel(probeKernelId);
+
+  for (const auto centerShire : activeShires) {
+    const auto selection = buildNestedSelection(*topology, centerShire);
+    if (!selection.has_value()) {
+      continue;
+    }
+    topology->nestedSelections[centerShire] = *selection;
+    topology->hasNestedSelection[centerShire] = true;
+  }
+
+  saveTopologyCacheFile(cachePath, *topology);
+  std::cout << "Built per-device topology cache at " << cachePath << ".\n";
+
+  auto [it, _] = inferredTopologies_.emplace(deviceIdx, std::move(topology));
+  return *it->second;
+}
+
+gpsdk::star_scratchpad::ClusterSelection GenericLauncher::resolveScratchpadClusterSelectionImpl(
+  uint64_t requestedShireMask, gpsdk::star_scratchpad::ClusterLayout layout, uint32_t deviceIdx) {
+  if (layout != gpsdk::star_scratchpad::ClusterLayout::NestedStar || (config_.mode_ != Mode::PCIE)) {
+    return gpsdk::star_scratchpad::selectCluster(
+      requestedShireMask, runtime_->getDeviceProperties(devices_.at(deviceIdx)).computeMinionShireMask_, layout);
+  }
+
+  gpsdk::star_scratchpad::ClusterSelection selection;
+  if (__builtin_popcountll(requestedShireMask) != 1) {
+    return selection;
+  }
+
+  const auto requestedCenter = static_cast<uint32_t>(__builtin_ctzll(requestedShireMask));
+  const auto& topology = getOrCreateInferredTopology(deviceIdx);
+  if (requestedCenter < topology.hasNestedSelection.size() && topology.hasNestedSelection[requestedCenter]) {
+    return topology.nestedSelections[requestedCenter];
+  }
+
+  uint32_t bestCenter = gpsdk::star_scratchpad::kInvalidShire;
+  uint16_t bestCost = std::numeric_limits<uint16_t>::max();
+  for (uint32_t candidate = 0U; candidate < topology.hasNestedSelection.size(); ++candidate) {
+    if (!topology.hasNestedSelection[candidate]) {
+      continue;
+    }
+    const auto cost = topology.averageCycles[requestedCenter][candidate];
+    if ((bestCenter == gpsdk::star_scratchpad::kInvalidShire) || (cost < bestCost) ||
+        ((cost == bestCost) && (candidate < bestCenter))) {
+      bestCenter = candidate;
+      bestCost = cost;
+    }
+  }
+
+  if (bestCenter == gpsdk::star_scratchpad::kInvalidShire) {
+    return selection;
+  }
+
+  selection = topology.nestedSelections[bestCenter];
+  selection.centerShifted = (bestCenter != requestedCenter);
+  return selection;
 }
 
 void GenericLauncher::initialize() {
@@ -409,6 +839,10 @@ rt::KernelId GenericLauncher::loadKernel(const std::string& kernelName, uint32_t
   const bool debugLoadPhases = debugLoadPhasesEnabled();
   const bool skipLoadWait = skipLoadWaitEnabled();
   const auto resolvedKernelPath = resolveKernelPath(kernelName, config_.mode_);
+  if (scratchpadNestedStarCluster_ && (config_.mode_ == Mode::PCIE) &&
+      (topologyProbeKernelPath_.empty() || (resolvedKernelPath != topologyProbeKernelPath_))) {
+    (void)getOrCreateInferredTopology(deviceIdx);
+  }
   if (debugLoadPhases) {
     std::cout << "loadKernel() resolved kernel path " << resolvedKernelPath << "\n";
   }
@@ -511,14 +945,14 @@ void GenericLauncher::waitKernelCompletion(std::chrono::seconds timeout, uint32_
   return;
 }
 
-uint64_t GenericLauncher::getLaunchShireMask(uint64_t requestedShireMask, uint32_t deviceIdx) const {
+uint64_t GenericLauncher::getLaunchShireMask(uint64_t requestedShireMask, uint32_t deviceIdx) {
   if (!scratchpadStarCluster_ && !scratchpadBlockCluster_ && !scratchpadNestedStarCluster_) {
     return requestedShireMask;
   }
 
   const auto layout =
     getScratchpadClusterLayout(scratchpadStarCluster_, scratchpadBlockCluster_, scratchpadNestedStarCluster_);
-  return resolveScratchpadCluster(runtime_, devices_, deviceIdx, requestedShireMask, layout).launchedShireMask;
+  return resolveScratchpadClusterSelectionImpl(requestedShireMask, layout, deviceIdx).launchedShireMask;
 }
 
 void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, size_t size, std::byte* ptr,
@@ -537,7 +971,7 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
   if (usesScratchpadCluster) {
     const auto layout =
       getScratchpadClusterLayout(scratchpadStarCluster_, scratchpadBlockCluster_, scratchpadNestedStarCluster_);
-    const auto selection = resolveScratchpadCluster(runtime_, devices_, deviceIdx, shireMask, layout);
+    const auto selection = resolveScratchpadClusterSelectionImpl(shireMask, layout, deviceIdx);
     computeShireMask = selection.computeShireMask;
     clusterCenterShifted = selection.centerShifted;
     if (clusterCenterShifted) {
@@ -580,6 +1014,16 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     if (scratchpadNestedStarCluster_) {
       header.flags |= gpsdk::launch::kLaunchFlagScratchpadNestedStarCluster;
     }
+    if (usesScratchpadCluster) {
+      const auto layout =
+        getScratchpadClusterLayout(scratchpadStarCluster_, scratchpadBlockCluster_, scratchpadNestedStarCluster_);
+      const auto selection = resolveScratchpadClusterSelectionImpl(shireMask, layout, deviceIdx);
+      header.effectiveCenterShire = static_cast<uint8_t>(selection.effectiveCenterShire);
+      header.scratchpadRelayCount = selection.relayCount;
+      header.scratchpadAuxiliaryCount = selection.auxiliaryCount;
+      std::copy(selection.relayShires.begin(), selection.relayShires.end(), header.scratchpadRelayShires);
+      std::copy(selection.auxiliaryShires.begin(), selection.auxiliaryShires.end(), header.scratchpadAuxiliaryShires);
+    }
     header.payloadSize = static_cast<uint32_t>(size);
 
     wrappedParams.resize(sizeof(header) + size);
@@ -619,6 +1063,9 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"active_neighborhood", required_argument, nullptr, 0},
                                                          {"scratchpad_star", no_argument, nullptr, 0},
                                                          {"scratchpad_block", no_argument, nullptr, 0},
+                                                         {"topology_probe_kernel", required_argument, nullptr, 0},
+                                                         {"topology_cache", required_argument, nullptr, 0},
+                                                         {"rebuild_topology_cache", no_argument, nullptr, 0},
                                                          {"scratchpad_nested_star", no_argument, nullptr, 0},
                                                          {nullptr, 0, nullptr, 0}};
 
@@ -670,6 +1117,12 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
       scratchpadStarCluster_ = true;
     } else if (!strcmp(name, "scratchpad_block")) {
       scratchpadBlockCluster_ = true;
+    } else if (!strcmp(name, "topology_probe_kernel")) {
+      topologyProbeKernelPath_ = optarg;
+    } else if (!strcmp(name, "topology_cache")) {
+      topologyCachePathOverride_ = optarg;
+    } else if (!strcmp(name, "rebuild_topology_cache")) {
+      rebuildTopologyCache_ = true;
     } else if (!strcmp(name, "scratchpad_nested_star")) {
       scratchpadNestedStarCluster_ = true;
     }

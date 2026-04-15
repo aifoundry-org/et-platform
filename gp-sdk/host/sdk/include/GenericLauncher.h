@@ -10,11 +10,14 @@
 #include <hostUtils/logging/Logger.h>
 
 #include <string>
+#include <memory>
 #include <tuple>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 #include "gpsdk_launch_runtime.h"
+#include "gpsdk_star_scratchpad.h"
 
 #if __has_include("filesystem")
 #include <filesystem>
@@ -81,6 +84,8 @@ public:
  */
 class GenericLauncher {
 public:
+  struct InferredTopology;
+
   GenericLauncher() = delete;
   /**
    * Creates a new GenericLauncher object with a config.
@@ -202,6 +207,11 @@ public:
    */ 
   bool checkKernelExecutionErrors();
 
+  gpsdk::star_scratchpad::ClusterSelection resolveScratchpadClusterSelection(
+    uint64_t requestedShireMask, gpsdk::star_scratchpad::ClusterLayout layout, uint32_t deviceIdx = 0);
+
+  std::string getTopologyCachePath(uint32_t deviceIdx = 0) const;
+
   /**
    * Reserve all necessary stack space at device.
    * \brief reserve stack space and caculates the total stack size reserved.
@@ -231,13 +241,19 @@ public:
     "  '', --active_neighborhood     Restrict execution to one neighborhood per shire (0-3).\n"
     "  '', --scratchpad_star         Expand a center shire into a 5-shire N/S/E/W scratchpad cluster (8 MiB pool).\n"
     "  '', --scratchpad_block        Expand a center shire into a 9-shire surround scratchpad block (16 MiB pool).\n"
-    "  '', --scratchpad_nested_star  Expand into a 13-shire nested star with 8 equal-distance leaf data shires (16 MiB pool).\n";
+    "  '', --scratchpad_nested_star  Expand into a topology-inferred 13-shire nested star with 8 equal-distance leaf data shires (16 MiB pool).\n"
+    "  '', --topology_probe_kernel   path to shire_latency_probe.elf_dbg used to infer per-device topology.\n"
+    "  '', --topology_cache          path to the per-device topology cache file.\n"
+    "  '', --rebuild_topology_cache  ignore any existing topology cache and rebuild it.\n";
 
 private:
   std::vector<std::byte> readFile(const std::string& path);
-  uint64_t getLaunchShireMask(uint64_t requestedShireMask, uint32_t deviceIdx) const;
+  uint64_t getLaunchShireMask(uint64_t requestedShireMask, uint32_t deviceIdx);
   void doKernelLaunch(rt::KernelId, std::byte* params, size_t size, std::byte* stackPtr, size_t stackSize,
                       uint64_t shireMask, uint32_t deviceIdx);
+  gpsdk::star_scratchpad::ClusterSelection resolveScratchpadClusterSelectionImpl(
+    uint64_t requestedShireMask, gpsdk::star_scratchpad::ClusterLayout layout, uint32_t deviceIdx);
+  const InferredTopology& getOrCreateInferredTopology(uint32_t deviceIdx);
   void resetRuntime();
   void createUserTraces(void);
   void writeSysemuTraceDumpCookie(void);
@@ -254,9 +270,13 @@ private:
   bool scratchpadStarCluster_ = false;
   bool scratchpadBlockCluster_ = false;
   bool scratchpadNestedStarCluster_ = false;
+  fs::path topologyProbeKernelPath_;
+  fs::path topologyCachePathOverride_;
+  bool rebuildTopologyCache_ = false;
   std::string sysemuTraceDumpCookiePath_ =
     std::filesystem::path(std::filesystem::temp_directory_path().string() + "/" + "sysemuTraceDumpCookie." +
                           std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin");
+  std::unordered_map<uint32_t, std::shared_ptr<InferredTopology>> inferredTopologies_;
 
 protected:
   const Config& config_;

@@ -11,6 +11,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "gpsdk_launch_runtime.h"
+
 namespace gpsdk::star_scratchpad {
 
 constexpr uint32_t kLegacyRows = 4U;
@@ -64,6 +66,24 @@ struct ClusterSelection {
   uint64_t computeShireMask = 0ULL;
   uint64_t launchedShireMask = 0ULL;
   bool centerShifted = false;
+  uint8_t relayCount = 0U;
+  uint8_t auxiliaryCount = 0U;
+  std::array<uint8_t, gpsdk::launch::kMaxScratchpadRelayShires> relayShires = {
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+  };
+  std::array<uint8_t, gpsdk::launch::kMaxScratchpadAuxiliaryShires> auxiliaryShires = {
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+    gpsdk::launch::kInvalidShireId,
+  };
 
   constexpr bool valid() const {
     return (effectiveCenterShire != kInvalidShire) && (computeShireMask != 0ULL) && (launchedShireMask != 0ULL);
@@ -309,6 +329,35 @@ inline constexpr uint32_t auxiliaryShire(uint32_t centerShire, uint32_t shardInd
   return centerShire;
 }
 
+inline constexpr ClusterSelection makeStaticClusterSelection(uint32_t centerShire, uint64_t computeShireMask,
+                                                             ClusterLayout layout) {
+  ClusterSelection selection;
+  selection.effectiveCenterShire = centerShire;
+  selection.computeShireMask = computeShireMask;
+  selection.launchedShireMask = clusterShireMaskForCenter(centerShire, layout);
+
+  switch (layout) {
+  case ClusterLayout::Star:
+    selection.auxiliaryCount = static_cast<uint8_t>(kStarNeighborCount);
+    break;
+  case ClusterLayout::Block:
+    selection.auxiliaryCount = static_cast<uint8_t>(kBlockNeighborCount);
+    break;
+  case ClusterLayout::NestedStar:
+    selection.relayCount = static_cast<uint8_t>(kNestedRelayCount);
+    selection.auxiliaryCount = static_cast<uint8_t>(kNestedLeafCount);
+    break;
+  }
+
+  for (uint32_t idx = 0U; idx < selection.relayCount; ++idx) {
+    selection.relayShires[idx] = static_cast<uint8_t>(nestedRelayShire(centerShire, idx));
+  }
+  for (uint32_t idx = 0U; idx < selection.auxiliaryCount; ++idx) {
+    selection.auxiliaryShires[idx] = static_cast<uint8_t>(auxiliaryShire(centerShire, idx, layout));
+  }
+  return selection;
+}
+
 inline constexpr bool isValidPoolRange(uint64_t logicalOffset, uint64_t sizeBytes, ClusterLayout layout) {
   return (sizeBytes != 0U) && (logicalOffset < poolCapacity(layout)) &&
          (sizeBytes <= (poolCapacity(layout) - logicalOffset));
@@ -356,17 +405,11 @@ inline ClusterSelection selectCluster(uint64_t requestedCenterMask, uint64_t act
       return selection;
     }
 
-    selection.effectiveCenterShire = requestedCenterShire;
-    selection.computeShireMask = requestedCenterMask;
-    selection.launchedShireMask = clusterShireMaskForCenter(requestedCenterShire, layout);
-    return selection;
+    return makeStaticClusterSelection(requestedCenterShire, requestedCenterMask, layout);
   }
 
   if (clusterFitsActiveMask(requestedCenterShire, activeComputeShireMask, layout)) {
-    selection.effectiveCenterShire = requestedCenterShire;
-    selection.computeShireMask = requestedCenterMask;
-    selection.launchedShireMask = clusterShireMaskForCenter(requestedCenterShire, layout);
-    return selection;
+    return makeStaticClusterSelection(requestedCenterShire, requestedCenterMask, layout);
   }
 
   const auto requestedCoord = nestedPhysicalCoord(requestedCenterShire);
@@ -393,9 +436,7 @@ inline ClusterSelection selectCluster(uint64_t requestedCenterMask, uint64_t act
     return selection;
   }
 
-  selection.effectiveCenterShire = bestCenterShire;
-  selection.computeShireMask = (1ULL << bestCenterShire);
-  selection.launchedShireMask = clusterShireMaskForCenter(bestCenterShire, layout);
+  selection = makeStaticClusterSelection(bestCenterShire, (1ULL << bestCenterShire), layout);
   selection.centerShifted = (bestCenterShire != requestedCenterShire);
   return selection;
 }

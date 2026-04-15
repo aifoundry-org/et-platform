@@ -27,17 +27,18 @@ inline uint32_t getCenterShireId() {
   const auto computeShireMask = getComputeShireMask();
   et_assert(__builtin_popcountll(computeShireMask) == 1);
 
-  const auto centerShire = static_cast<uint32_t>(__builtin_ctzll(computeShireMask));
-  et_assert(gpsdk::star_scratchpad::isValidCenterShire(centerShire, getLayout()));
-  return centerShire;
+  if (getEffectiveCenterShire() != gpsdk::launch::kInvalidShireId) {
+    return getEffectiveCenterShire();
+  }
+
+  return static_cast<uint32_t>(__builtin_ctzll(computeShireMask));
 }
 
 inline bool isAvailable() {
   const auto computeShireMask = getComputeShireMask();
   return (isScratchpadStarClusterEnabled() || isScratchpadBlockClusterEnabled() || isScratchpadNestedStarClusterEnabled()) &&
          (__builtin_popcountll(computeShireMask) == 1) &&
-         gpsdk::star_scratchpad::isValidCenterShire(static_cast<uint32_t>(__builtin_ctzll(computeShireMask)),
-                                                    getLayout());
+         (getScratchpadAuxiliaryCount() == gpsdk::star_scratchpad::auxiliaryShireCount(getLayout()));
 }
 
 inline uint64_t capacity() {
@@ -47,7 +48,10 @@ inline uint64_t capacity() {
 inline uint64_t address(uint64_t logicalOffset, uint64_t sizeBytes = 1U) {
   et_assert(isAvailable());
   et_assert(gpsdk::star_scratchpad::isValidPoolRange(logicalOffset, sizeBytes, getLayout()));
-  return gpsdk::star_scratchpad::poolAddress(getCenterShireId(), logicalOffset, getLayout());
+  const auto shardIndex = gpsdk::star_scratchpad::poolShardIndex(logicalOffset);
+  et_assert(shardIndex < getScratchpadAuxiliaryCount());
+  return gpsdk::star_scratchpad::format0Address(getScratchpadAuxiliaryShire(shardIndex),
+                                                gpsdk::star_scratchpad::poolShardOffset(logicalOffset));
 }
 
 template <typename T = std::byte>

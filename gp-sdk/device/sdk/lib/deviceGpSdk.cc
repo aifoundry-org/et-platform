@@ -59,6 +59,14 @@ GpSdkLaunchTopology topology_ = {
   gpsdk::launch::kMinionsPerShire,
   0U,
   0U,
+  gpsdk::launch::kInvalidShireId,
+  0U,
+  0U,
+  {gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId,
+   gpsdk::launch::kInvalidShireId},
+  {gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId,
+   gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId,
+   gpsdk::launch::kInvalidShireId, gpsdk::launch::kInvalidShireId},
 };
 const kernel_environment_t fallback_env = {{0, 0, 0, 0}, 0xFFFFFFFF, 600};
 } // namespace device_config
@@ -108,6 +116,12 @@ device_config::GpSdkLaunchTopology getLaunchTopology(const gpsdk::launch::Runtim
 
   topology.flags = header->flags;
   topology.activeNeighborhood = header->activeNeighborhood;
+  topology.effectiveCenterShire = header->effectiveCenterShire;
+  topology.scratchpadRelayCount = header->scratchpadRelayCount;
+  topology.scratchpadAuxiliaryCount = header->scratchpadAuxiliaryCount;
+  et_memcpy(topology.scratchpadRelayShires, header->scratchpadRelayShires, sizeof(topology.scratchpadRelayShires));
+  et_memcpy(topology.scratchpadAuxiliaryShires, header->scratchpadAuxiliaryShires,
+            sizeof(topology.scratchpadAuxiliaryShires));
 
   if ((header->computeShireMask == 0ULL) || ((header->computeShireMask & ~launchedShireMask) != 0ULL)) {
     topology.flags = 0U;
