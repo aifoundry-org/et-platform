@@ -32,7 +32,7 @@ int entryPoint([[maybe_unused]] KernelArguments* args) {
   }
 
   et_assert(gpsdk::device::star_scratchpad::isAvailable());
-  if (isScratchpadBlockClusterEnabled()) {
+  if (isScratchpadBlockClusterEnabled() || isScratchpadNestedStarClusterEnabled()) {
     et_assert(gpsdk::device::star_scratchpad::capacity() == (16ULL << 20));
   } else {
     et_assert(isScratchpadStarClusterEnabled());

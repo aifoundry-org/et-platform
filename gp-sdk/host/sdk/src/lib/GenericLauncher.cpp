@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "GenericLauncher.h"
+#include "gpsdk_star_scratchpad.h"
 
 // Trace Buffer realted constants.
 constexpr size_t kTraceBytesPerHart = 4096;
@@ -116,50 +117,44 @@ std::filesystem::path resolveKernelPath(const std::filesystem::path& kernelPath,
   return kernelPath;
 }
 
-constexpr uint32_t kScratchpadStarRows = 4U;
-constexpr uint32_t kScratchpadStarCols = 8U;
-
-uint32_t getScratchpadCenterShire(uint64_t centerShireMask, const char* optionName) {
-  if (__builtin_popcountll(centerShireMask) != 1) {
-    std::cout << "Invalid " << optionName << " configuration. --shire_mask must select exactly one center shire."
-              << std::endl;
-    exit(1);
+const char* clusterOptionName(gpsdk::star_scratchpad::ClusterLayout layout) {
+  switch (layout) {
+  case gpsdk::star_scratchpad::ClusterLayout::Star:
+    return "--scratchpad_star";
+  case gpsdk::star_scratchpad::ClusterLayout::Block:
+    return "--scratchpad_block";
+  case gpsdk::star_scratchpad::ClusterLayout::NestedStar:
+    return "--scratchpad_nested_star";
   }
 
-  const auto centerShire = static_cast<uint32_t>(__builtin_ctzll(centerShireMask));
-  if (centerShire >= (kScratchpadStarRows * kScratchpadStarCols)) {
-    std::cout << "Invalid " << optionName << " center shire " << centerShire
-              << ". Expected a compute shire in the range [0, 31]." << std::endl;
-    exit(1);
-  }
-
-  // Assume the 32 compute shires are numbered row-major on a 4x8 mesh.
-  const auto row = centerShire / kScratchpadStarCols;
-  const auto col = centerShire % kScratchpadStarCols;
-  if ((row == 0U) || (row == (kScratchpadStarRows - 1U)) || (col == 0U) || (col == (kScratchpadStarCols - 1U))) {
-    std::cout << "Invalid " << optionName << " center shire " << centerShire
-              << ". The center must not be on the edge of the 4x8 compute-shire mesh." << std::endl;
-    exit(1);
-  }
-
-  return centerShire;
+  return "--scratchpad_unknown";
 }
 
-uint64_t expandScratchpadStarCluster(uint64_t centerShireMask) {
-  const auto centerShire = getScratchpadCenterShire(centerShireMask, "--scratchpad_star");
-
-  return centerShireMask | (1ULL << (centerShire - 1U)) | (1ULL << (centerShire + 1U)) |
-         (1ULL << (centerShire - kScratchpadStarCols)) | (1ULL << (centerShire + kScratchpadStarCols));
+gpsdk::star_scratchpad::ClusterLayout getScratchpadClusterLayout(bool scratchpadStarCluster,
+                                                                 bool scratchpadBlockCluster,
+                                                                 bool scratchpadNestedStarCluster) {
+  if (scratchpadNestedStarCluster) {
+    return gpsdk::star_scratchpad::ClusterLayout::NestedStar;
+  }
+  return scratchpadBlockCluster ? gpsdk::star_scratchpad::ClusterLayout::Block
+                                : gpsdk::star_scratchpad::ClusterLayout::Star;
 }
 
-uint64_t expandScratchpadBlockCluster(uint64_t centerShireMask) {
-  const auto centerShire = getScratchpadCenterShire(centerShireMask, "--scratchpad_block");
+gpsdk::star_scratchpad::ClusterSelection resolveScratchpadCluster(rt::IRuntime* runtime,
+                                                                  const std::vector<rt::DeviceId>& devices,
+                                                                  uint32_t deviceIdx,
+                                                                  uint64_t requestedCenterMask,
+                                                                  gpsdk::star_scratchpad::ClusterLayout layout) {
+  const auto activeComputeShireMask = runtime->getDeviceProperties(devices.at(deviceIdx)).computeMinionShireMask_;
+  const auto selection = gpsdk::star_scratchpad::selectCluster(requestedCenterMask, activeComputeShireMask, layout);
+  if (selection.valid()) {
+    return selection;
+  }
 
-  return centerShireMask | (1ULL << (centerShire - kScratchpadStarCols - 1U)) |
-         (1ULL << (centerShire - kScratchpadStarCols)) | (1ULL << (centerShire - kScratchpadStarCols + 1U)) |
-         (1ULL << (centerShire - 1U)) | (1ULL << (centerShire + 1U)) |
-         (1ULL << (centerShire + kScratchpadStarCols - 1U)) | (1ULL << (centerShire + kScratchpadStarCols)) |
-         (1ULL << (centerShire + kScratchpadStarCols + 1U));
+  std::cout << "Invalid " << clusterOptionName(layout) << " configuration. Requested center mask 0x" << std::hex
+            << requestedCenterMask << " is not compatible with active compute shire mask 0x" << activeComputeShireMask
+            << std::dec << "." << std::endl;
+  exit(1);
 }
 } // namespace
 
@@ -516,11 +511,14 @@ void GenericLauncher::waitKernelCompletion(std::chrono::seconds timeout, uint32_
   return;
 }
 
-uint64_t GenericLauncher::getLaunchShireMask(uint64_t requestedShireMask) const {
-  if (scratchpadBlockCluster_) {
-    return expandScratchpadBlockCluster(requestedShireMask);
+uint64_t GenericLauncher::getLaunchShireMask(uint64_t requestedShireMask, uint32_t deviceIdx) const {
+  if (!scratchpadStarCluster_ && !scratchpadBlockCluster_ && !scratchpadNestedStarCluster_) {
+    return requestedShireMask;
   }
-  return scratchpadStarCluster_ ? expandScratchpadStarCluster(requestedShireMask) : requestedShireMask;
+
+  const auto layout =
+    getScratchpadClusterLayout(scratchpadStarCluster_, scratchpadBlockCluster_, scratchpadNestedStarCluster_);
+  return resolveScratchpadCluster(runtime_, devices_, deviceIdx, requestedShireMask, layout).launchedShireMask;
 }
 
 void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, size_t size, std::byte* ptr,
@@ -529,9 +527,25 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
   std::string coreFileName;
   std::filesystem::path cwd;
   std::vector<std::byte> wrappedParams;
-  const auto launchShireMask = getLaunchShireMask(shireMask);
+  const bool usesScratchpadCluster = scratchpadStarCluster_ || scratchpadBlockCluster_ || scratchpadNestedStarCluster_;
+  const auto launchShireMask = getLaunchShireMask(shireMask, deviceIdx);
   const std::byte* launchParams = params;
   size_t launchParamsSize = size;
+  uint64_t computeShireMask = shireMask;
+  bool clusterCenterShifted = false;
+
+  if (usesScratchpadCluster) {
+    const auto layout =
+      getScratchpadClusterLayout(scratchpadStarCluster_, scratchpadBlockCluster_, scratchpadNestedStarCluster_);
+    const auto selection = resolveScratchpadCluster(runtime_, devices_, deviceIdx, shireMask, layout);
+    computeShireMask = selection.computeShireMask;
+    clusterCenterShifted = selection.centerShifted;
+    if (clusterCenterShifted) {
+      std::cout << clusterOptionName(layout) << " shifted requested center shire "
+                << static_cast<uint32_t>(__builtin_ctzll(shireMask)) << " to active center shire "
+                << selection.effectiveCenterShire << ".\n";
+    }
+  }
 
   if (enableCoreDump_) {
     coreFileName = "core." + std::to_string(getpid()) + ".etsoc." + std::to_string((int)kernelId) + "." +
@@ -543,16 +557,16 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
   kOpts.setFlushL3(false);
   kOpts.setCoreDumpFilePath(cwd.string());
   if (kernelTracesEnabled()) {
-    kOpts.setUserTracing(reinterpret_cast<uint64_t>(traceDeviceBuffer_[deviceIdx]), kTraceBufferSize, 0, shireMask,
+    kOpts.setUserTracing(reinterpret_cast<uint64_t>(traceDeviceBuffer_[deviceIdx]), kTraceBufferSize, 0, computeShireMask,
                          getTraceThreadMask(), TRACE_EVENT_ENABLE_ALL, TRACE_FILTER_ENABLE_ALL);
   }
   if ((ptr != nullptr) && (stackSize != 0)) {
     kOpts.setStackConfig(ptr, stackSize);
   }
 
-  if ((activeNeighborhood_ >= 0) || scratchpadStarCluster_ || scratchpadBlockCluster_) {
+  if ((activeNeighborhood_ >= 0) || usesScratchpadCluster) {
     gpsdk::launch::RuntimeArgsHeader header;
-    header.computeShireMask = shireMask;
+    header.computeShireMask = computeShireMask;
     if (activeNeighborhood_ >= 0) {
       header.flags |= gpsdk::launch::kLaunchFlagSingleNeighborhoodPerShire;
       header.activeNeighborhood = static_cast<uint8_t>(activeNeighborhood_);
@@ -562,6 +576,9 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
     }
     if (scratchpadBlockCluster_) {
       header.flags |= gpsdk::launch::kLaunchFlagScratchpadBlockCluster;
+    }
+    if (scratchpadNestedStarCluster_) {
+      header.flags |= gpsdk::launch::kLaunchFlagScratchpadNestedStarCluster;
     }
     header.payloadSize = static_cast<uint32_t>(size);
 
@@ -602,6 +619,7 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"active_neighborhood", required_argument, nullptr, 0},
                                                          {"scratchpad_star", no_argument, nullptr, 0},
                                                          {"scratchpad_block", no_argument, nullptr, 0},
+                                                         {"scratchpad_nested_star", no_argument, nullptr, 0},
                                                          {nullptr, 0, nullptr, 0}};
 
   int ret = 0;
@@ -652,11 +670,17 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
       scratchpadStarCluster_ = true;
     } else if (!strcmp(name, "scratchpad_block")) {
       scratchpadBlockCluster_ = true;
+    } else if (!strcmp(name, "scratchpad_nested_star")) {
+      scratchpadNestedStarCluster_ = true;
     }
   }
 
-  if (scratchpadStarCluster_ && scratchpadBlockCluster_) {
-    std::cout << "--scratchpad_star and --scratchpad_block are mutually exclusive." << std::endl;
+  const auto scratchpadClusterModes =
+    static_cast<uint32_t>(scratchpadStarCluster_) + static_cast<uint32_t>(scratchpadBlockCluster_) +
+    static_cast<uint32_t>(scratchpadNestedStarCluster_);
+  if (scratchpadClusterModes > 1U) {
+    std::cout << "--scratchpad_star, --scratchpad_block, and --scratchpad_nested_star are mutually exclusive."
+              << std::endl;
     exit(1);
   }
 
@@ -681,7 +705,7 @@ bool GenericLauncher::checkKernelExecutionErrors() {
 
 std::tuple<std::byte*, size_t> GenericLauncher::allocDeviceStack(size_t threadStackSize, uint64_t shireMask) {
   constexpr size_t kNumThreadsPerShire = 64;
-  const auto launchShireMask = getLaunchShireMask(shireMask);
+  const auto launchShireMask = getLaunchShireMask(shireMask, devIdx_);
   size_t totalStackSize = __builtin_popcountll(launchShireMask) * kNumThreadsPerShire * threadStackSize;
   std::byte* ptrStack = runtime_->mallocDevice(devices_[devIdx_], totalStackSize, 4096);
   return make_tuple(ptrStack, totalStackSize);

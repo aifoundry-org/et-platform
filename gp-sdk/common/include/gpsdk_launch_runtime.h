@@ -23,6 +23,7 @@ enum LaunchFlags : uint32_t {
   kLaunchFlagSingleNeighborhoodPerShire = 1U << 0,
   kLaunchFlagScratchpadStarCluster = 1U << 1,
   kLaunchFlagScratchpadBlockCluster = 1U << 2,
+  kLaunchFlagScratchpadNestedStarCluster = 1U << 3,
 };
 
 struct alignas(64) RuntimeArgsHeader {

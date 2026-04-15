@@ -230,11 +230,12 @@ public:
     "  '', --simulator_params        Hyperparameters to pass to simulator, overrides default values\n"
     "  '', --active_neighborhood     Restrict execution to one neighborhood per shire (0-3).\n"
     "  '', --scratchpad_star         Expand a center shire into a 5-shire N/S/E/W scratchpad cluster (8 MiB pool).\n"
-    "  '', --scratchpad_block        Expand a center shire into a 9-shire surround scratchpad block (16 MiB pool).\n";
+    "  '', --scratchpad_block        Expand a center shire into a 9-shire surround scratchpad block (16 MiB pool).\n"
+    "  '', --scratchpad_nested_star  Expand into a 13-shire nested star with 8 equal-distance leaf data shires (16 MiB pool).\n";
 
 private:
   std::vector<std::byte> readFile(const std::string& path);
-  uint64_t getLaunchShireMask(uint64_t requestedShireMask) const;
+  uint64_t getLaunchShireMask(uint64_t requestedShireMask, uint32_t deviceIdx) const;
   void doKernelLaunch(rt::KernelId, std::byte* params, size_t size, std::byte* stackPtr, size_t stackSize,
                       uint64_t shireMask, uint32_t deviceIdx);
   void resetRuntime();
@@ -252,6 +253,7 @@ private:
   int activeNeighborhood_ = -1;
   bool scratchpadStarCluster_ = false;
   bool scratchpadBlockCluster_ = false;
+  bool scratchpadNestedStarCluster_ = false;
   std::string sysemuTraceDumpCookiePath_ =
     std::filesystem::path(std::filesystem::temp_directory_path().string() + "/" + "sysemuTraceDumpCookie." +
                           std::to_string(getuid()) + "." + std::to_string(getpid()) + ".bin");

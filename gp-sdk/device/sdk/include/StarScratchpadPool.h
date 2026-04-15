@@ -16,6 +16,9 @@
 namespace gpsdk::device::star_scratchpad {
 
 inline gpsdk::star_scratchpad::ClusterLayout getLayout() {
+  if (isScratchpadNestedStarClusterEnabled()) {
+    return gpsdk::star_scratchpad::ClusterLayout::NestedStar;
+  }
   return isScratchpadBlockClusterEnabled() ? gpsdk::star_scratchpad::ClusterLayout::Block
                                            : gpsdk::star_scratchpad::ClusterLayout::Star;
 }
@@ -25,15 +28,16 @@ inline uint32_t getCenterShireId() {
   et_assert(__builtin_popcountll(computeShireMask) == 1);
 
   const auto centerShire = static_cast<uint32_t>(__builtin_ctzll(computeShireMask));
-  et_assert(gpsdk::star_scratchpad::isValidCenterShire(centerShire));
+  et_assert(gpsdk::star_scratchpad::isValidCenterShire(centerShire, getLayout()));
   return centerShire;
 }
 
 inline bool isAvailable() {
   const auto computeShireMask = getComputeShireMask();
-  return (isScratchpadStarClusterEnabled() || isScratchpadBlockClusterEnabled()) &&
+  return (isScratchpadStarClusterEnabled() || isScratchpadBlockClusterEnabled() || isScratchpadNestedStarClusterEnabled()) &&
          (__builtin_popcountll(computeShireMask) == 1) &&
-         gpsdk::star_scratchpad::isValidCenterShire(static_cast<uint32_t>(__builtin_ctzll(computeShireMask)));
+         gpsdk::star_scratchpad::isValidCenterShire(static_cast<uint32_t>(__builtin_ctzll(computeShireMask)),
+                                                    getLayout());
 }
 
 inline uint64_t capacity() {

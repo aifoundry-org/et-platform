@@ -20,6 +20,9 @@ struct Options {
   std::string device_type = "sysemu";
   uint32_t shire_mask = 0xFFFFFFFF;
   bool read_neighbor_probes = false;
+  bool scratchpad_star = false;
+  bool scratchpad_block = false;
+  bool scratchpad_nested_star = false;
 };
 
 Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
@@ -71,6 +74,13 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
       std::cout << help_msg << GenericLauncher::help_msg << std::endl;
       std::exit(0);
     case '?':
+      if (!std::strcmp(argv[optind - 1], "--scratchpad_star")) {
+        opts.scratchpad_star = true;
+      } else if (!std::strcmp(argv[optind - 1], "--scratchpad_block")) {
+        opts.scratchpad_block = true;
+      } else if (!std::strcmp(argv[optind - 1], "--scratchpad_nested_star")) {
+        opts.scratchpad_nested_star = true;
+      }
       nextlevel.emplace_back(argv[optind - 1]);
       break;
     default:
@@ -84,11 +94,21 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     std::exit(1);
   }
 
+  if ((static_cast<uint32_t>(opts.scratchpad_star) + static_cast<uint32_t>(opts.scratchpad_block) +
+       static_cast<uint32_t>(opts.scratchpad_nested_star)) > 1U) {
+    std::cout << "Error: scratchpad cluster modes are mutually exclusive.\n";
+    std::exit(1);
+  }
+
   return opts;
 }
 
-inline uint32_t getCenterShire(uint32_t shireMask) {
-  return static_cast<uint32_t>(__builtin_ctz(shireMask));
+inline gpsdk::star_scratchpad::ClusterLayout getClusterLayout(const Options& opts) {
+  if (opts.scratchpad_nested_star) {
+    return gpsdk::star_scratchpad::ClusterLayout::NestedStar;
+  }
+  return opts.scratchpad_block ? gpsdk::star_scratchpad::ClusterLayout::Block
+                               : gpsdk::star_scratchpad::ClusterLayout::Star;
 }
 
 inline void computeStarNeighbors(uint32_t centerShire, uint32_t* neighbors) {
@@ -116,6 +136,15 @@ public:
     }
     return value;
   }
+
+  uint32_t resolveCenterShire(uint64_t requestedShireMask, gpsdk::star_scratchpad::ClusterLayout layout) {
+    const auto activeComputeShireMask = runtime_->getDeviceProperties(devices_[0]).computeMinionShireMask_;
+    const auto selection = gpsdk::star_scratchpad::selectCluster(requestedShireMask, activeComputeShireMask, layout);
+    if (!selection.valid()) {
+      throw std::runtime_error("Unable to resolve scratchpad cluster center");
+    }
+    return selection.effectiveCenterShire;
+  }
 };
 
 } // namespace
@@ -138,7 +167,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  const auto centerShire = getCenterShire(opt.shire_mask);
+  const auto centerShire = launcher.resolveCenterShire(opt.shire_mask, getClusterLayout(opt));
   const auto markerAddress = gpsdk::star_scratchpad::successMarkerAddress(centerShire);
   const auto markerValue = launcher.readU64(markerAddress);
   if (markerValue != gpsdk::star_scratchpad::kSuccessMarkerValue) {
