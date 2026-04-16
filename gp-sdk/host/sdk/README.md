@@ -233,6 +233,49 @@ The shire ids can vary by card. The important part is that:
 - the aggregate checksum matches
 - each leaf shire receives the expected share of the remote atomic reads
 
+## 8. Run The Supported Nested-Star Suite
+
+This is the direct suite runner for the kernels and demos that are currently validated on silicon under:
+- one active neighborhood
+- inferred nested-star scratchpad topology
+- `--erbium_sim` fencing
+
+The long-lived status log for this suite is in [NESTED_STAR_SUITE_README.md](/home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/NESTED_STAR_SUITE_README.md).
+
+Run it like this:
+
+```bash
+python3 -u /home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/run_nested_star_suite.py
+```
+
+On this card, the current default passing set is:
+- `print`
+- `print2`
+- `bss`
+- `data`
+- `c_tls`
+- `cpp_tls`
+- `external_tls`
+- `gp`
+- `nested_scratchpad_stencil`
+- `nested_scratchpad_atomic_reads`
+- `nested_scratchpad_chimera_gemv`
+- `erbium_sim_access_violation`
+
+If you want to see the full manifest, including currently unsupported cases and their reasons:
+
+```bash
+python3 /home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/run_nested_star_suite.py --list
+```
+
+If you want to probe one of the currently skipped kernels anyway:
+
+```bash
+python3 -u /home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/run_nested_star_suite.py \
+  --include-skipped \
+  --case saxpy_scalar
+```
+
 ## 7. Chimera GEMV Proof Of Life
 
 This is the mixed-unit proof.

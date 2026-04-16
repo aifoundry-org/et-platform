@@ -13,6 +13,7 @@ struct Options {
   fs::path kernel_path = "";
   int kernel_launch_timeout = 10;
   std::string device_type = "sysemu";
+  uint32_t shire_mask = 0xFFFFFFFF;
   int launch_mult = 1;
   double epsilon = 0.0;
 };
@@ -30,14 +31,16 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "  -t, --kernel_launch_timeout   timeout (in seconds) to wait for kenelLaunch\n"
     "  -n, --num_launches            Number of times the kernel will be launched.\n"
     "  -d, --device_type             Device Type to be used (sysemu, fake,silicon.\n"
+    "  -m, --shire_mask              Shires the kernel will be assigned when executed.\n"
     "  -l, --launch_mult             Number of times the kernel is executed for each launch.\n"
     "  -e, --epsilon                 Delta used for comparison between host and device.\n";
 
-  static constexpr const char* short_opts = "k:t:n:d:l:e:h";
+  static constexpr const char* short_opts = "k:t:n:d:m:l:e:h";
 
   static const std::vector<struct option> long_opts_vect{{"kernel_path", required_argument, nullptr, 'k'},
                                                          {"kernel_launch_timeout", required_argument, nullptr, 't'},
                                                          {"device_type", required_argument, nullptr, 'd'},
+                                                         {"shire_mask", required_argument, nullptr, 'm'},
                                                          {"launch_mult", required_argument, nullptr, 'l'},
                                                          {"epsilon", required_argument, nullptr, 'e'},
                                                          {"help", no_argument, nullptr, 'h'},
@@ -59,6 +62,9 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
       break;
     case 'd':
       opts.device_type = optarg;
+      break;
+    case 'm':
+      opts.shire_mask = std::stoul(optarg, 0, 16);
       break;
     case 'l':
       opts.launch_mult = atoi(optarg);
@@ -159,7 +165,7 @@ int main(int argc, char** argv) {
   kernelArgs.x = (float*)launcher.deviceX_;
   kernelArgs.y = (float*)launcher.deviceY_;
   kernelArgs.res = (float*)launcher.deviceRes_;
-  launcher.kernelLaunch(kernelId, &kernelArgs);
+  launcher.kernelLaunch(kernelId, &kernelArgs, nullptr, 0, 0, opt.shire_mask);
 
   auto timeout = std::chrono::seconds(opt.kernel_launch_timeout);
   launcher.waitKernelCompletion(timeout);    
