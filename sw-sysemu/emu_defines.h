@@ -55,6 +55,9 @@ namespace bemu {
 #define EMU_HAS_GFX 0
 #define EMU_HAS_MSG_PORTS 0
 
+// PLIC interrupt source IDs
+#define ER_PLIC_UART0_INTR_ID 3
+
 // Main memory size (16MB of MRAM)
 #define EMU_DRAM_SIZE  (16ULL*1024ULL*1024ULL)
 

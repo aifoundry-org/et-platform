@@ -28,7 +28,7 @@ namespace bemu {
 // | 0x00_0200_0000 | 0x00_0200_0FFF |  4KiB    | SystemRegisters   |
 // | 0x00_0200_4000 | 0x00_0200_4FFF |  4KiB    | UART              |
 // | 0x00_0200_A000 | 0x00_0200_BFFF |  8KiB    | Boot ROM          |
-// | 0x00_0200_E000 | 0x00_0200_EFFF |  4KiB    | Scratch SRAM      |
+// | 0x00_0200_C000 | 0x00_0200_CFFF |  4KiB    | Scratch SRAM      |
 // | 0x00_4000_0000 | 0x00_40FF_FFFF | 16MiB    | MRAM              |
 // | 0x00_7FFF_D000 | 0x00_7FFF_FFFF | 12KiB    | OTP (read-only)   |
 // | 0x00_8000_0000 | 0x00_80FF_FFFF | 16MiB    | ESR Registers     |
@@ -129,6 +129,7 @@ public:
     int uart_get_tx_fd() const;
     int uart_get_rx_fd() const;
     bool is_uart_enabled() const;
+    void uart_clock_tick(const Agent& agent, uint64_t cycle);
 
     // PLIC helpers
     void plic_interrupt_pending_set(const Agent&, uint32_t source);
