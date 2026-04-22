@@ -142,7 +142,7 @@ EventId RuntimeImp::doKernelLaunch(StreamId streamId, KernelId kernelId, const s
   }
 
   cmdPtr->exception_buffer = reinterpret_cast<uint64_t>(pBuffer->getExceptionContextPtr());
-  cmdPtr->code_start_address = kernel->getEntryAddress();
+  cmdPtr->code_start_address = options.codeStartAddress_.value_or(kernel->getEntryAddress());
   cmdPtr->pointer_to_args = reinterpret_cast<uint64_t>(pBuffer->getParametersPtr());
   cmdPtr->shire_mask = options.shireMask_;
 

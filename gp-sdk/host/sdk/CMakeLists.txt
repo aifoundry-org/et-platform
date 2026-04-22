@@ -178,7 +178,15 @@ target_link_libraries(star_scratchpad_boundary_violation_demo
         etsoc_gpsdk
 )
 
-install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher star_scratchpad_proof shire_latency_probe nested_scratchpad_demo nested_scratchpad_stencil_demo nested_scratchpad_atomic_reads_demo nested_scratchpad_chimera_gemv_demo erbium_sim_access_violation_demo star_scratchpad_boundary_violation_demo
+add_executable(scp_exec_probe_demo src/scp_exec_probe_demo/scp_exec_probe_demo.cpp)
+target_include_directories(scp_exec_probe_demo PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../../esperanto-tools-libs/include)
+target_link_libraries(scp_exec_probe_demo
+    PRIVATE
+        etsoc_gpsdk
+        ${CMAKE_CURRENT_LIST_DIR}/../../../build/esperanto-tools-libs-prefix/src/esperanto-tools-libs-build/libetrt.so
+)
+
+install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher star_scratchpad_proof shire_latency_probe nested_scratchpad_demo nested_scratchpad_stencil_demo nested_scratchpad_atomic_reads_demo nested_scratchpad_chimera_gemv_demo erbium_sim_access_violation_demo star_scratchpad_boundary_violation_demo scp_exec_probe_demo
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}
