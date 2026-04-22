@@ -30,6 +30,8 @@ The default demo kernel:
 
 The host launcher verifies the result.
 
+If you are using this path as an Erbium-equivalence aid, read [ERBIUM_SIM_PORTING_GUIDANCE.md](/home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/ERBIUM_SIM_PORTING_GUIDANCE.md) before treating it as hardware-faithful.
+
 ## 1. Bring The Card Back After Reboot
 
 From the repo root:
