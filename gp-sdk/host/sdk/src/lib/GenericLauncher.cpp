@@ -361,6 +361,54 @@ void setIfExists(std::string& dst, const std::filesystem::path& path) {
   }
 }
 
+void exportScratchpadAddressMapFile(const std::filesystem::path& outputPath, uint64_t requestedShireMask,
+                                    gpsdk::star_scratchpad::ClusterLayout layout,
+                                    const gpsdk::star_scratchpad::ClusterSelection& selection) {
+  if (outputPath.empty()) {
+    return;
+  }
+
+  if (!outputPath.parent_path().empty()) {
+    std::filesystem::create_directories(outputPath.parent_path());
+  }
+  std::ofstream output(outputPath, std::ios::trunc);
+  output << "layout ";
+  switch (layout) {
+  case gpsdk::star_scratchpad::ClusterLayout::Star:
+    output << "star\n";
+    break;
+  case gpsdk::star_scratchpad::ClusterLayout::Block:
+    output << "block\n";
+    break;
+  case gpsdk::star_scratchpad::ClusterLayout::NestedStar:
+    output << "nested_star\n";
+    break;
+  }
+  output << "requested_center_mask " << formatMask(requestedShireMask) << "\n";
+  output << "compute_shire_mask " << formatMask(selection.computeShireMask) << "\n";
+  output << "launched_shire_mask " << formatMask(selection.launchedShireMask) << "\n";
+  output << "effective_center_shire " << std::dec << selection.effectiveCenterShire << "\n";
+  output << "center_shifted " << (selection.centerShifted ? 1 : 0) << "\n";
+  output << "relay_count " << static_cast<uint32_t>(selection.relayCount) << "\n";
+  for (uint32_t idx = 0U; idx < selection.relayCount; ++idx) {
+    output << "relay " << idx << " shire " << static_cast<uint32_t>(selection.relayShires[idx]) << "\n";
+  }
+  output << "auxiliary_count " << static_cast<uint32_t>(selection.auxiliaryCount) << "\n";
+  output << "pool_bytes_per_shire 0x" << std::hex << gpsdk::star_scratchpad::kPoolBytesPerAuxShire << "\n";
+  output << "pool_total_bytes 0x" << std::hex << gpsdk::star_scratchpad::poolCapacity(layout) << "\n";
+  output << "success_marker_address 0x" << std::hex
+         << gpsdk::star_scratchpad::successMarkerAddress(selection.effectiveCenterShire) << "\n";
+
+  for (uint32_t idx = 0U; idx < selection.auxiliaryCount; ++idx) {
+    const auto entry =
+      gpsdk::star_scratchpad::poolShardAddressMapEntry(idx, static_cast<uint32_t>(selection.auxiliaryShires[idx]));
+    output << "shard " << std::dec << entry.shardIndex << " shire " << entry.shireId << " logical_base 0x" << std::hex
+           << entry.logicalBaseOffset << " logical_limit 0x" << entry.logicalLimitOffset << " shire_base_offset 0x"
+           << entry.shireBaseOffset << " shire_limit_offset 0x" << entry.shireLimitOffset << " base_address 0x"
+           << entry.baseAddress << " limit_address 0x" << entry.limitAddress << "\n";
+  }
+}
+
 std::filesystem::path resolveKernelPath(const std::filesystem::path& kernelPath, Mode mode) {
   if (mode != Mode::SYSEMU) {
     return kernelPath;
@@ -979,6 +1027,7 @@ void GenericLauncher::doKernelLaunch(rt::KernelId kernelId, std::byte* params, s
                 << static_cast<uint32_t>(__builtin_ctzll(shireMask)) << " to active center shire "
                 << selection.effectiveCenterShire << ".\n";
     }
+    exportScratchpadAddressMapFile(scratchpadAddressMapPath_, shireMask, layout, selection);
   }
 
   if (enableCoreDump_) {
@@ -1067,6 +1116,7 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
                                                          {"scratchpad_star", no_argument, nullptr, 0},
                                                          {"scratchpad_block", no_argument, nullptr, 0},
                                                          {"erbium_sim", no_argument, nullptr, 0},
+                                                         {"scratchpad_address_map", required_argument, nullptr, 0},
                                                          {"topology_probe_kernel", required_argument, nullptr, 0},
                                                          {"topology_cache", required_argument, nullptr, 0},
                                                          {"rebuild_topology_cache", no_argument, nullptr, 0},
@@ -1123,6 +1173,8 @@ void GenericLauncher::parse_args(int argc, char** argv, bool strict) {
       scratchpadBlockCluster_ = true;
     } else if (!strcmp(name, "erbium_sim")) {
       erbiumSim_ = true;
+    } else if (!strcmp(name, "scratchpad_address_map")) {
+      scratchpadAddressMapPath_ = optarg;
     } else if (!strcmp(name, "topology_probe_kernel")) {
       topologyProbeKernelPath_ = optarg;
     } else if (!strcmp(name, "topology_cache")) {

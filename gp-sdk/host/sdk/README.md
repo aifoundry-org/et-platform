@@ -128,6 +128,20 @@ cmake --build build/host-prefix/src/host-build \
   -j"$(nproc)"
 ```
 
+If you also want the contiguous-window negative validation, build these too:
+
+```bash
+cmake --build build/device-prefix/src/device-build \
+  --target star_scratchpad_boundary_violation.elf_dbg \
+  -j"$(nproc)"
+```
+
+```bash
+cmake --build build/host-prefix/src/host-build \
+  --target star_scratchpad_boundary_violation_demo \
+  -j"$(nproc)"
+```
+
 ## 3. Run The Demo
 
 Run exactly this:
@@ -233,7 +247,76 @@ The shire ids can vary by card. The important part is that:
 - the aggregate checksum matches
 - each leaf shire receives the expected share of the remote atomic reads
 
-## 8. Run The Supported Nested-Star Suite
+## 7. Export The Resolved Scratchpad Map
+
+Any launcher that goes through `GenericLauncher` can now export the resolved shard map for the selected scratchpad cluster:
+
+```bash
+--scratchpad_address_map=/tmp/nested_star_map.txt
+```
+
+For a nested-star run, the file records:
+- requested and resolved shire masks
+- center, relay, and auxiliary shires
+- one line per `2 MiB` shard showing:
+  - logical range in the exported pool
+  - backing shire id
+  - offset inside that shire
+  - format-0 base and limit addresses
+
+## 8. Contiguous Window Guard
+
+The scratchpad pool is still segmented. It is not pointer-contiguous across shard boundaries.
+
+The device-side helper now rejects a single contiguous request if it would cross a `2 MiB` shard boundary:
+- `gpsdk::device::star_scratchpad::ptr<T>(logicalOffset, elementCount)`
+- `gpsdk::device::star_scratchpad::window(logicalOffset, sizeBytes)`
+- `gpsdk::device::star_scratchpad::maxContiguousBytes(logicalOffset)`
+
+Use one of these patterns when staging tensor/general buffers:
+
+```cpp
+const auto bytes = rows * stride;
+et_assert(bytes <= gpsdk::device::star_scratchpad::maxContiguousBytes(offset));
+auto* base = gpsdk::device::star_scratchpad::ptr<std::byte>(offset, bytes);
+```
+
+or:
+
+```cpp
+const auto win = gpsdk::device::star_scratchpad::window(offset, bytes);
+auto* base = reinterpret_cast<volatile std::byte*>(win.address);
+```
+
+That avoids silently allocating across two shires or leaking into per-shard guard space.
+
+If you want a direct negative test for those two failure modes, run:
+
+```bash
+env \
+  LD_LIBRARY_PATH=/home/lea/Developement/etsoc/et-platform/build/esperanto-tools-libs-prefix/src/esperanto-tools-libs-build:/opt/et/lib \
+  ET_DISABLE_KERNEL_TRACES=1 \
+  ET_EXECUTION_CONTEXT_CACHE_PREALLOC=0 \
+  ET_SKIP_MEMCPY_DEVICE_CHECK=1 \
+  /home/lea/Developement/etsoc/et-platform/build/host-prefix/src/host-build/sdk/star_scratchpad_boundary_violation_demo \
+    -d silicon \
+    -k /home/lea/Developement/etsoc/et-platform/build/device-prefix/src/device-build/tests/star_scratchpad_boundary_violation.elf_dbg \
+    -t 120 \
+    --shire_mask=0x200 \
+    --active_neighborhood=0 \
+    --scratchpad_nested_star \
+    --erbium_sim \
+    --topology_probe_kernel=/home/lea/Developement/etsoc/et-platform/build/device-prefix/src/device-build/tests/shire_latency_probe.elf_dbg
+```
+
+Expected result:
+
+```text
+Observed expected kernel failure for oversize_contiguous_request.
+Observed expected kernel failure for cross_shard_contiguous_request.
+```
+
+## 9. Run The Supported Nested-Star Suite
 
 This is the direct suite runner for the kernels and demos that are currently validated on silicon under:
 - one active neighborhood
@@ -276,7 +359,7 @@ python3 -u /home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/run_nested_s
   --case saxpy_scalar
 ```
 
-## 7. Chimera GEMV Proof Of Life
+## 10. Chimera GEMV Proof Of Life
 
 This is the mixed-unit proof.
 
@@ -315,7 +398,7 @@ Verified tensor max abs diff: 0
 Verified tensor samples: first=-0.223633 mid=-1.17188
 ```
 
-## 8. Erbium-Sim Fence Validation
+## 11. Erbium-Sim Fence Validation
 
 This is the negative test.
 

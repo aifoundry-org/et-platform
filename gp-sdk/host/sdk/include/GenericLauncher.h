@@ -243,6 +243,7 @@ public:
     "  '', --scratchpad_block        Expand a center shire into a 9-shire surround scratchpad block (16 MiB pool).\n"
     "  '', --scratchpad_nested_star  Expand into a topology-inferred 13-shire nested star with 8 equal-distance leaf data shires (16 MiB pool).\n"
     "  '', --erbium_sim              Fence GP-SDK format-0 scratchpad accesses to the selected scratchpad cluster.\n"
+    "  '', --scratchpad_address_map  export the resolved scratchpad shard address map to the given file path.\n"
     "  '', --topology_probe_kernel   path to shire_latency_probe.elf_dbg used to infer per-device topology.\n"
     "  '', --topology_cache          path to the per-device topology cache file.\n"
     "  '', --rebuild_topology_cache  ignore any existing topology cache and rebuild it.\n";
@@ -272,6 +273,7 @@ private:
   bool scratchpadBlockCluster_ = false;
   bool scratchpadNestedStarCluster_ = false;
   bool erbiumSim_ = false;
+  fs::path scratchpadAddressMapPath_;
   fs::path topologyProbeKernelPath_;
   fs::path topologyCachePathOverride_;
   bool rebuildTopologyCache_ = false;

@@ -21,6 +21,7 @@
 #include <system/abi.h>
 
 #include "gpsdk_launch_runtime.h"
+#include "gpsdk_star_scratchpad.h"
 
 static inline uint8_t readByte(uint8_t * addr);
 static inline void writeByte(uint8_t * addr, uint8_t val);
@@ -332,6 +333,15 @@ static inline bool isScratchpadClusterShire(uint32_t shireId) {
   return false;
 }
 
+static inline bool isScratchpadAuxiliaryShire(uint32_t shireId) {
+  for (uint32_t idx = 0U; idx < getScratchpadAuxiliaryCount(); ++idx) {
+    if (getScratchpadAuxiliaryShire(idx) == shireId) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static inline uint32_t getFormat0ScratchpadShireId(uint64_t addr) {
   return static_cast<uint32_t>((addr - 0x80000000ULL) >> 23);
 }
@@ -362,7 +372,18 @@ static inline bool isAccessibleErbiumSimScratchpadAddress(uint64_t addr, size_t 
     return false;
   }
 
-  return isScratchpadClusterShire(shireId);
+  if (!isScratchpadClusterShire(shireId)) {
+    return false;
+  }
+
+  if (isScratchpadAuxiliaryShire(shireId) &&
+      (offset >= gpsdk::star_scratchpad::kPoolBaseOffset) &&
+      (offset < (gpsdk::star_scratchpad::kPoolBaseOffset + gpsdk::star_scratchpad::kPoolBytesPerAuxShire))) {
+    return static_cast<uint64_t>(sizeBytes) <=
+           ((gpsdk::star_scratchpad::kPoolBaseOffset + gpsdk::star_scratchpad::kPoolBytesPerAuxShire) - offset);
+  }
+
+  return true;
 }
 
 static inline void assertErbiumSimScratchpadAddress(const volatile void* ptr, size_t sizeBytes) {

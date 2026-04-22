@@ -90,6 +90,17 @@ struct ClusterSelection {
   }
 };
 
+struct PoolShardAddressMapEntry {
+  uint32_t shardIndex = 0U;
+  uint32_t shireId = kInvalidShire;
+  uint64_t logicalBaseOffset = 0ULL;
+  uint64_t logicalLimitOffset = 0ULL;
+  uint64_t shireBaseOffset = 0ULL;
+  uint64_t shireLimitOffset = 0ULL;
+  uint64_t baseAddress = 0ULL;
+  uint64_t limitAddress = 0ULL;
+};
+
 constexpr PhysicalCoord kInvalidCoord = {0xFFU, 0xFFU};
 
 // Nested-star currently uses a host-side physical placement model that extends the existing
@@ -303,6 +314,10 @@ inline constexpr uint32_t auxiliaryShireCount(ClusterLayout layout) {
   return 0U;
 }
 
+inline constexpr uint64_t shardCount(ClusterLayout layout) {
+  return auxiliaryShireCount(layout);
+}
+
 inline constexpr uint64_t poolCapacity(ClusterLayout layout) {
   switch (layout) {
   case ClusterLayout::Star:
@@ -314,6 +329,35 @@ inline constexpr uint64_t poolCapacity(ClusterLayout layout) {
   }
 
   return 0ULL;
+}
+
+inline constexpr uint64_t poolShardLogicalBase(uint32_t shardIndex) {
+  return static_cast<uint64_t>(shardIndex) * kPoolBytesPerAuxShire;
+}
+
+inline constexpr uint64_t poolShardLogicalLimit(uint32_t shardIndex) {
+  return poolShardLogicalBase(shardIndex) + kPoolBytesPerAuxShire;
+}
+
+inline constexpr uint64_t poolShardBaseAddress(uint32_t shireId) {
+  return format0Address(shireId, kPoolBaseOffset);
+}
+
+inline constexpr uint64_t poolShardLimitAddress(uint32_t shireId) {
+  return format0Address(shireId, kPoolBaseOffset + kPoolBytesPerAuxShire);
+}
+
+inline constexpr PoolShardAddressMapEntry poolShardAddressMapEntry(uint32_t shardIndex, uint32_t shireId) {
+  return PoolShardAddressMapEntry{
+    shardIndex,
+    shireId,
+    poolShardLogicalBase(shardIndex),
+    poolShardLogicalLimit(shardIndex),
+    kPoolBaseOffset,
+    kPoolBaseOffset + kPoolBytesPerAuxShire,
+    poolShardBaseAddress(shireId),
+    poolShardLimitAddress(shireId),
+  };
 }
 
 inline constexpr uint32_t auxiliaryShire(uint32_t centerShire, uint32_t shardIndex, ClusterLayout layout) {
@@ -361,6 +405,20 @@ inline constexpr ClusterSelection makeStaticClusterSelection(uint32_t centerShir
 inline constexpr bool isValidPoolRange(uint64_t logicalOffset, uint64_t sizeBytes, ClusterLayout layout) {
   return (sizeBytes != 0U) && (logicalOffset < poolCapacity(layout)) &&
          (sizeBytes <= (poolCapacity(layout) - logicalOffset));
+}
+
+inline constexpr uint64_t maxContiguousBytes(uint64_t logicalOffset, ClusterLayout layout) {
+  if (logicalOffset >= poolCapacity(layout)) {
+    return 0ULL;
+  }
+
+  const auto remainingInPool = poolCapacity(layout) - logicalOffset;
+  const auto remainingInShard = kPoolBytesPerAuxShire - (logicalOffset % kPoolBytesPerAuxShire);
+  return (remainingInPool < remainingInShard) ? remainingInPool : remainingInShard;
+}
+
+inline constexpr bool isSingleShardRange(uint64_t logicalOffset, uint64_t sizeBytes, ClusterLayout layout) {
+  return isValidPoolRange(logicalOffset, sizeBytes, layout) && (sizeBytes <= maxContiguousBytes(logicalOffset, layout));
 }
 
 inline constexpr uint32_t poolShardIndex(uint64_t logicalOffset) {

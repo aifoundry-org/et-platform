@@ -15,6 +15,14 @@
 
 namespace gpsdk::device::star_scratchpad {
 
+struct ContiguousWindow {
+  uint32_t shardIndex = 0U;
+  uint32_t shireId = gpsdk::star_scratchpad::kInvalidShire;
+  uint64_t logicalOffset = 0ULL;
+  uint64_t sizeBytes = 0ULL;
+  uint64_t address = 0ULL;
+};
+
 inline gpsdk::star_scratchpad::ClusterLayout getLayout() {
   if (isScratchpadNestedStarClusterEnabled()) {
     return gpsdk::star_scratchpad::ClusterLayout::NestedStar;
@@ -45,20 +53,36 @@ inline uint64_t capacity() {
   return gpsdk::star_scratchpad::poolCapacity(getLayout());
 }
 
-inline uint64_t address(uint64_t logicalOffset, uint64_t sizeBytes = 1U) {
+inline uint64_t maxContiguousBytes(uint64_t logicalOffset) {
   et_assert(isAvailable());
-  et_assert(gpsdk::star_scratchpad::isValidPoolRange(logicalOffset, sizeBytes, getLayout()));
+  return gpsdk::star_scratchpad::maxContiguousBytes(logicalOffset, getLayout());
+}
+
+inline bool isSingleShardRange(uint64_t logicalOffset, uint64_t sizeBytes) {
+  et_assert(isAvailable());
+  return gpsdk::star_scratchpad::isSingleShardRange(logicalOffset, sizeBytes, getLayout());
+}
+
+inline ContiguousWindow window(uint64_t logicalOffset, uint64_t sizeBytes) {
+  et_assert(isAvailable());
+  et_assert(gpsdk::star_scratchpad::isSingleShardRange(logicalOffset, sizeBytes, getLayout()));
   const auto shardIndex = gpsdk::star_scratchpad::poolShardIndex(logicalOffset);
   et_assert(shardIndex < getScratchpadAuxiliaryCount());
-  const auto addr = gpsdk::star_scratchpad::format0Address(getScratchpadAuxiliaryShire(shardIndex),
-                                                           gpsdk::star_scratchpad::poolShardOffset(logicalOffset));
+  const auto shireId = getScratchpadAuxiliaryShire(shardIndex);
+  const auto addr =
+    gpsdk::star_scratchpad::format0Address(shireId, gpsdk::star_scratchpad::poolShardOffset(logicalOffset));
   assertErbiumSimScratchpadAddress(reinterpret_cast<const void*>(addr), sizeBytes);
-  return addr;
+  return ContiguousWindow{shardIndex, shireId, logicalOffset, sizeBytes, addr};
+}
+
+inline uint64_t address(uint64_t logicalOffset, uint64_t sizeBytes = 1U) {
+  et_assert(isAvailable());
+  return window(logicalOffset, sizeBytes).address;
 }
 
 template <typename T = std::byte>
-inline volatile T* ptr(uint64_t logicalOffset = 0U) {
-  return reinterpret_cast<volatile T*>(address(logicalOffset, sizeof(T)));
+inline volatile T* ptr(uint64_t logicalOffset = 0U, size_t elementCount = 1U) {
+  return reinterpret_cast<volatile T*>(address(logicalOffset, sizeof(T) * elementCount));
 }
 
 inline volatile uint64_t* successMarkerPtr() {

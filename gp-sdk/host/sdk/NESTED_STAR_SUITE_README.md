@@ -7,6 +7,8 @@ Use it to track:
 - which kernels are currently excluded and why
 - what exact command was used to validate a given machine
 - dated validation results over time
+- the exported scratchpad map format and contiguous-window guard status
+- the explicit negative test for oversize and cross-shard contiguous requests
 
 ## Suite Entry Points
 
@@ -37,6 +39,20 @@ pytest gp-sdk/ci/test_nested_star_examples.py \
   --with-gp-sdk /home/lea/Developement/etsoc/et-platform \
   --device-build /home/lea/Developement/etsoc/et-platform/build/device-prefix/src/device-build \
   --host-build /home/lea/Developement/etsoc/et-platform/build/host-prefix/src/host-build
+```
+
+Scratchpad map export for any direct launcher:
+
+```bash
+--scratchpad_address_map=/tmp/nested_star_map.txt
+```
+
+Contiguous-window helpers for device code:
+
+```cpp
+gpsdk::device::star_scratchpad::maxContiguousBytes(offset)
+gpsdk::device::star_scratchpad::window(offset, bytes)
+gpsdk::device::star_scratchpad::ptr<T>(offset, elementCount)
 ```
 
 ## Current Default Passing Set
@@ -108,6 +124,9 @@ Notes:
 - The default suite passed end-to-end on this ETSOC1 card.
 - The skipped set was also probed during bring-up and recorded in `gp-sdk/ci/nested_star_cases.py`.
 - `saxpy_*`, `sdot_*`, `txfma`, barrier kernels, and `user_defined_stack` are not yet part of the supported nested-star set.
+- `--scratchpad_address_map=/tmp/nested_star_map.txt` was validated on the stencil demo and exported the resolved 8-shard nested-star address map.
+- The pool helper now rejects contiguous requests that would cross a `2 MiB` shard boundary.
+- `star_scratchpad_boundary_violation_demo` is the explicit negative test for `> 2 MiB` contiguous requests and cross-shard contiguous requests.
 
 ## Updating This File
 
