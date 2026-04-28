@@ -8,6 +8,9 @@ This proof checks the specific thing the SCP path could not:
 
 It does **not** emulate Erbium yet. It only proves that executable placement in LPDDR is viable, which is the next useful substrate for an Erbium shim.
 
+The follow-on functional validation suite for this LPDDR path is tracked in
+[LPDDR_ERBIUM_SUITE_README.md](/home/lea/Developement/etsoc/et-platform/gp-sdk/host/sdk/LPDDR_ERBIUM_SUITE_README.md).
+
 ## What Is Checked
 
 The device probe kernel writes back:
