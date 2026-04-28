@@ -35,6 +35,13 @@ if (WITH_CM_UMODE)
     include(cm_umode.cmake)
 endif()
 
+option(WITH_ERBIUM_DRIVERS "Build erbium peripheral driver headers" ON)
+if (WITH_ERBIUM_DRIVERS)
+    # Build and install Erbium peripheral drivers (ipi/mprot/plic/...).
+    # Must come before erbium_umode.cmake — erbium-umode links the driver target.
+    include(erbium_drivers.cmake)
+endif()
+
 option(WITH_ERBIUM_UMODE "Build erbium_umode component" ON)
 if (WITH_ERBIUM_UMODE)
     # Build and install Erbium Minion User Mode libs
