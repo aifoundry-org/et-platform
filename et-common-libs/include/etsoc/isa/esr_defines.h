@@ -919,6 +919,52 @@ typedef uint64_t esr_address_t;
 #define THREAD_0 0
 #define THREAD_1 1
 
+/*-------------------------------------------------------------------------
+ * New-style ESR access helpers — runtime sub-region argument.
+ *
+ * Mirrors the surface introduced on the erbium side (esr_addr /
+ * esr_read_u64 / esr_write_u64). Used by new etsoc drivers ported
+ * from erbium (drivers/etsoc/{ipi,mprot,plic,thread,timer,uart}.h)
+ * that take HAL hwinc *_BYTE_ADDRESS symbols directly. Legacy
+ * ESR_<REGION>(...) macros above are unaffected and remain the
+ * supported path for existing firmware/runtime consumers.
+ *-----------------------------------------------------------------------*/
+
+/* Sub-region bases inside the 22-bit offset field [21:0]. Match the
+ * existing ESR_<REGION> values minus the ESR_REGION base bit. */
+#define ESR_SR_HART     0x000000ULL    /* HART */
+#define ESR_SR_NEIGH    0x100000ULL    /* Neighborhood (MPROT, ...) */
+#define ESR_SR_CACHE    0x300000ULL    /* Shire cache */
+#define ESR_SR_RBOX     0x320000ULL    /* RBOX */
+#define ESR_SR_SHIRE    0x340000ULL    /* Shire (IPI, mtime_local_target, ...) */
+
+#ifndef __ASSEMBLER__
+
+static inline __attribute__((always_inline))
+uint64_t esr_addr(uint32_t pp, uint32_t shire, uint32_t subregion, uint32_t offset)
+{
+    return ESR_REGION
+        | ((uint64_t)(pp     & 0x3ULL)  << ESR_REGION_PROT_SHIFT)
+        | ((uint64_t)(shire  & 0xFFULL) << ESR_REGION_SHIRE_SHIFT)
+        | ((uint64_t)(subregion & 0x3FFFFFULL))
+        | ((uint64_t)(offset    & 0xFFFFULL));
+}
+
+static inline __attribute__((always_inline))
+uint64_t esr_read_u64(uint32_t pp, uint32_t shire, uint32_t subregion, uint32_t offset)
+{
+    return *(volatile uint64_t *)(uintptr_t)esr_addr(pp, shire, subregion, offset);
+}
+
+static inline __attribute__((always_inline))
+void esr_write_u64(uint32_t pp, uint32_t shire, uint32_t subregion, uint32_t offset,
+                   uint64_t val)
+{
+    *(volatile uint64_t *)(uintptr_t)esr_addr(pp, shire, subregion, offset) = val;
+}
+
+#endif /* !__ASSEMBLER__ */
+
 #ifdef __cplusplus
 }
 #endif
