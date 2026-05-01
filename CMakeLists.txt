@@ -37,6 +37,7 @@ HostProject(et-driver "")
 HostProject(common-sw "" g3log)
 HostProject(device-api "" common-sw)
 DeviceProject(etsoc-hal "")
+HostProject(erbium-hal "")
 DeviceProject(et-trace "")
 DeviceProject(et-common-libs "-DENABLE_WARNINGS_AS_ERRORS=OFF" et-trace etsoc-hal)
 
