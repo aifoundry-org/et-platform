@@ -33,7 +33,7 @@
 
 // vendor, arch, imp, ISA values
 #if EMU_ERBIUM
-#define CSR_VENDOR_ID 0x5E5
+#define CSR_VENDOR_ID 0x565
 #define CSR_ARCH_ID   0x4554000000000001ull
 #define CSR_IMP_ID    0x10000
 #else
