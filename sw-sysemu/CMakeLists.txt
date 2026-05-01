@@ -66,6 +66,9 @@ include(GNUInstallDirs)
 find_package(glog REQUIRED)
 find_package(lz4 REQUIRED)
 
+# Erbium HAL: hwinc/ register headers and platform encoders. Header-only.
+find_package(erbium_hal REQUIRED)
+
 # dependencies
 if (BACKTRACE)
     find_package(libunwind REQUIRED)
@@ -457,6 +460,7 @@ target_link_libraries(sw-erbium
         $<$<BOOL:${BACKTRACE}>:libunwind::libunwind>
         lz4::lz4
         glog::glog
+        erbium_hal::erbium_hal
         $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0.0>>:stdc++fs>
 )
 target_link_options(sw-erbium PRIVATE LINKER:-Bsymbolic)
@@ -567,11 +571,12 @@ else()
     )
 
     add_executable(erbium_emu sw-sysemu/main.cpp)
-    target_link_libraries(erbium_emu PRIVATE sw-erbium)
+    target_link_libraries(erbium_emu PRIVATE sw-erbium erbium_hal::erbium_hal)
     target_include_directories(erbium_emu
         PRIVATE
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sys_emu>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../erbium-hal/include>
     )
     target_compile_definitions(erbium_emu PRIVATE ERBIUM)
     install(TARGETS erbium_emu

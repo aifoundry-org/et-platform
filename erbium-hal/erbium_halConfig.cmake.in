@@ -1,0 +1,7 @@
+# Copyright (c) 2026 AIFoundry
+# SPDX-License-Identifier: Apache-2.0
+
+@PACKAGE_INIT@
+
+include(${CMAKE_CURRENT_LIST_DIR}/erbium_halTargets.cmake)
+check_required_components(erbium_hal)

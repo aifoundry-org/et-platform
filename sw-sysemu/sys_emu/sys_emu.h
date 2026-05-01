@@ -30,6 +30,10 @@
 #endif
 #include "ISysEmuExport.hpp"
 
+#if EMU_ERBIUM
+#include <hwinc/top.h>
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
 ////////////////////////////////////////////////////////////////////////////////
@@ -39,8 +43,8 @@
 #define SP_RESET_PC 0x0040000000ULL
 #define DRAM_SIZE   16ull << 30;
 #elif EMU_ERBIUM
-#define RESET_PC    0x0002008000ULL // Start of bootrom
-#define DRAM_SIZE   16ull << 20;
+#define RESET_PC    ERBIUM_TOP_BOOTROM_BASE
+#define DRAM_SIZE   ERBIUM_TOP_MRAM_SIZE;
 #else
 #error "Unknown platform"
 #endif
@@ -105,7 +109,11 @@ struct sys_emu_cmd_options {
     bool        mins_dis                     = false;
     bool        sp_dis                       = false; // SVCPROC
     uint32_t    mem_reset                    = 0;
+#if EMU_ERBIUM
+    uint64_t    dram_size                    = ERBIUM_TOP_MRAM_SIZE;
+#else
     uint64_t    dram_size                    = 16ull << 30;
+#endif
 
     uint64_t    log_at_pc                    = ~0ull;
     uint64_t    stop_log_at_pc               = ~0ull;

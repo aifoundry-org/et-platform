@@ -16,6 +16,7 @@
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 
+#include <hwinc/top.h>
 namespace bemu {
 
 
@@ -59,24 +60,24 @@ private:
     };
 
     constexpr static uint64_t region_bases[REGION_COUNT] = {
-        /* erbreg  */ 0x0002000000ull,
-        /* mram_bridge */ 0x0002001000ull,
-        /* uart    */ 0x0002004000ull,
-        /* bootrom */ 0x0002008000ull,
-        /* sram    */ 0x000200C000ull,
-        /* dram    */ 0x0040000000ull,  /* Actually MRAM */
+        /* erbreg  */ ERBIUM_TOP_SYSTEM_REGISTERS_BASE,
+        /* mram_bridge */ ERBIUM_TOP_MRAM_REGISTERS_BASE,
+        /* uart    */ ERBIUM_TOP_UART_REGISTERS_BASE,
+        /* bootrom */ ERBIUM_TOP_BOOTROM_BASE,
+        /* sram    */ ERBIUM_TOP_SRAM_BASE,
+        /* dram    */ ERBIUM_TOP_MRAM_BASE,
         /* otp     */ 0x007FFFD000ull,
-        /* sysreg  */ 0x0080000000ull,
-        /* plic    */ 0x00A0000000ull,
+        /* sysreg  */ ERBIUM_TOP_CPU_REGISTERS_BASE,
+        /* plic    */ ERBIUM_TOP_PLIC_BASE,
     };
 
     constexpr static size_t region_sizes[REGION_COUNT] = {
-        /* erbreg  */ 4_KiB,
-        /* mram_bridge */ 4_KiB,
+        /* erbreg  */ ERBIUM_TOP_MRAM_REGISTERS_BASE - ERBIUM_TOP_SYSTEM_REGISTERS_BASE,
+        /* mram_bridge */ ERBIUM_TOP_I2C_REGISTERS_BASE - ERBIUM_TOP_MRAM_REGISTERS_BASE,
         /* uart    */ 4_KiB,
-        /* bootrom */ 8_KiB,
-        /* sram    */ 4_KiB,
-        /* dram    */ 16_MiB,
+        /* bootrom */ ERBIUM_TOP_BOOTROM_SIZE,
+        /* sram    */ ERBIUM_TOP_SRAM_SIZE,
+        /* dram    */ ERBIUM_TOP_MRAM_SIZE,
         /* otp     */ 12_KiB,
         /* sysreg  */ 16_MiB,
         /* plic    */ 64_MiB,

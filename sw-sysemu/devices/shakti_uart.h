@@ -17,6 +17,7 @@
 #include "memory/memory_error.h"
 #include "memory/memory_region.h"
 
+#include <hwinc/uart.h>
 namespace bemu {
 
 template <unsigned long long Base, size_t N, uint32_t PlicSource>
@@ -27,29 +28,27 @@ struct ShaktiUart : public MemoryRegion {
     using pointer       = typename MemoryRegion::pointer;
     using const_pointer = typename MemoryRegion::const_pointer;
 
-    // Shakti UART register offsets (64-bit aligned)
     enum : size_type {
-        SHAKTI_UART_BAUD         = 0x00,
-        SHAKTI_UART_TX_REG       = 0x08,
-        SHAKTI_UART_RCV_REG      = 0x10,
-        SHAKTI_UART_STATUS       = 0x18,
-        SHAKTI_UART_DELAY        = 0x20,
-        SHAKTI_UART_CONTROL      = 0x28,
-        SHAKTI_UART_IEN          = 0x30,
-        SHAKTI_UART_RX_THRESHOLD = 0x40,
+        SHAKTI_UART_BAUD         = UART_BAUDREG_OFFSET,
+        SHAKTI_UART_TX_REG       = UART_TXREG_OFFSET,
+        SHAKTI_UART_RCV_REG      = UART_RXREG_OFFSET,
+        SHAKTI_UART_STATUS       = UART_STATUSREG_OFFSET,
+        SHAKTI_UART_DELAY        = UART_DELAYREG_OFFSET,
+        SHAKTI_UART_CONTROL      = UART_CONTROLREG_OFFSET,
+        SHAKTI_UART_IEN          = UART_INTERRUPTEN_OFFSET,
+        SHAKTI_UART_RX_THRESHOLD = UART_RX_THRESHOLD_OFFSET,
     };
 
-    // STATUS register bits
     enum : uint32_t {
-        STATUS_TX_EMPTY     = (1u << 0),
-        STATUS_TX_FULL      = (1u << 1),
-        STATUS_RX_NOT_EMPTY = (1u << 2),
-        STATUS_RX_FULL      = (1u << 3),
-        STATUS_PARITY_ERROR = (1u << 4),
-        STATUS_OVERRUN      = (1u << 5),
-        STATUS_FRAME_ERROR  = (1u << 6),
-        STATUS_BREAK_ERROR  = (1u << 7),
-        STATUS_RXFIFOTHRE   = (1u << 8),
+        STATUS_TX_EMPTY     = UART_STATUSREG_TX_EMPTY_FIELD_MASK,
+        STATUS_TX_FULL      = UART_STATUSREG_TX_FULL_FIELD_MASK,
+        STATUS_RX_NOT_EMPTY = UART_STATUSREG_RX_NOTEMPTY_FIELD_MASK,
+        STATUS_RX_FULL      = UART_STATUSREG_RX_FULL_FIELD_MASK,
+        STATUS_PARITY_ERROR = UART_STATUSREG_PARITY_ERROR_FIELD_MASK,
+        STATUS_OVERRUN      = UART_STATUSREG_OVERRUN_ERROR_FIELD_MASK,
+        STATUS_FRAME_ERROR  = UART_STATUSREG_FRAME_ERROR_FIELD_MASK,
+        STATUS_BREAK_ERROR  = UART_STATUSREG_BREAK_ERROR_FIELD_MASK,
+        STATUS_RXFIFOTHRE   = UART_STATUSREG_RX_FIFO_THRESHOLD_FIELD_MASK,
     };
 
     static constexpr size_t FIFO_DEPTH = 16;
@@ -114,20 +113,20 @@ struct ShaktiUart : public MemoryRegion {
             sync_interrupt_line(agent, false);
             break;
         case SHAKTI_UART_BAUD:
-            reg_baud = value & 0xFFFFu;
+            reg_baud = value & UART_BAUDREG_WRITE_MASK;
             break;
         case SHAKTI_UART_DELAY:
-            reg_delay = value & 0xFFFFu;
+            reg_delay = value & UART_DELAYREG_WRITE_MASK;
             break;
         case SHAKTI_UART_CONTROL:
-            reg_control = value & 0x07FEu;  // charsize, parity, stopbits
+            reg_control = value & UART_CONTROLREG_WRITE_MASK;
             break;
         case SHAKTI_UART_IEN:
-            reg_ien = value & 0x01FFu;  // bits [8:0]
+            reg_ien = value & UART_INTERRUPTEN_WRITE_MASK;
             sync_interrupt_line(agent, true);
             break;
         case SHAKTI_UART_RX_THRESHOLD:
-            reg_rx_threshold = value & 0xFFu;
+            reg_rx_threshold = value & UART_RX_THRESHOLD_WRITE_MASK;
             sync_interrupt_line(agent, true);
             break;
         case SHAKTI_UART_STATUS:
