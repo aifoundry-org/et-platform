@@ -577,6 +577,10 @@ inline void System::tick_peripherals(uint64_t cycle)
     memory.rvtimer_clock_tick(noagent, cycle);
 #endif
 
+#if EMU_HAS_SHAKTI_UART
+    memory.uart_clock_tick(noagent, cycle);
+#endif
+
     // cycle at 1GHz, timer clock at 10MHz
     if ((cycle % 100) == 0) {
 

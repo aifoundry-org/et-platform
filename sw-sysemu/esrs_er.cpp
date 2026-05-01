@@ -14,6 +14,8 @@
 #include "sysreg_error.h"
 #include "system.h"
 #include "memory/memory_error.h"
+
+#include <hwinc/top.h>
 #ifdef SYS_EMU
 #include "checkers/mem_checker.h"
 #include "sys_emu.h"
@@ -46,7 +48,7 @@ namespace bemu {
 #define ESR_SREGION_EXT_MASK    0x00803E0000ull
 
 // Base addresses for ESR subregions
-#define ESR_HART_REGION        0x0080000000ull
+#define ESR_HART_REGION        ESR_REGION_BASE
 #define ESR_NEIGH_REGION       0x0080100000ull
 #define ESR_SHIRE_REGION       0x0080340000ull
 
@@ -164,7 +166,7 @@ void neigh_esrs_t::warm_reset()
 
 void neigh_esrs_t::cold_reset()
 {
-    minion_boot = 0x02008000; // boot rom
+    minion_boot = ERBIUM_TOP_BOOTROM_BASE;
     mprot = 0;
     dummy0 = 0;
     dummy2 = false;

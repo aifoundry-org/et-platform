@@ -18,7 +18,7 @@ void MainMemory::reset()
 {
     regions[erbreg_idx].reset(new SysregsEr<region_bases[erbreg_idx]>());
     regions[mram_bridge_idx].reset(new DenseRegion<region_bases[mram_bridge_idx], region_sizes[mram_bridge_idx]>());
-    regions[uart_idx].reset(new ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>());
+    regions[uart_idx].reset(new ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx], ER_PLIC_UART0_INTR_ID>());
     regions[bootrom_idx].reset(new DenseRegion<region_bases[bootrom_idx], region_sizes[bootrom_idx], false>());
     regions[sram_idx].reset(new DenseRegion<region_bases[sram_idx], region_sizes[sram_idx]>());
     regions[dram_idx].reset(new DenseRegion<region_bases[dram_idx], region_sizes[dram_idx]>());
@@ -78,28 +78,33 @@ void MainMemory::rvtimer_reset() {
 }
 
 void MainMemory::uart_set_tx_fd(int fd) {
-    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>*>(regions[uart_idx].get());
+    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx], ER_PLIC_UART0_INTR_ID>*>(regions[uart_idx].get());
     ptr->tx_fd = fd;
 }
 
 void MainMemory::uart_set_rx_fd(int fd) {
-    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>*>(regions[uart_idx].get());
+    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx], ER_PLIC_UART0_INTR_ID>*>(regions[uart_idx].get());
     ptr->rx_fd = fd;
 }
 
 int MainMemory::uart_get_tx_fd() const {
-    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>*>(regions[uart_idx].get());
+    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx], ER_PLIC_UART0_INTR_ID>*>(regions[uart_idx].get());
     return ptr->tx_fd;
 }
 
 int MainMemory::uart_get_rx_fd() const {
-    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx]>*>(regions[uart_idx].get());
+    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx], ER_PLIC_UART0_INTR_ID>*>(regions[uart_idx].get());
     return ptr->rx_fd;
 }
 
 bool MainMemory::is_uart_enabled() const {
     auto ptr = dynamic_cast<SysregsEr<region_bases[erbreg_idx]>*>(regions[erbreg_idx].get());
     return ptr->is_uart_enabled();
+}
+
+void MainMemory::uart_clock_tick(const Agent& agent, uint64_t cycle) {
+    auto ptr = dynamic_cast<ShaktiUart<region_bases[uart_idx], region_sizes[uart_idx], ER_PLIC_UART0_INTR_ID>*>(regions[uart_idx].get());
+    ptr->clock_tick(agent, cycle);
 }
 
 void MainMemory::plic_interrupt_pending_set(const Agent& agent, uint32_t source)

@@ -14,16 +14,17 @@
 #include "devices/watchdog.h"
 #include "emu_defines.h"
 
+#include <hwinc/system.h>
 namespace bemu {
 
 // TODO: move to reset
 // Reset cause reasons
 enum class ResetCause {
     NONE            = 0x0,
-    POR             = (1 << 0),  // Power-On Reset
-    WATCHDOG        = (1 << 1),  // Watchdog timeout
-    SYSRESET        = (1 << 2),  // System reset request
-    BROWNOUT        = (1 << 3),  // Brownout detector
+    POR             = SYSTEM_RESETCAUSE_POR_FIELD_MASK,
+    WATCHDOG        = SYSTEM_RESETCAUSE_WATCHDOG_TIMEDOUT_FIELD_MASK,
+    SYSRESET        = SYSTEM_RESETCAUSE_SYSRESET_REQ_FIELD_MASK,
+    BROWNOUT        = SYSTEM_RESETCAUSE_BROWNOUT_FIELD_MASK,
 };
 
 
@@ -59,41 +60,36 @@ struct SysregsEr : public MemoryRegion {
 
 private:
 
-    // Register Offsets
-    static constexpr uint64_t VERSION           = 0x00;
-    static constexpr uint64_t SYSTEM_CONFIG     = 0x08;
-    static constexpr uint64_t WATCHDOG_COUNT    = 0x10;
-    static constexpr uint64_t WATCHDOG          = 0x18;
-    static constexpr uint64_t SYS_INTERRUPT     = 0x20;
-    static constexpr uint64_t SOFT_RESET        = 0x28;
-    static constexpr uint64_t RESET_CAUSE       = 0x30;
-    static constexpr uint64_t POWER_DOMAIN_REQ  = 0x38;
-    static constexpr uint64_t POWER_DOMAIN_ACK  = 0x40;
-    static constexpr uint64_t POWER_GOOD        = 0x48;
-    static constexpr uint64_t POWER_STATUS      = 0x50;
-    static constexpr uint64_t SPIN_LOCK         = 0x58;
-    static constexpr uint64_t CHIP_MODE         = 0x60;
-    static constexpr uint64_t MAILBOX0          = 0x68;
-    static constexpr uint64_t MAILBOX1          = 0x70;
-    static constexpr uint64_t RING_OSC          = 0x98;
-    static constexpr uint64_t CPU_DIVIDER       = 0xA0;
-    static constexpr uint64_t SYSTEM_DIVIDER    = 0xA8;
-    static constexpr uint64_t PERIPH_DIVIDER    = 0xB0;
-    // Must match the highest offset
-    static constexpr uint64_t LAST_OFFSET       = 0xB0;
+    static constexpr uint64_t VERSION          = SYSTEM_VERSION_OFFSET;
+    static constexpr uint64_t SYSTEM_CONFIG    = SYSTEM_SYSTEMCONFIG_OFFSET;
+    static constexpr uint64_t WATCHDOG_COUNT   = SYSTEM_WATCHDOG_COUNT_OFFSET;
+    static constexpr uint64_t WATCHDOG         = SYSTEM_WATCHDOG_OFFSET;
+    static constexpr uint64_t SYS_INTERRUPT    = SYSTEM_SYSINTERRUPT_OFFSET;
+    static constexpr uint64_t SOFT_RESET       = SYSTEM_SOFTRESET_OFFSET;
+    static constexpr uint64_t RESET_CAUSE      = SYSTEM_RESETCAUSE_OFFSET;
+    static constexpr uint64_t POWER_DOMAIN_REQ = SYSTEM_POWERDOMAINREQ_OFFSET;
+    static constexpr uint64_t POWER_DOMAIN_ACK = SYSTEM_POWERDOMAINACK_OFFSET;
+    static constexpr uint64_t POWER_GOOD       = SYSTEM_POWERGOOD_OFFSET;
+    static constexpr uint64_t POWER_STATUS     = SYSTEM_POWERSTATUS_OFFSET;
+    static constexpr uint64_t SPIN_LOCK        = SYSTEM_SPINLOCK_OFFSET;
+    static constexpr uint64_t CHIP_MODE        = SYSTEM_CHIPMODE_OFFSET;
+    static constexpr uint64_t MAILBOX0         = SYSTEM_MAILBOX0_OFFSET;
+    static constexpr uint64_t MAILBOX1         = SYSTEM_MAILBOX1_OFFSET;
+    static constexpr uint64_t RING_OSC         = SYSTEM_RING_OSC_OFFSET;
+    static constexpr uint64_t CPU_DIVIDER      = SYSTEM_CPU_DIVIDER_OFFSET;
+    static constexpr uint64_t SYSTEM_DIVIDER   = SYSTEM_SYSTEM_DIVIDER_OFFSET;
+    static constexpr uint64_t PERIPH_DIVIDER   = SYSTEM_PERIPH_DIVIDER_OFFSET;
+    static constexpr uint64_t LAST_OFFSET      = SYSTEM_PERIPH_DIVIDER_OFFSET;
 
-    // Register Bit Masks
-    static constexpr uint32_t SYSTEM_CONFIG_SYS_INTR_EN         = 1 << 0;
-    static constexpr uint32_t SYSTEM_CONFIG_MRAM_STARTUP_BYPASS = 1 << 1;
-    static constexpr uint32_t SYSTEM_CONFIG_WDOG_DISABLE        = 1 << 2;
-    static constexpr uint32_t SYSTEM_CONFIG_SPI_ENABLE          = 1 << 4;
-    static constexpr uint32_t SYSTEM_CONFIG_UART_ENABLE         = 1 << 6;
+    static constexpr uint32_t SYSTEM_CONFIG_SYS_INTR_EN         = SYSTEM_SYSTEMCONFIG_SYS_INTERRUPT_ENABLE_FIELD_MASK;
+    static constexpr uint32_t SYSTEM_CONFIG_MRAM_STARTUP_BYPASS = SYSTEM_SYSTEMCONFIG_MRAM_STARTUP_BYPASS_FIELD_MASK;
+    static constexpr uint32_t SYSTEM_CONFIG_WDOG_DISABLE        = SYSTEM_SYSTEMCONFIG_WDOG_DISABLE_FIELD_MASK;
+    static constexpr uint32_t SYSTEM_CONFIG_SPI_ENABLE          = SYSTEM_SYSTEMCONFIG_SPI_ENABLE_FIELD_MASK;
+    static constexpr uint32_t SYSTEM_CONFIG_UART_ENABLE         = SYSTEM_SYSTEMCONFIG_UART_ENABLE_FIELD_MASK;
 
-    static constexpr uint32_t WATCHDOG_KICK                     = 1 << 7;
-
-    static constexpr uint32_t SPIN_LOCK_LOCK                    = 1 << 0;
-
-    static constexpr uint32_t SOFT_RESET_MRAM_RST_B             = 1 << 2;
+    static constexpr uint32_t WATCHDOG_KICK         = SYSTEM_WATCHDOG_KICK_FIELD_MASK;
+    static constexpr uint32_t SPIN_LOCK_LOCK        = SYSTEM_SPINLOCK_LOCK_FIELD_MASK;
+    static constexpr uint32_t SOFT_RESET_MRAM_RST_B = SYSTEM_SOFTRESET_MRAM_RST_B_FIELD_MASK;
 
     // Register Values
     uint32_t version;

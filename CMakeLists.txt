@@ -37,6 +37,7 @@ HostProject(et-driver "")
 HostProject(common-sw "" g3log)
 HostProject(device-api "" common-sw)
 DeviceProject(etsoc-hal "")
+HostProject(erbium-hal "")
 DeviceProject(et-trace "")
 DeviceProject(et-common-libs "-DENABLE_WARNINGS_AS_ERRORS=OFF" et-trace etsoc-hal)
 
@@ -77,7 +78,7 @@ DeviceProject(test-compute-kernels ""
 #
 # Runtime
 #
-HostProject(sw-sysemu "" g3log common-sw et-driver)
+HostProject(sw-sysemu "" g3log common-sw et-driver erbium-hal)
 HostProject(devicelayer  "" common-sw sw-sysemu)
 HostProject(esperanto-tools-libs ""
             devicelayer device-api g3log cereal easy_profiler

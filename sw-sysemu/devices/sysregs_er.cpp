@@ -10,8 +10,7 @@
 #include "memory/memory_error.h"
 #include "emu_gio.h"
 
-#define SYSREGS_ER_REGION_BASE 0x0002000000ULL
-
+#include <hwinc/top.h>
 namespace bemu {
 
 
@@ -20,25 +19,25 @@ void SysregsEr<Base>::reset(ResetCause cause)
 {
     // TODO: use methods to write some of the registers (once implemented),
     // because that can have side effects
-    version            = 0xEB680000;  // chipid=0xEB68, variation=0, respin=0
-    system_config      = SYSTEM_CONFIG_WDOG_DISABLE | SYSTEM_CONFIG_SPI_ENABLE;
+    version            = SYSTEM_VERSION_RESET_VALUE;
+    system_config      = SYSTEM_SYSTEMCONFIG_RESET_VALUE;
     sys_interrupt      = 0;
     reset_cause        = static_cast<uint32_t>(cause);  // Set reset cause
-    power_domain_req   = 0;
-    power_domain_ack   = 0;
-    spin_lock          = 0;
-    chip_mode          = 0;
-    soft_reset         = SOFT_RESET_MRAM_RST_B;
-    mailbox0           = 0;
-    mailbox1           = 0;
-    power_good         = 0xFFFFF;
-    ring_osc           = 0x7F; // en=1, divby2_sel=1, trm=0x1F
-    cpu_divider        = 0x1F; // count=0xF, div_enable=1
-    system_divider     = 0x1F; // count=0xF, div_enable=1
-    periph_divider     = 0x1F; // count=0xF, div_enable=1
+    power_domain_req   = SYSTEM_POWERDOMAINREQ_RESET_VALUE;
+    power_domain_ack   = SYSTEM_POWERDOMAINACK_RESET_VALUE;
+    spin_lock          = SYSTEM_SPINLOCK_RESET_VALUE;
+    chip_mode          = SYSTEM_CHIPMODE_RESET_VALUE;
+    soft_reset         = SYSTEM_SOFTRESET_RESET_VALUE;
+    mailbox0           = SYSTEM_MAILBOX0_RESET_VALUE;
+    mailbox1           = SYSTEM_MAILBOX1_RESET_VALUE;
+    power_good         = SYSTEM_POWERGOOD_RESET_VALUE;
+    ring_osc           = SYSTEM_RING_OSC_RESET_VALUE;
+    cpu_divider        = SYSTEM_CPU_DIVIDER_RESET_VALUE;
+    system_divider     = SYSTEM_SYSTEM_DIVIDER_RESET_VALUE;
+    periph_divider     = SYSTEM_PERIPH_DIVIDER_RESET_VALUE;
 
     // Initialize watchdog with default count and disabled state
-    watchdog.set_count_from(0xFFFF);
+    watchdog.set_count_from(SYSTEM_WATCHDOG_COUNT_RESET_VALUE);
     watchdog.kick();
     watchdog.set_enabled((system_config & SYSTEM_CONFIG_WDOG_DISABLE) == 0);
     // Set timeout handler (system pointer will be extracted from agent at runtime)
@@ -71,7 +70,7 @@ uint32_t SysregsEr<Base>::read_register(const Agent& agent, uint64_t offset)
 
         case WATCHDOG:
             // Watchdog register always reads as 0
-            return 0;
+            return SYSTEM_WATCHDOG_RESET_VALUE;
 
         case RESET_CAUSE: {
             // Read-clear operation: return current value, then clear all bits
@@ -89,7 +88,7 @@ uint32_t SysregsEr<Base>::read_register(const Agent& agent, uint64_t offset)
 
         case POWER_STATUS:
             // Simplified: no power sequencing modeled, MRAM is always ready.
-            return 0;
+            return SYSTEM_POWERSTATUS_RESET_VALUE;
 
         case SPIN_LOCK: {
             // Read-set atomic operation: return current value, then set lock bit
@@ -181,19 +180,19 @@ void SysregsEr<Base>::write_register(const Agent& agent, uint64_t offset, uint32
             break;
 
         case RING_OSC:
-            ring_osc = value & 0x7FF; // bits [10:0]
+            ring_osc = value & SYSTEM_RING_OSC_WRITE_MASK;
             break;
 
         case CPU_DIVIDER:
-            cpu_divider = value & 0x1F; // bits [4:0]
+            cpu_divider = value & SYSTEM_CPU_DIVIDER_WRITE_MASK;
             break;
 
         case SYSTEM_DIVIDER:
-            system_divider = value & 0x1F; // bits [4:0]
+            system_divider = value & SYSTEM_SYSTEM_DIVIDER_WRITE_MASK;
             break;
 
         case PERIPH_DIVIDER:
-            periph_divider = value & 0x1F; // bits [4:0]
+            periph_divider = value & SYSTEM_PERIPH_DIVIDER_WRITE_MASK;
             break;
 
         default:
@@ -245,6 +244,6 @@ void SysregsEr<Base>::wdt_clock_tick(const Agent& agent, uint64_t cycle)
 }
 
 
-template struct SysregsEr<SYSREGS_ER_REGION_BASE>;
+template struct SysregsEr<ERBIUM_TOP_SYSTEM_REGISTERS_BASE>;
 
 } // namespace bemu

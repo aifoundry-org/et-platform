@@ -11,6 +11,10 @@
 #include "emu_defines.h"
 #include "agent.h"
 
+#if EMU_ERBIUM
+#include <hwinc/top.h>
+#endif
+
 namespace bemu {
 
 
@@ -27,9 +31,8 @@ namespace bemu {
 #define ESR_REGION_PROT_SHIFT   22
 
 // Base address and size of ESR region - used by memory/sysreg_region.h
-// Base: bit 31 = 1, all else = 0 -> 0x80000000
 // Size: 24 bits of address space (including PP) -> 0x01000000 (16MB)
-#define ESR_REGION_BASE         0x80000000ull
+#define ESR_REGION_BASE         ERBIUM_TOP_CPU_REGISTERS_BASE
 #define ESR_REGION_SIZE         0x01000000ull
 
 // Hart ESR addresses used by processor.cpp for debug/program buffer
