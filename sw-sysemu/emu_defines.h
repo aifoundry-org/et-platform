@@ -9,6 +9,10 @@
 #include "state.h"
 #include "traps.h"
 
+#ifdef ERBIUM
+#include <hwinc/top.h>
+#endif
+
 namespace bemu {
 
 #ifdef ERBIUM
@@ -58,8 +62,8 @@ namespace bemu {
 // PLIC interrupt source IDs
 #define ER_PLIC_UART0_INTR_ID 3
 
-// Main memory size (16MB of MRAM)
-#define EMU_DRAM_SIZE  (16ULL*1024ULL*1024ULL)
+// Main memory size (generated from the Erbium top map)
+#define EMU_DRAM_SIZE  ERBIUM_TOP_MRAM_SIZE
 
 #define PA_SIZE        32
 
