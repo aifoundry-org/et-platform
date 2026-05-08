@@ -15,10 +15,42 @@ function(add_etsoc_test_kernel TARGET_NAME)
   endif()
 
   add_etsoc_riscv_executable(${TARGET_NAME} ${ARGS_UNPARSED_ARGUMENTS})
-  target_link_libraries(${TARGET_NAME}  etsoc_crt0)
+  target_link_libraries(${TARGET_NAME} PRIVATE etsoc_crt0)
 
   if (NOT ARGS_NO_INSTALL)
     install(TARGETS ${TARGET_NAME} ${TARGET_NAME}_dbg DESTINATION ${ARGS_INSTALL_DESTINATION})
+  endif()
+endfunction()
+
+# Peer of add_etsoc_test_kernel for Erbium kernels.  Wraps
+# add_erbium_riscv_executable() with the same install-rule convention.
+# No _dbg companion (Erbium kernels self-relocate).
+function(add_erbium_test_kernel TARGET_NAME)
+  set(options NO_INSTALL)
+  set(oneValueArgs INSTALL_DESTINATION BACKEND STACK_SIZE)
+  set(multiValueArgs SOURCES)
+  cmake_parse_arguments(ARGS "${options}" "${oneValueArgs}"
+                        "${multiValueArgs}" ${ARGN} )
+
+  if (NOT DEFINED ARGS_INSTALL_DESTINATION)
+    set(ARGS_INSTALL_DESTINATION kernels)
+  endif()
+
+  set(_extra_args)
+  if (ARGS_BACKEND)
+    list(APPEND _extra_args BACKEND ${ARGS_BACKEND})
+  endif()
+  if (DEFINED ARGS_STACK_SIZE)
+    list(APPEND _extra_args STACK_SIZE ${ARGS_STACK_SIZE})
+  endif()
+
+  add_erbium_riscv_executable(${TARGET_NAME}
+    SOURCES ${ARGS_SOURCES}
+    ${_extra_args}
+  )
+
+  if (NOT ARGS_NO_INSTALL)
+    install(TARGETS ${TARGET_NAME} DESTINATION ${ARGS_INSTALL_DESTINATION})
   endif()
 endfunction()
 
@@ -102,7 +134,7 @@ add_etsoc_test_kernel(profiling_stress.elf profiling/profiling_stress.cc)
 add_etsoc_test_kernel(cacheops_flush.elf cacheops/flush.cc)
 
 add_etsoc_test_kernel(autogen_matmul.elf autogenMatmul/autogen_matmul.cpp)
-target_link_libraries(autogen_matmul.elf matmul_f32_1024_512_512)
+target_link_libraries(autogen_matmul.elf PRIVATE matmul_f32_1024_512_512)
 
 add_etsoc_test_kernel(fail_abort.elf fail/fail_abort.cc)
 
@@ -123,3 +155,9 @@ add_etsoc_test_kernel(hang4bt.elf hang/hang4bt.cc)
 if($ENV{DEV_COMPILER} MATCHES "clang11")
   add_etsoc_test_kernel(exhaustive_cast.elf exhaustive_cast/exhaustive_cast.cpp)
 endif()
+
+# Erbium-flavored test kernels.  Each lives in its own subdir so kernel-
+# specific testdata + python drivers can ride along (e.g. histogram/
+# carries testdata/ images and a test_histogram.py runner).
+add_subdirectory(histogram)
+add_subdirectory(hart_id)

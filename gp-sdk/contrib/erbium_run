@@ -1,0 +1,256 @@
+#!/usr/bin/env python3
+# Copyright (c) 2026 Ainekko, Co.
+# SPDX-License-Identifier: Apache-2.0
+"""
+erbium_run -- Unified launcher for Erbium compute kernels.
+
+Runs an Erbium kernel ELF on one of three backends:
+
+  soc1sim     Real ET-SoC-1 hardware via erbium_launcher  (default)
+  sys_emu     ET-SoC-1 functional emulator (loads firmware automatically)
+  erbium_emu  Erbium functional emulator (native M-mode boot)
+
+File-load addresses are offsets within the 16 MB device buffer (same
+convention as erbium_launcher).  For emulators the wrapper translates
+offsets to absolute addresses automatically.
+
+Note: soc1sim and sys_emu expect a soc1sim-compiled ELF; erbium_emu
+expects a native-erbium-compiled ELF.
+
+Examples:
+  erbium_run --elf-load histogram.elf
+  erbium_run --elf-load histogram.elf --device sys_emu --dump_after dump.bin
+  erbium_run --elf-load histogram.elf --device erbium_emu -v
+  erbium_run --device sys_emu --elf-load k.elf -- -mem_check -Werror
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import struct
+import subprocess
+import sys
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+DEVICE_BUFFER_SIZE = 16 * 1024 * 1024  # 16 MB -- matches kErbiumMemSize
+
+# Absolute base addresses per backend (from linker scripts).
+REGION0_BASE_SOC1SIM = 0x80_0580_1000   # soc1sim: ET-SoC-1 DRAM region0
+MRAM_BASE_ERBIUM     = 0x00_4000_0000   # native erbium: MRAM
+
+# Firmware ELFs required by sys_emu, relative to ET platform root.
+SYS_EMU_FIRMWARE = [
+    "lib/esperanto-fw/BootromTrampolineToBL2/BootromTrampolineToBL2.elf",
+    "lib/esperanto-fw/ServiceProcessorBL2/fast-boot/ServiceProcessorBL2_fast-boot.elf",
+    "lib/esperanto-fw/MachineMinion/MachineMinion.elf",
+    "lib/esperanto-fw/MasterMinion/MasterMinion.elf",
+    "lib/esperanto-fw/WorkerMinion/WorkerMinion.elf",
+]
+
+DEFAULT_LAUNCHER  = "erbium_launcher"
+DEFAULT_ET_PLATFORM_PATH = Path(os.environ.get("ET_PLATFORM", "/opt/et"))
+DEFAULT_MAX_CYCLES = 100_000_000
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def die(msg: str) -> int:
+    print(f"error: {msg}", file=sys.stderr)
+    return 1
+
+
+def find_exe(name: str) -> Path | None:
+    p = shutil.which(name)
+    return Path(p) if p else None
+
+
+def parse_file_load(arg: str) -> tuple[int, str]:
+    """Parse ``<addr>,<path>`` -- same format as erbium_launcher."""
+    comma = arg.index(",")
+    return int(arg[:comma], 0), arg[comma + 1:]
+
+
+def elf_entry_point(path: Path) -> int:
+    """Read the e_entry field from a RISC-V ELF64 header."""
+    with open(path, "rb") as f:
+        ident = f.read(16)
+        if ident[:4] != b"\x7fELF":
+            die(f"{path} is not an ELF file")
+        ei_class = ident[4]       # 1 = 32-bit, 2 = 64-bit
+        ei_data  = ident[5]       # 1 = little-endian, 2 = big-endian
+        endian = "<" if ei_data == 1 else ">"
+        if ei_class == 2:         # ELF64
+            hdr = f.read(48)      # rest of Elf64_Ehdr after e_ident
+            entry = struct.unpack(f"{endian}Q", hdr[8:16])[0]
+        else:                     # ELF32
+            hdr = f.read(36)
+            entry = struct.unpack(f"{endian}I", hdr[8:12])[0]
+    return entry
+
+
+# ---------------------------------------------------------------------------
+# Backend: soc1sim (real hardware via erbium_launcher launcher)
+# ---------------------------------------------------------------------------
+
+def run_soc1sim(args, file_loads: list[tuple[int, str]], extra: list[str]) -> int:
+    launcher = args.launcher or DEFAULT_LAUNCHER
+    cmd = [str(launcher), "--elf-load", str(args.elf_load)]
+    if args.shire is not None:
+        cmd += ["--shire", str(args.shire)]
+    for offset, path in file_loads:
+        cmd += ["--file_load", f"0x{offset:x},{path}"]
+    if args.dump_before:
+        cmd += ["--dump_before", str(args.dump_before)]
+    if args.dump_after:
+        cmd += ["--dump_after", str(args.dump_after)]
+    cmd += extra
+
+    if args.verbose:
+        print("+ " + " ".join(cmd), flush=True)
+    return subprocess.run(cmd).returncode
+
+
+# ---------------------------------------------------------------------------
+# Backend: sys_emu (ET-SoC-1 functional emulator via erbium_launcher launcher)
+# ---------------------------------------------------------------------------
+
+def run_sys_emu(args, file_loads: list[tuple[int, str]], extra: list[str]) -> int:
+    # sys_emu is driven through the same C++ launcher as soc1sim,
+    # just with --device sys_emu (swaps PCIe for emulator device layer).
+    launcher = args.launcher or DEFAULT_LAUNCHER
+    cmd = [str(launcher), "--device", "sys_emu",
+           "--elf-load", str(args.elf_load)]
+    if args.shire is not None:
+        cmd += ["--shire", str(args.shire)]
+    for offset, path in file_loads:
+        cmd += ["--file_load", f"0x{offset:x},{path}"]
+    if args.dump_before:
+        cmd += ["--dump_before", str(args.dump_before)]
+    if args.dump_after:
+        cmd += ["--dump_after", str(args.dump_after)]
+    cmd += extra
+
+    if args.verbose:
+        print("+ " + " ".join(cmd), flush=True)
+    return subprocess.run(cmd).returncode
+
+
+# ---------------------------------------------------------------------------
+# Backend: erbium_emu (native Erbium functional emulator)
+# ---------------------------------------------------------------------------
+
+def run_erbium_emu(args, file_loads: list[tuple[int, str]], extra: list[str]) -> int:
+    exe = args.emulator or find_exe("erbium_emu")
+    if not exe or not Path(exe).exists():
+        return die("erbium_emu not found (install or pass --emulator)")
+
+    base = MRAM_BASE_ERBIUM
+
+    entry = elf_entry_point(args.elf_load)
+
+    cmd = [str(exe)]
+    cmd += ["-elf_load", str(args.elf_load)]
+    # Boot at the ELF entry point (boot.S _boot in .mboot).
+    cmd += ["-reset_pc", f"0x{entry:x}"]
+    cmd += ["-minions", args.minions or "0xff"]
+    if not args.dual_thread:
+        cmd += ["-single_thread"]
+    cmd += ["-max_cycles", str(args.max_cycles)]
+
+    for offset, path in file_loads:
+        cmd += ["-file_load", f"0x{base + offset:x},{path}"]
+
+    if args.dump_before:
+        print("warning: --dump_before not supported on erbium_emu", file=sys.stderr)
+    if args.dump_after:
+        cmd += ["-dump_addr", f"0x{base:x}",
+                "-dump_size", str(DEVICE_BUFFER_SIZE),
+                "-dump_file", str(args.dump_after)]
+
+    cmd += extra
+
+    if args.verbose:
+        print("+ " + " ".join(cmd), flush=True)
+    return subprocess.run(cmd).returncode
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def main() -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(
+        prog="erbium_run",
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    ap.add_argument("--device",
+                    choices=["soc1sim", "sys_emu", "erbium_emu"],
+                    default="soc1sim",
+                    help="target backend (default: soc1sim)")
+    ap.add_argument("--elf-load", type=Path, required=True,
+                    help="RISC-V ELF binary to load and execute")
+    ap.add_argument("--file_load", action="append", default=[],
+                    metavar="ADDR,PATH",
+                    help="load raw file at buffer offset (repeatable)")
+    ap.add_argument("--dump_before", type=Path, default=None,
+                    help="dump 16 MB device memory before launch")
+    ap.add_argument("--dump_after", type=Path, default=None,
+                    help="dump 16 MB device memory after completion")
+
+    g = ap.add_argument_group("soc1sim options")
+    g.add_argument("--shire", type=int, default=None,
+                   help="shire ID (default: 0)")
+    g.add_argument("--launcher", type=str, default=None,
+                   help="override erbium_launcher path")
+
+    g = ap.add_argument_group("emulator options (sys_emu / erbium_emu)")
+    g.add_argument("--max-cycles", type=int, default=DEFAULT_MAX_CYCLES,
+                   help=f"stop after N cycles (default: {DEFAULT_MAX_CYCLES:_})")
+    g.add_argument("--minions", default=None,
+                   help="minion enable mask (default: 0xff)")
+    g.add_argument("--dual-thread", action="store_true",
+                   help="enable both threads per minion (default: single)")
+    g.add_argument("--emulator", type=Path, default=None,
+                   help="override emulator executable path")
+    g.add_argument("--et-platform-path", type=Path, default=None,
+                   help="ET platform root for firmware "
+                        f"(default: {DEFAULT_ET_PLATFORM_PATH})")
+
+    g = ap.add_argument_group("general")
+    g.add_argument("-v", "--verbose", action="store_true",
+                   help="print the command being executed")
+
+    # Everything after "--" is forwarded to the underlying tool.
+    args, extra = ap.parse_known_args()
+
+    if not args.elf_load.exists():
+        return die(f"ELF not found: {args.elf_load}")
+
+    file_loads: list[tuple[int, str]] = []
+    for fl in args.file_load:
+        try:
+            file_loads.append(parse_file_load(fl))
+        except (ValueError, IndexError):
+            return die(f"bad --file_load: {fl!r}  (expected <addr>,<path>)")
+
+    backends = {
+        "soc1sim":    run_soc1sim,
+        "sys_emu":    run_sys_emu,
+        "erbium_emu": run_erbium_emu,
+    }
+    return backends[args.device](args, file_loads, extra)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

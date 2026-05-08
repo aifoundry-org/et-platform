@@ -137,4 +137,9 @@ install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher m
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
+# Erbium-flavored launcher (single binary, drives any erbium kernel ELF).
+# Self-contained CMakeLists since it has its own dep set and doesn't share
+# the etsoc_gpsdk / GenericLauncher scaffolding.
+add_subdirectory(src/erbium_launcher)
+
 endif()

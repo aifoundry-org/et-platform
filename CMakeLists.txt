@@ -39,7 +39,7 @@ HostProject(device-api "" common-sw)
 DeviceProject(etsoc-hal "")
 HostProject(erbium-hal "")
 DeviceProject(et-trace "")
-DeviceProject(et-common-libs "-DENABLE_WARNINGS_AS_ERRORS=OFF" et-trace etsoc-hal)
+DeviceProject(et-common-libs "-DENABLE_WARNINGS_AS_ERRORS=OFF" et-trace etsoc-hal erbium-hal)
 
 #
 # Firmware
@@ -89,8 +89,8 @@ HostProject(esperanto-tools-libs ""
 # GP-SDK
 #
 set(PROJECT_BASE_DIR "gp-sdk")
-HostProject(host "-DET_SDK_HOME=${ET_PLATFORM_PATH}" device-api devicelayer esperanto-tools-libs dnn-library)
-DeviceProject(device "-DET_SDK_HOME=${ET_PLATFORM_PATH} -DADDRESS:STRING=0x8006335000" dnn-library)
+HostProject(host "-DET_SDK_HOME=${ET_PLATFORM_PATH}" device-api devicelayer esperanto-tools-libs dnn-library common-sw sw-sysemu)
+DeviceProject(device "-DET_SDK_HOME=${ET_PLATFORM_PATH} -DADDRESS:STRING=0x8006335000" dnn-library et-common-libs)
 set(PROJECT_BASE_DIR ".")
 
 HostProject(dnn-library-api "-DENABLE_WARNINGS_AS_ERRORS=OFF"

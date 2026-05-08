@@ -28,7 +28,7 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(et-common-libs REQUIRED COMPONENTS cm-umode)
+find_package(et-common-libs REQUIRED COMPONENTS cm-umode erbium-umode erbium-soc1sim)
 find_package(dnnLibrary)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/riscv_helpers.cmake")

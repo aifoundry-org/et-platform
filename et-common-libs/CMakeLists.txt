@@ -12,6 +12,7 @@ option(BUILD_DOC "Build documentation" ON)
 
 # Find the required packages
 find_package(esperantoTrace REQUIRED)
+find_package(erbium_hal REQUIRED)
 
 include(GNUInstallDirs)
 
@@ -32,6 +33,30 @@ option(WITH_CM_UMODE "Build cm_umode component" ON)
 if (WITH_CM_UMODE)
     # Build and install Compute Minion User Mode libs
     include(cm_umode.cmake)
+endif()
+
+option(WITH_ETSOC_DRIVERS "Build etsoc peripheral driver headers" ON)
+if (WITH_ETSOC_DRIVERS)
+    # Build and install ETSoC1 peripheral drivers (ipi/mprot/plic/...).
+    include(etsoc_drivers.cmake)
+endif()
+
+option(WITH_ERBIUM_DRIVERS "Build erbium peripheral driver headers" ON)
+if (WITH_ERBIUM_DRIVERS)
+    # Build and install Erbium peripheral drivers (ipi/mprot/plic/...).
+    include(erbium_drivers.cmake)
+endif()
+
+option(WITH_ERBIUM_UMODE "Build erbium_umode component" ON)
+if (WITH_ERBIUM_UMODE)
+    # Build and install Erbium Minion User Mode libs
+    include(erbium_umode.cmake)
+endif()
+
+option(WITH_ERBIUM_SOC1SIM_UMODE "Build erbium_soc1sim_umode component" ON)
+if (WITH_ERBIUM_SOC1SIM_UMODE)
+    # Build and install Erbium-on-etsoc1 (soc1sim) User Mode libs
+    include(erbium_soc1sim_umode.cmake)
 endif()
 
 option(WITH_MINION_BL "Build minion_bl component" ON)

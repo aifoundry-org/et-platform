@@ -4,7 +4,7 @@
 #------------------------------------------------------------------------------
 
 
-find_package(et-common-libs REQUIRED COMPONENTS cm-umode)
+find_package(et-common-libs REQUIRED COMPONENTS cm-umode erbium-umode erbium-soc1sim)
 find_package(dnnLibrary REQUIRED)
 
 add_library(etsoc_crt0 STATIC
@@ -97,6 +97,41 @@ target_link_libraries(libcpp_throw_stub
 add_library(libc_stub STATIC libc_stub/et_errno.cc libc_stub/et_atexit.cc)
 
 add_subdirectory(libautogen)
+
+#----------------------------------------------------------------------
+# Erbium runtime archives (do-by-example boot/crt + linker script)
+#----------------------------------------------------------------------
+# Two STATIC archives that wrap the default M-mode boot, U-mode crt,
+# and heap-region table for each erbium runtime backend. They mirror
+# the role `etsoc_crt0` plays for the etsoc1 runtime: a kernel that
+# wants its own `_boot`/`_start` simply defines them in its own
+# sources -- the linker resolves the local definitions before
+# scanning the archive, leaving these defaults out.
+#
+# Each archive publishes its companion linker script as the
+# `ERBIUM_LINKER_SCRIPT` target property, so
+# `add_erbium_riscv_executable` can read it off whichever backend
+# was selected.
+
+add_library(erbium_crt0 STATIC
+  lib/erbium/boot.S
+  lib/erbium/crt.S
+  lib/erbium/layout.c
+)
+target_link_libraries(erbium_crt0 PUBLIC et-common-libs::erbium-umode)
+set_target_properties(erbium_crt0 PROPERTIES
+  ERBIUM_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/lib/erbium/erbium.ld"
+)
+
+add_library(erbium_soc1sim_crt0 STATIC
+  lib/erbium-soc1sim/boot.S
+  lib/erbium-soc1sim/crt.S
+  lib/erbium-soc1sim/layout.c
+)
+target_link_libraries(erbium_soc1sim_crt0 PUBLIC et-common-libs::erbium-soc1sim)
+set_target_properties(erbium_soc1sim_crt0 PROPERTIES
+  ERBIUM_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/lib/erbium-soc1sim/erbium.ld"
+)
 
 
 
