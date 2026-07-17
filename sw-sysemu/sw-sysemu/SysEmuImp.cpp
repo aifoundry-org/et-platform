@@ -215,7 +215,7 @@ void SysEmuImp::process() {
 void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
   resume();
   std::promise<void> p;
-  auto request = [=, &p]() {
+  auto request = [=, this, &p]() {
     SE_LOG(INFO) << "Device memory read at: " << std::hex << address << " size: " << size << " host dst: " << dst;
     auto pci_addr = address;
     uint64_t host_access_offset = 0;
@@ -260,7 +260,7 @@ void SysEmuImp::mmioRead(uint64_t address, size_t size, std::byte* dst) {
 void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
   resume();
   std::promise<void> p;
-  auto request = [=, &p]() {
+  auto request = [=, this, &p]() {
     SE_LOG(INFO) << "Device memory write at: " << std::hex << address << " size: " << size << " host src: " << src;
     auto pci_addr = address;
     uint64_t host_access_offset = 0;
@@ -300,7 +300,7 @@ void SysEmuImp::mmioWrite(uint64_t address, size_t size, const std::byte* src) {
 
 void SysEmuImp::raiseDevicePuPlicPcieMessageInterrupt() {
   resume();
-  auto request = [=]() {
+  auto request = [=, this]() {
     SE_LOG(INFO) << "raiseDevicePuPlicPcieMessageInterrupt";
     LOG_AGENT(INFO, agent_, "raise_device_interrupt(type = %s)", "PU");
     chip_->memory.pu_trg_pcie_mmm_int_inc(agent_);
@@ -333,7 +333,7 @@ bool SysEmuImp::raise_host_interrupt(uint32_t bitmap) {
 
 void SysEmuImp::raiseDeviceSpioPlicPcieMessageInterrupt() {
   resume();
-  auto request = [=]() {
+  auto request = [=, this]() {
     SE_LOG(INFO) << "raiseDeviceSpioPlicPcieMessageInterrupt";
     LOG_AGENT(INFO, agent_, "raise_device_interrupt(type = %s)", "SP");
     chip_->memory.pu_trg_pcie_ipi_trigger(agent_);
@@ -372,7 +372,7 @@ void SysEmuImp::notify_iatu_ctrl_2_reg_write(int pcie_id, uint32_t iatu, uint32_
 
 SysEmuImp::~SysEmuImp() {
   std::promise<void> p;
-  auto request = [=, &p]() {
+  auto request = [=, this, &p]() {
     try {
       chip_->set_emu_done(true);
       p.set_value();

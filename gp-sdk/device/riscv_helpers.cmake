@@ -82,6 +82,7 @@ function(add_riscv_executable TARGET_NAME)
     # baremetal & startup
     -fno-exceptions -fno-rtti -fno-unwind-tables
     -fno-use-cxa-atexit -fno-threadsafe-statics -ffreestanding
+    -Wno-template-body
   )
   target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
