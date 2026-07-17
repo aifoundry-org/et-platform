@@ -10,6 +10,7 @@
 #include <cassert>
 #include <condition_variable>
 #include <easy/profiler.h>
+#include <limits>
 #include <mutex>
 #include <thread>
 
@@ -29,10 +30,24 @@ void EventManager::addOnDispatchCallback(OnDispatchCallback callback) {
 
 EventId EventManager::getNextId() {
   std::lock_guard lock(mutex_);
-  auto res = EventId{nextEventId_++};
-  onflyEvents_.emplace(res);
-  RT_VLOG(LOW) << "Last event id: " << static_cast<int>(res);
-  return res;
+  using EventIdValue = std::underlying_type_t<EventId>;
+  constexpr auto kEventIdCount = static_cast<size_t>(std::numeric_limits<EventIdValue>::max()) + 1;
+
+  // EventId is a uint16_t and long-running inference processes legitimately
+  // wrap the counter. Never return an ID that is still in flight: emplace()
+  // used to fail silently here, so the newer command stole the older command's
+  // completion and the second response was reported as an unknown event.
+  for (size_t attempt = 0; attempt < kEventIdCount; ++attempt) {
+    auto res = EventId{nextEventId_++};
+    if (onflyEvents_.find(res) != onflyEvents_.end() || blockedThreads_.find(res) != blockedThreads_.end()) {
+      continue;
+    }
+    onflyEvents_.emplace(res);
+    RT_VLOG(LOW) << "Last event id: " << static_cast<int>(res);
+    return res;
+  }
+
+  throw Exception("No free runtime event IDs; synchronize the stream before submitting more commands");
 }
 
 void EventManager::dispatch(EventId event) {

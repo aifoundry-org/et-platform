@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <functional>
 #include <gtest/gtest.h>
+#include <limits>
 #include <thread>
 
 #pragma GCC diagnostic push
@@ -104,6 +105,37 @@ TEST_F(EventManagerF, severalEvents) {
   for (auto i = 0U; i < 100; ++i) {
     EXPECT_TRUE(em_.isDispatched(events[i]));
   }
+}
+
+TEST_F(EventManagerF, wrapSkipsEventIdsStillInFlight) {
+  using EventIdValue = std::underlying_type_t<EventId>;
+  constexpr auto maxId = std::numeric_limits<EventIdValue>::max();
+
+  em_.nextEventId_ = maxId;
+  auto atMax = em_.getNextId();
+  auto atZero = em_.getNextId();
+  EXPECT_EQ(static_cast<EventIdValue>(atMax), maxId);
+  EXPECT_EQ(static_cast<EventIdValue>(atZero), 0);
+
+  em_.nextEventId_ = maxId;
+  auto skippedToOne = em_.getNextId();
+  EXPECT_EQ(static_cast<EventIdValue>(skippedToOne), 1);
+
+  em_.dispatch(atMax);
+  em_.dispatch(atZero);
+  em_.dispatch(skippedToOne);
+}
+
+TEST_F(EventManagerF, exhaustionFailsInsteadOfReturningDuplicateId) {
+  using EventIdValue = std::underlying_type_t<EventId>;
+  constexpr auto eventIdCount =
+    static_cast<size_t>(std::numeric_limits<EventIdValue>::max()) + 1;
+
+  for (size_t i = 0; i < eventIdCount; ++i) {
+    em_.onflyEvents_.emplace(EventId{static_cast<EventIdValue>(i)});
+  }
+  EXPECT_THROW(em_.getNextId(), Exception);
+  em_.onflyEvents_.clear();
 }
 
 TEST_F(EventManagerF, blockingThreads) {
