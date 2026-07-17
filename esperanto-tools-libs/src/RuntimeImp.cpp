@@ -869,8 +869,16 @@ void RuntimeImp::dispatch(EventId event) {
   evt.setEvent(event);
   getProfiler()->record(evt);
   streamManager_.removeEvent(event);
+  // Keep the ID in flight until observers have consumed the completion. This
+  // prevents a wrapped ID from being reused between EventManager::dispatch()
+  // and the server worker forwarding the old completion to its client.
+  try {
+    notify(event);
+  } catch (...) {
+    eventManager_.dispatch(event);
+    throw;
+  }
   eventManager_.dispatch(event);
-  notify(event);
 }
 
 void RuntimeImp::checkDevice(DeviceId device) {
