@@ -83,7 +83,7 @@ struct DW_apb_timers : public MemoryRegion {
         if (n != 4)
             throw memory_error(first() + pos);
 
-        if (pos < (NUM_TIMERS * REG_STRIDE)) {
+        if (pos < (static_cast<size_type>(NUM_TIMERS) * static_cast<size_type>(REG_STRIDE))) {
             size_type timer = pos / REG_STRIDE;
             size_type timer_pos = pos % REG_STRIDE;
 
@@ -144,7 +144,7 @@ struct DW_apb_timers : public MemoryRegion {
         if (n != 4)
             throw memory_error(first() + pos);
 
-        if (pos >= (NUM_TIMERS * REG_STRIDE))
+        if (pos >= (static_cast<size_type>(NUM_TIMERS) * static_cast<size_type>(REG_STRIDE)))
             return;
 
         size_type timer = pos / REG_STRIDE;

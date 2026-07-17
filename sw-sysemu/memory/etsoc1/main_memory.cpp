@@ -263,32 +263,32 @@ void MainMemory::spio_apb_timers_clock_tick(System& chip)
 
 void MainMemory::pc_mm_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result)
 {
-    read(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos + offset, n, result);
+    read(agent, pu_mbox_base + static_cast<unsigned long long>(MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos) + offset, n, result);
 }
 
 
 void MainMemory::pc_mm_mailbox_write(const Agent& agent, addr_type offset, size_type n, const void* source)
 {
-    write(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos + offset, n, source);
+    write(agent, pu_mbox_base + static_cast<unsigned long long>(MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_mm_pos) + offset, n, source);
 }
 
 
 void MainMemory::pc_sp_mailbox_read(const Agent& agent, addr_type offset, size_type n, void* result)
 {
-    read(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_sp_pos + offset, n, result);
+    read(agent, pu_mbox_base + static_cast<unsigned long long>(MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_sp_pos) + offset, n, result);
 }
 
 
 void MainMemory::pc_sp_mailbox_write(const Agent& agent, addr_type offset, size_type n, const void* source)
 {
-    write(agent, pu_mbox_base + MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_sp_pos + offset, n, source);
+    write(agent, pu_mbox_base + static_cast<unsigned long long>(MailboxRegion<pu_mbox_base, 512_MiB>::pu_mbox_pc_sp_pos) + offset, n, source);
 }
 
 
 void MainMemory::pu_trg_pcie_mmm_int_inc(const Agent& agent)
 {
     uint32_t trigger = 1;
-    write(agent, pu_mbox_base + bemu::MailboxRegion<pu_mbox_base, 512_MiB>::pu_trg_pcie_pos + bemu::MMM_INT_INC,
+    write(agent, pu_mbox_base + static_cast<unsigned long long>(bemu::MailboxRegion<pu_mbox_base, 512_MiB>::pu_trg_pcie_pos) + bemu::MMM_INT_INC,
           sizeof(trigger), reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
 }
 
@@ -296,7 +296,7 @@ void MainMemory::pu_trg_pcie_mmm_int_inc(const Agent& agent)
 void MainMemory::pu_trg_pcie_ipi_trigger(const Agent& agent)
 {
     uint32_t trigger = 1;
-    write(agent, pu_mbox_base + bemu::MailboxRegion<pu_mbox_base, 512_MiB>::pu_trg_pcie_pos + bemu::IPI_TRIGGER,
+    write(agent, pu_mbox_base + static_cast<unsigned long long>(bemu::MailboxRegion<pu_mbox_base, 512_MiB>::pu_trg_pcie_pos) + bemu::IPI_TRIGGER,
          sizeof(trigger), reinterpret_cast<bemu::MemoryRegion::const_pointer>(&trigger));
 }
 
