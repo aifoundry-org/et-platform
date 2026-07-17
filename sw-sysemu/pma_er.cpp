@@ -10,6 +10,7 @@
 #include "esrs.h"
 #include "system.h"
 #include "utility.h"
+#include "emu_gio.h"
 
 #include <hwinc/top.h>
 namespace bemu {
@@ -183,6 +184,13 @@ uint64_t pma_check_data_access(const Hart& cpu, uint64_t vaddr,
     }
 
     if (paddr_is_mram(addr)) {
+        // Boot protocol: warn if software writes to the reserved region.
+        if (addr < (MRAM_BASE + 0x100)
+            && data_access_is_write(macc)
+            && macc != Mem_Access_CacheOp) {
+            WARN_HART(memory, cpu, "Store to boot protocol region (0x%" PRIx64 ")", addr);
+        }
+
         uint16_t mprot = cpu.chip->neigh_esrs[neigh_index(cpu)].mprot;
 
         Privilege mode = effective_execution_mode(cpu, macc);

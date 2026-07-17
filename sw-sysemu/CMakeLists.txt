@@ -172,6 +172,7 @@ set(CORE_SYSEMU_SOURCES
     insns/zifencei.cpp
     memory/main_memory.cpp
     pma.cpp
+    boot-protocol.cpp
     mmu.cpp
     msgport.cpp
     processor.cpp

@@ -53,6 +53,11 @@ static const char * help_msg =
 #if EMU_HAS_SVCPROC
 "     -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n"
 #endif // EMU_HAS_SVCPROC
+#if EMU_ERBIUM
+"     -boot_elf <path>         Load ELF and use its entry point as payload PC for the boot protocol\n"
+"     -payload_pc <addr>       Override payload PC written to MRAM boot vector (hex)\n"
+"     -payload_sp <addr>       Override payload SP written to MRAM boot vector (hex)\n"
+#endif // EMU_ERBIUM
 "     -set_xreg <t>,<r>,<val>  Sets the xregister (integer) <r> of thread <t> to value <val>. <t> can be 'sp' for the Service Processor\n"
 #endif // SDK_RELEASE
 "     -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n"
@@ -190,6 +195,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"reset_pc",               required_argument, nullptr, 0},
 #if EMU_HAS_SVCPROC
         {"sp_reset_pc",            required_argument, nullptr, 0},
+#endif
+#if EMU_ERBIUM
+        {"boot_elf",               required_argument, nullptr, 0},
+        {"payload_pc",             required_argument, nullptr, 0},
+        {"payload_sp",             required_argument, nullptr, 0},
 #endif
         {"set_xreg",               required_argument, nullptr, 0},
 #endif
@@ -394,6 +404,20 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "sp_reset_pc"))
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.sp_reset_pc);
+        }
+#endif
+#if EMU_ERBIUM
+        else if (!strcmp(name, "boot_elf"))
+        {
+            cmd_options.boot_elf = std::string(optarg);
+        }
+        else if (!strcmp(name, "payload_pc"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.payload_pc);
+        }
+        else if (!strcmp(name, "payload_sp"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.payload_sp);
         }
 #endif
         else if (!strcmp(name, "set_xreg"))

@@ -98,6 +98,33 @@ run/%: $(BUILD_DIR)/%.elf
 		echo "  UNKNOWN"; exit 1; \
 	fi
 
+# Boot protocol tests: re-run all tests with --boot_elf
+# The ELF entry point is used as the payload PC automatically.
+run-boot-protocol: $(tests_elf)
+	@npass=0; nfail=0; \
+	for test in $(tests); do \
+		echo "+ running $$test (boot protocol)"; \
+		cat "$(INPUT_DIR)/$$test.in" 2>/dev/null | \
+			$(EMU) -l $(EMU_ARGS) --boot_elf $(BUILD_DIR)/$$test.elf > $(BUILD_DIR)/$$test.bp.out 2>&1; \
+		if grep -q "Signal end test with FAIL" $(BUILD_DIR)/$$test.bp.out; then \
+			echo "  FAIL"; \
+			nfail=$$((nfail + 1)); \
+		elif grep -q "Signal end test with PASS" $(BUILD_DIR)/$$test.bp.out; then \
+			echo "  PASS"; \
+			npass=$$((npass + 1)); \
+		else \
+			echo "  UNKNOWN (no pass/fail signal)"; \
+			nfail=$$((nfail + 1)); \
+		fi; \
+	done; \
+	echo ""; \
+	if [ $$nfail -eq 0 ]; then \
+		echo "SUCCESS: $(num_tests) boot protocol | $$npass passed | $$nfail failed"; \
+	else \
+		echo "FAILURE: $(num_tests) boot protocol | $$npass passed | $$nfail failed"; \
+		exit 1; \
+	fi
+
 # GDB tests (explicit list)
 gdb_tests     := thread_disable_consistency
 num_gdb_tests := $(words $(gdb_tests))
