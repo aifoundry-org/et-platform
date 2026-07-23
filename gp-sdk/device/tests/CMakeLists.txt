@@ -105,6 +105,9 @@ add_etsoc_test_kernel(syncShire2EP.elf barrier/syncShire2EP.cpp)
 add_etsoc_test_kernel(txfma.elf txfma/txfma.cpp)
 target_include_directories(txfma.elf INTERFACE .)
 
+add_etsoc_test_kernel(tima_unsigned_bits.elf tima_unsigned_bits/tima_unsigned_bits.cpp)
+target_include_directories(tima_unsigned_bits.elf INTERFACE .)
+
 add_etsoc_test_kernel(oneTrapOnSync.elf trapping/oneTrapOnSync.cpp)
 
 add_etsoc_test_kernel(busy10sec.elf busy10sec/busy10sec.cc)

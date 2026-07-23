@@ -454,7 +454,7 @@ tensor_fma(bool use_tmask, uint64_t b_num_col, uint64_t a_num_rows, uint64_t a_n
     uint64_t csr_enc =
         (((uint64_t)use_tmask & 1) << 63) | ((b_num_col & 0x3) << 55) | ((a_num_rows & 0xF) << 51) |
         ((a_num_cols & 0xF) << 47) | ((offset & 0xF) << 43) | (((uint64_t)tenc_loc & 1) << 23) |
-        (((uint64_t)tena_unsigned & 1) << 22) | (((uint64_t)tenb_unsigned & 1) << 21) |
+        (((uint64_t)tenb_unsigned & 1) << 22) | (((uint64_t)tena_unsigned & 1) << 21) |
         (((uint64_t)tenb_loc & 1) << 20) | ((scp_loc_b & 0xFF) << 12) | ((scp_loc_a & 0xFF) << 4) |
         ((opcode & 0x7) << 1) | ((uint64_t)first_pass & 1);
 
