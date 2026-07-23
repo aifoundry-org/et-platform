@@ -82,6 +82,13 @@ target_link_libraries(txfma_launcher
         etsoc_gpsdk
 )
 
+add_executable(tima_unsigned_bits_launcher src/tima_unsigned_bits/tima_unsigned_bits.cpp)
+target_include_directories(tima_unsigned_bits_launcher PRIVATE ${DEVICE_KERNELS_DIR}/tima_unsigned_bits)
+target_link_libraries(tima_unsigned_bits_launcher
+    PRIVATE
+        etsoc_gpsdk
+)
+
 add_executable(multiDevice_launcher src/multi_device/multiDevice.cpp)
 target_include_directories(multiDevice_launcher PRIVATE ${DEVICE_KERNELS_DIR}/saxpy)
 target_link_libraries(multiDevice_launcher
