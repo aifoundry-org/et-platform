@@ -88,6 +88,7 @@ Start by installing the required packages. For Ubuntu 24.04, the command is:
       doxygen graphviz \
       nlohmann-json3-dev \
       python3-sphinx python3-sphinx-rtd-theme python3-breathe python3-jsonschema \
+      python3-pytest python3-numpy \
       libfmt-dev \
       libfftw3-dev \
       xxd

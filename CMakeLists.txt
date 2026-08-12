@@ -84,6 +84,11 @@ HostProject(esperanto-tools-libs ""
             devicelayer device-api g3log cereal easy_profiler
 	    device-bootloaders device-minion-runtime
 )
+#
+# Python Bindings
+#
+ HostProject(etrt-python "" esperanto-tools-libs)
+
 
 #
 # GP-SDK
