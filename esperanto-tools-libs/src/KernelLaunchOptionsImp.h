@@ -36,9 +36,10 @@ struct KernelLaunchOptionsImp {
   std::optional<UserTrace> userTraceConfig_;
   std::string coreDumpFilePath_;
   std::optional<StackConfiguration> stackConfig_;
+  std::optional<uint64_t> codeStartAddress_;
 
   template <class Archive> void serialize(Archive& archive) {
-    archive(shireMask_, barrier_, flushL3_, userTraceConfig_, coreDumpFilePath_, stackConfig_);
+    archive(shireMask_, barrier_, flushL3_, userTraceConfig_, coreDumpFilePath_, stackConfig_, codeStartAddress_);
   }
 };
 

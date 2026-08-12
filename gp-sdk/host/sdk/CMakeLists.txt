@@ -9,7 +9,7 @@ set(DEVICE_KERNELS_DIR ${PROJECT_SOURCE_DIR}/../device/tests)
 add_library(etsoc_gpsdk STATIC 
     src/lib/GenericLauncher.cpp 
 )
-target_include_directories(etsoc_gpsdk PUBLIC include sdk/include)
+target_include_directories(etsoc_gpsdk PUBLIC include ${CMAKE_CURRENT_LIST_DIR}/../../common/include sdk/include)
 target_link_libraries(etsoc_gpsdk 
     PUBLIC 
         deviceLayer::deviceLayer
@@ -130,7 +130,71 @@ target_link_libraries(stack_launcher
         etsoc_gpsdk
 )
 
-install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher
+add_executable(star_scratchpad_proof src/star_scratchpad_proof/star_scratchpad_proof.cpp)
+target_link_libraries(star_scratchpad_proof
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(shire_latency_probe src/topology_probe/shire_latency_probe.cpp)
+target_link_libraries(shire_latency_probe
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(nested_scratchpad_demo src/nested_scratchpad_demo/nested_scratchpad_demo.cpp)
+target_link_libraries(nested_scratchpad_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(nested_scratchpad_stencil_demo src/nested_scratchpad_stencil_demo/nested_scratchpad_stencil_demo.cpp)
+target_link_libraries(nested_scratchpad_stencil_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(nested_scratchpad_atomic_reads_demo src/nested_scratchpad_atomic_reads_demo/nested_scratchpad_atomic_reads_demo.cpp)
+target_link_libraries(nested_scratchpad_atomic_reads_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(nested_scratchpad_chimera_gemv_demo src/nested_scratchpad_chimera_gemv_demo/nested_scratchpad_chimera_gemv_demo.cpp)
+target_link_libraries(nested_scratchpad_chimera_gemv_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(erbium_sim_access_violation_demo src/erbium_sim_access_violation_demo/erbium_sim_access_violation_demo.cpp)
+target_link_libraries(erbium_sim_access_violation_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(star_scratchpad_boundary_violation_demo src/star_scratchpad_boundary_violation_demo/star_scratchpad_boundary_violation_demo.cpp)
+target_link_libraries(star_scratchpad_boundary_violation_demo
+    PRIVATE
+        etsoc_gpsdk
+)
+
+add_executable(scp_exec_probe_demo src/scp_exec_probe_demo/scp_exec_probe_demo.cpp)
+target_include_directories(scp_exec_probe_demo PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../../esperanto-tools-libs/include)
+target_link_libraries(scp_exec_probe_demo
+    PRIVATE
+        etsoc_gpsdk
+        ${CMAKE_CURRENT_LIST_DIR}/../../../build/esperanto-tools-libs-prefix/src/esperanto-tools-libs-build/libetrt.so
+)
+
+add_executable(fixed_lpddr_exec_probe_demo src/fixed_lpddr_exec_probe_demo/fixed_lpddr_exec_probe_demo.cpp)
+target_include_directories(fixed_lpddr_exec_probe_demo PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../../esperanto-tools-libs/include)
+target_link_libraries(fixed_lpddr_exec_probe_demo
+    PRIVATE
+        etsoc_gpsdk
+        ${CMAKE_CURRENT_LIST_DIR}/../../../build/esperanto-tools-libs-prefix/src/esperanto-tools-libs-build/libetrt.so
+)
+
+install(TARGETS basic_launcher etsoc_gpsdk saxpy_launcher hello_world_launcher multiKernel_launcher multiDevice_launcher multiDeviceHang_launcher trapping_launcher p2p_launcher exhaustive_cast_launcher stack_launcher star_scratchpad_proof shire_latency_probe nested_scratchpad_demo nested_scratchpad_stencil_demo nested_scratchpad_atomic_reads_demo nested_scratchpad_chimera_gemv_demo erbium_sim_access_violation_demo star_scratchpad_boundary_violation_demo scp_exec_probe_demo fixed_lpddr_exec_probe_demo
     RUNTIME       DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY       DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE       DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -297,6 +297,48 @@ std::byte* MemoryManager::malloc(size_t size, uint32_t alignment) {
   return uncompressPointer(addr);
 }
 
+std::byte* MemoryManager::reserve(std::byte* ptr, size_t size) {
+  auto blockSize = getBlockSize();
+  auto firstBlock = compressPointer(ptr);
+  auto countBlocks = static_cast<uint32_t>((size + blockSize - 1) / blockSize);
+  if (countBlocks == 0U) {
+    throw Exception("Can't reserve zero bytes");
+  }
+
+  auto it = std::find_if(begin(free_), end(free_), [firstBlock, countBlocks](const auto& elem) {
+    return elem.startAddress_ <= firstBlock && (elem.startAddress_ + elem.size_) >= (firstBlock + countBlocks);
+  });
+  if (it == end(free_)) {
+    std::stringstream ss;
+    ss << "Can't reserve device range @0x" << std::hex << ptr << " size: " << std::dec << size;
+    throw Exception(ss.str());
+  }
+
+  const auto original = *it;
+  free_.erase(it);
+
+  if (original.startAddress_ < firstBlock) {
+    addChunk(FreeChunk{original.startAddress_, firstBlock - original.startAddress_});
+  }
+
+  const auto reservedEnd = firstBlock + countBlocks;
+  const auto originalEnd = original.startAddress_ + original.size_;
+  if (reservedEnd < originalEnd) {
+    addChunk(FreeChunk{reservedEnd, originalEnd - reservedEnd});
+  }
+
+  allocated_.insert({firstBlock, countBlocks});
+
+  RT_VLOG(LOW) << "Reserved fixed address: " << std::hex << ptr << " size: " << std::dec << size
+               << " first block index: " << firstBlock;
+
+  if (debugMode_) {
+    sanityCheck();
+  }
+
+  return uncompressPointer(firstBlock);
+}
+
 uint32_t MemoryManager::getBlockSize() const {
   return 1U << blockSizeLog2_;
 }

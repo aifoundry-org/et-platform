@@ -351,6 +351,11 @@ public:
   /// \brief Set the path of the file that will contain a core dump if the execution throws an exception
   void setCoreDumpFilePath(const std::string& coreDumpFilePath);
 
+  /// \brief Override the kernel entry PC used for a launch.
+  /// \note This is intended for specialized bring-up paths where code has been staged outside the normal loadCode
+  /// buffer. Regular users should continue to use the default loadCode/kernelLaunch flow.
+  void setCodeStartAddress(std::byte* codeStartAddress);
+
   std::unique_ptr<KernelLaunchOptionsImp> imp_;
 };
 

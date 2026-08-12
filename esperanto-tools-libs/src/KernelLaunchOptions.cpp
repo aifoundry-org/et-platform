@@ -61,6 +61,11 @@ void KernelLaunchOptions::setCoreDumpFilePath(const std::string& coreDumpFilePat
   imp_->coreDumpFilePath_ = coreDumpFilePath;
 }
 
+void KernelLaunchOptions::setCodeStartAddress(std::byte* codeStartAddress) {
+  setIfImpIsNull();
+  imp_->codeStartAddress_ = reinterpret_cast<uint64_t>(codeStartAddress);
+}
+
 void KernelLaunchOptions::setIfImpIsNull(void) {
   if (imp_ == nullptr) {
     imp_ = std::make_unique<KernelLaunchOptionsImp>(DefaultKernelOptions::defaultKernelOptions);

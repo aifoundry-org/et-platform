@@ -58,6 +58,17 @@ add_etsoc_test_kernel(print.elf print/print.cc)
 
 add_etsoc_test_kernel(print2.elf print2/print2.cc)
 
+add_etsoc_test_kernel(star_scratchpad_probe.elf star_scratchpad/star_scratchpad.cc)
+add_etsoc_test_kernel(star_scratchpad_pool.elf star_scratchpad_pool/full_pool.cc)
+add_etsoc_test_kernel(shire_latency_probe.elf topology_probe/shire_latency_probe.cc)
+add_etsoc_test_kernel(nested_scratchpad_stencil.elf nested_scratchpad_stencil/nested_scratchpad_stencil.cc)
+add_etsoc_test_kernel(nested_scratchpad_atomic_reads.elf nested_scratchpad_atomic_reads/nested_scratchpad_atomic_reads.cc)
+add_etsoc_test_kernel(nested_scratchpad_chimera_gemv.elf nested_scratchpad_chimera_gemv/nested_scratchpad_chimera_gemv.cc)
+add_etsoc_test_kernel(erbium_sim_access_violation.elf erbium_sim_access_violation/erbium_sim_access_violation.cc)
+add_etsoc_test_kernel(star_scratchpad_boundary_violation.elf star_scratchpad_boundary_violation/star_scratchpad_boundary_violation.cc)
+add_etsoc_test_kernel(scp_exec_probe.elf scp_exec_probe/scp_exec_probe.cc)
+add_etsoc_test_kernel(scp_exec_probe_stub_fail.elf scp_exec_probe_stub_fail/scp_exec_probe_stub_fail.cc)
+
 add_etsoc_test_kernel(bss.elf kernelLaunch/resetBSS.cc)
 
 add_etsoc_test_kernel(data.elf kernelLaunch/resetData.cc)

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <device-layer/IDeviceLayer.h>
 #include <easy/arbitrary_value.h>
 #include <easy/details/profiler_colors.h>
@@ -43,9 +44,99 @@ void relocateELF(std::byte* runtimeBaseAddress, ELFIO::elfio& elf, std::byte* el
 void relocateSection(std::byte* runtimeBaseAddress, std::byte* elfContents,
                      ELFIO::relocation_section_accessor& reloc_sec, ELFIO::Elf64_Addr elfBaseAddr);
 std::tuple<ELFIO::Elf64_Addr, size_t> getELFBaseAddr(const ELFIO::elfio& elf);
+std::optional<ELFIO::Elf64_Addr> getELFLoadBaseAddr(const ELFIO::elfio& elf);
 
 void recordMemoryStats(IProfilerRecorder& profiler, DeviceId device, size_t free_bytes,
                        size_t max_free_contiguous_bytes, size_t allocated_memory);
+
+namespace {
+
+bool shouldSkipInitAbort() {
+  const char* value = std::getenv("ET_SKIP_INIT_ABORT");
+  if (value == nullptr) {
+    return false;
+  }
+
+  switch (value[0]) {
+  case '0':
+  case 'n':
+  case 'N':
+  case 'f':
+  case 'F':
+    return false;
+  default:
+    return true;
+  }
+}
+
+bool shouldSkipDeviceApiCheck() {
+  const char* value = std::getenv("ET_SKIP_DEVICE_API_CHECK");
+  if (value == nullptr) {
+    return false;
+  }
+
+  switch (value[0]) {
+  case '0':
+  case 'n':
+  case 'N':
+  case 'f':
+  case 'F':
+    return false;
+  default:
+    return true;
+  }
+}
+
+bool shouldSkipMemcpyDeviceCheck() {
+  const char* value = std::getenv("ET_SKIP_MEMCPY_DEVICE_CHECK");
+  if (value == nullptr) {
+    return false;
+  }
+
+  switch (value[0]) {
+  case '0':
+  case 'n':
+  case 'N':
+  case 'f':
+  case 'F':
+    return false;
+  default:
+    return true;
+  }
+}
+
+bool shouldDebugEventFlow() {
+  const char* value = std::getenv("ET_DEBUG_EVENT_FLOW");
+  if (value == nullptr) {
+    return false;
+  }
+
+  switch (value[0]) {
+  case '0':
+  case 'n':
+  case 'N':
+  case 'f':
+  case 'F':
+    return false;
+  default:
+    return true;
+  }
+}
+
+int getExecutionContextCachePreallocCount() {
+  const char* value = std::getenv("ET_EXECUTION_CONTEXT_CACHE_PREALLOC");
+  if (value == nullptr) {
+    return kNumExecutionCacheBuffers;
+  }
+
+  try {
+    return std::max(0, std::stoi(value));
+  } catch (...) {
+    return kNumExecutionCacheBuffers;
+  }
+}
+
+} // namespace
 
 RuntimeImp::~RuntimeImp() {
   RT_LOG(INFO) << "Destroying runtime";
@@ -73,6 +164,10 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
 
   RT_LOG(INFO) << "Profiler enabled? " << (profiler::isEnabled() ? "True" : "False");
   checkMemcpyDeviceAddress_ = options.checkMemcpyDeviceOperations_;
+  if (shouldSkipMemcpyDeviceCheck()) {
+    RT_LOG(WARNING) << "Skipping memcpy device address validation because ET_SKIP_MEMCPY_DEVICE_CHECK is enabled.";
+    checkMemcpyDeviceAddress_ = false;
+  }
   auto devicesCount = deviceLayer_->getDevicesCount();
   CHECK(devicesCount > 0);
 
@@ -100,9 +195,16 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
                  << " Check memcpy operations: " << (checkMemcpyDeviceAddress_ ? "True" : "False");
 
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
-    deviceTracing_.try_emplace(
-      d, DeviceFwTracing{std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, *deviceLayer_), nullptr,
-                         nullptr});
+    std::unique_ptr<IDmaBuffer> fwTracingBuffer;
+    if (tracingBufferSize > 0) {
+      try {
+        fwTracingBuffer = std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, *deviceLayer_);
+      } catch (const dev::Exception& e) {
+        RT_LOG(WARNING) << "Unable to allocate firmware trace DMA buffer for device " << devInt << ": " << e.what()
+                        << ". Continuing without runtime-owned firmware trace capture.";
+      }
+    }
+    deviceTracing_.try_emplace(d, DeviceFwTracing{std::move(fwTracingBuffer), nullptr, nullptr});
     auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
@@ -140,13 +242,23 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
   responseReceiver_ = std::make_unique<ResponseReceiver>(*deviceLayer_, this);
 
   // initialization sequence, need to send abort command to ensure the device is in a proper state
+  const bool skipInitAbort = shouldSkipInitAbort();
+  const bool skipDeviceApiCheck = shouldSkipDeviceApiCheck();
   for (int d = 0; d < devicesCount; ++d) {
     RT_LOG(INFO) << "Initializing device: " << d;
-    abortDevice(DeviceId{d});
+    if (skipInitAbort) {
+      RT_LOG(WARNING) << "Skipping init-time abort sweep because ET_SKIP_INIT_ABORT is enabled.";
+    } else {
+      abortDevice(DeviceId{d});
+    }
     if (options.checkDeviceApiVersion_) {
-      running_ = true;
-      RT_LOG(INFO) << "Checking device api version for device: " << d;
-      checkDeviceApi(DeviceId{d});
+      if (skipDeviceApiCheck) {
+        RT_LOG(WARNING) << "Skipping device-api compatibility check because ET_SKIP_DEVICE_API_CHECK is enabled.";
+      } else {
+        running_ = true;
+        RT_LOG(INFO) << "Checking device api version for device: " << d;
+        checkDeviceApi(DeviceId{d});
+      }
     }
     deviceLayer_->hintInactivity(d);
     RT_LOG(INFO) << "Device: " << d << " initialized.";
@@ -154,7 +266,7 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
   eventManager_.setThrowOnMissingEvent(true);
   running_ = true;
   executionContextCache_ = std::make_unique<ExecutionContextCache>(
-    this, kNumExecutionCacheBuffers, align(kExceptionBufferSize + kBlockSize, kBlockSize));
+    this, getExecutionContextCachePreallocCount(), align(kExceptionBufferSize + kBlockSize, kBlockSize));
   responseReceiver_->startDeviceChecker();
   RT_LOG(INFO) << "Runtime initialized.";
 }
@@ -231,6 +343,10 @@ DeviceProperties RuntimeImp::doGetDeviceProperties(DeviceId device) const {
 
 LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, size_t size) {
   SpinLock lock(mutex_);
+  const bool debugEventFlow = shouldDebugEventFlow();
+  if (debugEventFlow) {
+    RT_LOG(INFO) << "LoadCode begin stream=" << static_cast<int>(stream) << " size=" << size;
+  }
 
   auto stInfo = streamManager_.getStreamInfo(stream);
 
@@ -249,11 +365,57 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
 
   // we need to add all the diff between fileSize and memSize to the final size
   // allocate a buffer in the device to load the code
+  auto deviceBuffer = [&] {
+    auto absoluteLoadBase = getELFLoadBaseAddr(elf);
+    if (!absoluteLoadBase.has_value() || *absoluteLoadBase == 0U) {
+      if (debugEventFlow) {
+        if (absoluteLoadBase.has_value()) {
+          std::fprintf(stderr, "LoadCode fixed-base disabled: absoluteLoadBase=0x%llx\n",
+                       static_cast<unsigned long long>(*absoluteLoadBase));
+        } else {
+          std::fprintf(stderr, "LoadCode fixed-base disabled: absoluteLoadBase=missing\n");
+        }
+      }
+      return doMallocDevice(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
+    }
 
-  auto deviceBuffer = doMallocDevice(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
+    auto dramBase = deviceLayer_->getDramBaseAddress(stInfo.device_);
+    auto dramSize = deviceLayer_->getDramSize(stInfo.device_);
+    auto absoluteLoadEnd = *absoluteLoadBase + size + extraSize;
+    if (debugEventFlow) {
+      std::fprintf(stderr,
+                   "LoadCode fixed-base candidate base=0x%llx end=0x%llx dram=[0x%llx,0x%llx)\n",
+                   static_cast<unsigned long long>(*absoluteLoadBase),
+                   static_cast<unsigned long long>(absoluteLoadEnd),
+                   static_cast<unsigned long long>(dramBase),
+                   static_cast<unsigned long long>(dramBase + dramSize));
+    }
+    if ((*absoluteLoadBase < dramBase) || (absoluteLoadEnd > (dramBase + dramSize))) {
+      RT_LOG(WARNING) << "ELF requests fixed load base 0x" << std::hex << *absoluteLoadBase
+                      << " which is outside device DRAM. Falling back to runtime allocation.";
+      return doMallocDevice(DeviceId{stInfo.device_}, size + extraSize, kCacheLineSize);
+    }
+
+    auto& memoryManager = memoryManagers_.at(DeviceId{stInfo.device_});
+    auto fixedDeviceBuffer = memoryManager.reserve(reinterpret_cast<std::byte*>(*absoluteLoadBase), size + extraSize);
+    if (debugEventFlow) {
+      std::fprintf(stderr, "LoadCode fixed-base reserved @0x%llx size=0x%zx\n",
+                   static_cast<unsigned long long>(reinterpret_cast<uint64_t>(fixedDeviceBuffer)),
+                   size + extraSize);
+    }
+    RT_LOG(INFO) << "Loading absolute-address ELF at fixed device address 0x" << std::hex << fixedDeviceBuffer;
+    return fixedDeviceBuffer;
+  }();
+  if (debugEventFlow) {
+    RT_LOG(INFO) << "LoadCode allocated device buffer " << static_cast<void*>(deviceBuffer) << " bytes="
+                 << (size + extraSize) << " extra=" << extraSize;
+  }
 
   // Handle the elf relocations
   relocateELF(deviceBuffer, elf, elfContents, elfBaseAddr);
+  if (debugEventFlow) {
+    RT_LOG(INFO) << "LoadCode relocations completed.";
+  }
 
   // copy the execution code into the device
   // iterate over all the LOAD segments, writing them to device memory
@@ -263,7 +425,7 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
 
   std::vector<EventId> events;
   for (auto&& segment : elf.segments) {
-    if (segment->get_type() & PT_LOAD) {
+    if (segment->get_type() == PT_LOAD) {
       auto offset = segment->get_offset();
       auto loadAddress = segment->get_physical_address();
       auto fileSize = segment->get_file_size();
@@ -288,8 +450,17 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
       }
       RT_VLOG(LOW) << "S: " << segment->get_index() << std::hex << " O: 0x" << offset << " PA: 0x" << loadAddress
                    << " MS: 0x" << memSize << " FS: 0x" << fileSize << " @: 0x" << addr << " E: 0x" << entry << "\n";
+      if (debugEventFlow) {
+        RT_LOG(INFO) << "LoadCode queuing segment " << segment->get_index() << " copy to 0x" << std::hex << addr
+                     << " bytes=0x" << memSize;
+      }
       events.emplace_back(doMemcpyHostToDevice(stream, currentBuffer.data(), reinterpret_cast<std::byte*>(addr),
                                                memSize, false, defaultCmaCopyFunction));
+      if (debugEventFlow) {
+        RT_LOG(INFO) << "LoadCode segment " << segment->get_index() << " queued DMA event "
+                     << static_cast<int>(events.back()) << " offset=0x" << std::hex << offset << " load=0x"
+                     << loadAddress << " mem=0x" << memSize << " dst=0x" << addr;
+      }
       eventManager_.addOnDispatchCallback({{events.back()}, [buffer = std::move(currentBuffer)] {
                                              // do nothing, it will release the buffer
                                            }});
@@ -315,9 +486,25 @@ LoadCodeResult RuntimeImp::doLoadCode(StreamId stream, const std::byte* data, si
   loadCodeResult.kernel_ = kernelId;
 
   loadCodeResult.event_ = eventManager_.getNextId();
+  if (debugEventFlow) {
+    std::ostringstream eventsStream;
+    for (size_t i = 0; i < events.size(); ++i) {
+      if (i != 0) {
+        eventsStream << ", ";
+      }
+      eventsStream << static_cast<int>(events[i]);
+    }
+    RT_LOG(INFO) << "LoadCode synthetic completion event " << static_cast<int>(loadCodeResult.event_)
+                 << " waiting on DMA events [" << eventsStream.str() << "]";
+  }
   streamManager_.addEvent(stream, loadCodeResult.event_);
-  eventManager_.addOnDispatchCallback({std::move(events), [this, evt = loadCodeResult.event_] {
-                                         RT_VLOG(LOW) << "Load code ended.";
+  eventManager_.addOnDispatchCallback({std::move(events), [this, evt = loadCodeResult.event_, debugEventFlow] {
+                                         if (debugEventFlow) {
+                                           RT_LOG(INFO) << "LoadCode DMA dependencies satisfied; dispatching synthetic event "
+                                                        << static_cast<int>(evt);
+                                         } else {
+                                           RT_VLOG(LOW) << "Load code ended.";
+                                         }
                                          dispatch(evt);
                                        }});
   coreDumper_.addCodeAddress(DeviceId{stInfo.device_}, deviceBuffer);
@@ -602,6 +789,7 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
   // check the response header
   auto header = reinterpret_cast<const rsp_header_t*>(response.data());
   auto eventId = EventId{header->rsp_hdr.tag_id};
+  const bool debugEventFlow = shouldDebugEventFlow();
 
   auto recordEvent = [](auto& profiler, const auto& rsp, const auto& evt, ResponseType rspT) {
     RT_VLOG(HIGH) << std::hex << " Start time: " << rsp.device_cmd_start_ts << " Wait time: " << rsp.device_cmd_wait_dur
@@ -617,6 +805,11 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
 
   RT_VLOG(MID) << "Response received eventId: " << static_cast<int>(eventId)
                << " Message Id: " << header->rsp_hdr.msg_id;
+  if (debugEventFlow &&
+      header->rsp_hdr.msg_id != device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_TRACE_BUFFER_FULL_EVENT) {
+    RT_LOG(INFO) << "Received response msg_id=" << header->rsp_hdr.msg_id << " tag=" << static_cast<int>(eventId)
+                 << " size=" << header->rsp_hdr.size;
+  }
   bool responseWasOk = true;
   bool skipDispatch = false;
   switch (header->rsp_hdr.msg_id) {
@@ -732,6 +925,7 @@ void RuntimeImp::onResponseReceived(DeviceId device, const std::vector<std::byte
     RT_LOG(WARNING) << "Reported asynchronous event from firmware: Trace buffer full. This is ignored by host runtime. "
                        "Trace buffer type: "
                     << r->buffer_type;
+    skipDispatch = true;
     break;
   }
   case device_ops_api::DEV_OPS_API_MID_DEVICE_OPS_P2PDMA_READLIST_RSP:
@@ -864,6 +1058,9 @@ void RuntimeImp::dispatch(EventId event) {
     RT_LOG(WARNING) << "Trying to dispatch an event but runtime is not running. Ignoring the dispatch."
                     << static_cast<int>(event);
     return;
+  }
+  if (shouldDebugEventFlow()) {
+    RT_LOG(INFO) << "Dispatching event " << static_cast<int>(event);
   }
   ProfileEvent evt(Type::Instant, Class::DispatchEvent);
   evt.setEvent(event);
@@ -1005,7 +1202,7 @@ std::tuple<ELFIO::Elf64_Addr, size_t> getELFBaseAddr(const ELFIO::elfio& elf) {
   ELFIO::Elf64_Addr elfBaseAddr = std::numeric_limits<ELFIO::Elf64_Addr>::max();
   auto extraSize = 0UL;
   for (auto& segment : elf.segments) {
-    if (segment->get_type() & PT_LOAD) {
+    if (segment->get_type() == PT_LOAD) {
       if (segment->get_physical_address() < elfBaseAddr) {
         elfBaseAddr = segment->get_physical_address();
       }
@@ -1015,4 +1212,18 @@ std::tuple<ELFIO::Elf64_Addr, size_t> getELFBaseAddr(const ELFIO::elfio& elf) {
     }
   }
   return std::make_tuple(elfBaseAddr, extraSize);
+}
+
+std::optional<ELFIO::Elf64_Addr> getELFLoadBaseAddr(const ELFIO::elfio& elf) {
+  std::optional<ELFIO::Elf64_Addr> baseAddr;
+  for (auto& segment : elf.segments) {
+    if (segment->get_type() != PT_LOAD) {
+      continue;
+    }
+    auto candidate = segment->get_physical_address() - segment->get_offset();
+    if (!baseAddr.has_value() || candidate < *baseAddr) {
+      baseAddr = candidate;
+    }
+  }
+  return baseAddr;
 }

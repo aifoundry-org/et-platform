@@ -10,6 +10,7 @@
 #include <etsoc/isa/tensors.h>
 #include <etsoc/isa/utils.h>
 
+#include "CommonCode.h"
 #include "entryPoint.h"
 #include <algorithm>
 #include "txfma_kernel_arguments.h"

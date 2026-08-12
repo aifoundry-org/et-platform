@@ -14,6 +14,7 @@ add_library(etsoc_crt0 STATIC
 target_include_directories(etsoc_crt0
     PUBLIC
         ${CMAKE_CURRENT_LIST_DIR}/include
+        ${CMAKE_CURRENT_LIST_DIR}/../../common/include
 )
 
 target_compile_options(etsoc_crt0 PRIVATE -fno-exceptions -falign-functions=64 -O3 -g3)
@@ -132,7 +133,6 @@ target_link_libraries(erbium_soc1sim_crt0 PUBLIC et-common-libs::erbium-soc1sim)
 set_target_properties(erbium_soc1sim_crt0 PROPERTIES
   ERBIUM_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/lib/erbium-soc1sim/erbium.ld"
 )
-
 
 
 

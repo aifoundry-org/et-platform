@@ -25,6 +25,7 @@
 
 #include <profiling.h>
 
+#include "CommonCode.h"
 #include "entryPoint.h"
 #include "flbLock.h"
 
@@ -44,6 +45,15 @@ typedef struct {
 } __attribute__((aligned(CACHE_LINE_SIZE))) minionlock_t;
 enum LOCK_STATUS : uint32_t { LOCK_WAIT, LOCK_CONTINUE };
 extern minionlock_t __barrierLock[1024];
+
+typedef struct {
+  uint32_t arrived_0;
+  uint32_t arrived_1;
+  uint32_t generation_0;
+  uint32_t generation_1;
+} devicebarrier_t;
+
+extern devicebarrier_t __deviceBarrierState[2048];
 
 // flb register locks
 extern flbLock __shireLock;
@@ -85,11 +95,21 @@ namespace hart {
  */
 static inline int get_physical_minion_id(int relative_thread_id) {
   // get the virtual minionId of the thread based on the threads per core configuration
-  const auto relativeMinionId = get_minion_from_thread(relative_thread_id); 
-  // offset is the physical id of the first  minion assigned to the current kernel
-  const auto offset = __builtin_ctzll(device_config::env_->shire_mask) * SOC_MINIONS_PER_SHIRE;
-  // return physical minion id
-  return offset + relativeMinionId;
+  const auto relativeMinionId = get_minion_from_thread(relative_thread_id);
+  const auto minionsPerShire = static_cast<int>(getActiveMinionsPerShire());
+  const auto relativeShireId = relativeMinionId / minionsPerShire;
+  const auto relativeMinionInShire = relativeMinionId % minionsPerShire;
+  const auto localMinionBase = static_cast<int>(getActiveNeighborhoodBaseMinion());
+  auto shireMask = device_config::env_->shire_mask;
+  int shireId = -1;
+
+  for (int idx = 0; idx <= relativeShireId; ++idx) {
+    et_assert(shireMask != 0ULL && "Invalid shire mask");
+    shireId = static_cast<int>(__builtin_ctzll(shireMask));
+    shireMask &= (shireMask - 1ULL);
+  }
+
+  return (shireId * SOC_MINIONS_PER_SHIRE) + localMinionBase + relativeMinionInShire;
 }
 
 /**
@@ -125,6 +145,10 @@ enum class Scope {
   shire,  /*!< Synchronizes threads in a shire (group by thread_id) */
   minion  /*!< Synchronizes both thread_id=0 and thread_id=1 in a minion */
 };
+
+template <Scope S>
+inline typename std::enable_if_t<(S == Scope::shire), void>
+barrier(std::bitset<64> hartMask);
 
 /**
  * \brief Synchronizes both threads in a minion
@@ -180,6 +204,11 @@ template <Scope S> inline typename std::enable_if_t<(S == Scope::minion), void> 
 template <Scope S>
 inline typename std::enable_if_t<(S == Scope::shire), void>
 barrier() {
+  if (isRestrictedTopologyEnabled()) {
+    barrier<Scope::shire>(std::bitset<64>(getActiveMinionMaskPerShire()));
+    return;
+  }
+
   constexpr uint32_t fcc = 0;
   if (device_config::config.sameEntryPoint) {
     const uint64_t flb = 0UL;
@@ -272,6 +301,36 @@ barrier(std::bitset<64> hartMask) {
  */
 template <Scope S>
 inline typename std::enable_if_t<(S == Scope::device), void> barrier(size_t startingThread, size_t count) {
+  if (isRestrictedTopologyEnabled()) {
+    const auto threadId = get_relative_thread_id();
+    const auto numEntrypoints = static_cast<uint32_t>(get_num_entrypoints());
+    const auto lane = (numEntrypoints == 1U) ? 0U : static_cast<uint32_t>(get_hart_id() & 0x1U);
+    auto& barrierState = __deviceBarrierState[startingThread];
+    volatile uint32_t* arrivals = (lane == 0U) ? &barrierState.arrived_0 : &barrierState.arrived_1;
+    volatile uint32_t* generation = (lane == 0U) ? &barrierState.generation_0 : &barrierState.generation_1;
+    const auto expectedArrivals = static_cast<uint32_t>(count / numEntrypoints);
+    const auto currentGeneration = atomic_load_global_32(generation);
+
+    et_assert(threadId >= 0 && "barrier: inactive thread reached a device barrier");
+    et_assert(static_cast<size_t>(threadId) >= startingThread &&
+                static_cast<size_t>(threadId) < (startingThread + count) &&
+                "barrier: thread not part of synchronization group");
+
+    const auto arrivalsBefore = atomic_add_global_32(arrivals, 1U);
+    asm volatile("fence\n" ::: "memory");
+
+    if ((arrivalsBefore + 1U) == expectedArrivals) {
+      atomic_store_global_32(arrivals, 0U);
+      atomic_store_global_32(generation, currentGeneration + 1U);
+      asm volatile("fence\n" ::: "memory");
+    } else {
+      while (atomic_load_global_32(generation) == currentGeneration) {
+        asm volatile("fence\n" ::: "memory");
+      }
+    }
+    return;
+  }
+
   constexpr uint32_t fcc = 1;
   constexpr std::bitset<64> allOnesMask = std::bitset<64>(0xFFFFFFFF);
 
@@ -346,14 +405,15 @@ inline void barrier(const size_t startingThread, const size_t count) {
   // Assert if startingThread is multiple of count (or 0)
   et_assert((startingThread % count == 0 || startingThread == 0) && "startingThread must be a multiple of count");
   
-  if (numMinions > SOC_MINIONS_PER_SHIRE) {
+  const auto minionsPerShire = static_cast<size_t>(getActiveMinionsPerShire());
+
+  if (numMinions > minionsPerShire) {
     barrier<Scope::device>(startingThread, count);
-  } else if (numMinions == SOC_MINIONS_PER_SHIRE) {
+  } else if (numMinions == minionsPerShire) {
     barrier<Scope::shire>(); // fast-path
   } else {
-    const auto startingMinionId = get_minion_from_thread(static_cast<int>(startingThread));
-    // size_t localId = startingMinionId % SOC_MINIONS_PER_SHIRE;
-    const size_t localId = startingMinionId & 0x1F;
+    const auto physicalStartingMinionId = get_physical_minion_id(static_cast<int>(startingThread));
+    const size_t localId = static_cast<size_t>(physicalStartingMinionId & 0x1F);
     // set mask bits corresponding to the range of minions to sync
     std::bitset<64> minionMask;
     for (size_t i = localId; i < localId + numMinions; i++) {

@@ -18,6 +18,7 @@ struct Options {
   int kernel_launch_timeout = 10;
   int num_launches = 1;
   std::string device_type = "sysemu";
+  uint32_t shire_mask = 0xFFFFFFFF;
   double epsilon = 0.0;
 };
 
@@ -33,14 +34,16 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
     "  -t, --kernel_launch_timeout   timeout (in seconds) to wait for kenelLaunch\n"
     "  -n, --num_launches            Number of times the kernel will be launched.\n"
     "  -d, --device_type             Device Type to be used (sysemu, fake,silicon.\n"
+    "  -m, --shire_mask              Shires the kernel will be assigned when executed.\n"
     "  -e, --epsilon                 Delta used for comparison between host and device.\n";
 
-  static constexpr const char* short_opts = "k:t:n:d:e:h";
+  static constexpr const char* short_opts = "k:t:n:d:m:e:h";
 
   static const std::vector<struct option> long_opts_vect{{"kernel_path", required_argument, nullptr, 'k'},
                                                          {"kernel_launch_timeout", required_argument, nullptr, 't'},
                                                          {"num_launches", required_argument, nullptr, 'n'},
                                                          {"device_type", required_argument, nullptr, 'd'},
+                                                         {"shire_mask", required_argument, nullptr, 'm'},
                                                          {"epsilon", required_argument, nullptr, 'e'},
                                                          {"help", no_argument, nullptr, 'h'},
                                                          {nullptr, 0, nullptr, 0}};
@@ -64,6 +67,9 @@ Options parse_args(int argc, char* const* argv, std::vector<char*>& nextlevel) {
       break;
     case 'd':
       opts.device_type = optarg;
+      break;
+    case 'm':
+      opts.shire_mask = std::stoul(optarg, 0, 16);
       break;
     case 'e':
       opts.epsilon = atof(optarg);
@@ -171,7 +177,7 @@ int main(int argc, char** argv) {
   kernelArgs.B = B;
   kernelArgs.C = C;
 
-  launcher.kernelLaunch(kernelId, &kernelArgs, 0, 0xFFFFFFFF);
+  launcher.kernelLaunch(kernelId, &kernelArgs, nullptr, 0, 0, opt.shire_mask);
 
   launcher.programDev2HostCopies();
   auto timeout = std::chrono::seconds(opt.kernel_launch_timeout);
