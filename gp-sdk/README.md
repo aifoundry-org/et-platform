@@ -62,6 +62,10 @@ sdk/hello_world_launcher --kernel_path=../../device/build/tests/print.elf --devi
 sdk/hello_world_launcher --kernel_path=../../device/build/tests/print.elf --device_type=silicon
 ```
 
+When using `--device_type=sysemu`, the launcher will prefer the sibling `*_dbg` ELF when it exists. Those
+debug-linked images are linked at the runtime-predicted device address and are the correct choice for SYSEMU
+bring-up and debugging.
+
 and we can see  traces from the device through dt2json application installed on the docker image:
 
 ```
@@ -171,7 +175,6 @@ make; cd latex; make
 New documentation will appear as refman.pdf inside each host/build and device/build folders.
 
                                                   
-
 
 
 

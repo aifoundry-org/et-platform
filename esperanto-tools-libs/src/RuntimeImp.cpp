@@ -100,9 +100,16 @@ RuntimeImp::RuntimeImp(std::shared_ptr<dev::IDeviceLayer> const& deviceLayer, Op
                  << " Check memcpy operations: " << (checkMemcpyDeviceAddress_ ? "True" : "False");
 
     memoryManagers_.try_emplace(d, dramBaseAddress, dramSize, kBlockSize);
-    deviceTracing_.try_emplace(
-      d, DeviceFwTracing{std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, *deviceLayer_), nullptr,
-                         nullptr});
+    std::unique_ptr<IDmaBuffer> fwTracingBuffer;
+    if (tracingBufferSize > 0) {
+      try {
+        fwTracingBuffer = std::make_unique<DmaBufferImp>(devInt, tracingBufferSize, true, *deviceLayer_);
+      } catch (const dev::Exception& e) {
+        RT_LOG(WARNING) << "Unable to allocate firmware trace DMA buffer for device " << devInt << ": " << e.what()
+                        << ". Continuing without runtime-owned firmware trace capture.";
+      }
+    }
+    deviceTracing_.try_emplace(d, DeviceFwTracing{std::move(fwTracingBuffer), nullptr, nullptr});
     auto dmaInfo = deviceLayer_->getDmaInfo(devInt);
     maxElementCount = std::max(maxElementCount, dmaInfo.maxElementCount_);
     totalElementSize += dmaInfo.maxElementSize_;
