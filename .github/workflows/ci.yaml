@@ -42,6 +42,7 @@ jobs:
           BASE_DISTRO=${{ matrix.target.distro_name }}
           DISTRO_VERSION=${{ matrix.target.distro_version }}
           VERBOSE=1
+          GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
         outputs: type=docker,dest=${{ runner.temp }}/platform.tar
     - name: Upload build image
       uses: actions/upload-artifact@v4
@@ -64,19 +65,48 @@ jobs:
           docker load --input ${{ runner.temp }}/platform.tar
           # run `docker image ls`, just to see that it is there
           docker image ls
-      - name: Run tests in docker
+      - name: Run integration tests
+        id: integration
+        continue-on-error: true
         run: |
           docker run --rm -w /out -v ${{ runner.temp }}/out:/out et-platform:latest /bin/bash -c "/opt/et/bin/it_test_code_loading"
+      - name: Run Erbium emulator tests
+        id: erbium
+        continue-on-error: true
+        run: |
+          docker run --rm et-platform:latest /bin/bash -c "make -C /workspace/sw-sysemu/tests/erbium run RISCV=/opt/et/bin EMU=/opt/et/bin/erbium_emu"
+      - name: Run Erbium GDB tests
+        id: gdb
+        continue-on-error: true
+        run: |
+          docker run --rm et-platform:latest /bin/bash -c "make -C /workspace/sw-sysemu/tests/erbium run-gdb RISCV=/opt/et/bin EMU=/opt/et/bin/erbium_emu"
+      - name: Run ET-SOC1 debug tests
+        id: debug
+        continue-on-error: true
+        run: |
+          docker run --rm et-platform:latest /bin/bash -c "export PATH=/opt/et/bin:\$PATH && make -C /workspace/sw-sysemu/debug_tests && make -C /workspace/sw-sysemu/debug_tests run SYSEMU=/opt/et/bin/sys_emu"
       - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: ${{ runner.temp }}/out
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Report test results
+        if: always()
         run: |
           for file in ${{ runner.temp }}/out/*.log*; do
             echo "===== Test result: $file ====="
             cat "$file"
             echo "================================"
           done
+      - name: Check test results
+        if: always()
+        run: |
+          if [[ "${{ steps.integration.outcome }}" == "failure" || \
+                "${{ steps.erbium.outcome }}" == "failure" || \
+                "${{ steps.gdb.outcome }}" == "failure" || \
+                "${{ steps.debug.outcome }}" == "failure" ]]; then
+            echo "One or more test suites failed"
+            exit 1
+          fi

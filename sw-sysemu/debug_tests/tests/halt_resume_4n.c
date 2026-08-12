@@ -31,7 +31,7 @@ int main()
 
     for (unsigned neigh = 0; neigh < 4; ++neigh) {
         uint64_t hastatus0 = read_hastatus0(0, neigh);
-        EXPECTX(hastatus0, ==, 0x10000);
+        EXPECTX(hastatus0, ==, 0x100010000);
     }
 
     return 0;

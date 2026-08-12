@@ -24,6 +24,7 @@ int main()
     Read_All_GPR(0, gprs);
 
     Resume_Harts();
+    amoorgw(ADDR_flag, 2);
 
     EXPECTX(gprs[8], ==, 0x50);
     EXPECTX(gprs[9], ==, 0x51);
@@ -61,6 +62,9 @@ int main()
                  "li s10,0x5A\n"
                  "li s11,0x5B\n");
     amoorgw((uint64_t)&g_flag, 1);
+
+    while (amoorgw((uint64_t)&g_flag, 0) < 2)
+        ;
 
     return 0;
 }

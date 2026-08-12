@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "encoding.h"
+#include "esrs.h"
 
 #define MAX_RETRIES 5
 

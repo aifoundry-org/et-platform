@@ -12,6 +12,7 @@ ARG ET_INSTALL_DIR=/opt/et
 ARG ETARCH=rv64imfc
 ARG ETABI=lp64f
 ARG FORCE_REBUILD=false
+ARG GITHUB_TOKEN=""
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -27,7 +28,7 @@ RUN mkdir -p ${ET_INSTALL_DIR} && chmod 755 ${ET_INSTALL_DIR}
 
 # Download or build and install the RISC-V GNU Toolchain
 COPY ./docker/get_toolchain.sh /get_toolchain.sh
-RUN DEBUG=1 /get_toolchain.sh --force ${FORCE_REBUILD} --install-deps true --repo aifoundry-org/riscv-gnu-toolchain --install-dir ${ET_INSTALL_DIR} --base-distro ${BASE_DISTRO} --distro-version ${DISTRO_VERSION} --arch ${ETARCH} --abi ${ETABI}
+RUN DEBUG=1 /get_toolchain.sh --force ${FORCE_REBUILD} --install-deps true --repo aifoundry-org/riscv-gnu-toolchain --install-dir ${ET_INSTALL_DIR} --base-distro ${BASE_DISTRO} --distro-version ${DISTRO_VERSION} --arch ${ETARCH} --abi ${ETABI} --token ${GITHUB_TOKEN}
 
 FROM ${BASE_DISTRO}:${DISTRO_VERSION} AS etplatform_builder
 ARG ET_INSTALL_DIR=/opt/et

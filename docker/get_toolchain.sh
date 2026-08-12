@@ -22,6 +22,7 @@ help() {
 # or, if it cannot find the specific one, builds it from source.
 FORCE_REBUILD="false"
 INSTALL_DEPS="false"
+GITHUB_TOKEN=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force) FORCE_REBUILD="$2"; shift 2;;
@@ -32,6 +33,7 @@ while [[ $# -gt 0 ]]; do
         --arch) arch="$2"; shift 2 ;;
         --abi) abi="$2"; shift 2 ;;
         --install-deps) INSTALL_DEPS="$2"; shift 2 ;;
+        --token) GITHUB_TOKEN="$2"; shift 2 ;;
         --help) help; exit 1 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -68,7 +70,12 @@ else
 
     artifact_name="riscv64-elf-${base_distro}-${distro_version}-gcc-stripped.tar.xz"
 
-    downloadurl=$(curl -s https://api.github.com/repos/${repo}/releases/latest | jq -r '.assets[] | select(.name=="'"${artifact_name}"'") | .browser_download_url')
+    curl_auth=()
+    if [ -n "$GITHUB_TOKEN" ]; then
+        curl_auth=(-H "Authorization: token ${GITHUB_TOKEN}")
+    fi
+
+    downloadurl=$(curl -s "${curl_auth[@]}" https://api.github.com/repos/${repo}/releases/latest | jq -r '.assets[] | select(.name=="'"${artifact_name}"'") | .browser_download_url')
 
     if [ -n "$downloadurl" ]; then
         echo "Found existing release artifact at ${downloadurl}, downloading and extracting to ${install_dir}"

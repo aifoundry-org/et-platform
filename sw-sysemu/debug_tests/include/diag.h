@@ -9,4 +9,5 @@
 
 #ifdef SPIO
 #include "debug.h"
+#include "esrs.h"
 #endif

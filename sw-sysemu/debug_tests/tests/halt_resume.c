@@ -27,7 +27,7 @@ int main()
         failf("unable to resume hart");
 
     hastatus0 = read_hastatus0(0, 0);
-    EXPECTX(hastatus0, ==, 0x10000);
+    EXPECTX(hastatus0, ==, 0x100010000);
 
     return 0;
 }

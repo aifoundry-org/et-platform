@@ -1802,7 +1802,7 @@ void Hart::warm_reset()
     if (state != State::nonexistent) {
         state = State::unavailable;
         waits = Hart::Waiting::none;
-        links.unlink();
+        pending_unlink = true;
     }
 
     // Check if in program buffer
